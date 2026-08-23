@@ -117,6 +117,22 @@ Repo-specific, each one paid for at least once.
   uids 70/101/472/999/1000; dropping world-execute breaks Postgres, ClickHouse,
   Mongo, Grafana and signews-api at once. Encrypt what leaves the tree
   (`make backup`) instead of tightening the tree.
+- **Every guest `fsync` costs ~135KB of Mac SSD writes, whatever it commits.**
+  OrbStack honours a guest `fsync()` with a real durable barrier — macOS
+  `F_FULLFSYNC` — which forces an APFS journal commit. macOS' own `fsync()` does
+  not: it only pushes to the drive cache. Measured, 2000 x 4KB files
+  created+fsynced+deleted: 7MB natively, 7MB from the VM with no fsync, **271MB**
+  from the VM with fsync, **281MB** natively with `F_FULLFSYNC`. So the tax is
+  per-fsync, not per-byte and not virtiofs bandwidth — sequential writes run 1:1
+  — and moving data into the VM's own disk image makes it WORSE (598MB), because
+  the guest filesystem's journal adds its own barriers on top.
+
+  This is why the storage-side tuning in this tree is all about issuing fewer
+  fsyncs, never about writing fewer bytes: `inmemoryDataFlushInterval` on the
+  three Victoria stores, `--appendfsync no` on OpenPanel's Redis. A store that
+  writes 15MB/day can cost tens of GB/day of SSD if it fsyncs on a 5s timer.
+  Upstream tracks the symptom in orbstack/orbstack#1332, open and undiagnosed;
+  there is no OrbStack setting for it, so the workload is the only lever.
 
 ## Conventions that are not obvious from the tree
 
