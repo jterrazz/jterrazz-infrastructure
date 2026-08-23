@@ -225,6 +225,19 @@ config:
             key: app
             from: pod
 
+    # Auto-instrumented outbound HTTP that belongs to no trace. undici's
+    # instrumentation opens a ROOT span for every fetch made outside a request
+    # context, so a polling loop becomes one single-span trace per call — 99% of
+    # everything reaching VictoriaTraces, and unreadable by construction: a
+    # client span with no parent has nothing to be a trace OF. Structural, not a
+    # denylist, so the next polled endpoint is covered too. Client spans that DO
+    # sit under a parent (the LLM calls inside pipeline.run) are untouched.
+    filter/drop-orphan-client-spans:
+      error_mode: ignore
+      traces:
+        span:
+          - 'kind == SPAN_KIND_CLIENT and IsRootSpan()'
+
     # NOTE the inversion: the filter processor DROPS what its condition
     # matches, so this condition matches everything that is NOT a GenAI span.
     # error_mode: ignore keeps a span that errors evaluating the condition
@@ -303,7 +316,7 @@ config:
     pipelines:
       traces:
         receivers: [otlp]
-        processors: [batch]
+        processors: [filter/drop-orphan-client-spans, batch]
         exporters: [otlphttp/victoria-traces]
       # Fan-out, in addition to the traces->VictoriaTraces pipeline above.
       traces/langfuse:
