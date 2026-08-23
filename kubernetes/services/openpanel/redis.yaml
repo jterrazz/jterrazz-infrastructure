@@ -69,6 +69,14 @@ spec:
             - "redis-server"
             - "--appendonly"
             - "yes"
+            # `everysec` is the default: one fsync per second, forever. The AOF
+            # lives on /var/lib/k8s-data, i.e. the Mac's APFS over virtiofs,
+            # where an fsync costs far more than the bytes it commits — and this
+            # is a job queue, so it churns keys far faster than it stores them.
+            # `no` leaves the flush to the kernel: a normal pod restart still
+            # replays the AOF, only a host-level crash loses the tail.
+            - "--appendfsync"
+            - "no"
           ports:
             - containerPort: 6379
           volumeMounts:
