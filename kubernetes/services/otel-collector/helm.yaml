@@ -14,6 +14,19 @@ mode: deployment
 # 3, not the chart's 10 — see grafana/helm.yaml for the reasoning.
 revisionHistoryLimit: 3
 
+# RECREATE, not the chart's RollingUpdate. The filelog receiver keeps its read
+# checkpoints in the `file_storage` extension — a single bolt DB on a hostPath,
+# which exactly one process can hold open. A rolling update surges the new pod
+# while the old one still holds that lock, so the new pod dies on startup
+# (exit 2, right after "Starting stanza receiver") and the old one is never
+# drained because the new one never turns Ready: `helm --wait` then burns its
+# full timeout and the deploy FAILS, on a config change that was itself fine.
+# Recreate accepts a few seconds with no collector instead. Do not "restore"
+# RollingUpdate for zero-downtime: with replicaCount 1 and a shared lock there
+# is no zero-downtime path.
+rollout:
+  strategy: Recreate
+
 # No manual GOMEMLIMIT: this chart auto-injects it at 80% of
 # resources.limits.memory. The headroom is for the filelog receiver (a reader
 # plus a recombine buffer per tailed file) and the k8s_attributes informer cache
