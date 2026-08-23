@@ -21,6 +21,10 @@ server:
   # rejects ingestion of entries outside it.
   retentionPeriod: "90d"
 
+  # 60s against the 5s default — rationale in victoria-metrics/helm.yaml.
+  extraArgs:
+    inmemoryDataFlushInterval: 60s
+
   # The REQUEST is small on purpose: the caches are budgeted from
   # `-memory.allowedPercent` of the LIMIT, not of the request. Do not cut the
   # 512Mi limit — that is the number the cache budget tracks.

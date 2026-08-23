@@ -39,6 +39,15 @@ server:
   # 720h == 30d. The flag takes s/h/d/w/M/y suffixes; minimum retention is 1d.
   retentionPeriod: "720h"
 
+  # 300s, not the 60s the other two use — rationale in victoria-metrics/helm.yaml,
+  # and this store gets the longer interval because it can afford it: the boxed
+  # note above already accepts losing trace history outright, and a flush here
+  # writes a 32-74 file columnar part (one bloom/values pair per span attribute)
+  # holding a few KB. Parts are created per FLUSH, not per span, so the interval
+  # — not the ingest rate — is what sets the file churn.
+  extraArgs:
+    inmemoryDataFlushInterval: 300s
+
   # The REQUEST is small on purpose: the caches are budgeted from
   # `-memory.allowedPercent` of the LIMIT, not of the request.
   resources:
