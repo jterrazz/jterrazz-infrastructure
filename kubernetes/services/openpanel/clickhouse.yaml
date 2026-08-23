@@ -39,6 +39,13 @@ data:
         <session_log remove="remove"/>
         <part_log remove="remove"/>
 
+        <!-- Ours, not upstream's, and not about #324 — this one is about disk
+             writes. op-api's keep-alive SELECT 1 pings each emit several
+             processor rows; the table flushes every 7.5s onto the Mac's SSD and
+             had grown to ~370x the row count of the OpenPanel data it profiles.
+             A re-sync of this block from upstream must keep this line. -->
+        <processors_profile_log remove="remove"/>
+
         <!-- Caches sized for THIS dataset, not for ClickHouse's defaults.
              Upstream ships mark_cache 5GiB and uncompressed_cache 8GiB, i.e.
              ceilings 3-5x larger than this container's whole 1536Mi limit.
