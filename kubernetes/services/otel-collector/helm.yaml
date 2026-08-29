@@ -113,7 +113,7 @@ ports:
   zipkin:
     enabled: false
 
-# Consumed via ${env:LANGFUSE_BASIC_AUTH} in the otlphttp/langfuse exporter
+# Consumed via ${env:LANGFUSE_BASIC_AUTH} in the otlp_http/langfuse exporter
 # below; the Secret is synced by secret.yaml in this directory.
 extraEnvs:
   - name: LANGFUSE_BASIC_AUTH
@@ -192,11 +192,13 @@ config:
     # container operator already puts namespace/pod/container/uid on the
     # resource from the file path; this adds what only the API server knows —
     # the node, the owning Deployment, and the `app` pod label.
-    # `k8s_attributes`, NOT `k8sattributes` — the only deprecated component name
-    # in this file, and the chart's auto-rewrite of it will be removed upstream.
-    # Do NOT "fix" the others by analogy: `otlphttp`, `prometheusremotewrite` and
-    # `filelog` are canonical, and an `otlp_http` / `file_log` spelling fails
-    # config load outright. Needs Collector >= 0.146.0 (chart 0.165.0 ships 0.156.0).
+    # `k8s_attributes` and `otlp_http` are the canonical spellings (the
+    # collector logs a deprecation warning at startup for `k8sattributes` /
+    # `otlphttp`, and the chart's auto-rewrite of the former goes away
+    # upstream). Do NOT rename the others by analogy: `prometheusremotewrite`
+    # and `filelog` are canonical, and a `prometheus_remote_write` / `file_log`
+    # spelling fails config load outright. Needs Collector >= 0.146.0 (chart
+    # 0.165.0 ships 0.156.0).
     k8s_attributes:
       # Deployment mode, so no node filter: this collector watches every pod in
       # the cluster. A daemonset would add filter.node_from_env_var.
@@ -242,9 +244,12 @@ config:
     # Langfuse ingests is a billable unit (Hobby: 50k/month), and the app's
     # AI SDK telemetry emits three per call — `invoke_agent` (root),
     # `agent_step`, `chat` — across prod, next and staging, i.e. 9x what a
-    # single generation record costs. `invoke_agent` is the keeper: it is the
-    # only one carrying gen_ai.agent.name (the app's functionId) and it has
-    # the same gen_ai.input/output.messages and gen_ai.usage.* as `chat`.
+    # single generation record costs. `chat` is the keeper, and it is NOT
+    # interchangeable with `invoke_agent`: Langfuse reads model, token usage
+    # and cost from the inference span only (an `invoke_agent` observation
+    # lands as type AGENT with no model and zero tokens — verified through
+    # its API). The agent's name reaches `chat` via @jterrazz/intelligence's
+    # agent middleware, which renames that span.
     # NOTE the inversion: the filter processor DROPS what a condition matches.
     # error_mode: ignore keeps a span that errors evaluating a condition (e.g.
     # missing attribute) flowing rather than crashing the pipeline; the `== nil`
@@ -254,10 +259,10 @@ config:
       traces:
         span:
           - 'resource.attributes["deployment.environment"] != "prod"'
-          - 'attributes["gen_ai.operation.name"] == nil or attributes["gen_ai.operation.name"] != "invoke_agent"'
+          - 'attributes["gen_ai.operation.name"] == nil or attributes["gen_ai.operation.name"] != "chat"'
 
   exporters:
-    otlphttp/victoria-traces:
+    otlp_http/victoria-traces:
       # `traces_endpoint`, not `endpoint`: VictoriaTraces' ingest path is
       # /insert/opentelemetry/v1/traces, and `endpoint` would append the
       # standard /v1/traces to whatever is given.
@@ -265,7 +270,7 @@ config:
       traces_endpoint: http://victoria-traces.platform-telemetry.svc:10428/insert/opentelemetry/v1/traces
       tls:
         insecure: true
-    otlphttp/victoria-logs:
+    otlp_http/victoria-logs:
       # Structured OTLP logs from instrumented apps. Same reasoning as above:
       # the path is /insert/opentelemetry/v1/logs, so it goes in logs_endpoint.
       # https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/
@@ -276,7 +281,7 @@ config:
       logs_endpoint: http://victoria-logs.platform-telemetry.svc:9428/insert/opentelemetry/v1/logs
       tls:
         insecure: true
-    otlphttp/victoria-logs-pods:
+    otlp_http/victoria-logs-pods:
       # Same destination, different stream-field policy — which is the ONLY
       # reason this is a second exporter rather than a reuse of the one above.
       logs_endpoint: http://victoria-logs.platform-telemetry.svc:9428/insert/opentelemetry/v1/logs
@@ -305,8 +310,8 @@ config:
       # because app metric resources here carry only those two attributes.
       resource_to_telemetry_conversion:
         enabled: true
-    otlphttp/langfuse:
-      # Must stay an otlphttp exporter: Langfuse's OTLP endpoint accepts
+    otlp_http/langfuse:
+      # Must stay an HTTP exporter: Langfuse's OTLP endpoint accepts
       # OTLP/HTTP only, never gRPC (4317).
       endpoint: https://cloud.langfuse.com/api/public/otel
       headers:
@@ -325,16 +330,16 @@ config:
       traces:
         receivers: [otlp]
         processors: [filter/drop-orphan-client-spans, batch]
-        exporters: [otlphttp/victoria-traces]
+        exporters: [otlp_http/victoria-traces]
       # Fan-out, in addition to the traces->VictoriaTraces pipeline above.
       traces/langfuse:
         receivers: [otlp]
         processors: [filter/genai, batch]
-        exporters: [otlphttp/langfuse]
+        exporters: [otlp_http/langfuse]
       logs:
         receivers: [otlp]
         processors: [batch]
-        exporters: [otlphttp/victoria-logs]
+        exporters: [otlp_http/victoria-logs]
       # Pod stdout/stderr. A SEPARATE pipeline, not extra receivers on `logs`
       # above: k8s_attributes is meaningless for app OTLP logs (its
       # pod_association keys on a uid only the filelog path carries) and the
@@ -342,7 +347,7 @@ config:
       logs/pods:
         receivers: [filelog]
         processors: [k8s_attributes, batch]
-        exporters: [otlphttp/victoria-logs-pods]
+        exporters: [otlp_http/victoria-logs-pods]
       metrics:
         receivers: [otlp]
         processors: [batch]
