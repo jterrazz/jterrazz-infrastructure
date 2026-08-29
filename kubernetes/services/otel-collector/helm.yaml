@@ -238,15 +238,23 @@ config:
         span:
           - 'kind == SPAN_KIND_CLIENT and IsRootSpan()'
 
-    # NOTE the inversion: the filter processor DROPS what its condition
-    # matches, so this condition matches everything that is NOT a GenAI span.
-    # error_mode: ignore keeps a span that errors evaluating the condition
-    # (e.g. missing attribute) flowing rather than crashing the pipeline.
+    # What Langfuse gets: ONE span per LLM call, from prod only. Each span
+    # Langfuse ingests is a billable unit (Hobby: 50k/month), and the app's
+    # AI SDK telemetry emits three per call — `invoke_agent` (root),
+    # `agent_step`, `chat` — across prod, next and staging, i.e. 9x what a
+    # single generation record costs. `invoke_agent` is the keeper: it is the
+    # only one carrying gen_ai.agent.name (the app's functionId) and it has
+    # the same gen_ai.input/output.messages and gen_ai.usage.* as `chat`.
+    # NOTE the inversion: the filter processor DROPS what a condition matches.
+    # error_mode: ignore keeps a span that errors evaluating a condition (e.g.
+    # missing attribute) flowing rather than crashing the pipeline; the `== nil`
+    # guard is there so a span with no gen_ai attribute is dropped, not kept.
     filter/genai:
       error_mode: ignore
       traces:
         span:
-          - 'not (IsMatch(name, "^ai\\..*") or attributes["gen_ai.operation.name"] != nil)'
+          - 'resource.attributes["deployment.environment"] != "prod"'
+          - 'attributes["gen_ai.operation.name"] == nil or attributes["gen_ai.operation.name"] != "invoke_agent"'
 
   exporters:
     otlphttp/victoria-traces:

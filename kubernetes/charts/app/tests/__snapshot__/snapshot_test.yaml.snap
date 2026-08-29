@@ -97,7 +97,7 @@ matches the recorded render of the CI fixture:
                 - name: OTEL_SERVICE_NAME
                   value: ci-test-app
                 - name: OTEL_RESOURCE_ATTRIBUTES
-                  value: deployment.environment=prod
+                  value: deployment.environment=prod,deployment.environment.name=prod
                 - name: GATEWAY_INTELLIGENCE_BASE_URL
                   value: http://gateway-intelligence.prod-gateway-intelligence.svc.cluster.local/v1
                 - name: OTEL_EXPORTER_OTLP_ENDPOINT

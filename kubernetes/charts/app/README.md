@@ -214,7 +214,7 @@ does — `secretsEnv: prod`).
 Plain map of literal env vars, merged base + environment. Always quoted on
 render, so numbers and booleans arrive as strings. Also auto-injected unless
 the app sets them itself: `PORT`, `OTEL_SERVICE_NAME` (= app name),
-`OTEL_RESOURCE_ATTRIBUTES` (`deployment.environment=<env>`).
+`OTEL_RESOURCE_ATTRIBUTES` (`deployment.environment=<env>,deployment.environment.name=<env>`).
 
 ### `spec.storage`
 

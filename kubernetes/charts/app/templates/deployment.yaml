@@ -100,9 +100,14 @@ spec:
             - name: OTEL_SERVICE_NAME
               value: {{ include "app.name" . }}
             {{- end }}
+            {{- /* Both spellings: `deployment.environment` is what the
+                   collector's Langfuse filter, the remote-write label
+                   (deployment_environment) and @jterrazz/telemetry read;
+                   `deployment.environment.name` is the current semconv,
+                   which Langfuse maps to its Environment field. */}}
             {{- if not (hasKey $envVars "OTEL_RESOURCE_ATTRIBUTES") }}
             - name: OTEL_RESOURCE_ATTRIBUTES
-              value: "deployment.environment={{ .Values.environment }}"
+              value: "deployment.environment={{ .Values.environment }},deployment.environment.name={{ .Values.environment }}"
             {{- end }}
             {{- /* Opt-in platform-service env (spec.platformServices → the
                    catalog in _helpers.tpl). An app must declare
