@@ -1,0 +1,129 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": [
+    "Boring, weekly-only Renovate config for this repo.",
+    "Watches: npm deps under pulumi/ (minor+patch grouped, majors separate), GitHub Actions versions in .github/workflows/, and the platform_chart_versions Helm pins in ansible/inventories/group_vars/all.yml.",
+    "Automerge is disabled everywhere — every update lands as a PR for manual review."
+  ],
+  "extends": ["config:recommended", "schedule:weekly"],
+  "automerge": false,
+  "packageRules": [
+    {
+      "matchFileNames": ["pulumi/**"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "pulumi npm dependencies (minor/patch)"
+    },
+    {
+      "matchFileNames": ["pulumi/**"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "pulumi npm dependencies (major)"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchFileNames": [".github/workflows/**"],
+      "groupName": "github actions"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "cert-manager chart pin, jetstack repo",
+      "managerFilePatterns": ["ansible/inventories/group_vars/all.yml"],
+      "matchStrings": ["cert_manager:\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "cert-manager",
+      "packageNameTemplate": "cert-manager",
+      "datasourceTemplate": "helm",
+      "registryUrlTemplate": "https://charts.jetstack.io"
+    },
+    {
+      "customType": "regex",
+      "description": "Infisical secrets-operator chart pin, infisical repo",
+      "managerFilePatterns": ["ansible/inventories/group_vars/all.yml"],
+      "matchStrings": ["infisical:\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "secrets-operator",
+      "packageNameTemplate": "secrets-operator",
+      "datasourceTemplate": "helm",
+      "registryUrlTemplate": "https://dl.cloudsmith.io/public/infisical/helm-charts/helm/charts/"
+    },
+    {
+      "customType": "regex",
+      "description": "VictoriaMetrics chart pin, vm repo",
+      "managerFilePatterns": ["ansible/inventories/group_vars/all.yml"],
+      "matchStrings": ["victoria_metrics:\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "victoria-metrics-single",
+      "packageNameTemplate": "victoria-metrics-single",
+      "datasourceTemplate": "helm",
+      "registryUrlTemplate": "https://victoriametrics.github.io/helm-charts/"
+    },
+    {
+      "customType": "regex",
+      "description": "VictoriaLogs chart pin, vm repo",
+      "managerFilePatterns": ["ansible/inventories/group_vars/all.yml"],
+      "matchStrings": ["victoria_logs:\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "victoria-logs-single",
+      "packageNameTemplate": "victoria-logs-single",
+      "datasourceTemplate": "helm",
+      "registryUrlTemplate": "https://victoriametrics.github.io/helm-charts/"
+    },
+    {
+      "customType": "regex",
+      "description": "VictoriaTraces chart pin, vm repo — pre-1.0 on purpose, see group_vars/all.yml",
+      "managerFilePatterns": ["ansible/inventories/group_vars/all.yml"],
+      "matchStrings": ["victoria_traces:\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "victoria-traces-single",
+      "packageNameTemplate": "victoria-traces-single",
+      "datasourceTemplate": "helm",
+      "registryUrlTemplate": "https://victoriametrics.github.io/helm-charts/"
+    },
+    {
+      "customType": "regex",
+      "description": "kube-state-metrics chart pin, prometheus-community repo",
+      "managerFilePatterns": ["ansible/inventories/group_vars/all.yml"],
+      "matchStrings": ["kube_state_metrics:\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "kube-state-metrics",
+      "packageNameTemplate": "kube-state-metrics",
+      "datasourceTemplate": "helm",
+      "registryUrlTemplate": "https://prometheus-community.github.io/helm-charts"
+    },
+    {
+      "customType": "regex",
+      "description": "prometheus-node-exporter chart pin (release name node-exporter), prometheus-community repo",
+      "managerFilePatterns": ["ansible/inventories/group_vars/all.yml"],
+      "matchStrings": ["node_exporter:\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "prometheus-node-exporter",
+      "packageNameTemplate": "prometheus-node-exporter",
+      "datasourceTemplate": "helm",
+      "registryUrlTemplate": "https://prometheus-community.github.io/helm-charts"
+    },
+    {
+      "customType": "regex",
+      "description": "opentelemetry-collector chart pin, open-telemetry repo",
+      "managerFilePatterns": ["ansible/inventories/group_vars/all.yml"],
+      "matchStrings": ["otel_collector:\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "opentelemetry-collector",
+      "packageNameTemplate": "opentelemetry-collector",
+      "datasourceTemplate": "helm",
+      "registryUrlTemplate": "https://open-telemetry.github.io/opentelemetry-helm-charts"
+    },
+    {
+      "customType": "regex",
+      "description": "Grafana chart pin, grafana-community repo",
+      "managerFilePatterns": ["ansible/inventories/group_vars/all.yml"],
+      "matchStrings": ["grafana:\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "grafana",
+      "packageNameTemplate": "grafana",
+      "datasourceTemplate": "helm",
+      "registryUrlTemplate": "https://grafana-community.github.io/helm-charts"
+    },
+    {
+      "customType": "regex",
+      "description": "LibreChat chart pin, OCI ghcr.io — bump together with the image tag in librechat/helm.yaml",
+      "managerFilePatterns": ["ansible/inventories/group_vars/all.yml"],
+      "matchStrings": ["librechat:\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "librechat",
+      "packageNameTemplate": "ghcr.io/danny-avila/librechat-chart/librechat",
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "semver"
+    }
+  ]
+}

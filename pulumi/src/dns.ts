@@ -9,26 +9,13 @@ import * as cloudflare from "@pulumi/cloudflare";
  * Auth is `CLOUDFLARE_API_TOKEN` (env) or `cloudflare:apiToken` config;
  * DNS:Edit on the managed zones suffices.
  *
- * PROVIDER v5 -> v6. `cloudflare.Record` became `cloudflare.DnsRecord` (type
- * token `cloudflare:index/record:Record` -> `cloudflare:index/dnsRecord:
- * DnsRecord`) when provider 6 picked up the Cloudflare Terraform provider's
- * ground-up, OpenAPI-generated rewrite. Notes for the next person:
+ * NO `aliases:` are written on the `DnsRecord` resources below. The provider
+ * SDK injects one itself, so keeping the Pulumi resource NAMES unchanged
+ * (`private-grafana`, ...) is all that is needed for the URNs to carry over —
+ * adding our own would be a redundant duplicate.
  *
- *  - NO `aliases:` are written here on purpose. The v6 SDK injects
- *    `aliases: [{ type: "cloudflare:index/record:Record" }]` into every
- *    DnsRecord constructor itself, so keeping the Pulumi resource NAMES
- *    unchanged (`private-grafana`, ...) is all that is needed for the URNs to
- *    carry over. Adding our own would be a redundant duplicate.
- *  - `content` is unchanged; it is the v5 `value` field that was removed, and
- *    this file already used `content`.
- *  - `ttl` is now REQUIRED (it was optional in v5). Every record here already
- *    passes `ttl: 1`.
- *  - `name` may still be the SHORT name — the provider stores the zone name in
- *    private state and suppresses the FQDN diff.
- *
- * Expect the first `pulumi preview` after the bump to show `~ update` on
- * computed metadata only (settings/meta/createdOn/modifiedOn/proxiable) and
- * ZERO creates, deletes or replaces.
+ * `name` may be the SHORT name — the provider stores the zone name in private
+ * state and suppresses the FQDN diff.
  */
 
 // Hardcoded rather than looked up, to save an API round-trip on every

@@ -17,9 +17,3 @@ import { createPrivateDnsRecords } from "./dns";
 const machine = createMachine();
 
 createPrivateDnsRecords(machine.tailscaleHostname);
-
-/**
- * The cluster's identity in the tailnet — the name every private CNAME
- * resolves to and the host `ssh root@<name>@orb` reaches.
- */
-export const tailscaleHostname = machine.tailscaleHostname;
