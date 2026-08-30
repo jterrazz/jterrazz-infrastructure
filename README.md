@@ -8,12 +8,16 @@ target: the Hetzner VPS this repo used to also support was removed. The
 resurrection recipe is [docs/hetzner.md](docs/hetzner.md); the implementation
 is intact in git history.
 
-**Three layers, three tools.** Pulumi provisions (the VM, plus the Cloudflare
-DNS records that point at it), Ansible configures (host hardening, Tailscale,
-k3s, then the release layer), Helmfile deploys. Every platform release —
-name, namespace, chart, pinned version, values file — is declared once, in
-`kubernetes/helmfile.yaml.gotmpl`. There is no GitOps controller: a deploy is
-`helmfile apply`, run on the node from CI or from the laptop.
+**Two tools, one script.** `scripts/deploy.sh` creates the VM (one `orbctl
+create`, skipped when it already exists), Ansible configures it (host
+hardening, Tailscale, k3s, then the release layer) and Helmfile deploys onto
+it. Every platform release — name, namespace, chart, pinned version, values
+file — is declared once, in `kubernetes/helmfile.yaml.gotmpl`. There is no
+GitOps controller: a deploy is `helmfile apply`, run on the node from CI or
+from the laptop. The two Cloudflare DNS records that point at the machine are
+made by hand, once, and written down in
+[docs/RUNBOOK.md](docs/RUNBOOK.md#dns-records-set-once-survive-everything) —
+they never change, because the VM keeps its hostname across every repave.
 
 **Two ways in, neither an open port.** Public traffic arrives through an
 outbound QUIC tunnel: Cloudflare edge → `cloudflared` pod → Traefik → app.
@@ -31,7 +35,7 @@ not know an app exists until its Certificate shows up.
 **Data outlives the cluster.** Every `manual` PV is a hostPath under
 `/var/lib/k8s-data`, which on this target is a symlink to
 `~/.jterrazz-infrastructure/data` on the Mac (through OrbStack's `/mnt/mac`
-auto-share). `pulumi destroy && pulumi up` repaves the VM; the data stays.
+auto-share). `make destroy && make deploy` repaves the VM; the data stays.
 
 **k3s runs on SQLite, not etcd.** No `cluster-init`: embedded etcd keeps the
 whole keyspace in RAM and runs its own compaction and snapshotting — roughly
@@ -42,13 +46,13 @@ Mac anyway. Re-add `cluster-init: true` the day a second node exists.
 ## Quick start
 
 ```bash
-make deploy           # pulumi up + ansible site.yml — the whole machine
+make deploy           # create the VM if absent + ansible site.yml — the whole machine
 make deploy-platform  # ansible platform.yml only — everything above k3s
 make diff             # what a deploy would change, without changing it (helmfile diff)
 make redeploy-apps    # trigger every app's CI to rebuild + redeploy
 make destroy          # delete the VM (the Mac-side data directory stays)
 make check            # the checks CI runs, locally (alias: make lint)
-make check-tools      # ansible / pulumi / node / kubectl / orbctl / helm / shellcheck / ansible-lint / python3 present?
+make check-tools      # ansible / kubectl / orbctl / helm / helmfile / shellcheck / ansible-lint / python3 present?
 make kubeconfig       # regenerate ./kubeconfig.yaml from the VM (needs the tailnet)
 ```
 
@@ -129,10 +133,10 @@ kubernetes/
                       manifests left are cloudflared's Deployment and
                       cert-manager's ClusterIssuers.
 
-pulumi/src/   index.ts (one machine) · targets/orbstack.ts · dns.ts
-scripts/      deploy.sh · backup.sh · infisical-vars.py · helmfile.sh
-              smoke.sh · assert-sync.py · trigger-app-deploys.sh ·
-              publish-app-chart.sh · lib/common.sh · lib/helm-plugin.sh
+scripts/      deploy.sh (creates the VM, then runs Ansible) · backup.sh ·
+              infisical-vars.py · helmfile.sh · smoke.sh · assert-sync.py ·
+              trigger-app-deploys.sh · publish-app-chart.sh · lib/common.sh ·
+              lib/helm-plugin.sh
               (smoke.sh and trigger-app-deploys.sh DISCOVER their targets from
               the cluster — the charts stamp the expectations as annotations)
 ```
@@ -141,7 +145,7 @@ scripts/      deploy.sh · backup.sh · infisical-vars.py · helmfile.sh
 
 | Workflow               | Trigger                                                                                          | Does                                                                                                                                                                                             |
 | ---------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `validate.yaml`        | PR to main **and** push to main                                                                    | `tsc --noEmit` on `pulumi/`; shellcheck + python syntax on `scripts/`; `ansible-lint -c ansible/.ansible-lint` + `--syntax-check` on both playbooks; kubeconform over `kubernetes/cluster` and every raw manifest under `kubernetes/services`; both charts rendered against their `ci/test-values.yaml`; `helmfile template` over every declared release. Plus gitleaks, helm-unittest, and assertions on the hand-synced pairs. |
+| `validate.yaml`        | PR to main **and** push to main                                                                    | shellcheck + python syntax on `scripts/`; `ansible-lint -c ansible/.ansible-lint` + `--syntax-check` on both playbooks; kubeconform over `kubernetes/cluster` and every raw manifest under `kubernetes/services`; both charts rendered against their `ci/test-values.yaml`; `helmfile template` over every declared release. Plus gitleaks, helm-unittest, and assertions on the hand-synced pairs. |
 | `deploy-platform.yaml` | push to main touching `ansible/**`, `kubernetes/{services,cluster,charts}/**`; or manual   | Runs `platform.yml` only, over Tailscale, from a runner joined as `tag:ci`. Never the host layer — those roles restart sshd/tailscaled and would kill the runner's own session.                    |
 | `publish-chart.yaml`   | push to main touching `kubernetes/charts/app/**` or `scripts/publish-app-chart.sh`; or manual                                        | Packages and pushes the app chart. Refuses to overwrite a published version (it is consumed unversioned); a no-op when the version already exists.                                                 |
 | `smoke.yaml`           | after `deploy-platform.yaml` completes; weekly schedule; or manual                                  | Runs `scripts/smoke.sh --public --private --certs` against the live cluster — the only workflow that checks the deployed state rather than the tree. It lists every IngressRoute (kubectl on the node, over the deploy SSH key) and probes what each one's `smoke.jterrazz.com/*` annotations say, so a surface an app added yesterday is checked with no edit here. |

@@ -4,7 +4,7 @@ node-ip: {{ k3s_node_ip }}
 
 # NO `cluster-init`: it forces embedded etcd, which holds the keyspace in RAM
 # and runs its own compaction/snapshotting for ~150-300Mi more RSS and zero
-# benefit on one node (the cluster is reproducible from Pulumi+Ansible and app
+# benefit on one node (the cluster is reproducible from deploy.sh+Ansible and app
 # data is hostPath). Re-add it only when going multi-node HA.
 token: {{ k3s_cluster_token }}
 

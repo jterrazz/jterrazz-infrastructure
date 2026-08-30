@@ -6,8 +6,8 @@ description: Infrastructure and deployment for jterrazz projects — k3s, Helm, 
 # @jterrazz Infrastructure
 
 One k3s cluster on one machine: an OrbStack VM (`jterrazz-infrastructure`,
-Debian 13 trixie, arm64) on the dev Mac. Pulumi provisions it, Ansible
-configures it, Helmfile deploys onto it — every platform release declared
+Debian 13 trixie, arm64) on the dev Mac. `scripts/deploy.sh` creates it,
+Ansible configures it, Helmfile deploys onto it — every platform release declared
 once in `kubernetes/helmfile.yaml.gotmpl`. Public traffic enters through a Cloudflare
 tunnel; private services are tailnet-only. Apps live in their own repos and
 deploy themselves through the shared `app` chart published here. Hetzner is a
@@ -28,7 +28,7 @@ recipe in `docs/hetzner.md`, not a live mode.
 ## Commands
 
 ```bash
-make deploy           # pulumi up + ansible site.yml
+make deploy           # create the VM if absent + ansible site.yml
 make deploy-platform  # ansible platform.yml only (everything above k3s)
 make diff             # what a deploy would change
 make redeploy-apps    # trigger every app's CI to rebuild + redeploy
@@ -55,8 +55,8 @@ cd ansible && ansible-playbook playbooks/platform.yml \
 
 ## Never
 
-- **Never unpin trixie** in `pulumi/src/targets/orbstack.ts` — `orb create
-  debian` defaults to bookworm, and every Ansible role is Debian-13-native.
+- **Never unpin trixie** in `scripts/deploy.sh` — `orb create debian` defaults
+  to bookworm, and every Ansible role is Debian-13-native.
 - **Never chain the two ipAllowList middlewares** (`private-access`,
   `cluster-internal-access`). Traefik ANDs them, so chaining allows strictly
   less, not more. Pick one per route.

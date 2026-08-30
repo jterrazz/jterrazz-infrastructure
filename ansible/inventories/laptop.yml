@@ -1,7 +1,6 @@
 ---
 # Laptop inventory — the OrbStack VM through the OrbStack SSH proxy. Invoked by
-# scripts/deploy.sh. The host key must match MACHINE_NAME in
-# pulumi/src/targets/orbstack.ts.
+# scripts/deploy.sh. The host key must match VM_NAME in scripts/deploy.sh.
 #
 # The group is `cluster` in EVERY inventory (laptop / ci) so group_vars and any
 # `hosts:` selector stay portable. Not `production` — that collided with the

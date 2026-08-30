@@ -20,7 +20,7 @@ smoke:
 storage:
   # Load-bearing on OrbStack: without an explicit `manual` hostPath volume the
   # PVC binds to local-path under /var/lib/rancher/k3s/storage/, which a
-  # `pulumi destroy && pulumi up` wipes — every registry blob with it.
+  # `make destroy && make deploy` wipes — every registry blob with it.
   data:
     size: 10Gi
 

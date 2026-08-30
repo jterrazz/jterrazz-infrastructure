@@ -98,7 +98,7 @@ declared in `service.yaml` — `uploads` used to be a hand-written
 | `librechat-uploads` | 5Gi  | `librechat/uploads`            | user uploads + generated images          |
 
 Both are `manual` hostPath PVs with `Retain` — **not** the default
-`local-path` SC, which is wiped on a `pulumi destroy` repave.
+`local-path` SC, which is wiped on a `make destroy` repave.
 `/var/lib/k8s-data` is a symlink to the Mac on OrbStack, so the data survives
 pod restarts, `helm uninstall`, and VM destruction alike.
 

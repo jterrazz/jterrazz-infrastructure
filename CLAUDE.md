@@ -8,8 +8,10 @@ the `application.yaml` schema in
 ## Active state
 
 One cluster: k3s on an OrbStack VM (`jterrazz-infrastructure`, Debian 13
-trixie, arm64) on the dev Mac. Pulumi stack `jterrazz/local`, Ansible inventory
-`inventories/laptop.yml`. Hetzner is a recipe in `docs/hetzner.md` and git
+trixie, arm64) on the dev Mac. The VM is created by `scripts/deploy.sh`
+(`vm_up`, one `orbctl create`); Ansible inventory `inventories/laptop.yml`.
+There is no provisioning state anywhere — the VM's existence *is* the state,
+probed with `orbctl info`. Hetzner is a recipe in `docs/hetzner.md` and git
 history, **not** a live mode — do not reintroduce a `target` / `manageDns` /
 `deployment_target` branch anywhere.
 
@@ -67,9 +69,8 @@ standing between you and the drift is this table.
 Repo-specific, each one paid for at least once.
 
 - **`orb create debian` gives you bookworm.** Debian is the one distro where
-  OrbStack's bare image name resolves to the *previous* stable, so
-  `pulumi/src/targets/orbstack.ts` pins `version: "trixie"` explicitly. Never
-  drop it — every Ansible role is Debian-13-native (deb822 repositories,
+  OrbStack's bare image name resolves to the *previous* stable, so `vm_up` in
+  `scripts/deploy.sh` spells out `debian:trixie`. Never drop the tag — every Ansible role is Debian-13-native (deb822 repositories,
   socket-activated sshd, systemd-resolved as a separate package).
 - **`orbctl create -u root` is broken** since OrbStack 2.2.0 (its setup runs
   `usermod --uid 501 root`, which fails against PID 1). The VM is created with
@@ -218,15 +219,21 @@ Repo-specific, each one paid for at least once.
   chart, not that it is uninteresting), and a repave leaves nothing to
   discover — hence `--dry-run > file` before, `--from file` after, in the
   RUNBOOK's repave sequence.
-- **DNS has exactly three owners, and only one of them is this repo.**
+- **DNS has exactly three owners, and NONE of them is this repo's code.**
   *Private* = `<svc>.internal.jterrazz.com`, covered by the single `*.internal`
-  wildcard in `pulumi/src/dns.ts` — adding one needs **no DNS change at all**,
-  only a line in `private_hostnames` (group_vars) so in-cluster lookups skip the
-  public CNAME chain. *Public* = the Cloudflare Zero Trust tunnel owns the
-  record; add a Public Hostname in its UI, nothing lands in this repo. *The
-  machine* = the wildcard itself, which is the one DNS fact Pulumi legitimately
-  owns. Never add a per-service record to `dns.ts`; that is what made the
-  hostname list live in two files with a CI assertion holding them together.
+  wildcard CNAME — adding one needs **no DNS change at all**, only a line in
+  `private_hostnames` (group_vars) so in-cluster lookups skip the public CNAME
+  chain. *Public* = the Cloudflare Zero Trust tunnel owns the record; add a
+  Public Hostname in its UI, nothing lands in this repo. *The machine* = two
+  records made BY HAND in the Cloudflare dashboard and written down in
+  `docs/RUNBOOK.md` (§ DNS records): the `*.internal` wildcard, and
+  `analytics` — which is the exception to "the tunnel owns every public
+  record", because its *route* is a Public Hostname but its *record* is
+  manual, so deleting it falls back to nothing. Both are set once and survive
+  every repave (the VM keeps its hostname, the tunnel keeps its id); nothing a
+  deploy runs ever touches them. Never grow that pair into a per-service list —
+  that is what made the hostname list live in two files with a CI assertion
+  holding them together.
 - **New public zone** = add it to both ClusterIssuers in
   `kubernetes/services/cert-manager/issuers.yaml`, add a Public Hostname in the
   Cloudflare Zero Trust tunnel UI (which auto-creates the CNAME), and set the
@@ -238,8 +245,8 @@ Repo-specific, each one paid for at least once.
 - **`deploy-platform.yaml` never runs the host layer.** The base/security/
   resolved/tailscale/k3s roles restart sshd or tailscaled and would kill the
   runner's own SSH session. Anything below the platform layer is `make deploy`
-  from the laptop. Pulumi is out of scope for CI entirely — it drives `orbctl`
-  on the Mac.
+  from the laptop — creating the VM most of all, since that is `orbctl` on the
+  Mac, which no runner has.
 
 ## Config discipline
 

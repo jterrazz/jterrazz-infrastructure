@@ -4,9 +4,9 @@ name: Deploy Platform
 # platform-layer changes (cert-manager, otel-collector, librechat, ...) and
 # any manifests under kubernetes/services or kubernetes/cluster.
 #
-# Pulumi is deliberately NOT in scope here — `pulumi up` drives orbctl on the
-# dev Mac, which a GHA runner cannot satisfy. Provisioning stays on the laptop
-# via `make deploy`; this workflow only handles incremental updates.
+# Creating the VM is deliberately NOT in scope here — it is `orbctl` on the dev
+# Mac, which a GHA runner cannot satisfy. Provisioning stays on the laptop via
+# `make deploy`; this workflow only handles incremental updates.
 #
 # Auth: the deploy keypair lives split — public half in
 # ansible/roles/security/defaults/main.yml (security_ci_deploy_pubkey)

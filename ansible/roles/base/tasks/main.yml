@@ -122,11 +122,11 @@
 # DO NOT CHANGE THESE PATHS. /var/lib/k8s-data is baked into every PV manifest
 # under kubernetes/ and holds live data. It is a symlink into OrbStack's
 # auto file-share of the Mac home, which is what makes the data survive a
-# `pulumi destroy` of the VM while the PV path itself stays stable.
+# `make destroy` of the VM while the PV path itself stays stable.
 - name: Resolve Mac bind dir
   ansible.builtin.set_fact:
-    # Created by the Pulumi provider's bindMounts before the VM starts (see
-    # createMachine in pulumi/src/targets/orbstack.ts), so it always exists.
+    # Created on the Mac by scripts/deploy.sh (vm_up) before the VM is ever
+    # created, so it always exists.
     storage_orbstack_data_dir: "/mnt/mac/Users/{{ lookup('env', 'USER') }}/.jterrazz-infrastructure/data"
   tags: [base, storage]
 

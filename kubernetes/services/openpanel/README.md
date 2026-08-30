@@ -84,7 +84,7 @@ but DNS.
 All three datastores use manual **hostPath PVs (`Retain`)** under
 `/var/lib/k8s-data` → on OrbStack that's a symlink to
 `/mnt/mac/Users/jterrazz.agent/.jterrazz-infrastructure/data` (the Mac), so data
-survives pod restarts, `kubectl delete`, helm/redeploys and `pulumi destroy`.
+survives pod restarts, `kubectl delete`, helm/redeploys and `make destroy`.
 
 | PVC / PV               | Size  | Path (`/var/lib/k8s-data/...`) |
 |------------------------|-------|--------------------------------|

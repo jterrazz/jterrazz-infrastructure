@@ -60,8 +60,9 @@ For each:
 - Additional application settings → TLS → **No TLS Verify: ON**
 
 Adding the rule auto-creates the CNAME. Exception: `analytics.jterrazz.com`
-(OpenPanel ingest) has its CNAME managed by Pulumi (`dns.ts`), so there only
-the routing rule is added in the dashboard.
+(OpenPanel ingest) already has a hand-made CNAME (see "DNS records" in
+[docs/RUNBOOK.md](../../../docs/RUNBOOK.md)), so there only the routing rule is
+added in the dashboard.
 
 ## Deploy
 

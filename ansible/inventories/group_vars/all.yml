@@ -64,9 +64,9 @@ k3s_node_ip: "{{ ansible_default_ipv4.address }}"
 # roles/platform/tasks/coredns.yml via templates/coredns-custom.yaml.j2.
 #
 # NOT paired with anything on the public-DNS side: every name here is
-# `<svc>.internal.jterrazz.com`, covered by the single `*.internal` wildcard in
-# pulumi/src/dns.ts. Adding a private service means adding ONE line here and
-# nothing else, anywhere.
+# `<svc>.internal.jterrazz.com`, covered by the single `*.internal` wildcard
+# CNAME — a hand-made record, documented in docs/RUNBOOK.md. Adding a private
+# service means adding ONE line here and nothing else, anywhere.
 #
 # An explicit list rather than a wildcard because CoreDNS's `hosts` plugin
 # matches exact names only — expressing `*.internal` needs the `template`
