@@ -45,6 +45,49 @@ access: private
 #     uploads:   { size: 5Gi, pathSuffix: uploads }
 storage: {}
 
+# NetworkPolicy for the workload this release fronts — the per-service half of
+# what kubernetes/cluster/network-policies/<ns>.yaml used to hold by hand. The
+# namespace BASELINE (default-deny, allow-same-namespace, the namespace-wide
+# DNS egress) stays there; anything that names one workload belongs here.
+#
+# Unset renders no policy at all. Set, it renders ONE policy named after the
+# service, carrying both directions — NetworkPolicies union, so it is additive
+# to the baseline.
+#
+#   podSelector  REQUIRED, and it cannot be derived: the pods are rendered by
+#                the UPSTREAM chart, so the labels are that chart's, not ours.
+#                `kubectl get pod -n <ns> --show-labels` is the source.
+#   ingress      list of { from: <peer>, ports?: [...] }
+#   egress       list of { to:   <peer>, ports?: [...] }
+#
+# PEERS — the same vocabulary the app chart speaks, defined once in
+# kubernetes/charts/common/templates/_network-policy.tpl:
+#
+#   traefik                    kube-system, where k3s runs Traefik.
+#   namespace:<ns>             one namespace, by its kubernetes.io/metadata.name.
+#   any-namespace              every namespace (what DNS egress needs).
+#   any-namespace-pods:<k>=<v> pods carrying a label, in any namespace.
+#   internet                   0.0.0.0/0 EXCEPT RFC1918.
+#   anywhere                   0.0.0.0/0, no exception — the apiserver is
+#                              RFC1918 twice over on this cluster, so anything
+#                              that must reach it needs this and not `internet`.
+#
+# PORTS ARE POD PORTS, NEVER SERVICE PORTS. A policy is evaluated after
+# kube-proxy's DNAT, so a rule naming Grafana's Service port 80 (pod 3000)
+# applies to nothing and the traffic is dropped by the default-deny with
+# nothing logged. A bare number is TCP; `53/UDP` spells a protocol out.
+#
+#   network:
+#     podSelector:
+#       app.kubernetes.io/name: grafana
+#     ingress:
+#       - from: traefik
+#         ports: [3000]
+#     egress:
+#       - to: internet
+#         ports: [443]
+network: {}
+
 # Injected at deploy time: the `platform-service` release template in
 # kubernetes/helmfile.yaml.gotmpl sets it from $NODE_NAME. Used as the hostPath
 # PV's nodeAffinity match.

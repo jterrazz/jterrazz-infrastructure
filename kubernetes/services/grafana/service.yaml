@@ -15,3 +15,19 @@ storage:
     # dashboard-version history, all of which are safe to lose because
     # everything that matters is provisioned from git.
     nodeLocalPath: /var/lib/grafana-node-local
+
+# Traefik -> Grafana, and nothing else from outside platform-telemetry. Every
+# other flow Grafana needs (its queries into the three Victoria stores, the
+# apiserver, grafana.com for plugin installs) is namespace-wide and stays in
+# kubernetes/cluster/network-policies/platform-telemetry.yaml.
+network:
+  podSelector:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: grafana
+  ingress:
+    # 3000, NOT the Service's 80. The Service is `port: 80 -> targetPort:
+    # grafana (3000)`, and a NetworkPolicy only ever sees the POD port —
+    # kube-proxy has already rewritten the destination by the time the packet
+    # is filtered.
+    - from: traefik
+      ports: [3000]

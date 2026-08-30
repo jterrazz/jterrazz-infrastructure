@@ -1,0 +1,154 @@
+suite: network -> NetworkPolicy peer vocabulary
+#
+# The `network:` block is how a platform service declares the rules that used
+# to be hand-written in kubernetes/cluster/network-policies/<ns>.yaml. Every
+# peer form lowers to a different selector shape, and a wrong one is the
+# quietest failure in this repo: it applies cleanly, reads as if it allows the
+# traffic, and the packet is dropped by the namespace default-deny with nothing
+# logged anywhere.
+#
+# So each arm is pinned by its RENDERED shape, not by "a rule exists".
+templates:
+  - templates/network-policy.yaml
+values:
+  - ../ci/test-values.yaml
+tests:
+  - it: names the policy after the service and selects the declared pods
+    # The workload is rendered by the UPSTREAM chart, so its labels are that
+    # chart's — the selector is an input and can never be derived from `name`.
+    asserts:
+      - isKind:
+          of: NetworkPolicy
+      - equal:
+          path: metadata.name
+          value: ci-test-service
+      - equal:
+          path: spec.podSelector.matchLabels
+          value:
+            app.kubernetes.io/name: ci-test-service
+            app.kubernetes.io/instance: ci-test-service
+
+  - it: derives policyTypes from the directions actually declared
+    asserts:
+      - equal:
+          path: spec.policyTypes
+          value: [Ingress, Egress]
+
+  - it: "`traefik` is the kube-system namespace, on the POD port"
+    asserts:
+      - equal:
+          path: spec.ingress[0]
+          value:
+            from:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: kube-system
+            ports:
+              - port: 8080
+
+  - it: "`any-namespace-pods:` ANDs a namespace-wide selector with a pod label"
+    # One peer element, not two: two elements would be an OR — any pod in any
+    # namespace, label or no label.
+    asserts:
+      - equal:
+          path: spec.ingress[1].from
+          value:
+            - namespaceSelector: {}
+              podSelector:
+                matchLabels:
+                  platform-client.jterrazz.com/ci-test: "true"
+
+  - it: "`<port>/<PROTO>` spells a protocol out; a bare port is TCP by default"
+    # Left unwritten rather than defaulted to `protocol: TCP` here, so the
+    # rendered object matches byte-for-byte what the API server stores.
+    asserts:
+      - equal:
+          path: spec.egress[0]
+          value:
+            to:
+              - namespaceSelector: {}
+            ports:
+              - port: 53
+                protocol: UDP
+              - port: 53
+
+  - it: "`namespace:<ns>` selects exactly one namespace by its metadata name"
+    asserts:
+      - equal:
+          path: spec.egress[1]
+          value:
+            to:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: platform-telemetry
+            ports:
+              - port: 4317
+              - port: 4318
+
+  - it: "`internet` excepts RFC1918 — no lateral reach, no apiserver"
+    asserts:
+      - equal:
+          path: spec.egress[2].to
+          value:
+            - ipBlock:
+                cidr: 0.0.0.0/0
+                except:
+                  - 10.0.0.0/8
+                  - 172.16.0.0/12
+                  - 192.168.0.0/16
+
+  - it: "`anywhere` does NOT except RFC1918, and carries no ports"
+    # The distinction is load-bearing: the apiserver is RFC1918 twice over on
+    # this cluster (ClusterIP 10.43.0.1:443 DNATs to the node's own
+    # 192.168.x.x:6443), so `internet` would cut off anything that must reach
+    # it. Never "tidy" one into the other.
+    asserts:
+      - equal:
+          path: spec.egress[3]
+          value:
+            to:
+              - ipBlock:
+                  cidr: 0.0.0.0/0
+
+  - it: renders one direction only when only one is declared
+    # grafana's shape: ingress from Traefik, and egress left to the namespace
+    # baseline. An unasked-for `policyTypes: [Egress]` here would turn the
+    # baseline's allow into a deny for these pods.
+    set:
+      network.egress: null
+    asserts:
+      - equal:
+          path: spec.policyTypes
+          value: [Ingress]
+      - notExists:
+          path: spec.egress
+
+  - it: hard-fails an unknown peer rather than rendering an empty rule
+    set:
+      network.egress:
+        - to: namespcae:platform-telemetry
+    asserts:
+      - failedTemplate:
+          errorMessage: 'network: unknown peer "namespcae:platform-telemetry" (valid: traefik, any-namespace, internet, anywhere, namespace:<ns>, any-namespace-pods:<key>=<value>)'
+
+  - it: hard-fails a network block with no podSelector
+    set:
+      network.podSelector: null
+    asserts:
+      - failedTemplate:
+          errorMessage: network.podSelector is required — the workload is rendered by another chart, so its labels cannot be derived
+
+  - it: hard-fails a network block that declares neither direction
+    set:
+      network.ingress: null
+      network.egress: null
+    asserts:
+      - failedTemplate:
+          errorMessage: "network: declares neither `ingress:` nor `egress:` — a policy that selects pods and grants nothing is a silent deny"
+
+  - it: renders nothing when no network block is declared
+    set:
+      network: null
+    asserts:
+      - hasDocuments:
+          count: 0

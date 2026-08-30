@@ -1,0 +1,30 @@
+{{- /*
+The `network:` block, lowered by common.networkPolicy (kubernetes/charts/common,
+which documents the peer vocabulary and the two NetworkPolicy traps).
+
+ONE policy per service, named after the release's service, carrying both
+directions. NetworkPolicies union, so this is additive to whatever the
+namespace baseline in kubernetes/cluster/network-policies/ already grants —
+which is exactly how the hand-written per-service files it replaces behaved.
+
+`podSelector` is REQUIRED and cannot be derived: the workload these rules apply
+to is rendered by a DIFFERENT chart (the upstream Grafana/VictoriaMetrics/
+LibreChat chart), and its pod labels are that chart's, not ours.
+*/ -}}
+{{- if .Values.network }}
+{{- $net := .Values.network }}
+{{- $selector := $net.podSelector | required "network.podSelector is required — the workload is rendered by another chart, so its labels cannot be derived" }}
+{{- $policyTypes := list }}
+{{- if $net.ingress }}{{ $policyTypes = append $policyTypes "Ingress" }}{{ end }}
+{{- if $net.egress }}{{ $policyTypes = append $policyTypes "Egress" }}{{ end }}
+{{- if not $policyTypes }}
+{{- fail "network: declares neither `ingress:` nor `egress:` — a policy that selects pods and grants nothing is a silent deny" }}
+{{- end }}
+{{- include "common.networkPolicy" (dict
+      "name" (include "platform-service.name" .)
+      "labels" (include "platform-service.labels" .)
+      "podSelector" (toYaml $selector)
+      "policyTypes" $policyTypes
+      "ingress" ($net.ingress | default list)
+      "egress" ($net.egress | default list)) }}
+{{- end }}

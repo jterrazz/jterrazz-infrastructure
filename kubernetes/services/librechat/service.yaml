@@ -18,3 +18,35 @@ storage:
   uploads:
     size: 5Gi
     pathSuffix: uploads
+
+# LibreChat's own reach, in and out. The podSelector excludes librechat-mongodb
+# — the database's rules (which substitute for the authentication it does not
+# have) stay in kubernetes/cluster/network-policies/platform-ai.yaml with the
+# raw manifest that creates it.
+network:
+  podSelector:
+    app.kubernetes.io/name: librechat
+    app.kubernetes.io/instance: librechat
+  ingress:
+    # 3080 is both the Service port and the container port here, so unlike
+    # Grafana there is no port rewrite to trip over.
+    - from: traefik
+      ports: [3080]
+  egress:
+    # -> librechat-mongodb:27017 (MONGO_URI). Kept to the namespace rather than
+    # the pod so the sidecars the chart may add later need no edit here.
+    - to: namespace:platform-ai
+    # -> gateway-intelligence: both endpoints in values.yaml
+    # (`ANTHROPIC_REVERSE_PROXY` and the custom endpoint's `baseURL`) name the
+    # in-cluster Service. 8317 is the POD port, and the port the matching
+    # ingress hole in cluster/network-policies/prod-gateway-intelligence.yaml
+    # names; 80 is belt-and-braces on DNAT ordering, and there is no other
+    # workload in that namespace for it to reach.
+    - to: namespace:prod-gateway-intelligence
+      ports: [8317, 80]
+    # -> the internet, un-narrowed because the destinations are not enumerable
+    # (model/provider metadata, avatar fetches, its own update check). The
+    # RFC1918 exception `internet` carries is what keeps it off the node LAN
+    # and the apiserver.
+    - to: internet
+      ports: [443]

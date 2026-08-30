@@ -57,3 +57,26 @@ storage:
 # must be omitted entirely rather than emit `values: [""]`.
 infrastructure:
   nodeName: ci-test-node
+
+# The `network:` block, exercising every peer form in the vocabulary and both
+# port spellings — an unreached peer is an unvalidated peer, and each one
+# lowers to a different selector shape.
+network:
+  podSelector:
+    app.kubernetes.io/name: ci-test-service
+    app.kubernetes.io/instance: ci-test-service
+  ingress:
+    - from: traefik
+      ports: [8080]
+    - from: any-namespace-pods:platform-client.jterrazz.com/ci-test=true
+      ports: [8080]
+  egress:
+    # Bare 53 alongside 53/UDP: the bare form is TCP, the Kubernetes default.
+    - to: any-namespace
+      ports: ["53/UDP", 53]
+    - to: namespace:platform-telemetry
+      ports: [4317, 4318]
+    - to: internet
+      ports: [443]
+    # No ports at all — the unrestricted-egress shape victoria-metrics needs.
+    - to: anywhere

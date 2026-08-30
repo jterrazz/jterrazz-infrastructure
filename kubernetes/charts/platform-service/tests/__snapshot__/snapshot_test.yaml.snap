@@ -40,6 +40,63 @@ matches the recorded render of the CI fixture:
       tls:
         secretName: ci-test-service-tls
   3: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      labels:
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: ci-test-service
+        app.kubernetes.io/part-of: jterrazz-infrastructure
+      name: ci-test-service
+    spec:
+      egress:
+        - ports:
+            - port: 53
+              protocol: UDP
+            - port: 53
+          to:
+            - namespaceSelector: {}
+        - ports:
+            - port: 4317
+            - port: 4318
+          to:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: platform-telemetry
+        - ports:
+            - port: 443
+          to:
+            - ipBlock:
+                cidr: 0.0.0.0/0
+                except:
+                  - 10.0.0.0/8
+                  - 172.16.0.0/12
+                  - 192.168.0.0/16
+        - to:
+            - ipBlock:
+                cidr: 0.0.0.0/0
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: kube-system
+          ports:
+            - port: 8080
+        - from:
+            - namespaceSelector: {}
+              podSelector:
+                matchLabels:
+                  platform-client.jterrazz.com/ci-test: "true"
+          ports:
+            - port: 8080
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/instance: ci-test-service
+          app.kubernetes.io/name: ci-test-service
+      policyTypes:
+        - Ingress
+        - Egress
+  4: |
     apiVersion: v1
     kind: PersistentVolume
     metadata:
@@ -67,7 +124,7 @@ matches the recorded render of the CI fixture:
                     - ci-test-node
       persistentVolumeReclaimPolicy: Retain
       storageClassName: manual
-  4: |
+  5: |
     apiVersion: v1
     kind: PersistentVolumeClaim
     metadata:
@@ -85,7 +142,7 @@ matches the recorded render of the CI fixture:
           storage: 3Gi
       storageClassName: manual
       volumeName: ci-test-service-data
-  5: |
+  6: |
     apiVersion: v1
     kind: PersistentVolume
     metadata:
@@ -113,7 +170,7 @@ matches the recorded render of the CI fixture:
                     - ci-test-node
       persistentVolumeReclaimPolicy: Retain
       storageClassName: manual
-  6: |
+  7: |
     apiVersion: v1
     kind: PersistentVolumeClaim
     metadata:
@@ -131,7 +188,7 @@ matches the recorded render of the CI fixture:
           storage: 1Gi
       storageClassName: manual
       volumeName: ci-test-service-metrics
-  7: |
+  8: |
     apiVersion: v1
     kind: PersistentVolume
     metadata:
@@ -159,7 +216,7 @@ matches the recorded render of the CI fixture:
                     - ci-test-node
       persistentVolumeReclaimPolicy: Retain
       storageClassName: manual
-  8: |
+  9: |
     apiVersion: v1
     kind: PersistentVolumeClaim
     metadata:
@@ -177,7 +234,7 @@ matches the recorded render of the CI fixture:
           storage: 1Gi
       storageClassName: manual
       volumeName: ci-test-service-node-local
-  9: |
+  10: |
     apiVersion: v1
     kind: PersistentVolume
     metadata:
@@ -205,7 +262,7 @@ matches the recorded render of the CI fixture:
                     - ci-test-node
       persistentVolumeReclaimPolicy: Retain
       storageClassName: manual
-  10: |
+  11: |
     apiVersion: v1
     kind: PersistentVolumeClaim
     metadata:

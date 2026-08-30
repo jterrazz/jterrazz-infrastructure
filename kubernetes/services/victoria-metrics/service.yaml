@@ -17,3 +17,19 @@ storage:
   # Nominal — hostPath enforces no quota, the real cap is the Mac disk.
   data:
     size: 20Gi
+
+# Scrape egress, DELIBERATELY UNRESTRICTED, and it has to be. The target set is
+# discovered from prometheus.io annotations at runtime (server.scrape in
+# values.yaml beside this file), so a static list here would have to be
+# re-derived on every deploy. The blast radius is bounded on the far side
+# instead: a scraper only ever GETs /metrics, and every namespace it reaches
+# into still enforces its own ingress policy.
+#
+# `anywhere`, not `internet`: the apiserver it discovers targets through is
+# RFC1918 twice over on this cluster.
+network:
+  podSelector:
+    app.kubernetes.io/name: victoria-metrics-single
+    app.kubernetes.io/instance: victoria-metrics
+  egress:
+    - to: anywhere
