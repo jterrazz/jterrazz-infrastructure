@@ -108,14 +108,32 @@ gated on `environment` existing as a key under `environments:` — a typo'd
 
 ## Fields
 
-### `spec.port`, `spec.replicas`
+### `spec.port`, `spec.servicePort`, `spec.replicas`
 
-`port` is the container port. The Service is always `ClusterIP` on port 80
-targeting it, so IngressRoutes never mention the app port. `PORT` is injected
-into the container env automatically.
+`port` is the container port. The Service is `ClusterIP` on port 80 targeting
+it, so IngressRoutes never mention the app port. `PORT` is injected into the
+container env automatically.
+
+`servicePort` (default 80) is for a workload whose **clients dial it by name and
+port** — a database in a connection string, an in-cluster HTTP API — because
+that URL is written down somewhere this chart cannot see. Setting it moves the
+Service port and every IngressRoute this chart renders along with it.
 
 `replicas` is env-level (default 1). Note storage forces
 `strategy: Recreate` — don't ask for >1 replica with a hostPath volume.
+
+### `spec.command`, `spec.args`, `spec.strategy`
+
+`command` and `args` override the image's entrypoint, verbatim; unset, the
+image decides. No app in the fleet sets either.
+
+`strategy` is derived and rarely written: **Recreate whenever storage is
+mounted**, because every volume this chart mounts is an RWO hostPath and two
+writers on one is the trap the datastores exist to avoid; the Kubernetes
+default otherwise. Set it explicitly only for a workload that must not run
+twice for a reason storage cannot express — `op-api` runs its database
+migrations on boot, so a rolling update would put two migration runners on one
+database.
 
 ### `spec.resources`
 
@@ -147,14 +165,29 @@ health:
   startupFailureThreshold: 30   # x the k8s 10s period = 300s of boot grace
 ```
 
-All three probes are `httpGet` on `health.path` at `spec.port`. The
-startupProbe gates liveness and readiness, so a slow boot can't get SIGKILLed
-mid-startup. Everything the chart does not name above — probe periods, liveness
-and readiness failure thresholds — is left at the Kubernetes default.
+All three probes share one action, `httpGet` on `health.path` at `spec.port`.
+The startupProbe gates liveness and readiness, so a slow boot can't get
+SIGKILLed mid-startup. Everything the chart does not name above — probe periods,
+liveness and readiness failure thresholds — is left at the Kubernetes default.
+
+Two alternatives exist for a server that does not speak HTTP; the first one set
+wins (`exec`, then `tcp`, then `path`):
+
+```yaml
+health:
+  exec: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+health:
+  tcp: true          # tcpSocket on spec.port
+```
+
+`tcp` is not a lazier `exec`: mongod's own client is a Node REPL whose cold
+start alone exceeds the probe timeout, so an exec probe crash-loops a perfectly
+healthy database on the liveness kill.
 
 ### `spec.ingress` — a list, always
 
-Each entry is `{ host, path?, public, stripPrefix?, redirectTo?, preservePath?, smoke? }`.
+Each entry is
+`{ host, path?, public, access?, stripPrefix?, tlsSecret?, redirectTo?, preservePath?, smoke? }`.
 
 ```yaml
 ingress:
@@ -170,10 +203,24 @@ ingress:
   than silently defaulting a network-visibility decision.
 * The single-object form was removed in chart 1.17.0; a non-list fails with
   an explicit message.
+* `access: private | cluster-internal | public` is the same decision as
+  `public:` in `platform-service`'s three-value vocabulary, and exists for the
+  one answer a boolean cannot give: **cluster-internal**, i.e. tailnet humans
+  *plus* the cluster's own pods, for a route something inside the cluster must
+  also reach (OpenPanel's dashboard SSRs against its own public URL). Set one or
+  the other, never both; `public:` stays the everyday spelling.
 * `path` defaults to `/`. Any other path also emits a `stripPrefix`
   middleware (legacy `/api` behaviour: the backend mounts routes at the
   root). Set `stripPrefix: false` on the entry to keep the prefix visible to
-  the app — e.g. an MCP server registered at the literal `/mcp`.
+  the app — e.g. an MCP server registered at the literal `/mcp` — or to a
+  **string** to strip something other than the route's own path: OpenPanel's
+  ingest is routed on `/api/track` and its backend serves `/track`, so it
+  strips `/api`.
+* `tlsSecret` names an existing TLS Secret and suppresses the `Certificate`
+  this entry would otherwise render. For a hostname **two releases** answer on:
+  neither can own its certificate without a second one being issued for the
+  same name, so the service owns it (`certificates:` in its `service.yaml`) and
+  both routes name it.
 * `redirectTo` turns the entry into a **redirect-only host**: it answers on
   `host` and 301s to the given absolute `https://` URL, never reaching the app.
   The path is carried over by default (`preservePath: true`), which is what a
@@ -243,7 +290,14 @@ ingress:
 
 `expect` is a comma-separated list of accepted codes; keep it as narrow as the
 surface genuinely allows, and never put `000` or a 5xx in it — the entire value
-of the probe is that a dead service cannot read as "fine".
+of the probe is that a dead service cannot read as "fine". `method:` sets the
+verb for a route that answers only one — OpenPanel's ingest is POST-only, and a
+GET there 404s whether the backend is healthy or not.
+
+A route whose `stripPrefix` is neither its own path nor false also opts out by
+default: nothing can derive the external health URL when the stripped prefix and
+the routed one differ. That is what the ingest route's explicit block above
+opts back in.
 
 ### `spec.secrets` and `secretsEnv`
 
@@ -271,12 +325,27 @@ the app sets them itself: `PORT`, `OTEL_SERVICE_NAME` (= app name),
 
 ```yaml
 storage:
-  size: 2Gi            # required when `storage` is set
-  mountPath: /data     # required when `storage` is set
+  size: 2Gi            # required unless claimName is set
+  mountPath: /data     # always required
+  claimName: openpanel-postgres   # optional: mount a claim another release owns
+  owner: "70:70"       # optional: the uid:gid to chown to (default 1000:1000)
 ```
 
-Both keys are `required`: a missing one would otherwise render an unbindable
-PV or an empty mountPath, diagnosable only at runtime.
+`size` and `mountPath` are `required`: a missing one would otherwise render an
+unbindable PV or an empty mountPath, diagnosable only at runtime.
+
+**`claimName` means the volume belongs to someone else** — a `<svc>-platform`
+release, whose `storage:` map created it and whose release name is the identity
+of that live data. This chart then only *mounts* it and renders no PV/PVC of its
+own (so `size` is unused): two releases owning one volume is how a
+`helm uninstall` of the wrong one deletes a bound claim.
+
+**`owner`** is the `uid:gid` the `fix-permissions` initContainer hands the
+volume to — the image's own user (`70:70` for alpine Postgres, `101:101` for
+ClickHouse, `999:1000` for Redis), not always 1000. Set it to the empty string
+to skip the initContainer entirely, for an image that runs as root over a
+root-owned volume; chowning a 10Gi blob store on every pod start is both slow
+and wrong.
 
 Renders a `Retain` hostPath PV `<app>-<env>-data` at
 `/var/lib/k8s-data/<app>-<env>` (`storageClassName: manual`,
@@ -294,6 +363,30 @@ PV can bind on a node whose disk holds an empty directory.
 
 Map of `filename -> file content`. Renders ConfigMap `<app>-config` and
 mounts each entry read-only at `/app/<filename>` via `subPath`.
+
+An entry may instead be a `{ path, content }` map, which puts the same file
+where the **image** wants it rather than under `/app`:
+
+```yaml
+configFiles:
+  op-config.xml:
+    path: /etc/clickhouse-server/config.d/op-config.xml
+    content: |
+      <clickhouse>…</clickhouse>
+```
+
+### `spec.secretMounts`
+
+```yaml
+secretMounts:
+  - secretName: registry-auth      # an EXISTING Secret; this chart creates none
+    mountPath: /auth
+```
+
+An existing Secret mounted read-only as files, for an image that reads a
+credential from disk rather than from the environment — the registry's bcrypt
+htpasswd is the one user. For a credential that arrives as env vars, use
+`spec.secrets`.
 
 ### `spec.dashboards`
 
@@ -387,40 +480,67 @@ that contract.
 
 ### NetworkPolicy
 
-Always rendered, with no per-app knob. It allows: ingress from `kube-system`
-(Traefik) on `spec.port`; ingress from any pod, in any namespace, carrying this
-app's `clientLabel` **if** the app is itself a `platformServices` catalog target;
-egress to DNS; and egress to the whole internet **except** RFC1918. Every other
-in-cluster destination must come from `platformServices`, which opens both
-directions at once.
+Always rendered. Derived, so an app configures nothing: ingress from
+`kube-system` (Traefik) on `spec.port`; ingress from any pod, in any namespace,
+carrying this app's `clientLabel` **if** the app is itself a `platformServices`
+catalog target; egress to DNS; and egress to the whole internet **except**
+RFC1918. Every other in-cluster destination comes from `platformServices`, which
+opens both directions at once — or, when nothing in the catalog fits, from
+`spec.network` below.
 
 The policy itself — and the peer vocabulary it is written in, and the two traps
 it exists to absorb (ports are POD ports; hostNetwork clients are not pods) —
 comes from `kubernetes/charts/common`. A platform service declares the same
-shapes by hand in its `network:` block; the app chart derives them from the
-catalog instead, which is why there is nothing here to configure.
+shapes by hand in its `network:` block.
 
-### `spec.network.exposeTo`
+### `spec.network`
 
 ```yaml
 spec:
   network:
     exposeTo: [namespace:platform-ai]
+    egress:
+      - to: namespace:platform-analytics
+        ports: [5432]
+    isolated: false
 ```
 
-Extra clients allowed to reach this app on `spec.port`, appended to the ingress
-rules the chart already writes (Traefik, plus the `platformServices` client
-label if this app is a catalog target). Each entry is a
-`kubernetes/charts/common` NetworkPolicy peer — `namespace:<ns>`,
+`exposeTo` names extra clients allowed to reach this app on `spec.port`, and
+`egress` extra destinations it may dial; both are appended to the rules the
+chart already writes. Each peer is a `kubernetes/charts/common` NetworkPolicy
+peer — `namespace:<ns>`, `pods:<key>=<value>`,
 `any-namespace-pods:<key>=<value>`, `traefik`, `any-namespace`, `internet`,
-`anywhere`; an unknown one **hard-fails the render** with the valid list.
+`anywhere`; an unknown one **hard-fails the render** with the valid list. Ports
+are **pod** ports, never Service ports.
 
-Reach for it only when the client **cannot** opt in through
+Reach for `exposeTo` only when the client **cannot** opt in through
 `platformServices`, which is the mechanism that needs no edit here at all: a
 third-party chart renders its pods and cannot stamp the catalog's client label.
 That is exactly LibreChat, and `gateway-intelligence` declaring
 `exposeTo: [namespace:platform-ai]` is what replaced a hand-written
 NetworkPolicy in the infrastructure repo's `cluster/network-policies/`.
+
+**`isolated: true` drops the two DERIVED rules** — Traefik ingress on
+`spec.port` and egress to the whole internet — leaving DNS plus exactly what
+`exposeTo` and `egress` declare. No app sets it. It is what a datastore is: a
+workload whose entire security model is that nothing reaches it and it dials
+nothing, because it has no password of its own (`op-postgres`, `op-redis`,
+`op-clickhouse`, `librechat-mongodb`).
+
+### `spec.image` — and what the registry decides
+
+`spec.image` is set by CI (`registry.internal.jterrazz.com/<app>:<tag>`), and
+falls back to `<registry>/<app>:latest`. Whether the image lives on **our**
+registry decides two more things, with no knob for either:
+
+* the `registry-credentials` `imagePullSecret` is attached only then — the
+  credential authenticates that registry alone, and naming a Secret that is not
+  in the namespace earns a `FailedToRetrieveImagePullSecret` warning on every
+  pod start;
+* `imagePullPolicy: Always` is set only then — our tags (`main`, `next`) are
+  mutable, so `IfNotPresent` would keep serving whatever the node cached first.
+  A third-party image keeps Kubernetes' default, which is what its pinned tag
+  deserves and what keeps a pod restart off Docker Hub's anonymous pull quota.
 
 ### `spec.securityContext` / `spec.runAsRoot`
 
@@ -451,10 +571,10 @@ For a declared environment, namespace `<environment>-<app>`:
 | Object                    | Name                          | Condition                       |
 | ------------------------- | ----------------------------- | ------------------------------- |
 | Deployment                | `<app>`                       | always                          |
-| Service (ClusterIP :80)   | `<app>`                       | always                          |
+| Service (ClusterIP `servicePort`) | `<app>`               | always                          |
 | NetworkPolicy             | `<app>`                       | always                          |
 | Secret (dockerconfigjson) | `registry-credentials`        | registry username + password set |
-| Certificate               | `<app>-<host-slug>-tls`       | per unique ingress host         |
+| Certificate               | `<app>-<host-slug>-tls`       | per unique ingress host that does not name a `tlsSecret` |
 | IngressRoute              | `<app>-<idx>`                 | per ingress entry               |
 | Middleware (stripPrefix)  | `<app>-<idx>-strip-prefix`    | entry has a non-`/` path, `stripPrefix` is not false, and it is not a redirect |
 | Middleware (redirectRegex) | `<app>-<idx>-redirect`       | entry sets `redirectTo`          |
@@ -462,7 +582,7 @@ For a declared environment, namespace `<environment>-<app>`:
 | ConfigMap                 | `<app>-config`                | `spec.configFiles` set          |
 | ConfigMap                 | `<app>-dashboard-<name>`      | `spec.dashboards` set **and** env is prod |
 | ConfigMap                 | `<app>-alerts`                | `spec.alerts` set **and** env is prod |
-| PV / PVC                  | `<app>-<env>-data` / `<app>-data` | `spec.storage` set          |
+| PV / PVC                  | `<app>-<env>-data` / `<app>-data` | `spec.storage` set **without** a `claimName` |
 
 ## Versioning and publishing
 

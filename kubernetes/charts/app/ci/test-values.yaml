@@ -13,7 +13,12 @@
 #     -f kubernetes/charts/app/ci/test-values.yaml
 #
 # Keep this exercising the widest reasonable surface — if a template branch is
-# not reachable from here, CI is not checking it.
+# not reachable from here, CI is not checking it. The branches that are
+# MUTUALLY EXCLUSIVE with the app shape above (an existing `claimName` instead
+# of a rendered PV, an exec probe instead of an HTTP one, an isolated
+# NetworkPolicy instead of the derived one) live in the `staging` environment
+# at the bottom, which the unit tests render — one fixture cannot be both
+# shapes at once.
 
 metadata:
   name: ci-test-app
@@ -32,6 +37,11 @@ spec:
   image: registry.internal.jterrazz.com/ci-test-app:ci
 
   port: 3000
+
+  # Entrypoint overrides. Rendered verbatim; the image's own are used when
+  # unset, which is the case for every app in the fleet.
+  command: ["node", "server.js"]
+  args: ["--enable-source-maps"]
 
   # Merged OVER the chart's hardened container defaults, which is the whole
   # point of the key — one capability back, everything else still dropped.
@@ -72,10 +82,14 @@ spec:
     - gateway-intelligence
 
   # A client that cannot stamp the catalogue's clientLabel (its pods come from
-  # a third-party chart), so it is named as a peer instead.
+  # a third-party chart), so it is named as a peer instead, plus one declared
+  # egress rule on top of the derived DNS + internet.
   network:
     exposeTo:
       - namespace:platform-ai
+    egress:
+      - to: namespace:platform-analytics
+        ports: [5432]
 
   # Renders the InfisicalSecret plus secretKeyRef env entries.
   secrets:
@@ -87,10 +101,22 @@ spec:
   env:
     LOG_LEVEL: info
 
-  # Renders the ConfigMap + its volume/volumeMount.
+  # Renders the ConfigMap + its volume/volumeMount. Two forms: a plain string
+  # is content mounted at /app/<filename>; a { path, content } map puts the
+  # file where the IMAGE wants it instead.
   configFiles:
     ci-test.json: |
       { "fixture": true }
+    ci-test.xml:
+      path: /etc/ci-test/conf.d/ci-test.xml
+      content: |
+        <fixture/>
+
+  # An existing Secret mounted read-only as files, for a credential an image
+  # reads from disk rather than from env.
+  secretMounts:
+    - secretName: ci-test-app-files
+      mountPath: /etc/ci-test-files
 
   # Only rendered when environment == prod.
   dashboards:
@@ -154,11 +180,32 @@ spec:
       smoke:
         path: /ready
         expect: "204,200"
+    # The three things `public:` cannot say, on one entry:
+    #   access       cluster-internal — tailnet humans PLUS the cluster's pods.
+    #   stripPrefix  a STRING: routed on /api/track, the backend serves /track.
+    #   tlsSecret    a certificate owned by another release, so this render
+    #                emits no Certificate for this host.
+    # The derived smoke contract opts out (the stripped prefix is not the
+    # route's own path, so no health URL is derivable) and the explicit block
+    # opts back in with the one verb the route answers.
+    - host: ci-test-app-ingest.jterrazz.com
+      path: /api/track
+      access: cluster-internal
+      stripPrefix: /api
+      tlsSecret: ci-test-shared-tls
+      smoke:
+        method: POST
+        path: /api/track
+        expect: "401"
 
 environments:
   prod:
     tag: main
     replicas: 1
+  # THE DATASTORE SHAPE. Not a realistic staging environment — it is the other
+  # arm of every switch the prod render above takes, in the only place a
+  # single fixture can hold it. Rendered by the unit tests, not by the CI
+  # kubeconform step (which renders `prod`).
   staging:
     tag: main
     replicas: 1
@@ -168,6 +215,29 @@ environments:
     runAsRoot: true
     resources:
       memory: 256Mi
+    # A public image: no imagePullSecret (the credential authenticates our
+    # registry alone) and no imagePullPolicy override.
+    image: postgres:14-alpine
+    # Clients dial this one by name and port, so the Service carries the real
+    # port rather than 80.
+    servicePort: 5432
+    # Recreate without storage — the migration-on-boot case.
+    strategy: Recreate
+    # An existing claim another release owns: no PV/PVC is rendered, and
+    # `owner` hands the volume to the uid the image runs as.
+    storage:
+      mountPath: /var/lib/postgresql/data
+      claimName: ci-test-existing-claim
+      owner: "70:70"
+    # An exec probe: this server does not speak HTTP at all.
+    health:
+      exec: ["sh", "-c", "pg_isready"]
+    # Nothing reaches it, it dials nothing — which is the entire security
+    # model of an unauthenticated datastore.
+    network:
+      isolated: true
+      exposeTo:
+        - pods:app.kubernetes.io/name=ci-test-app
     ingress:
       - host: ci-test-app-staging.jterrazz.com
         path: /

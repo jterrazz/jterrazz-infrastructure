@@ -8,7 +8,12 @@ metadata:
     {{- include "app.labels" . | nindent 4 }}
 spec:
   ports:
-    - port: 80
+    {{- /* 80 by default, so an IngressRoute never mentions the app port. A
+           workload whose CLIENTS dial it by name and port — a database in a
+           connection string, an in-cluster HTTP API — sets servicePort to its
+           own port instead, because that URL is written down somewhere this
+           chart cannot see. */}}
+    - port: {{ $spec.servicePort }}
       targetPort: {{ $spec.port }}
   selector:
     {{- include "app.selectorLabels" . | nindent 4 }}

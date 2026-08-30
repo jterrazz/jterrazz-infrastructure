@@ -8,9 +8,9 @@ metadata:
   labels:
     {{- include "app.labels" . | nindent 4 }}
 data:
-  {{- range $filename, $content := $spec.configFiles }}
+  {{- range $filename, $file := $spec.configFiles }}
   {{ $filename }}: |
-    {{- $content | nindent 4 }}
+    {{- include "app.configFileContent" (dict "filename" $filename "file" $file) | nindent 4 }}
   {{- end }}
 {{- end }}
 {{- end }}

@@ -1,7 +1,21 @@
+{{- /* The service's own hostname, and any `aliases` as SANs on the same cert. */ -}}
 {{- if .Values.host }}
 {{- include "common.certificate" (dict
       "name" (printf "%s-tls" (include "platform-service.name" .))
       "labels" (include "platform-service.labels" .)
       "secretName" (printf "%s-tls" (include "platform-service.name" .))
       "dnsNames" (concat (list (include "platform-service.host" .)) (.Values.aliases | default list))) }}
+{{- end }}
+{{- /* Certificates for hostnames whose ROUTES are rendered elsewhere — the one
+       case being a service split across several app-chart releases, where two
+       releases answer on one hostname and neither can own its certificate
+       without the other duplicating it. The key IS the object name and the
+       secret name, because both address a live TLS Secret. */ -}}
+{{- range $name, $cert := .Values.certificates }}
+---
+{{ include "common.certificate" (dict
+     "name" $name
+     "labels" (include "platform-service.labels" $)
+     "secretName" $name
+     "dnsNames" ($cert.dnsNames | required (printf "certificates.%s.dnsNames is required" $name))) }}
 {{- end }}

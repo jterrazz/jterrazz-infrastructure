@@ -71,4 +71,4 @@ tests:
         prod: {}
     asserts:
       - failedTemplate:
-          errorMessage: 'network: unknown peer "namesapce:platform-ai" (valid: traefik, any-namespace, internet, anywhere, namespace:<ns>, any-namespace-pods:<key>=<value>)'
+          errorMessage: 'network: unknown peer "namesapce:platform-ai" (valid: traefik, any-namespace, internet, anywhere, namespace:<ns>, pods:<key>=<value>, any-namespace-pods:<key>=<value>)'

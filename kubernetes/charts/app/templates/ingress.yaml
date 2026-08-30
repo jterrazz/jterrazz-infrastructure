@@ -1,17 +1,21 @@
 {{- if eq (include "app.envExists" .) "true" -}}
+{{- $spec := fromYaml (include "app.merged" .) -}}
 {{- $appName := include "app.name" . -}}
 {{- $labels := include "app.labels" . -}}
 {{- $ingressList := fromYamlArray (include "app.ingressList" .) -}}
 {{- /* The app already declares where it answers "I am healthy" — that is what
        makes the smoke contract below need no app-repo edit. */ -}}
-{{- $healthPath := (fromYaml (include "app.merged" .)).health.path | default "/" -}}
+{{- $healthPath := $spec.health.path | default "/" -}}
 {{- if not (hasPrefix "/" $healthPath) }}{{ $healthPath = printf "/%s" $healthPath }}{{ end -}}
 
 {{- /* One Certificate per unique host — multiple ingress entries on the
-       same host share one TLS secret. */ -}}
+       same host share one TLS secret. An entry naming an EXISTING `tlsSecret`
+       renders none: the certificate for that host is owned elsewhere (the
+       service's `<svc>-platform` release), which is what lets two app
+       releases serve one hostname without two certificates for it. */ -}}
 {{- $hosts := dict -}}
 {{- range $entry := $ingressList -}}
-  {{- if $entry.host -}}
+  {{- if and $entry.host (not $entry.tlsSecret) -}}
     {{- $_ := set $hosts $entry.host true -}}
   {{- end -}}
 {{- end -}}
@@ -29,19 +33,32 @@
 {{- /* Resource name is {app}-{idx} so two entries sharing a host or path
        still get unique object names. */ -}}
 {{- range $idx, $entry := $ingressList }}
-{{- if not (hasKey $entry "public") }}
+{{- if and (not (hasKey $entry "public")) (not (hasKey $entry "access")) }}
   {{- fail (printf "ingress entry %d for %s is missing the required `public: true|false` field — declare network visibility explicitly" $idx $appName) }}
 {{- end }}
 {{- $hostSlug := include "app.hostSlug" $entry.host }}
-{{- $isPublic := $entry.public }}
+{{- /* `public: true|false` is the everyday spelling and covers every app.
+       `access:` is the same decision in platform-service's three-value
+       vocabulary, and exists for the one answer a boolean cannot give:
+       cluster-internal, i.e. tailnet humans PLUS the cluster's own pods. */ -}}
+{{- $access := $entry.access | default (ternary "public" "private" (eq (toString $entry.public) "true")) }}
+{{- $isPublic := eq $access "public" }}
 {{- $path := $entry.path | default "/" }}
 {{- $hasPath := ne $path "/" }}
 {{- /* Defaults TRUE: backends mount routes at /<resource>, without the /api
        prefix. An app serving the literal path (e.g. an MCP server at /mcp)
-       sets stripPrefix: false. */ -}}
-{{- $stripPrefix := true }}
-{{- if hasKey $entry "stripPrefix" }}{{- $stripPrefix = $entry.stripPrefix }}{{- end }}
-{{- $emitStripPrefix := and $hasPath $stripPrefix }}
+       sets stripPrefix: false. A STRING strips something other than the
+       route's own path — OpenPanel's ingest is routed on /api/track and the
+       backend serves /track, so it strips /api. */ -}}
+{{- $stripPrefix := $path }}
+{{- if hasKey $entry "stripPrefix" }}
+{{- if kindIs "bool" $entry.stripPrefix }}
+{{- $stripPrefix = ternary $path "" $entry.stripPrefix }}
+{{- else }}
+{{- $stripPrefix = $entry.stripPrefix | toString }}
+{{- end }}
+{{- end }}
+{{- $emitStripPrefix := and $hasPath (ne $stripPrefix "") }}
 {{- $routeName := printf "%s-%d" $appName $idx }}
 {{- /* A redirect entry answers on its host and sends the client elsewhere; it
        never reaches the app. `preservePath` defaults TRUE because the common
@@ -64,7 +81,7 @@
 {{ include "common.middleware.stripPrefix" (dict
      "name" (printf "%s-strip-prefix" $routeName)
      "labels" $labels
-     "prefix" $path) }}
+     "prefix" $stripPrefix) }}
 {{- end }}
 {{- if $isRedirect }}
 ---
@@ -78,9 +95,9 @@
        A private entry gets private-access; a public one gets none and stays
        behind the global websecure chain. */ -}}
 {{- $middlewares := list }}
-{{- $access := include "common.accessMiddleware" (ternary "public" "private" $isPublic) }}
-{{- if $access }}
-{{- $middlewares = append $middlewares (dict "name" $access "namespace" "platform-networking") }}
+{{- $accessMiddleware := include "common.accessMiddleware" $access }}
+{{- if $accessMiddleware }}
+{{- $middlewares = append $middlewares (dict "name" $accessMiddleware "namespace" "platform-networking") }}
 {{- end }}
 {{- if $isRedirect }}
 {{- $middlewares = append $middlewares (dict "name" (printf "%s-redirect" $routeName)) }}
@@ -102,13 +119,13 @@
                          for a route that is perfectly healthy. `smoke:` on the
                          entry is how such a route opts back in.
 
-       `smoke: false` opts out; `smoke: { path, expect }` overrides. */}}
+       `smoke: false` opts out; `smoke: { path, expect, method }` overrides. */}}
 {{- $smoke := dict "probe" true "path" (printf "%s%s" (ternary $path "" $hasPath) $healthPath) "expect" "200" }}
 {{- if $isRedirect }}
 {{- $_ := set $smoke "path" "/" }}
 {{- $_ := set $smoke "expect" "301" }}
 {{- $_ := set $smoke "location" (ternary (printf "%s/" $redirectTo) $redirectTo $preservePath) }}
-{{- else if and $hasPath (not $stripPrefix) }}
+{{- else if and $hasPath (ne $stripPrefix $path) }}
 {{- $_ := set $smoke "probe" false }}
 {{- end }}
 {{- if hasKey $entry "smoke" }}
@@ -118,6 +135,7 @@
 {{- $_ := set $smoke "probe" true }}
 {{- if $entry.smoke.path }}{{ $_ := set $smoke "path" $entry.smoke.path }}{{ end }}
 {{- if $entry.smoke.expect }}{{ $_ := set $smoke "expect" $entry.smoke.expect }}{{ end }}
+{{- if $entry.smoke.method }}{{ $_ := set $smoke "method" $entry.smoke.method }}{{ end }}
 {{- end }}
 {{- end }}
 {{- /* A redirect still names a service: Traefik requires one on every route,
@@ -130,7 +148,7 @@
      "match" (printf "Host(`%s`)%s" $entry.host (ternary (printf " && PathPrefix(`%s`)" $path) "" $hasPath))
      "middlewares" $middlewares
      "serviceName" $appName
-     "servicePort" 80
-     "tlsSecret" (printf "%s-%s-tls" $appName $hostSlug)) }}
+     "servicePort" $spec.servicePort
+     "tlsSecret" ($entry.tlsSecret | default (printf "%s-%s-tls" $appName $hostSlug))) }}
 {{- end }}
 {{- end }}

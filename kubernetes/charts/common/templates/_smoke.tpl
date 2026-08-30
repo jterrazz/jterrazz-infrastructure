@@ -15,17 +15,18 @@ appears or disappears takes its check with it.
   smoke.jterrazz.com/location  optional; asserts the Location header. A 301 to
                                the WRONG host is still a 301, so every redirect
                                names its target.
+  smoke.jterrazz.com/method    optional; the HTTP verb, default GET. For a route
+                               that only answers one — OpenPanel's ingest is
+                               POST-only, and a GET there 404s whether the
+                               backend is healthy or not.
   smoke.jterrazz.com/probe     "false" opts the route out entirely. Only written
                                when there IS no derivable probe — an unannotated
                                route is probed with the fallback (`/`, 200) and
                                reported, which is not the same claim.
 
-smoke.jterrazz.com/method (default GET) is also read by smoke.sh but emitted by
-no chart: the one route that needs it is OpenPanel's hand-written POST-only
-ingest (kubernetes/services/openpanel/ingress.yaml).
-
 Input dict: probe (optional bool — pass false to opt out), path, expect,
-location (optional). Emits annotation LINES at column 0; the caller indents.
+location (optional), method (optional). Emits annotation LINES at column 0; the
+caller indents.
 */}}
 {{- define "common.smokeAnnotations" -}}
 {{- if and (hasKey . "probe") (not .probe) -}}
@@ -35,6 +36,9 @@ smoke.jterrazz.com/path: {{ .path | toString | quote }}
 smoke.jterrazz.com/expect: {{ .expect | toString | quote }}
 {{- if .location }}
 smoke.jterrazz.com/location: {{ .location | toString | quote }}
+{{- end }}
+{{- if .method }}
+smoke.jterrazz.com/method: {{ .method | toString | quote }}
 {{- end }}
 {{- end -}}
 {{- end -}}

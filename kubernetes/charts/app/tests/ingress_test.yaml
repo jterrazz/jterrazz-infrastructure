@@ -16,12 +16,13 @@ values:
   - ../ci/test-values.yaml
 tests:
   - it: renders every prod entry from the base spec list
-    # The fixture's prod list is six entries on six hosts: 6 Certificates
-    # (one per unique host) + 6 IngressRoutes + 3 Middlewares (one strip-prefix
-    # for the /api entry, two redirects) = 15.
+    # The fixture's prod list is seven entries on seven hosts: 6 Certificates
+    # (one per unique host, MINUS the ingest entry, which names an existing
+    # `tlsSecret` another release owns) + 7 IngressRoutes + 4 Middlewares (two
+    # strip-prefix, two redirects) = 17.
     asserts:
       - hasDocuments:
-          count: 15
+          count: 17
 
   - it: REPLACES the base list with the environment's, never merges them
     # The fixture's staging environment declares exactly ONE entry while spec

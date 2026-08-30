@@ -33,6 +33,8 @@ matches the recorded render of the CI fixture:
     data:
       ci-test.json: |
         { "fixture": true }
+      ci-test.xml: |
+        <fixture/>
     kind: ConfigMap
     metadata:
       labels:
@@ -91,7 +93,12 @@ matches the recorded render of the CI fixture:
             platform-client.jterrazz.com/gateway-intelligence: "true"
         spec:
           containers:
-            - env:
+            - args:
+                - --enable-source-maps
+              command:
+                - node
+                - server.js
+              env:
                 - name: PORT
                   value: "3000"
                 - name: LOG_LEVEL
@@ -160,6 +167,13 @@ matches the recorded render of the CI fixture:
                   name: config
                   readOnly: true
                   subPath: ci-test.json
+                - mountPath: /etc/ci-test/conf.d/ci-test.xml
+                  name: config
+                  readOnly: true
+                  subPath: ci-test.xml
+                - mountPath: /etc/ci-test-files
+                  name: ci-test-app-files
+                  readOnly: true
           imagePullSecrets:
             - name: registry-credentials
           initContainers:
@@ -196,6 +210,9 @@ matches the recorded render of the CI fixture:
             - configMap:
                 name: ci-test-app-config
               name: config
+            - name: ci-test-app-files
+              secret:
+                secretName: ci-test-app-files
   5: |
     apiVersion: secrets.infisical.com/v1alpha1
     kind: InfisicalSecret
@@ -541,6 +558,51 @@ matches the recorded render of the CI fixture:
       tls:
         secretName: ci-test-app-ci-test-app-probe-jterrazz-com-tls
   21: |
+    apiVersion: traefik.io/v1alpha1
+    kind: Middleware
+    metadata:
+      labels:
+        app: ci-test-app
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: ci-test-app
+        environment: prod
+      name: ci-test-app-6-strip-prefix
+    spec:
+      stripPrefix:
+        prefixes:
+          - /api
+  22: |
+    apiVersion: traefik.io/v1alpha1
+    kind: IngressRoute
+    metadata:
+      annotations:
+        smoke.jterrazz.com/expect: "401"
+        smoke.jterrazz.com/method: POST
+        smoke.jterrazz.com/path: /api/track
+      labels:
+        app: ci-test-app
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: ci-test-app
+        environment: prod
+      name: ci-test-app-6
+    spec:
+      entryPoints:
+        - websecure
+      routes:
+        - kind: Rule
+          match: Host(`ci-test-app-ingest.jterrazz.com`) && PathPrefix(`/api/track`)
+          middlewares:
+            - name: cluster-internal-access
+              namespace: platform-networking
+            - name: ci-test-app-6-strip-prefix
+          services:
+            - name: ci-test-app
+              port: 80
+      tls:
+        secretName: ci-test-shared-tls
+  23: |
     apiVersion: networking.k8s.io/v1
     kind: NetworkPolicy
     metadata:
@@ -566,6 +628,12 @@ matches the recorded render of the CI fixture:
                   - 10.0.0.0/8
                   - 172.16.0.0/12
                   - 192.168.0.0/16
+        - ports:
+            - port: 5432
+          to:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: platform-analytics
         - ports:
             - port: 4317
             - port: 4318
@@ -599,7 +667,7 @@ matches the recorded render of the CI fixture:
       policyTypes:
         - Ingress
         - Egress
-  22: |
+  24: |
     apiVersion: v1
     kind: Service
     metadata:
@@ -617,7 +685,7 @@ matches the recorded render of the CI fixture:
       selector:
         app: ci-test-app
         environment: prod
-  23: |
+  25: |
     apiVersion: v1
     kind: PersistentVolume
     metadata:
@@ -638,7 +706,7 @@ matches the recorded render of the CI fixture:
         type: DirectoryOrCreate
       persistentVolumeReclaimPolicy: Retain
       storageClassName: manual
-  24: |
+  26: |
     apiVersion: v1
     kind: PersistentVolumeClaim
     metadata:

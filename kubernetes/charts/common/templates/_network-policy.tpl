@@ -26,6 +26,14 @@ PEERS (the `from:` of an ingress rule, the `to:` of an egress rule):
                              server side of the app chart's platformServices
                              catalogue: a consumer opts in by stamping the
                              label, so a new consumer needs zero edit here.
+  pods:<k>=<v>               pods carrying a label IN THE POLICY'S OWN
+                             namespace — a podSelector with no
+                             namespaceSelector beside it, which is what
+                             NetworkPolicy reads as "here". The tightest peer
+                             there is, and the one an unauthenticated
+                             datastore wants: `any-namespace-pods:` with the
+                             same label would admit a pod of that name from
+                             any namespace in the cluster.
   internet                   0.0.0.0/0 EXCEPT RFC1918 — no lateral reach into
                              the node LAN, another cluster's pod/service CIDR,
                              or the apiserver.
@@ -124,8 +132,13 @@ Output starts at column 0; the caller indents it.
       podSelector:
         matchLabels:
           {{ $pair._0 }}: {{ $pair._1 | quote }}
+{{- else if hasPrefix "pods:" $peer }}
+{{- $pair := splitn "=" 2 (trimPrefix "pods:" $peer) }}
+    - podSelector:
+        matchLabels:
+          {{ $pair._0 }}: {{ $pair._1 | quote }}
 {{- else }}
-{{- fail (printf "network: unknown peer %q (valid: traefik, any-namespace, internet, anywhere, namespace:<ns>, any-namespace-pods:<key>=<value>)" $peer) }}
+{{- fail (printf "network: unknown peer %q (valid: traefik, any-namespace, internet, anywhere, namespace:<ns>, pods:<key>=<value>, any-namespace-pods:<key>=<value>)" $peer) }}
 {{- end }}
 {{- if $rule.ports }}
   ports:

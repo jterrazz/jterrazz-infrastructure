@@ -24,13 +24,34 @@ spec:
   # Empty falls back to <registry>/<app>:latest (_helpers.tpl app.image).
   image: ""
   port: 3000
+  # What the Service listens on. 80 keeps the app port out of every
+  # IngressRoute; a workload whose clients dial it by name and port (a database
+  # in a connection string) sets its own port here instead.
+  servicePort: 80
   replicas: 1
+  # Entrypoint overrides. Empty means "whatever the image does".
+  command: []
+  args: []
+  # Empty derives it: Recreate when storage is mounted (never two writers on
+  # one RWO hostPath volume), the Kubernetes default otherwise. Set it to
+  # Recreate for a workload that must not run twice for a reason storage
+  # cannot express — a migration on boot.
+  strategy: ""
   resources:
     cpu: 100m
     memory: 256Mi
     memoryLimit: ""
+  # { size, mountPath, claimName?, owner? }. `claimName` mounts a PVC another
+  # release owns (and renders no PV/PVC here, so `size` is then unused);
+  # `owner` is the uid:gid the chown initContainer hands the volume to,
+  # defaulting to 1000:1000 and skipped entirely when set empty.
   storage: {}
+  # filename -> content, or filename -> { path, content } to mount it at an
+  # absolute path the image dictates rather than under /app.
   configFiles: {}
+  # [{ secretName, mountPath }] — an existing Secret mounted read-only as
+  # files. For a credential an image reads from disk rather than from env.
+  secretMounts: []
   dashboards: {}
   # name -> Grafana unified-alerting provisioning YAML. prod-only, like dashboards.
   alerts: {}
@@ -51,13 +72,24 @@ spec:
   # spec.port. For a client that cannot stamp the catalogue's clientLabel
   # because a third-party chart renders its pods.
   network:
+    # Drops the two rules this chart derives for an application — Traefik
+    # ingress on spec.port, egress to the internet — leaving DNS plus exactly
+    # what `exposeTo` and `egress` declare below. What a datastore is.
+    isolated: false
     exposeTo: []
+    # Extra egress rules in the common.networkPolicy vocabulary:
+    # [{ to: <peer>, ports?: [...] }]. Additive.
+    egress: []
   # Opt-in in-cluster platform services, resolved against the catalog in
   # templates/_helpers.tpl (app.platformCatalog). Valid: otel-collector,
   # gateway-intelligence. Unknown names hard-fail the render.
   platformServices: []
   health:
     path: /health
+    # Alternatives to the HTTP path, for a server that does not speak it. The
+    # first one set wins: exec, then tcp, then path.
+    exec: []
+    tcp: false
     # Raised from Kubernetes' 1s: a Node app doing in-process background work
     # exceeds it on a trivial route. Everything else uses the k8s defaults.
     timeoutSeconds: 5

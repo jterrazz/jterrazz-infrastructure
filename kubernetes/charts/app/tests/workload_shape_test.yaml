@@ -1,0 +1,313 @@
+suite: the datastore shape — everything an app never sets
+#
+# Chart 2.11 widened this chart from "a Node service behind Traefik" to "any
+# workload this cluster runs", so that the six OpenPanel components, LibreChat's
+# MongoDB and the registry stopped being hand-written manifests. Each assertion
+# below is one of those workloads' requirements, and each is a branch an app
+# repo never reaches — which is exactly why they need pinning here: nothing in
+# the fleet would notice if one of them silently stopped rendering.
+#
+# The fixture's `staging` environment IS the datastore shape (see the comment
+# on it in ci/test-values.yaml); `prod` is the app shape. Most tests here just
+# switch environments.
+values:
+  - ../ci/test-values.yaml
+tests:
+  - it: mounts a claim another release owns, and renders no PV/PVC for it
+    # The PV/PVC pair is the identity of live data and belongs to the release
+    # that created it. Rendering a second pair here would make `helm uninstall`
+    # of the wrong release delete a bound claim.
+    set:
+      environment: staging
+    templates:
+      - templates/storage.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: still renders its own PV/PVC when no claimName is given
+    templates:
+      - templates/storage.yaml
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: chowns the volume to the uid the image runs as, not to 1000
+    set:
+      environment: staging
+    templates:
+      - templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].command
+          value: ["sh", "-c", "chown -R 70:70 /var/lib/postgresql/data"]
+
+  - it: skips the chown initContainer entirely for owner ""
+    # The registry runs as root over a root-owned blob store: chowning 10Gi of
+    # layers to 1000 on every pod start would be both slow and wrong.
+    set:
+      environment: staging
+      environments.staging.storage.owner: ""
+    templates:
+      - templates/deployment.yaml
+    asserts:
+      - isNull:
+          path: spec.template.spec.initContainers
+
+  - it: derives Recreate from storage, so two writers never share an RWO volume
+    templates:
+      - templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+
+  - it: takes Recreate from spec.strategy when there is no storage to derive it from
+    # op-api runs its migrations on boot; a rolling update would put two
+    # migration runners on one database.
+    set:
+      metadata.name: api
+      environment: prod
+      spec:
+        image: r/api:1
+        strategy: Recreate
+      environments:
+        prod: {}
+    templates:
+      - templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+
+  - it: leaves the strategy at the Kubernetes default for a stateless app
+    set:
+      metadata.name: api
+      environment: prod
+      spec:
+        image: r/api:1
+        storage: null
+      environments:
+        prod: {}
+    templates:
+      - templates/deployment.yaml
+    asserts:
+      - isNull:
+          path: spec.strategy
+
+  - it: puts the workload's own port on the Service when clients dial it by name
+    # `postgresql://…@op-postgres:5432/…` is written in Infisical, not here —
+    # the Service has to answer on 5432, not on 80.
+    set:
+      environment: staging
+    templates:
+      - templates/service.yaml
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 5432
+      - equal:
+          path: spec.ports[0].targetPort
+          value: 3000
+
+  - it: keeps the Service on 80 by default, so no IngressRoute names the app port
+    templates:
+      - templates/service.yaml
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 80
+
+  - it: probes with exec when the server does not speak HTTP
+    set:
+      environment: staging
+    templates:
+      - templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.exec.command
+          value: ["sh", "-c", "pg_isready"]
+      - isNull:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet
+
+  - it: probes with tcpSocket when the client is too heavy to run per probe
+    # mongosh's cold start alone exceeds the probe timeout, which crash-loops a
+    # perfectly healthy mongod on the liveness kill.
+    set:
+      metadata.name: db
+      environment: prod
+      spec:
+        image: mongo:7.0
+        port: 27017
+        health:
+          tcp: true
+      environments:
+        prod: {}
+    templates:
+      - templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.tcpSocket.port
+          value: 27017
+
+  - it: mounts a config file where the image wants it, not under /app
+    templates:
+      - templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: config
+            mountPath: /etc/ci-test/conf.d/ci-test.xml
+            subPath: ci-test.xml
+            readOnly: true
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: config
+            mountPath: /app/ci-test.json
+            subPath: ci-test.json
+            readOnly: true
+
+  - it: mounts an existing Secret as files for an image that reads from disk
+    templates:
+      - templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: ci-test-app-files
+            secret:
+              secretName: ci-test-app-files
+
+  - it: passes command and args through verbatim
+    templates:
+      - templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].command
+          value: ["node", "server.js"]
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value: ["--enable-source-maps"]
+
+  - it: names the pull secret only for an image on our own registry
+    templates:
+      - templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.imagePullSecrets[0].name
+          value: registry-credentials
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: Always
+
+  - it: names no pull secret for a third-party image, and leaves its policy alone
+    # A Secret that does not exist in the namespace earns a
+    # FailedToRetrieveImagePullSecret warning on every pod start; `Always` on a
+    # pinned public tag spends Docker Hub's anonymous pull quota for nothing.
+    set:
+      environment: staging
+    templates:
+      - templates/deployment.yaml
+    asserts:
+      - isNull:
+          path: spec.template.spec.imagePullSecrets
+      - isNull:
+          path: spec.template.spec.containers[0].imagePullPolicy
+
+  - it: isolated drops the Traefik ingress rule and the internet egress rule
+    # The whole security model of an unauthenticated datastore is that nothing
+    # reaches it and it dials nothing. The derived rules would grant both.
+    set:
+      environment: staging
+    templates:
+      - templates/network-policy.yaml
+    asserts:
+      - notContains:
+          path: spec.ingress
+          content:
+            from:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: kube-system
+            ports:
+              - port: 3000
+      - notContains:
+          path: spec.egress
+          content:
+            to:
+              - ipBlock:
+                  cidr: 0.0.0.0/0
+                  except:
+                    - 10.0.0.0/8
+                    - 172.16.0.0/12
+                    - 192.168.0.0/16
+
+  - it: admits a same-namespace pod label and nothing wider
+    # `pods:` is a bare podSelector — "here". `any-namespace-pods:` with the
+    # same label would admit a pod of that name from anywhere in the cluster,
+    # which for a database with no password is the whole difference.
+    set:
+      environment: staging
+    templates:
+      - templates/network-policy.yaml
+    asserts:
+      - contains:
+          path: spec.ingress
+          content:
+            from:
+              - podSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: ci-test-app
+            ports:
+              - port: 3000
+
+  - it: keeps DNS egress and the declared rules under isolation
+    set:
+      environment: staging
+    templates:
+      - templates/network-policy.yaml
+    asserts:
+      - contains:
+          path: spec.egress
+          content:
+            to:
+              - namespaceSelector: {}
+            ports:
+              - port: 53
+                protocol: UDP
+              - port: 53
+      - contains:
+          path: spec.egress
+          content:
+            to:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: platform-analytics
+            ports:
+              - port: 5432
+
+  - it: keeps the derived Traefik ingress and internet egress for an app
+    templates:
+      - templates/network-policy.yaml
+    asserts:
+      - contains:
+          path: spec.ingress
+          content:
+            from:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: kube-system
+            ports:
+              - port: 3000
+      - contains:
+          path: spec.egress
+          content:
+            to:
+              - ipBlock:
+                  cidr: 0.0.0.0/0
+                  except:
+                    - 10.0.0.0/8
+                    - 172.16.0.0/12
+                    - 192.168.0.0/16

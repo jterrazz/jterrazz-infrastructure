@@ -25,7 +25,10 @@ on:
       - 'kubernetes/services/**'
       - 'kubernetes/cluster/**'
       - 'kubernetes/charts/platform-service/**'
-      # The library chart platform-service renders through.
+      # The app chart: the helmfile installs platform workloads from the LOCAL
+      # copy of it (./charts/app), not from the published OCI one.
+      - 'kubernetes/charts/app/**'
+      # The library chart both of them render through.
       - 'kubernetes/charts/common/**'
       # The one declaration of every platform Helm release.
       - 'kubernetes/helmfile.yaml.gotmpl'

@@ -7,7 +7,8 @@ suite: full fixture render (snapshot)
 # reclaim policy that flips from Retain to Delete, a storageClassName that
 # stops being `manual`. Those are one-word edits with a data-loss blast radius
 # — the PVs here are hostPath volumes holding Grafana, the three VictoriaMetrics
-# stores, LibreChat, OpenPanel and registry state.
+# stores, LibreChat, OpenPanel and registry state. Plus the InfisicalSecret,
+# whose `secretName` is read by a literal string in someone else's chart.
 #
 # Reviewing a failure: read the diff. If every changed line is intended,
 #   helm unittest -u kubernetes/charts/platform-service

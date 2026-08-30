@@ -237,3 +237,79 @@ environment: {{ .Values.environment }}
 app: {{ include "app.name" . }}
 environment: {{ .Values.environment }}
 {{- end -}}
+
+{{/*
+The probe action shared by all three probes — httpGet by default, and the two
+alternatives a datastore needs. Exactly one is emitted, in this order:
+
+  health.exec  [cmd, …]  an exec probe. Postgres answers `pg_isready`, Redis
+                         `redis-cli ping`; neither speaks HTTP at all.
+  health.tcp   true      a tcpSocket probe on spec.port. For a server that
+                         speaks its own protocol and whose CLIENT is too heavy
+                         to run per probe — mongosh's cold start alone exceeds
+                         the probe timeout, which crash-loops a healthy mongod.
+  health.path  <path>    the default: httpGet on spec.port.
+
+Emits YAML lines at column 0; the caller nindents them.
+*/}}
+{{- define "app.probe" -}}
+{{- $spec := fromYaml (include "app.merged" .) -}}
+{{- $health := $spec.health -}}
+{{- if $health.exec -}}
+exec:
+  command:
+    {{- range $health.exec }}
+    - {{ . | quote }}
+    {{- end }}
+{{- else if $health.tcp -}}
+tcpSocket:
+  port: {{ $spec.port }}
+{{- else -}}
+httpGet:
+  path: {{ $health.path }}
+  port: {{ $spec.port }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+"true" when the image comes from OUR registry. Two things follow from it and
+from nothing else: the imagePullSecret (the credential authenticates that
+registry alone, and naming a Secret absent from the namespace earns a warning
+event on every pod start) and `imagePullPolicy: Always` (our tags are mutable;
+a third-party pinned tag is better left on Kubernetes' default, which also
+keeps a pod restart off Docker Hub's anonymous pull quota).
+*/}}
+{{- define "app.privateImage" -}}
+{{- if hasPrefix (printf "%s/" .Values.registry.server) (include "app.image" .) -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
+Where one `spec.configFiles` entry is mounted. A plain string value is content,
+mounted at /app/<filename> — the shape every app repo uses. A `{ path, content }`
+map puts the same file at an absolute path the IMAGE dictates
+(/etc/clickhouse-server/config.d/…, /docker-entrypoint-initdb.d/…), which is
+the only reason the map form exists.
+
+Input dict: filename, file.
+*/}}
+{{- define "app.configFilePath" -}}
+{{- if kindIs "map" .file -}}
+{{- .file.path | required (printf "spec.configFiles.%s is a map, so it must carry `path:` (and `content:`)" .filename) -}}
+{{- else -}}
+/app/{{ .filename }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+The CONTENT of one `spec.configFiles` entry — the value itself for the string
+form, `.content` for the map form. Input dict: filename, file.
+*/}}
+{{- define "app.configFileContent" -}}
+{{- if kindIs "map" .file -}}
+{{- .file.content | required (printf "spec.configFiles.%s is a map, so it must carry `content:` (and `path:`)" .filename) -}}
+{{- else -}}
+{{- .file -}}
+{{- end -}}
+{{- end -}}

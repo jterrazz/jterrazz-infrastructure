@@ -35,6 +35,22 @@ smoke:
   path: /v2/
   expect: "401"
 
+# A certificate for a hostname whose ROUTES live on another release — the
+# openpanel shape, where two app-chart releases answer on one host and neither
+# can own its certificate without the other duplicating it. The key is both the
+# Certificate and the TLS Secret name.
+certificates:
+  ci-test-shared-tls:
+    dnsNames:
+      - ci-test-shared.jterrazz.com
+
+# The service's credentials, synced from Infisical. `secretName` is a contract
+# with the consumer (an upstream chart's envFrom, a values file's secretKeyRef),
+# so it is required and never derived.
+secrets:
+  path: /jterrazz-infrastructure/ci-test-service
+  secretName: ci-test-service-credentials
+
 # Named volumes. The PV is always <name>-<key>; hostPath is
 # /var/lib/k8s-data/<name>[/<pathSuffix>].
 storage:

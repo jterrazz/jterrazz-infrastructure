@@ -16,10 +16,10 @@ Nothing is vendored: `charts/` and `Chart.lock` are gitignored.
 | `common.ingressRoute` | one Traefik `IngressRoute` | one per ingress entry, `<app>-<idx>` | one, `<name>` |
 | `common.middleware.stripPrefix` | a `stripPrefix` Middleware | `<app>-<idx>-strip-prefix` | — |
 | `common.middleware.redirect` | a `redirectRegex` Middleware | `<app>-<idx>-redirect` | — |
-| `common.certificate` | a cert-manager `Certificate` | one per unique host | one, with the aliases as SANs |
+| `common.certificate` | a cert-manager `Certificate` | one per unique host, unless the entry names an existing `tlsSecret` | one with the aliases as SANs, plus one per `certificates.<key>` |
 | `common.volume` | a hostPath `PersistentVolume` + its `PersistentVolumeClaim` | the single `spec.storage` | one pair per `storage.<key>` |
-| `common.networkPolicy` | one `NetworkPolicy` | always, from the platformServices catalogue | from the `network:` block |
-| `common.infisicalSecret` | an `InfisicalSecret` | when `spec.secrets.path` is set | — |
+| `common.networkPolicy` | one `NetworkPolicy` | always: the platformServices catalogue plus the `spec.network` block | from the `network:` block |
+| `common.infisicalSecret` | an `InfisicalSecret` | when `spec.secrets.path` is set | when `secrets:` is set |
 | `common.smokeAnnotations` | the `smoke.jterrazz.com/*` annotations on an `IngressRoute` | derived per ingress entry, `smoke:` overrides it | from the `smoke:` block |
 
 Each template's own header is the reference for its inputs and for the traps it

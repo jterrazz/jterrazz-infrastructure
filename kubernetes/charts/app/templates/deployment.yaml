@@ -2,12 +2,28 @@
 {{- $spec := fromYaml (include "app.merged" .) -}}
 {{- $secrets := $spec.secrets -}}
 {{- $envVars := $spec.env -}}
-{{- $health := $spec.health -}}
 {{- $resources := $spec.resources -}}
 {{- $platformEnv := fromYaml (include "app.platformEnv" .) -}}
 {{- $platformClientLabels := fromYaml (include "app.platformClientLabels" .) -}}
-{{- /*
-readOnlyRootFilesystem is deliberately NOT among these defaults: every app
+{{- $storage := $spec.storage -}}
+{{- /* Recreate is DERIVED from storage rather than asked for: every volume this
+       chart mounts is an RWO hostPath, and two writers on one is the trap the
+       datastores exist to avoid. `spec.strategy` overrides it for the workload
+       that needs Recreate WITHOUT a volume — op-api runs its migrations on
+       boot, so a rolling update would put two migration runners on the same
+       database. */ -}}
+{{- $strategy := $spec.strategy | default (ternary "Recreate" "" (not (not $storage))) -}}
+{{- /* The chown initContainer is what makes a hostPath volume writable by a
+       non-root container: the directory is created root-owned and only root
+       can hand it over. `storage.owner` names the uid:gid the IMAGE runs as
+       (70:70 for alpine postgres, 101:101 for clickhouse, …); the empty
+       string skips the container entirely, for an image that runs as root and
+       whose data must stay root-owned. */ -}}
+{{- $owner := "1000:1000" -}}
+{{- if and $storage (hasKey $storage "owner") -}}
+{{- $owner = $storage.owner | toString -}}
+{{- end -}}
+{{- /* readOnlyRootFilesystem is deliberately NOT among these defaults: every app
 here is a Next.js or Node service that writes caches at runtime, and setting
 it would crash-loop them. `spec.securityContext` merges OVER the defaults, so
 an app needing a capability back never has to fork the chart. deepCopy because
@@ -41,9 +57,9 @@ spec:
   replicas: {{ $spec.replicas }}
   # 3, not the k8s default 10 — see kubernetes/services/grafana/values.yaml.
   revisionHistoryLimit: 3
-  {{- if $spec.storage }}
+  {{- if $strategy }}
   strategy:
-    type: Recreate
+    type: {{ $strategy }}
   {{- end }}
   selector:
     matchLabels:
@@ -67,13 +83,20 @@ spec:
         runAsGroup: 1000
         fsGroup: 1000
       {{- end }}
+      {{- /* Only for an image on OUR registry: that is the only one the
+             credential can authenticate, and naming a Secret that does not
+             exist in the namespace earns a FailedToRetrieveImagePullSecret
+             warning on every pod start. Same fact decides imagePullPolicy
+             below. */}}
+      {{- if eq (include "app.privateImage" .) "true" }}
       imagePullSecrets:
         - name: registry-credentials
-      {{- if $spec.storage }}
+      {{- end }}
+      {{- if and $storage $owner }}
       initContainers:
         - name: fix-permissions
           image: busybox:1.38@sha256:fd8d9aa63ba2f0982b5304e1ee8d3b90a210bc1ffb5314d980eb6962f1a9715d
-          command: ["sh", "-c", "chown -R 1000:1000 /data"]
+          command: ["sh", "-c", "chown -R {{ $owner }} {{ $storage.mountPath }}"]
           # Must stay root: hostPath dirs are created root-owned and only root
           # can chown them to the app's uid. Every capability is still dropped
           # except the three `chown -R` needs — CHOWN to change ownership,
@@ -89,16 +112,33 @@ spec:
               type: RuntimeDefault
           volumeMounts:
             - name: data
-              mountPath: /data
+              mountPath: {{ $storage.mountPath }}
       {{- end }}
       containers:
         - name: {{ include "app.name" . }}
           image: {{ include "app.image" . }}
-          # Always: `main` / `next` tags are mutable, so IfNotPresent would
-          # keep serving whatever the node cached at the first pull.
+          {{- /* Always for our own registry: `main` / `next` tags are mutable,
+                 so IfNotPresent would keep serving whatever the node cached at
+                 the first pull. A third-party image is left at Kubernetes' own
+                 default, which is what its pinned tag deserves — and what
+                 keeps a pod restart off Docker Hub's anonymous pull quota. */}}
+          {{- if eq (include "app.privateImage" .) "true" }}
           imagePullPolicy: Always
+          {{- end }}
           securityContext:
             {{- toYaml $securityContext | nindent 12 }}
+          {{- if $spec.command }}
+          command:
+            {{- range $spec.command }}
+            - {{ . | quote }}
+            {{- end }}
+          {{- end }}
+          {{- if $spec.args }}
+          args:
+            {{- range $spec.args }}
+            - {{ . | quote }}
+            {{- end }}
+          {{- end }}
           ports:
             - containerPort: {{ $spec.port }}
           env:
@@ -148,16 +188,21 @@ spec:
                   key: {{ . }}
             {{- end }}
             {{- end }}
-          {{- if or $spec.storage $spec.configFiles }}
+          {{- if or $storage $spec.configFiles $spec.secretMounts }}
           volumeMounts:
-            {{- if $spec.storage }}
+            {{- if $storage }}
             - name: data
-              mountPath: {{ $spec.storage.mountPath }}
+              mountPath: {{ $storage.mountPath }}
             {{- end }}
-            {{- range $filename, $content := $spec.configFiles }}
+            {{- range $filename, $file := $spec.configFiles }}
             - name: config
-              mountPath: /app/{{ $filename }}
+              mountPath: {{ include "app.configFilePath" (dict "filename" $filename "file" $file) }}
               subPath: {{ $filename }}
+              readOnly: true
+            {{- end }}
+            {{- range $spec.secretMounts }}
+            - name: {{ .secretName }}
+              mountPath: {{ .mountPath }}
               readOnly: true
             {{- end }}
           {{- end }}
@@ -173,32 +218,31 @@ spec:
           # Only timeoutSeconds is raised: 1s is not enough for a Node app that
           # also runs in-process background work.
           startupProbe:
-            httpGet:
-              path: {{ $health.path }}
-              port: {{ $spec.port }}
-            timeoutSeconds: {{ $health.timeoutSeconds }}
-            failureThreshold: {{ $health.startupFailureThreshold }}
+            {{- include "app.probe" . | nindent 12 }}
+            timeoutSeconds: {{ $spec.health.timeoutSeconds }}
+            failureThreshold: {{ $spec.health.startupFailureThreshold }}
           livenessProbe:
-            httpGet:
-              path: {{ $health.path }}
-              port: {{ $spec.port }}
-            timeoutSeconds: {{ $health.timeoutSeconds }}
+            {{- include "app.probe" . | nindent 12 }}
+            timeoutSeconds: {{ $spec.health.timeoutSeconds }}
           readinessProbe:
-            httpGet:
-              path: {{ $health.path }}
-              port: {{ $spec.port }}
-            timeoutSeconds: {{ $health.timeoutSeconds }}
-      {{- if or $spec.storage $spec.configFiles }}
+            {{- include "app.probe" . | nindent 12 }}
+            timeoutSeconds: {{ $spec.health.timeoutSeconds }}
+      {{- if or $storage $spec.configFiles $spec.secretMounts }}
       volumes:
-        {{- if $spec.storage }}
+        {{- if $storage }}
         - name: data
           persistentVolumeClaim:
-            claimName: {{ include "app.name" . }}-data
+            claimName: {{ $storage.claimName | default (printf "%s-data" (include "app.name" .)) }}
         {{- end }}
         {{- if $spec.configFiles }}
         - name: config
           configMap:
             name: {{ include "app.name" . }}-config
+        {{- end }}
+        {{- range $spec.secretMounts }}
+        - name: {{ .secretName }}
+          secret:
+            secretName: {{ .secretName }}
         {{- end }}
       {{- end }}
 {{- end }}

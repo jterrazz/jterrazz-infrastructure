@@ -13,13 +13,22 @@ and cannot stamp the label.
 
 Egress: DNS, the public internet minus RFC1918, and one hole per opted-in
 platform service — on the POD ports from the catalog, never the Service port.
+
+`spec.network.isolated` drops the two DERIVED rules (Traefik in, internet out)
+and leaves only DNS plus what `exposeTo:` / `egress:` declare. That is what a
+datastore is: a workload whose entire security model is that nothing reaches it
+and it dials nothing.
 */ -}}
 {{- if eq (include "app.envExists" .) "true" -}}
 {{- $catalog := fromYaml (include "app.platformCatalog" .) -}}
 {{- $platformServices := fromYamlArray (include "app.platformServices" .) -}}
 {{- $spec := fromYaml (include "app.merged" .) -}}
+{{- $net := $spec.network | default dict -}}
 {{- $appName := include "app.name" . -}}
-{{- $ingress := list (dict "from" "traefik" "ports" (list $spec.port)) -}}
+{{- $ingress := list -}}
+{{- if not $net.isolated -}}
+{{- $ingress = append $ingress (dict "from" "traefik" "ports" (list $spec.port)) -}}
+{{- end -}}
 {{- if hasKey $catalog $appName -}}
 {{- $selfEntry := index $catalog $appName -}}
 {{- if $selfEntry.clientLabel -}}
@@ -29,15 +38,19 @@ platform service — on the POD ports from the catalog, never the Service port.
 {{- /* Declared clients, on the app's own pod port. Unknown peers hard-fail in
        common.networkPolicy.rule, so a typo can never render a policy that
        silently admits nothing. */ -}}
-{{- range $peer := (($spec.network).exposeTo | default list) -}}
+{{- range $peer := ($net.exposeTo | default list) -}}
 {{- $ingress = append $ingress (dict "from" $peer "ports" (list $spec.port)) -}}
 {{- end -}}
 {{- /* A pod resolves before it can know which namespace answered, so DNS is
        namespace-wide. The bare 53 is TCP — the Kubernetes default, left
        unwritten so the rendered object matches what the API server stores. */ -}}
-{{- $egress := list
-      (dict "to" "any-namespace" "ports" (list "53/UDP" 53))
-      (dict "to" "internet") -}}
+{{- $egress := list (dict "to" "any-namespace" "ports" (list "53/UDP" 53)) -}}
+{{- if not $net.isolated -}}
+{{- $egress = append $egress (dict "to" "internet") -}}
+{{- end -}}
+{{- range $rule := ($net.egress | default list) -}}
+{{- $egress = append $egress $rule -}}
+{{- end -}}
 {{- range $svc := $platformServices -}}
 {{- $entry := index $catalog $svc -}}
 {{- $egress = append $egress (dict "to" (printf "namespace:%s" $entry.egress.namespace) "ports" $entry.egress.ports) -}}

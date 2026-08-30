@@ -45,6 +45,35 @@ smoke:
   path: /
   expect: "200"
 
+# Extra certificates, <name> -> { dnsNames: [...] }, where <name> is BOTH the
+# Certificate and the TLS Secret it writes — a name that addresses live data,
+# so this chart derives neither. The service's own `host` (plus `aliases`) does
+# not belong here; it already gets `<name>-tls` above.
+#
+# The one case for it: a service split across several app-chart releases, whose
+# routes therefore live on those releases. Two of them answering on one
+# hostname cannot each own its certificate, so the service does, and the routes
+# name it with `ingress[].tlsSecret`. OpenPanel is the sole user.
+#
+#   certificates:
+#     openpanel-tls:            { dnsNames: [openpanel.internal.jterrazz.com] }
+#     openpanel-analytics-tls:  { dnsNames: [analytics.jterrazz.com] }
+certificates: {}
+
+# The service's credentials, synced from Infisical by the operator into a
+# Secret an upstream chart or values file reads by name:
+#
+#   secrets:
+#     path: /jterrazz-infrastructure/librechat   # Infisical secretsPath
+#     secretName: librechat-credentials-env      # the name the consumer reads
+#     env: prod                                  # Infisical env slug (default)
+#
+# `secretName` is REQUIRED and is a contract: the LibreChat chart wires envFrom
+# to that literal string, the collector's values.yaml reads one key out of it.
+# Renders InfisicalSecret `<name>-infisical`; the managed Secret outlives it
+# (creationPolicy Orphan), so deleting the release does not log the service out.
+secrets: {}
+
 # Named volumes: <key> -> { size, pathSuffix?, claimName?, nodeLocalPath? }.
 # Names and paths address live data — see templates/storage.yaml before
 # changing any of them.
