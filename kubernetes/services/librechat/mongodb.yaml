@@ -1,111 +1,67 @@
-# Standalone MongoDB for LibreChat, in place of the chart's bundled Bitnami
-# subchart. No auth: it listens only inside platform-ai and has no other
-# tenants — add auth (and a Secret-injected MONGO_URI) before this is anything
-# but private. Data is on the manual hostPath PVC `librechat-data`
-# (service.yaml), hence Recreate: never two writers on one RWO hostPath volume.
-apiVersion: apps/v1
-kind: Deployment
+# App-chart values for the standalone MongoDB LibreChat stores everything in,
+# in place of the chart's bundled Bitnami subchart. Release `librechat-mongodb`
+# in kubernetes/helmfile.yaml.gotmpl; the PVC it mounts belongs to
+# `librechat-platform` (service.yaml, storage.data).
+#
+# NO AUTH: mongod listens on 27017 with no user, no password and no TLS, and it
+# holds every account and every conversation. `network:` below is what stands in
+# for the authentication — one pod label, in this namespace only. Add MongoDB
+# auth (and a Secret-injected MONGO_URI) before adding a second tenant here.
 metadata:
   name: librechat-mongodb
-  namespace: platform-ai
-  labels:
-    app: librechat-mongodb
-    app.kubernetes.io/part-of: librechat
+
+environment: prod
+
 spec:
-  strategy:
-    type: Recreate
-  selector:
-    matchLabels:
-      app: librechat-mongodb
-  template:
-    metadata:
-      labels:
-        app: librechat-mongodb
-    spec:
-      # hostPath dirs are created root-owned. The mongo entrypoint would chown
-      # /data/db itself and gosu down, but pinning the container to uid 999
-      # below means that branch never runs — hence this explicit chown.
-      initContainers:
-        - name: fix-perms
-          image: busybox:1.38@sha256:fd8d9aa63ba2f0982b5304e1ee8d3b90a210bc1ffb5314d980eb6962f1a9715d
-          command: ["sh", "-c", "chown -R 999:999 /data/db"]
-          # Root with only the `chown -R` capabilities — see
-          # kubernetes/charts/app/templates/deployment.yaml for why these three.
-          securityContext:
-            runAsUser: 0
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
-              add: ["CHOWN", "FOWNER", "DAC_OVERRIDE"]
-            seccompProfile:
-              type: RuntimeDefault
-          volumeMounts:
-            - name: data
-              mountPath: /data/db
-      containers:
-        - name: mongodb
-          # ONE-WAY DOOR: the 7.0 minor, never the floating `7`. A minor jump
-          # rewrites on-disk feature-compatibility metadata and mongod then
-          # refuses to start against files a newer release wrote; bump
-          # deliberately, setting featureCompatibilityVersion either side.
-          # 8.0 is the version LibreChat pins and it does not boot on the
-          # OrbStack kernel (SERVER-121912).
-          image: mongo:7.0
-          # uid/gid 999 is the image's `mongodb` user — the same uid the
-          # initContainer above chowns to.
-          securityContext:
-            runAsNonRoot: true
-            runAsUser: 999
-            runAsGroup: 999
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
-            seccompProfile:
-              type: RuntimeDefault
-          args:
-            - "--quiet"
-            - "--wiredTigerCacheSizeGB"
-            - "0.25"
-          ports:
-            - containerPort: 27017
-          volumeMounts:
-            - name: data
-              mountPath: /data/db
-          resources:
-            requests:
-              cpu: 25m
-              memory: 192Mi
-            limits:
-              memory: 384Mi
-          # TCP probe, NOT `mongosh --eval`: mongosh is a heavy Node REPL whose
-          # cold start alone exceeds the default 1s probe timeout, which
-          # crash-loops the pod on liveness kills.
-          livenessProbe:
-            tcpSocket:
-              port: 27017
-            initialDelaySeconds: 30
-            periodSeconds: 30
-            timeoutSeconds: 5
-          readinessProbe:
-            tcpSocket:
-              port: 27017
-            initialDelaySeconds: 10
-            timeoutSeconds: 5
-      volumes:
-        - name: data
-          persistentVolumeClaim:
-            claimName: librechat-data
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: librechat-mongodb
-  namespace: platform-ai
-  labels:
-    app: librechat-mongodb
-    app.kubernetes.io/part-of: librechat
-spec:
-  selector:
-    app: librechat-mongodb
-  ports:
-    - port: 27017
+  # ONE-WAY DOOR: the 7.0 minor, never the floating `7`. A minor jump rewrites
+  # on-disk feature-compatibility metadata and mongod then refuses to start
+  # against files a newer release wrote; bump deliberately, setting
+  # featureCompatibilityVersion either side. 8.0 is the version LibreChat pins
+  # and it does not boot on the OrbStack kernel (SERVER-121912).
+  image: mongo:7.0
+  port: 27017
+  # `mongodb://librechat-mongodb:27017/LibreChat` is in values.yaml's MONGO_URI,
+  # so the Service has to answer on the real port rather than the chart's 80.
+  servicePort: 27017
+
+  args:
+    - "--quiet"
+    - "--wiredTigerCacheSizeGB"
+    - "0.25"
+
+  # uid/gid 999 is the image's `mongodb` user — the same uid `storage.owner`
+  # chowns to. Pinning it bypasses the mongo entrypoint's own chown, which is
+  # why the initContainer is not optional here.
+  securityContext:
+    runAsUser: 999
+    runAsGroup: 999
+
+  storage:
+    mountPath: /data/db
+    claimName: librechat-data
+    owner: "999:999"
+
+  # TCP, NOT `mongosh --eval`: mongosh is a heavy Node REPL whose cold start
+  # alone exceeds the probe timeout, which crash-loops a healthy mongod on the
+  # liveness kill.
+  health:
+    tcp: true
+
+  resources:
+    cpu: 25m
+    memory: 192Mi
+    memoryLimit: 384Mi
+
+  network:
+    # Nothing reaches a database with no password except the one client that
+    # owns it, and mongod dials nothing but DNS — a database that calls out is
+    # a database doing something it was not asked to do.
+    isolated: true
+    exposeTo:
+      # `pods:` is a bare podSelector, i.e. THIS namespace. The
+      # `any-namespace-pods:` spelling of the same label would admit a pod
+      # called librechat from anywhere in the cluster.
+      - pods:app.kubernetes.io/name=librechat
+
+environments:
+  prod: {}

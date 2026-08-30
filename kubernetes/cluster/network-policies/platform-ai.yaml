@@ -8,11 +8,11 @@
 # this file existed, any pod in the cluster could read or drop that database.
 # These policies are the only thing standing in front of it.
 #
-# WHAT IS AND IS NOT IN THIS FILE. The namespace baseline, and the rules for
-# librechat-mongodb — a hand-written manifest with no Helm release of its own,
-# so nothing else can declare them. LibreChat's own ingress and egress are
-# declared by the service, in the `network:` block in
-# kubernetes/services/librechat/service.yaml.
+# WHAT IS AND IS NOT IN THIS FILE. The namespace BASELINE, and nothing else.
+# Both workloads declare their own reach with themselves: LibreChat in the
+# `network:` block of kubernetes/services/librechat/service.yaml, mongod in the
+# one in kubernetes/services/librechat/mongodb.yaml — which is where the rule
+# that substitutes for its missing authentication now lives.
 
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -23,42 +23,6 @@ spec:
   podSelector: {}
   policyTypes:
     - Ingress
-
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-librechat-to-mongodb
-  namespace: platform-ai
-spec:
-  podSelector:
-    matchLabels:
-      app: librechat-mongodb
-  policyTypes:
-    - Ingress
-  ingress:
-    # LibreChat -> mongod:27017, and NOTHING else, ever. Sourced by
-    # values.yaml's `MONGO_URI: mongodb://librechat-mongodb:27017/LibreChat`.
-    #
-    # This is the rule that substitutes for authentication (see the file header
-    # and mongodb.yaml): the pod selector on the source side is deliberately as
-    # tight as it can be — one pod label, in this namespace only — because a
-    # `namespaceSelector`-only rule would let any future pod in platform-ai read
-    # the whole database. Add MongoDB auth before adding a second tenant here.
-    #
-    # NOTE: this does NOT gate the kubelet's tcpSocket liveness/readiness probes
-    # on 27017. Those are sourced from the node, not from a pod, and k3s'
-    # NetworkPolicy enforcement does not filter them — which is why op-worker in
-    # platform-analytics stays Ready under an ingress policy that admits nothing
-    # but its own namespace.
-    - from:
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/name: librechat
-              app.kubernetes.io/instance: librechat
-      ports:
-        - protocol: TCP
-          port: 27017
 
 ---
 # Egress is DEFAULT-DENY for every pod in the namespace (podSelector {} +
@@ -79,6 +43,11 @@ spec:
     # it can know which namespace answered. For librechat-mongodb this is the
     # ONLY egress it gets: a database that dials out is a database doing
     # something it was not asked to do.
+    #
+    # NOTE: no policy here gates the kubelet's tcpSocket probes on 27017.
+    # Those are sourced from the node, not from a pod, and k3s' NetworkPolicy
+    # enforcement does not filter them — which is why a pod stays Ready under
+    # an ingress policy that admits almost nothing.
     - to:
         - namespaceSelector: {}
       ports:

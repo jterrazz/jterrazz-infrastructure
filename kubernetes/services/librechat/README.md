@@ -5,10 +5,11 @@ Private chat UI on **`chat.internal.jterrazz.com`** (Tailscale-only), namespace
 (`gateway-intelligence`) rather than any provider API directly, so no
 provider key is ever stored here.
 
-Two Helm releases in `kubernetes/helmfile.yaml.gotmpl` — `librechat-platform`
-(storage, certificate, ingress) and `librechat` (the app) — plus the standalone
-`mongodb.yaml`, applied by `ansible/roles/platform/tasks/raw-manifests.yml`
-between the two helmfile passes.
+Three Helm releases in `kubernetes/helmfile.yaml.gotmpl`: `librechat-platform`
+(storage, certificate, ingress), `librechat-mongodb` (the standalone database,
+through the app chart — `mongodb.yaml` is its values file) and `librechat` (the
+app, upstream chart). They install in that order; the app will not pass
+readiness before mongod is serving.
 
 ## Architecture
 
@@ -31,8 +32,10 @@ between the two helmfile passes.
   chart default, so nothing sets it. The bundled MongoDB is a
   Bitnami subchart, deprecated upstream since 2025-09 and no longer pullable;
   it would also land on the default `local-path` StorageClass, which does not
-  survive a repave. We run our own `mongo:7.0` Deployment instead
-  (`mongodb.yaml`) on a `manual` hostPath PVC.
+  survive a repave. We run our own `mongo:7.0` through the **app chart**
+  instead (`mongodb.yaml` is app-chart values, not a manifest) on a `manual`
+  hostPath PVC that `librechat-platform` owns and this release only mounts
+  (`storage.claimName`).
 - **No Meilisearch** ⇒ `SEARCH: "false"` — conversation search is off.
 - **Private-only for now**: `ALLOW_REGISTRATION: "false"` plus the
   `private-access` middleware. Going public means flipping `access: private`
@@ -45,9 +48,12 @@ between the two helmfile passes.
   route to this Service, reachable on that Host header alone. Never remove the
   override; the real route is the IngressRoute the platform-service chart
   renders.
-- **NetworkPolicy**: `kubernetes/cluster/network-policies/platform-ai.yaml`. It
-  is the substitute for MongoDB auth — mongod has none — so it admits :27017
-  from the LibreChat pod and nothing else, and gives mongod no egress beyond DNS.
+- **NetworkPolicy**: each workload declares its own, and
+  `kubernetes/cluster/network-policies/platform-ai.yaml` holds only the
+  namespace baseline. mongod's (`network:` in `mongodb.yaml`) is the substitute
+  for the auth it does not have: `isolated: true` plus one `pods:` peer, so it
+  admits :27017 from the LibreChat pod and nothing else and gets no egress
+  beyond DNS.
 
 ## Deployed versions (pinned)
 
@@ -56,7 +62,7 @@ between the two helmfile passes.
 | Helm chart     | `oci://ghcr.io/danny-avila/librechat-chart/librechat` **2.0.7** (pinned on the `librechat` release in `kubernetes/helmfile.yaml.gotmpl`) |
 | LibreChat app  | `registry.librechat.ai/danny-avila/librechat:v0.8.7`     |
 | MongoDB        | `mongo:7.0`                                                  |
-| (init) chown   | `busybox:1.38` (digest-pinned in `mongodb.yaml`)             |
+| (init) chown   | `busybox:1.38` (digest-pinned in the app chart's `deployment.yaml`) |
 
 The image tag is pinned **explicitly** rather than inherited from the chart's
 `appVersion`: an empty tag means "whatever appVersion this chart revision
@@ -75,10 +81,10 @@ other platform namespace in
 
 Both workloads run hardened container `securityContext`s
 (`allowPrivilegeEscalation: false`, `capabilities.drop: [ALL]`,
-`seccompProfile: RuntimeDefault`); mongod additionally pins uid/gid **999**,
-paired with a root `fix-perms` initContainer that chowns the root-owned
-hostPath dir — pinning the uid bypasses the mongo entrypoint's own chown.
-Same pattern as the app chart and OpenPanel's datastores.
+`seccompProfile: RuntimeDefault`); mongod additionally pins uid/gid **999**
+(`spec.securityContext`), paired with the app chart's root `fix-permissions`
+initContainer, which `storage.owner: "999:999"` points at the same uid —
+pinning the uid bypasses the mongo entrypoint's own chown.
 
 ## Where the data lives
 
@@ -231,7 +237,8 @@ CLIProxyAPI supports a `claude-opus-latest` alias in
   has no other tenant on it. Add auth (and a Secret-injected `MONGO_URI`)
   before this is anything but private.
 - **`strategy: Recreate` on mongod** — never run two writers against one RWO
-  hostPath volume.
+  hostPath volume. Not written anywhere: the app chart derives it from the
+  mounted volume.
 - **Changing `pathSuffix` or a PV name in `service.yaml` moves live data.**
   The paths are byte-identical to what the pre-2.0 manifests produced, on
   purpose. `hostPath.type` is an immutable PV field: delete and recreate the

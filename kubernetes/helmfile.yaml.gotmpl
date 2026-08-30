@@ -211,18 +211,24 @@ releases:
     values:
       - services/librechat/service.yaml
 
+  # The standalone MongoDB, in place of the chart's bundled Bitnami subchart.
+  # An app-chart release like any workload: it mounts the PVC its `-platform`
+  # sibling creates, and LibreChat will not pass readiness without it.
+  - name: librechat-mongodb
+    namespace: platform-ai
+    chart: ./charts/app
+    needs:
+      - platform-ai/librechat-platform
+    values:
+      - services/librechat/mongodb.yaml
+
   # Bump together with the image tag pinned in librechat/values.yaml.
-  #
-  # The standalone MongoDB it talks to is librechat/mongodb.yaml, applied by
-  # roles/platform/tasks/raw-manifests.yml between the two helmfile passes —
-  # it mounts a PVC this release's `-platform` sibling creates, and LibreChat
-  # will not pass readiness without it.
   - name: librechat
     namespace: platform-ai
     chart: librechat/librechat
     version: 2.0.7
     needs:
-      - platform-ai/librechat-platform
+      - platform-ai/librechat-mongodb
     values:
       - services/librechat/values.yaml
 

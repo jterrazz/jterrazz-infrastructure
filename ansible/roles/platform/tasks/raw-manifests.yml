@@ -5,8 +5,7 @@
 #
 # Position is load-bearing. They run AFTER bootstrap.yml (which creates the
 # PV/PVCs they mount and the Secrets they read) and BEFORE the unselected
-# `helmfile apply` (LibreChat will not pass readiness until the MongoDB below
-# is serving). The NetworkPolicies that firewall the unauthenticated
+# `helmfile apply`. The NetworkPolicies that firewall the unauthenticated
 # datastores are applied earlier still, by cluster-manifests.yml.
 
 # Its tunnel token arrives via the InfisicalSecret bootstrap.yml applied; a pod
@@ -16,15 +15,6 @@
   ansible.builtin.command: kubectl apply -f {{ manifest_dir }}/kubernetes/services/cloudflared/deployment.yaml
   register: cloudflared_result
   changed_when: "'created' in cloudflared_result.stdout or 'configured' in cloudflared_result.stdout"
-
-- name: Deploy LibreChat MongoDB
-  ansible.builtin.command: kubectl apply -f {{ manifest_dir }}/kubernetes/services/librechat/mongodb.yaml
-  register: librechat_mongo_apply
-  changed_when: "'created' in librechat_mongo_apply.stdout or 'configured' in librechat_mongo_apply.stdout"
-
-- name: Wait for LibreChat MongoDB to be ready
-  ansible.builtin.command: kubectl rollout status deployment/librechat-mongodb -n platform-ai --timeout=120s
-  changed_when: false
 
 # 6 workloads: Postgres + Redis + ClickHouse (stateful, on the hostPath PVCs
 # openpanel-platform creates) and op-api / op-worker / op-dashboard. The order
