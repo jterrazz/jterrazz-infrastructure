@@ -31,8 +31,9 @@ standing between you and the drift is this table.
 | `helm_version` (`group_vars/all.yml`)                 | `azure/setup-helm` version in `validate.yaml` **and** `publish-chart.yaml` | `assert-sync.py` | Three machines, one Helm. A chart packaged by one version and rendered by another is a silent behaviour difference. |
 | `ansible-core==` in `validate.yaml`                   | `ansible-core==` in `deploy-platform.yaml`                | `assert-sync.py` | One lints the playbooks, the other applies them. Different minors, and a green lint proves nothing about the run. |
 | helm-unittest version in `validate.yaml`              | the same version in the `Makefile`                        | `assert-sync.py` | The plugin embeds its own renderer, so the committed `__snapshot__` files only reproduce against the version that wrote them. |
-| every `busybox@sha256:` in the tree                   | each other (8 references today)                           | `assert-sync.py` | Digest pins only work if a bump touches every copy; the one that was missed is the one nobody re-rendered. |
-| `platform_chart_versions.infisical` (`group_vars/all.yml`) | `kubernetes/schemas/secrets.infisical.com/infisicalsecret_v1alpha1.json` | **nothing** — a stale schema still validates | The vendored schema overrides a datreeio catalog copy that is behind the operator (it requires the deprecated flat `resyncInterval` and rejects `syncConfig`). Bump the chart, re-extract the CRD — regeneration command in `kubernetes/schemas/README.md`. Skip it and CI validates against a CRD the cluster no longer has, so the break lands at `kubectl apply`. |
+| every `busybox@sha256:` in the tree                   | each other                                                | `assert-sync.py` | Digest pins only work if a bump touches every copy; the one that was missed is the one nobody re-rendered. |
+| `platform_chart_versions.infisical` (`group_vars/all.yml`) | `kubernetes/schemas/secrets.infisical.com/infisicalsecret_v1alpha1.json` | **nothing** — a stale schema still validates | The vendored schema overrides a datreeio catalog copy that is behind the operator: it still marks the deprecated flat `resyncInterval` required and rejects fields the live CRD accepts, so a manifest valid for the operator version we run fails against it. Bump the chart, re-extract the CRD — regeneration command in `kubernetes/schemas/README.md`. Skip it and CI validates against a CRD the cluster no longer has, so the break lands at `kubectl apply`. |
+| public hostnames in `scripts/smoke.sh`                | `REPOS` (`scripts/trigger-app-deploys.sh`)                | `assert-sync.py` | A rebuild that redeploys fewer surfaces than smoke probes leaves a site down that CI then reports without anyone having triggered a fix. |
 | `security_ci_deploy_pubkey` (`roles/security/defaults/main.yml`) | GitHub secret `CI_DEPLOY_SSH_PRIVATE`              | **nothing** — B lives outside the repo | Split keypair. Rotating needs both plus a `make deploy` to roll the pubkey onto the VM. |
 | `version:` in `charts/app/Chart.yaml`                 | the published OCI chart                                   | **nothing** at PR time — B lives in the registry | The chart is pulled **unversioned** by every app. Two publish guards exist (`publish-chart.yaml` and `roles/platform/tasks/publish-app-chart.yml`) and both skip rather than overwrite — so forgetting the bump publishes nothing, silently. |
 | `ci/test-values.yaml` fixtures                        | the chart templates                                       | **nothing** — no equality to assert | Both charts render near-zero objects with default values, so CI only *exercises* the fixtures (`helm lint` / `template` / `unittest`); it cannot tell that a new template branch went unfixtured. |
@@ -51,7 +52,7 @@ Repo-specific, each one paid for at least once.
   the default macOS-named user; Ansible connects as `root@<vm>@orb`.
 - **OrbStack DHCP hands out a bogus resolver** (`0.250.250.200`) that silently
   drops queries, and it takes **two** fixes, not one. `upstream.conf` sets the
-  *global* resolver; `UseDNS=false` removes the *per-link* one. The `tailscale`
+  *global* resolver; `UseDNS=false` removes the *per-link* one. The `resolved`
   role writes both:
   `/etc/systemd/resolved.conf.d/upstream.conf` (`DNS=1.1.1.1 9.9.9.9`) and a
   systemd-networkd drop-in at
@@ -167,9 +168,10 @@ Repo-specific, each one paid for at least once.
   needs `CAP_AUDIT_*` which the OrbStack hypervisor withholds. Do not "restore"
   them.
 - **`deploy-platform.yaml` never runs the host layer.** The base/security/
-  tailscale/k3s roles restart sshd or tailscaled and would kill the runner's own
-  SSH session. Anything below the platform layer is `make deploy` from the
-  laptop. Pulumi is out of scope for CI entirely — it drives `orbctl` on the Mac.
+  tailscale/resolved/k3s roles restart sshd or tailscaled and would kill the
+  runner's own SSH session. Anything below the platform layer is `make deploy`
+  from the laptop. Pulumi is out of scope for CI entirely — it drives `orbctl`
+  on the Mac.
 
 ## Config discipline
 
