@@ -65,17 +65,30 @@ spec:
         - namespaceSelector: {}
       ports:
         - protocol: TCP
-    # cert-manager -> Let's Encrypt ACME and the Cloudflare API on 443.
+    # cert-manager -> Let's Encrypt ACME and the Cloudflare API on 443, AND
+    # -> the kube-apiserver: one rule, because on this cluster the two are the
+    # same destination shape.
+    #
+    # NOTE THE MISSING `except` (the 7844 rule above keeps its own). The
+    # apiserver is RFC1918 twice over: a pod dials the `kubernetes` ClusterIP
+    # (10.43.0.1:443), which iptables DNATs to the node's own 192.168.x.x:6443 —
+    # and `namespaceSelector` cannot reach it either, because the apiserver is
+    # not a pod. Both ports are listed because which one the filter sees depends
+    # on whether it runs before or after DNAT.
+    #
+    # Every cert-manager process needs this: controller, cainjector and webhook
+    # all exit at startup on `failed to get server groups: dial tcp
+    # 10.43.0.1:443: connect: connection refused`. The trap is that a running
+    # pod keeps working through conntrack, so denying it looks harmless until
+    # the next time a pod is RECREATED.
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
-            except:
-              - 10.0.0.0/8
-              - 172.16.0.0/12
-              - 192.168.0.0/16
       ports:
         - protocol: TCP
           port: 443
+        - protocol: TCP
+          port: 6443
     # cert-manager -> public DNS on 53, to self-check its own DNS-01 challenge
     # records before asking Let's Encrypt to validate them.
     - to:

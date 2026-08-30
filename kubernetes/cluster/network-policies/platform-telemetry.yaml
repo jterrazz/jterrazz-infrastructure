@@ -88,8 +88,8 @@ spec:
     # -> the kube-apiserver, and -> the public internet on 443: one rule, because
     # on this cluster they are the same destination pattern.
     #
-    # NOTE THE MISSING `except`. Copying platform-networking's
-    # `0.0.0.0/0 except <RFC1918>` shape here breaks four of six workloads — the
+    # NOTE THE MISSING `except`. Copying the `0.0.0.0/0 except <RFC1918>` shape
+    # used for internet-only rules breaks four of six workloads here — the
     # apiserver is RFC1918 twice over: pods dial the `kubernetes` ClusterIP
     # (10.43.0.1:443), which iptables DNATs to the node's own 192.168.x.x:6443.
     # Both ports are listed for that reason; which one the filter sees depends on
