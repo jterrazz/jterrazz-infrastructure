@@ -72,6 +72,14 @@ environments:
 exercises every branch below — CI renders it through `kubeconform` on every
 PR. Start from it when you're unsure of a shape.
 
+**Where the templates live.** The IngressRoute, Certificate, PV/PVC,
+NetworkPolicy and InfisicalSecret this chart emits are rendered by
+`kubernetes/charts/common`, a library chart shared with `platform-service` and
+bundled into this chart's published `.tgz` — so an app repo still pulls one
+unversioned chart and needs no new repository. What is written down there is
+the *shape* and its constraints; what is written down here is what an app
+controls. See [charts/common/README.md](../common/README.md).
+
 ## Merge semantics
 
 Three layers, resolved per key: **environment override → `spec` → chart
@@ -230,7 +238,7 @@ initContainer `chown -R 1000:1000`s the mount, because hostPath dirs are
 created root-owned and the app container runs as 1000.
 
 The PV carries **no `nodeAffinity`** — only app CI installs this chart and it
-passes no node name. (The `service` chart, whose PVs Ansible creates, does pin
+passes no node name. (`platform-service`, whose PVs Ansible creates, does pin
 it.) If a second node is ever added, this needs restoring: an unpinned hostPath
 PV can bind on a node whose disk holds an empty directory.
 
@@ -338,6 +346,12 @@ egress to DNS; and egress to the whole internet **except** RFC1918. Every other
 in-cluster destination must come from `platformServices`, which opens both
 directions at once.
 
+The policy itself — and the peer vocabulary it is written in, and the two traps
+it exists to absorb (ports are POD ports; hostNetwork clients are not pods) —
+comes from `kubernetes/charts/common`. A platform service declares the same
+shapes by hand in its `network:` block; the app chart derives them from the
+catalog instead, which is why there is nothing here to configure.
+
 ### `spec.securityContext` / `spec.runAsRoot`
 
 Containers get hardened defaults: `runAsNonRoot: true`,
@@ -406,6 +420,10 @@ Two rules follow from apps pulling the chart **unversioned**:
 ## Working on the chart
 
 ```bash
+# Resolve the `common` library dependency first — nothing is vendored, and
+# helm refuses to render a chart whose declared dependency is not in charts/.
+helm dependency update kubernetes/charts/app
+
 # Render everything the CI fixture covers
 helm template ci-test kubernetes/charts/app \
   -f kubernetes/charts/app/ci/test-values.yaml

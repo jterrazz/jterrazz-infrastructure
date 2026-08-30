@@ -22,6 +22,16 @@ One word, one meaning. Everything below "platform" is one of four layers.
 - **Platform services** — `kubernetes/services/<x>/`, one release block each in `kubernetes/helmfile.yaml.gotmpl`. `values.yaml` = values for the UPSTREAM chart; `service.yaml` = values for our `charts/platform-service`; the release it produces is `<x>-platform` and **that name is frozen** (renaming it orphans the hostPath PV).
 - **Apps** — deployed from their own repos through `charts/app`, into `prod-*` / `next-*` / `staging-*`. This repo owns the chart, not the app.
 
+`charts/common` is the odd one out: a Helm **library chart**, installed by
+nothing and rendered by nothing on its own. It is the ONE implementation of
+every concern the other two charts share — IngressRoute (+ its middlewares and
+the access-middleware choice), Certificate, the hostPath PV/PVC pair,
+NetworkPolicy, InfisicalSecret — pulled by both through a relative
+`file://../common` dependency and bundled into the app chart's `.tgz` by `helm
+package`. If a concern exists in both charts, it belongs there. It invents no
+object **name**: the two charts name the same kind of object differently and
+those names address live volumes and live routes, so every name is an input.
+
 `roles/platform`, `playbooks/platform.yml`, `make deploy-platform`, the
 `platform-*` namespaces and the app chart's `platformServices` all name the
 LAYER, not the chart — they are consistent and stay as they are.
@@ -49,7 +59,9 @@ standing between you and the drift is this table.
 | `scripts/publish-app-chart.sh` (run by `publish-chart.yaml`) | the guard in `roles/platform/tasks/publish-app-chart.yml` | `assert-sync.py` (pull ref, push ref, chart dir, and that the workflow calls the script) | The node has no checkout of this repo (`stage-manifests.yml` copies only `kubernetes/`), so the fresh-cluster publisher must stay a separate copy. Both must guard the same coordinates or one overwrites a version the other thinks is published. |
 | `security_ci_deploy_pubkey` (`roles/security/defaults/main.yml`) | GitHub secret `CI_DEPLOY_SSH_PRIVATE`              | **nothing** — B lives outside the repo | Split keypair. Rotating needs both plus a `make deploy` to roll the pubkey onto the VM. |
 | `version:` in `charts/app/Chart.yaml`                 | the published OCI chart                                   | **nothing** at PR time — B lives in the registry | The chart is pulled **unversioned** by every app. Two publish guards exist (`scripts/publish-app-chart.sh` via `publish-chart.yaml`, and `roles/platform/tasks/publish-app-chart.yml`) and both skip rather than overwrite — so forgetting the bump publishes nothing, silently. |
-| `ci/test-values.yaml` fixtures                        | the chart templates                                       | **nothing** — no equality to assert | Both charts render near-zero objects with default values, so CI only *exercises* the fixtures (`helm lint` / `template` / `unittest`); it cannot tell that a new template branch went unfixtured. |
+| `version:` in `charts/common/Chart.yaml`               | the `common` `dependencies:` pin in `charts/app/Chart.yaml` **and** `charts/platform-service/Chart.yaml` | `assert-sync.py` | A `file://` dependency resolves by EXACT version. Bump the library alone and `helm dependency update` fails — on a runner mid-validate, or on the node mid-deploy, after some releases have already been upgraded. |
+| a service's `network:` block (`services/<x>/service.yaml`) | its namespace file (`cluster/network-policies/<ns>.yaml`) | **nothing** — policies union, so neither side can detect the other | One split, applied by hand: the namespace BASELINE (default-deny, allow-same-namespace, namespace-wide DNS/egress) stays in `cluster/`; anything naming ONE workload moves into that service's `network:`. Declare a rule in both and you get harmless duplication; declare it in neither and the packet is dropped by the default-deny with nothing logged anywhere. |
+| `ci/test-values.yaml` fixtures                        | the chart templates                                       | **nothing** — no equality to assert | Both charts render near-zero objects with default values, so CI only *exercises* the fixtures (`helm lint` / `template` / `unittest`); it cannot tell that a new template branch went unfixtured. `charts/common` has no fixture at all — a library chart renders nothing on its own — so every branch it holds (each NetworkPolicy peer form, each middleware) is reached ONLY through these two files. |
 
 ## Gotchas
 

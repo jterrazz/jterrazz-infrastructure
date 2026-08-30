@@ -322,14 +322,16 @@ of [openpanel](../kubernetes/services/openpanel/README.md#backup--restore) and
 ## Add a new platform service
 
 1. Namespace: add it to `kubernetes/cluster/namespaces.yaml` if it doesn't
-   already have one — never `kubectl create ns`. Give it a NetworkPolicy file
-   under `kubernetes/cluster/network-policies/`.
+   already have one — never `kubectl create ns`. A NEW namespace also needs a
+   baseline NetworkPolicy file under `kubernetes/cluster/network-policies/`:
+   default-deny, allow-same-namespace, namespace-wide DNS egress, and nothing
+   that names one workload.
 2. Values: add `kubernetes/services/<svc>/{values.yaml,service.yaml}` —
    values for the upstream chart and for the platform-service chart,
    following an existing service as a template.
 3. Release: add ONE block to `kubernetes/helmfile.yaml.gotmpl` — name,
    namespace, chart, pinned `version:` and `values:`. Its `<svc>-platform`
-   sibling is `inherit: [{template: service}]` and needs no version. That block
+   sibling is `inherit: [{template: platform-service}]` and needs no version. That block
    is the whole declaration: Ansible applies it, `make diff` previews it and
    Renovate bumps it, with nothing to keep in sync. If the chart comes from a
    repository not already listed at the top of the file, add that too.
@@ -337,7 +339,13 @@ of [openpanel](../kubernetes/services/openpanel/README.md#backup--restore) and
    `service.yaml`; add a private hostname to `private_hostnames` in
    group_vars **and** `PRIVATE_CHECKS` in `scripts/smoke.sh`. A public service
    needs a new zone — see "New public zone" in `CLAUDE.md`.
-5. `make check` locally, then a PR — `deploy-platform.yaml` deploys on merge.
+5. Network: declare `network:` in the same `service.yaml` — the pod selector
+   (read it off the upstream chart's pods, it cannot be derived) plus the
+   ingress and egress this workload needs. Schema and peer vocabulary:
+   `kubernetes/charts/platform-service/README.md`. Nothing goes in
+   `cluster/network-policies/` for a service that has a release, and every
+   port is a POD port, never a Service port.
+6. `make check` locally, then a PR — `deploy-platform.yaml` deploys on merge.
 
 ## Add a new app
 

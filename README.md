@@ -101,17 +101,24 @@ kubernetes/
 ├── helmfile.yaml.gotmpl  every platform Helm release, declared ONCE: name,
 │                     namespace, chart, pinned version, values file. Applied on
 │                     the node by roles/platform; previewed by `make diff`.
-├── charts/app/       application chart, published to the OCI registry.
+├── charts/common/    LIBRARY chart, installed by nothing: the ONE
+│                     implementation of IngressRoute, Certificate, PV/PVC,
+│                     NetworkPolicy and InfisicalSecret, pulled by the two
+│                     charts below through a relative file:// dependency.
+│                     Reference: kubernetes/charts/common/README.md
+├── charts/app/       application chart, published to the OCI registry (with
+│                     charts/common bundled into the .tgz).
 │                     Version: kubernetes/charts/app/Chart.yaml. Reference:
 │                     kubernetes/charts/app/README.md
 ├── charts/platform-service/
-│                     IngressRoute + Certificate + hostPath PV/PVCs for a
-│                     platform service, from one values file. Version:
-│                     kubernetes/charts/platform-service/Chart.yaml
+│                     IngressRoute + Certificate + hostPath PV/PVCs + the
+│                     per-service NetworkPolicy, from one values file.
+│                     Reference: kubernetes/charts/platform-service/README.md
 ├── cluster/          cluster-wide manifests, `kubectl apply -f … -R`:
 │                     namespaces, the `manual` StorageClass, Traefik
-│                     middlewares + TLS options, one NetworkPolicy file per
-│                     namespace (all 7 declared namespaces are covered)
+│                     middlewares + TLS options, and the NAMESPACE-BASELINE
+│                     NetworkPolicy file per namespace (per-service rules live
+│                     with the service, in its `network:` block)
 ├── schemas/          vendored kubeconform CRD schemas, for the one CRD whose
 │                     public catalog copy lags the operator we run
 └── services/<svc>/   values.yaml (upstream chart values) + service.yaml
@@ -143,6 +150,7 @@ branch CI does not check.
 | ------------------------------------------ | ---------------------------------------------------------------- |
 | It's 2am and something is broken           | [docs/RUNBOOK.md](docs/RUNBOOK.md)                                |
 | How do I deploy / configure an app?        | [kubernetes/charts/app/README.md](kubernetes/charts/app/README.md) |
+| What do the two charts share?              | [kubernetes/charts/common/README.md](kubernetes/charts/common/README.md) |
 | How do I add a new platform service / app? | [docs/RUNBOOK.md](docs/RUNBOOK.md#add-a-new-platform-service)     |
 | What does an agent need to know?           | [CLAUDE.md](CLAUDE.md)                                            |
 | How is public traffic wired?               | [kubernetes/services/cloudflared/README.md](kubernetes/services/cloudflared/README.md) |
