@@ -39,8 +39,6 @@ jobs:
   smoke:
     name: Probe public + private surfaces
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     # A workflow_run fires on completion regardless of outcome; probing right
     # after a FAILED deploy would just report the failure a second time, in a
     # place that looks like an independent signal. The other two triggers have

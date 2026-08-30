@@ -1,9 +1,6 @@
 # Managed by Ansible (roles/k3s).
 
-bind-address: 0.0.0.0
 node-ip: {{ k3s_node_ip }}
-node-external-ip: {{ k3s_node_ip }}
-https-listen-port: 6443
 
 # NO `cluster-init`: it forces embedded etcd, which holds the keyspace in RAM
 # and runs its own compaction/snapshotting for ~150-300Mi more RSS and zero
@@ -11,24 +8,10 @@ https-listen-port: 6443
 # data is hostPath). Re-add it only when going multi-node HA.
 token: {{ k3s_cluster_token }}
 
-data-dir: {{ k3s_data_dir }}
-
-# 0600, NOT 0644. This file carries a client certificate for O=system:masters —
-# cluster-admin with no further authentication. Nothing needs group or other
-# access: the VM has no human non-root users, Ansible and `orb` are root, and
-# CI uses KUBECONFIG_BASE64.
-#
-# THIS DOES NOT CLOSE THE CROSS-MACHINE READ, and it is worth being precise
-# about that. OrbStack exposes every machine's rootfs to every other machine at
-# /mnt/machines/<name>/, and a neighbour reads it AS ROOT — root ignores the
-# mode, so 0600 is exactly as readable as 0644 was. Verified both before and
-# after this change. What actually stops the credential being USED is the
-# nftables guard in roles/security (6443 blocked from the bridge), and what
-# stops it being read at all is creating dev machines with `--isolated`, which
-# has no /mnt/machines at all. Treat this line as defence in depth against a
-# future non-root user on the VM, not as the fix for that finding.
+# 0600, not 0644: this file is a cluster-admin credential. The cross-machine
+# read via /mnt/machines is closed by the nftables guard in roles/security, not
+# by this mode.
 write-kubeconfig-mode: "0600"
-write-kubeconfig: /etc/rancher/k3s/k3s.yaml
 
 # Every name a client may use to reach the API server must be here or kubectl
 # fails cert verification; the tailnet IP and MagicDNS name are how the laptop
@@ -84,8 +67,7 @@ secrets-encryption: true
 
 # local-storage is k3s' local-path-provisioner. Every PVC here uses the
 # `manual` StorageClass with a pre-declared hostPath PV (the service and app
-# charts emit both), so the provisioner has never provisioned anything —
-# `kubectl get pvc -A` is 14/14 `manual`.
+# charts emit both), so the provisioner has nothing to provision.
 #
 # Disabling it is a SAFETY fix as much as a memory one: local-path ships as
 # the cluster DEFAULT StorageClass with reclaimPolicy `Delete`, so a PVC that

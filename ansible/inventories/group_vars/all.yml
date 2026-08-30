@@ -38,7 +38,8 @@ helm_version: "v3.21.3"
 #   kubectl -n kube-system get svc traefik \
 #     -o jsonpath='{.spec.loadBalancerSourceRanges}'   # must be non-empty
 k3s_version: "v1.36.2+k3s1"
-k3s_config_dir: "/etc/rancher/k3s"
+# k3s' own default data-dir, repeated here only because tasks/main.yml and the
+# apiserver's audit-log-path need the path as a value.
 k3s_data_dir: "/var/lib/rancher/k3s"
 k3s_node_ip: "{{ ansible_default_ipv4.address }}"
 
@@ -60,9 +61,10 @@ platform_chart_versions:
   # PRE-1.0, KNOWINGLY — see the boxed note in victoria-traces/helm.yaml. Do NOT
   # extend that tolerance to the two 1.x pins above.
   victoria_traces: "0.1.10"
-  # prometheus-community repo. The CHART is `prometheus-node-exporter`; the
-  # RELEASE is `node-exporter` (hence the fullnameOverride in its helm.yaml).
+  # prometheus-community repo, both of them.
   kube_state_metrics: "8.0.0"
+  # The CHART is `prometheus-node-exporter`; the RELEASE is `node-exporter`
+  # (hence the fullnameOverride in its helm.yaml).
   node_exporter: "4.56.1"
   otel_collector: "0.165.0"
   # grafana-community repo. grafana.db migrates itself on first boot and is NOT
@@ -77,11 +79,10 @@ platform_chart_versions:
 # Rendered into the `coredns-custom` ConfigMap by
 # roles/platform/tasks/coredns.yml via templates/coredns-custom.yaml.j2.
 #
-# NOT paired with anything on the public-DNS side any more: every name here is
+# NOT paired with anything on the public-DNS side: every name here is
 # `<svc>.internal.jterrazz.com`, covered by the single `*.internal` wildcard in
 # pulumi/src/dns.ts. Adding a private service means adding ONE line here and
-# nothing else, anywhere. (This list used to mirror a `PRIVATE_HOSTS` array in
-# dns.ts, which needed a CI assertion to stop the two from drifting.)
+# nothing else, anywhere.
 #
 # An explicit list rather than a wildcard because CoreDNS's `hosts` plugin
 # matches exact names only — expressing `*.internal` needs the `template`
@@ -95,10 +96,8 @@ private_hostnames:
 # Same as above, but mapped to Traefik's ClusterIP rather than the node's
 # tailnet IP — for a pod that fetches its own PUBLIC URL from inside the
 # cluster. A pod cannot hairpin to the node's ServiceLB; it times out.
-# openpanel is here because
-# the dashboard image cannot use API_URL_SSR: 2.2.1 (2026-03-21) predates the
-# upstream commit that added it (2026-07-01) and is still the newest published
-# tag, and at that tree SSR and the browser shared ONE url. Full evidence and
-# the retirement order are in kubernetes/services/openpanel/config.yaml.
+# openpanel is here because its dashboard image cannot split the SSR and the
+# browser URL — that rationale and the retirement order live in
+# kubernetes/services/openpanel/config.yaml.
 private_hostnames_via_traefik:
   - openpanel.internal.jterrazz.com

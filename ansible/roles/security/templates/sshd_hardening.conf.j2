@@ -3,12 +3,7 @@
 # A DROP-IN loaded by `Include /etc/ssh/sshd_config.d/*.conf` at the TOP of
 # Debian's stock sshd_config. Keywords here win only because of that position:
 # in sshd_config the first occurrence of a keyword takes effect.
-#
-# `Port` additionally depends on the base role disabling ssh.socket — under
-# socket activation the listener is the socket unit's ListenStream and this
-# directive is ignored.
 
-Port {{ security_ssh_port }}
 AddressFamily inet
 ListenAddress 0.0.0.0
 
@@ -17,7 +12,6 @@ MACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com
 KexAlgorithms curve25519-sha256@libssh.org,ecdh-sha2-nistp521,ecdh-sha2-nistp384
 
 PermitRootLogin {{ security_ssh_permit_root_login }}
-PubkeyAuthentication {{ security_ssh_pubkey_authentication }}
 PasswordAuthentication {{ security_ssh_password_authentication }}
 # ChallengeResponseAuthentication is the pre-8.7 spelling; current sshd warns
 # on the deprecated alias.

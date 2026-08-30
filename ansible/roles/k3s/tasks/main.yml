@@ -9,7 +9,7 @@
     state: directory
     mode: "0755"
   loop:
-    - "{{ k3s_config_dir }}"
+    - /etc/rancher/k3s
     - "{{ k3s_data_dir }}"
     - /var/log/k3s
   tags: [k3s]
@@ -33,17 +33,17 @@
     k3s_needs_install: "{{ not k3s_binary.stat.exists or (k3s_version not in (k3s_current_version.stdout | default(''))) }}"
   tags: [k3s]
 
-# Generated once and persisted at {{ k3s_config_dir }}/token — regenerating it
+# Generated once and persisted at /etc/rancher/k3s/token — regenerating it
 # on an existing cluster invalidates every node's registration.
 - name: Check if the k3s token file exists
   ansible.builtin.stat:
-    path: "{{ k3s_config_dir }}/token"
+    path: /etc/rancher/k3s/token
   register: k3s_token_file
   tags: [k3s]
 
 - name: Read the existing token
   ansible.builtin.slurp:
-    src: "{{ k3s_config_dir }}/token"
+    src: /etc/rancher/k3s/token
   register: k3s_existing_token
   when: k3s_token_file.stat.exists
   no_log: true
@@ -68,17 +68,10 @@
   no_log: true
   tags: [k3s]
 
-- name: Ensure the k3s config directory exists
-  ansible.builtin.file:
-    path: "{{ k3s_config_dir }}"
-    state: directory
-    mode: "0755"
-  tags: [k3s]
-
 - name: Save the token to file
   ansible.builtin.copy:
     content: "{{ k3s_cluster_token }}"
-    dest: "{{ k3s_config_dir }}/token"
+    dest: /etc/rancher/k3s/token
     mode: "0600"
   when: not k3s_token_file.stat.exists
   no_log: true
@@ -97,7 +90,7 @@
 - name: Generate the audit policy
   ansible.builtin.template:
     src: audit-policy.yaml.j2
-    dest: "{{ k3s_config_dir }}/audit-policy.yaml"
+    dest: /etc/rancher/k3s/audit-policy.yaml
     mode: "0640"
   notify: Restart k3s
   tags: [k3s]
@@ -114,7 +107,7 @@
 - name: Generate the k3s config
   ansible.builtin.template:
     src: config.yaml.j2
-    dest: "{{ k3s_config_dir }}/config.yaml"
+    dest: /etc/rancher/k3s/config.yaml
     mode: "0640"
   notify: Restart k3s
   tags: [k3s]
