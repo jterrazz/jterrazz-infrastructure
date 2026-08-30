@@ -23,7 +23,7 @@ matches the recorded render of the CI fixture:
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
-        app.kubernetes.io/managed-by: helm
+        app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
         environment: prod
         grafana_alert: "1"
@@ -38,7 +38,7 @@ matches the recorded render of the CI fixture:
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
-        app.kubernetes.io/managed-by: helm
+        app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
         environment: prod
       name: ci-test-app-config
@@ -54,7 +54,7 @@ matches the recorded render of the CI fixture:
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
-        app.kubernetes.io/managed-by: helm
+        app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
         environment: prod
         grafana_dashboard: "1"
@@ -66,7 +66,7 @@ matches the recorded render of the CI fixture:
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
-        app.kubernetes.io/managed-by: helm
+        app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
         environment: prod
       name: ci-test-app
@@ -114,7 +114,7 @@ matches the recorded render of the CI fixture:
                     secretKeyRef:
                       key: API_TOKEN
                       name: ci-test-app-secrets
-              image: registry.internal.jterrazz.com/ci-test-app:latest
+              image: registry.internal.jterrazz.com/ci-test-app:ci
               imagePullPolicy: Always
               livenessProbe:
                 httpGet:
@@ -138,6 +138,8 @@ matches the recorded render of the CI fixture:
               securityContext:
                 allowPrivilegeEscalation: false
                 capabilities:
+                  add:
+                    - NET_BIND_SERVICE
                   drop:
                     - ALL
                 runAsNonRoot: true
@@ -199,7 +201,7 @@ matches the recorded render of the CI fixture:
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
-        app.kubernetes.io/managed-by: helm
+        app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
         environment: prod
       name: ci-test-app-infisical
@@ -225,7 +227,7 @@ matches the recorded render of the CI fixture:
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
-        app.kubernetes.io/managed-by: helm
+        app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
         environment: prod
       name: ci-test-app-ci-test-app-internal-jterrazz-com-tls
@@ -243,7 +245,61 @@ matches the recorded render of the CI fixture:
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
-        app.kubernetes.io/managed-by: helm
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: ci-test-app
+        environment: prod
+      name: ci-test-app-ci-test-app-legacy-jterrazz-com-tls
+    spec:
+      dnsNames:
+        - ci-test-app-legacy.jterrazz.com
+      issuerRef:
+        kind: ClusterIssuer
+        name: letsencrypt-production
+      secretName: ci-test-app-ci-test-app-legacy-jterrazz-com-tls
+  8: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      labels:
+        app: ci-test-app
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: ci-test-app
+        environment: prod
+      name: ci-test-app-ci-test-app-mcp-jterrazz-com-tls
+    spec:
+      dnsNames:
+        - ci-test-app-mcp.jterrazz.com
+      issuerRef:
+        kind: ClusterIssuer
+        name: letsencrypt-production
+      secretName: ci-test-app-ci-test-app-mcp-jterrazz-com-tls
+  9: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      labels:
+        app: ci-test-app
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: ci-test-app
+        environment: prod
+      name: ci-test-app-ci-test-app-old-jterrazz-com-tls
+    spec:
+      dnsNames:
+        - ci-test-app-old.jterrazz.com
+      issuerRef:
+        kind: ClusterIssuer
+        name: letsencrypt-production
+      secretName: ci-test-app-ci-test-app-old-jterrazz-com-tls
+  10: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      labels:
+        app: ci-test-app
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
         environment: prod
       name: ci-test-app-ci-test-app-jterrazz-com-tls
@@ -254,14 +310,14 @@ matches the recorded render of the CI fixture:
         kind: ClusterIssuer
         name: letsencrypt-production
       secretName: ci-test-app-ci-test-app-jterrazz-com-tls
-  8: |
+  11: |
     apiVersion: traefik.io/v1alpha1
     kind: Middleware
     metadata:
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
-        app.kubernetes.io/managed-by: helm
+        app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
         environment: prod
       name: ci-test-app-0-strip-prefix
@@ -269,14 +325,14 @@ matches the recorded render of the CI fixture:
       stripPrefix:
         prefixes:
           - /api
-  9: |
+  12: |
     apiVersion: traefik.io/v1alpha1
     kind: IngressRoute
     metadata:
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
-        app.kubernetes.io/managed-by: helm
+        app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
         environment: prod
       name: ci-test-app-0
@@ -293,14 +349,14 @@ matches the recorded render of the CI fixture:
               port: 80
       tls:
         secretName: ci-test-app-ci-test-app-jterrazz-com-tls
-  10: |
+  13: |
     apiVersion: traefik.io/v1alpha1
     kind: IngressRoute
     metadata:
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
-        app.kubernetes.io/managed-by: helm
+        app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
         environment: prod
       name: ci-test-app-1
@@ -318,14 +374,116 @@ matches the recorded render of the CI fixture:
               port: 80
       tls:
         secretName: ci-test-app-ci-test-app-internal-jterrazz-com-tls
-  11: |
+  14: |
+    apiVersion: traefik.io/v1alpha1
+    kind: IngressRoute
+    metadata:
+      labels:
+        app: ci-test-app
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: ci-test-app
+        environment: prod
+      name: ci-test-app-2
+    spec:
+      entryPoints:
+        - websecure
+      routes:
+        - kind: Rule
+          match: Host(`ci-test-app-mcp.jterrazz.com`) && PathPrefix(`/mcp`)
+          services:
+            - name: ci-test-app
+              port: 80
+      tls:
+        secretName: ci-test-app-ci-test-app-mcp-jterrazz-com-tls
+  15: |
+    apiVersion: traefik.io/v1alpha1
+    kind: Middleware
+    metadata:
+      labels:
+        app: ci-test-app
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: ci-test-app
+        environment: prod
+      name: ci-test-app-3-redirect
+    spec:
+      redirectRegex:
+        permanent: true
+        regex: ^https?://ci-test-app-old\.jterrazz\.com/(.*)
+        replacement: https://ci-test-app.jterrazz.com/${1}
+  16: |
+    apiVersion: traefik.io/v1alpha1
+    kind: IngressRoute
+    metadata:
+      labels:
+        app: ci-test-app
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: ci-test-app
+        environment: prod
+      name: ci-test-app-3
+    spec:
+      entryPoints:
+        - websecure
+      routes:
+        - kind: Rule
+          match: Host(`ci-test-app-old.jterrazz.com`)
+          middlewares:
+            - name: ci-test-app-3-redirect
+          services:
+            - name: ci-test-app
+              port: 80
+      tls:
+        secretName: ci-test-app-ci-test-app-old-jterrazz-com-tls
+  17: |
+    apiVersion: traefik.io/v1alpha1
+    kind: Middleware
+    metadata:
+      labels:
+        app: ci-test-app
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: ci-test-app
+        environment: prod
+      name: ci-test-app-4-redirect
+    spec:
+      redirectRegex:
+        permanent: true
+        regex: ^https?://ci-test-app-legacy\.jterrazz\.com/(.*)
+        replacement: https://ci-test-app.jterrazz.com/moved
+  18: |
+    apiVersion: traefik.io/v1alpha1
+    kind: IngressRoute
+    metadata:
+      labels:
+        app: ci-test-app
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: ci-test-app
+        environment: prod
+      name: ci-test-app-4
+    spec:
+      entryPoints:
+        - websecure
+      routes:
+        - kind: Rule
+          match: Host(`ci-test-app-legacy.jterrazz.com`)
+          middlewares:
+            - name: ci-test-app-4-redirect
+          services:
+            - name: ci-test-app
+              port: 80
+      tls:
+        secretName: ci-test-app-ci-test-app-legacy-jterrazz-com-tls
+  19: |
     apiVersion: networking.k8s.io/v1
     kind: NetworkPolicy
     metadata:
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
-        app.kubernetes.io/managed-by: helm
+        app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
         environment: prod
       name: ci-test-app
@@ -335,7 +493,6 @@ matches the recorded render of the CI fixture:
             - port: 53
               protocol: UDP
             - port: 53
-              protocol: TCP
           to:
             - namespaceSelector: {}
         - to:
@@ -347,16 +504,13 @@ matches the recorded render of the CI fixture:
                   - 192.168.0.0/16
         - ports:
             - port: 4317
-              protocol: TCP
             - port: 4318
-              protocol: TCP
           to:
             - namespaceSelector:
                 matchLabels:
                   kubernetes.io/metadata.name: platform-telemetry
         - ports:
             - port: 8317
-              protocol: TCP
           to:
             - namespaceSelector:
                 matchLabels:
@@ -375,34 +529,32 @@ matches the recorded render of the CI fixture:
       policyTypes:
         - Ingress
         - Egress
-  12: |
+  20: |
     apiVersion: v1
     kind: Service
     metadata:
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
-        app.kubernetes.io/managed-by: helm
+        app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
         environment: prod
       name: ci-test-app
     spec:
       ports:
         - port: 80
-          protocol: TCP
           targetPort: 3000
       selector:
         app: ci-test-app
         environment: prod
-      type: ClusterIP
-  13: |
+  21: |
     apiVersion: v1
     kind: PersistentVolume
     metadata:
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
-        app.kubernetes.io/managed-by: helm
+        app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
         environment: prod
       name: ci-test-app-prod-data
@@ -416,14 +568,14 @@ matches the recorded render of the CI fixture:
         type: DirectoryOrCreate
       persistentVolumeReclaimPolicy: Retain
       storageClassName: manual
-  14: |
+  22: |
     apiVersion: v1
     kind: PersistentVolumeClaim
     metadata:
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
-        app.kubernetes.io/managed-by: helm
+        app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
         environment: prod
       name: ci-test-app-data

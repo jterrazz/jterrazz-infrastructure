@@ -1,5 +1,5 @@
 {{- if eq (include "app.envExists" .) "true" -}}
-{{- $secrets := (fromYaml (include "app.merged" .)).secrets | default dict -}}
+{{- $secrets := (fromYaml (include "app.merged" .)).secrets -}}
 {{- if $secrets.path -}}
 {{- $appName := include "app.name" . -}}
 ---

@@ -6,9 +6,8 @@ Namespace **`platform-analytics`**.
 
 **Who sends events:** the externally-hosted `jterrazz.com` site (origins
 `https://jterrazz.com` and `https://www.jterrazz.com`), which POSTs directly
-to the public ingest host. That is the only live sender, and it is a real one
-— roughly **340 events over the last 7 days**. There is no shared SDK: a
-`@jterrazz/analytics` package was planned and never built, so the site
+to the public ingest host. That is the only live sender. There is no shared
+SDK: a `@jterrazz/analytics` package was planned and never built, so the site
 integrates OpenPanel's browser snippet itself. Other origins listed in
 `API_CORS_ORIGINS` are pre-authorised for sites that do not send yet.
 
@@ -30,10 +29,10 @@ integrates OpenPanel's browser snippet itself. Other origins listed in
 - **op-api** owns DB migrations (`pnpm -r run migrate:deploy` on boot: Prisma
   for Postgres + code-migrations for ClickHouse), then `pnpm start`.
 - **op-worker** runs the BullMQ queues/crons (event/session/profile flushers).
-- **op-dashboard** is the Next.js UI. `API_URL_SSR=http://op-api:3000` is set
-  in `config.yaml` so that SSR talks to op-api in-cluster, but it is **not
-  known to be honored by image 2.2** — the CoreDNS special case below is what
-  actually makes SSR work today. See "Dashboard SSR" under Gotchas.
+- **op-dashboard** is the Next.js UI, and it SSRs against its own public URL
+  rather than an in-cluster one. `config.yaml` owns that rationale and the
+  retirement condition; the CoreDNS special case below is one of the three
+  things it rests on.
 - Public host routes **only** `/api/track`; everything else (dashboard,
   `/api/export`, `/api/live`, admin) is reachable only via the tailnet.
 
@@ -61,7 +60,7 @@ non-root uid — ClickHouse 101, Postgres 70 (alpine variant), Redis 999 — eac
 paired with a root `fix-perms` initContainer that chowns the root-owned
 hostPath dir, since pinning the uid bypasses the entrypoint's own chown. The
 `op-*` app images do not document their user, so they are hardened without a
-uid pin (see the TODO in `apps.yaml`).
+uid pin (see the open item in `apps.yaml`).
 
 ClickHouse config (`clickhouse.yaml` ConfigMap) is upstream's self-hosting
 config = the **issue #324 mitigation**: logger→console, all heavy system log
@@ -180,8 +179,8 @@ the Mac; a file snapshot is sufficient. No scheduled backup needed.
   deploy/cert-manager-cainjector`, then re-apply `ingress.yaml`.
 - **Public ingest — CNAME and tunnel route are managed separately.** The
   cloudflared tunnel routes per-hostname (not a wildcard):
-  - CNAME `analytics` → the tunnel is **Pulumi-managed** (`dns.ts`,
-    `PUBLIC_TUNNEL_HOSTS`) — because the DNS-scoped token can create it.
+  - CNAME `analytics` → the tunnel is created by the Cloudflare Zero Trust
+    UI when the Public Hostname is added; nothing for it lands in this repo.
   - The per-hostname **routing rule** must be added in the Zero Trust
     dashboard (Service: HTTPS → `traefik.kube-system.svc.cluster.local:443`,
     No TLS Verify ON) — it needs Tunnel:Edit, which the DNS token lacks.
@@ -189,28 +188,12 @@ the Mac; a file snapshot is sufficient. No scheduled backup needed.
   no CNAME never resolves. Both are required.
 - **ClickHouse hostPath perms**: the pod runs as uid 101; an init container
   chowns `/var/lib/clickhouse` because hostPath dirs are created root-owned.
-- **Dashboard SSR resolves `openpanel.internal.jterrazz.com` to Traefik's ClusterIP,
-  in-cluster.** op-dashboard's server-side rendering fetches its own public URL
-  from inside the pod. Resolving that to the node tailnet IP hairpins through
-  the ServiceLB and times out (→ `/onboarding` throws
-  `[tRPC SSR Error] fetch failed`). Fix: the `coredns-custom` block maps
-  `openpanel.internal.jterrazz.com` → Traefik ClusterIP (a separate hosts line from the
-  other private hosts, which use the node tailnet IP). The browser is
-  unaffected (public DNS → node tailnet IP).
-
-  `API_URL_SSR=http://op-api:3000` **is** set in `config.yaml` — it is
-  harmless and forward-compatible, and would make SSR bypass the ingress
-  entirely. The reason the CoreDNS special case still exists is that image 2.2
-  was not observed to honor it (the override landed on `main` after the 2.2
-  cut). **To verify after the next repave: if `API_URL_SSR` is honored by
-  image 2.2, the CoreDNS Traefik-ClusterIP special case can be removed.** Test
-  by deleting `openpanel.internal.jterrazz.com` from `private_hostnames_via_traefik` in
-  `ansible/inventories/group_vars/all.yml` (the list the `coredns-custom`
-  ConfigMap is rendered from — see
-  `ansible/roles/platform/tasks/coredns.yml`), restarting CoreDNS and
-  op-dashboard, and loading `/onboarding`. Until that is confirmed, both the
-  env var and the CoreDNS mapping stay.
-
-  Because SSR calls arrive at Traefik from a **pod IP**, the private
-  IngressRoute uses the `cluster-internal-access` middleware rather than
-  `private-access` (see `ingress.yaml`).
+- **Dashboard SSR resolves `openpanel.internal.jterrazz.com` to Traefik's
+  ClusterIP, in-cluster.** The `coredns-custom` block maps that host to
+  Traefik's ClusterIP (a separate hosts line from the other private hosts,
+  which use the node tailnet IP); resolving it to the node tailnet IP instead
+  hairpins through the ServiceLB and times out. Because those SSR calls then
+  arrive at Traefik from a **pod IP**, the private IngressRoute uses
+  `cluster-internal-access` rather than `private-access`.
+  `kubernetes/services/openpanel/config.yaml` owns this rationale in full,
+  including what has to happen before any of it can be removed.

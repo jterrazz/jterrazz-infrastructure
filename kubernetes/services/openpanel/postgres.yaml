@@ -1,7 +1,7 @@
 # PostgreSQL for OpenPanel (orgs, projects, dashboards, users). Upstream
 # self-hosting pins postgres:14-alpine.
 #
-# HELD AT 14 ON PURPOSE (re-evaluated 2026-07-26). OpenPanel pins
+# HELD AT 14 ON PURPOSE. OpenPanel pins
 # `postgres:14-alpine` in BOTH self-hosting/docker-compose.template.yml and the
 # repo-root docker-compose.yml, and documents no supported version anywhere
 # else; their self-hosting changelog has never recorded a Postgres bump. The
@@ -26,7 +26,6 @@ metadata:
     app: op-postgres
     app.kubernetes.io/part-of: openpanel
 spec:
-  replicas: 1
   strategy:
     type: Recreate
   selector:
@@ -129,4 +128,3 @@ spec:
     app: op-postgres
   ports:
     - port: 5432
-      targetPort: 5432

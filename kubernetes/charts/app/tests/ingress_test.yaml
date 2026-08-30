@@ -16,12 +16,12 @@ values:
   - ../ci/test-values.yaml
 tests:
   - it: renders every prod entry from the base spec list
-    # The fixture's prod list: one public /api surface + one private one.
-    # 2 Certificates (one per unique host) + 1 strip-prefix Middleware (for the
-    # /api entry) + 2 IngressRoutes.
+    # The fixture's prod list is five entries on five hosts: 5 Certificates
+    # (one per unique host) + 5 IngressRoutes + 3 Middlewares (one strip-prefix
+    # for the /api entry, two redirects) = 13.
     asserts:
       - hasDocuments:
-          count: 5
+          count: 13
 
   - it: REPLACES the base list with the environment's, never merges them
     # The fixture's staging environment declares exactly ONE entry while spec

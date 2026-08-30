@@ -67,7 +67,6 @@ server:
         # 1m, not the chart's 15s default — Prometheus scraped at 1m here and a
         # 4x resolution bump is a 4x sample-rate bump on a memory-bound node.
         scrape_interval: 1m
-        scrape_timeout: 10s
 
       scrape_configs:
         # VictoriaMetrics' own metrics, on the port it listens on.

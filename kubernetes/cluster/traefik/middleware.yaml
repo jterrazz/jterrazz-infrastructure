@@ -43,8 +43,7 @@ spec:
           - "100.64.0.0/10" # Tailscale CGNAT (incl. this node's tailnet IP).
           - "169.254.0.0/16" # link-local — CNI/flannel edge cases.
           - "198.19.0.0/16" # OrbStack machine network (node default IPv4).
-          - "10.0.0.0/8" # RFC1918 — any private LAN the node sits on.
-          - "172.16.0.0/12"
+          - "172.16.0.0/12" # RFC1918 — the private LAN the node sits on.
           - "192.168.0.0/16"
 
 ---
@@ -85,13 +84,13 @@ spec:
       Server: ""
 
 ---
-# Tailnet-only allow-list. Attached by the service chart (`access: private`)
-# and by the app chart for any ingress entry with `public: false` — it is the
-# ONLY thing standing between a caller and Grafana or LibreChat.
-#
-# Routes that additionally need in-cluster / hairpin reachability use
-# `cluster-internal-access` INSTEAD. Never chain the two: Traefik ANDs chained
-# ipAllowLists, so chaining allows strictly less, not more.
+# Tailnet-only allow-list: service chart `access: private`, app chart
+# `public: false`. 10.42/16 is load-bearing, not slack — klipper-lb DNATs and
+# MASQUERADEs inside the svclb pod's netns (the Traefik Service is
+# externalTrafficPolicy: Cluster), so a tailnet request reaches Traefik with an
+# svclb POD source; the tailnet gate on that path is the Service's
+# loadBalancerSourceRanges. What keeps app pods off private hosts is their own
+# egress policy, which excepts 10.0.0.0/8 (charts/app/templates/network-policy.yaml).
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -105,10 +104,7 @@ spec:
     sourceRange:
       - "100.64.0.0/10" # Tailscale CGNAT — humans on the tailnet.
       - "127.0.0.1/32" # node-local (hostPort / host-network clients).
-      # k3s pod CIDR — klipper-lb SNATs LoadBalancer traffic inside the svclb
-      # pod's netns, so a tailnet request may arrive with an svclb POD IP. Also
-      # what keeps any-pod -> any-private-host open; verify per issue #3.
-      - "10.42.0.0/16"
+      - "10.42.0.0/16" # k3s pod CIDR — the svclb SNAT source (see header).
 
 ---
 # Strict superset of `private-access`, for routes that must ALSO be reachable

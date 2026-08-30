@@ -137,8 +137,9 @@ spec:
           protocol: TCP
 
 ---
-# Prometheus-style scrapes: CoreDNS on 9153 and Traefik on 9100, both pulled
-# by the OTel collector and VictoriaMetrics in platform-telemetry.
+# VictoriaMetrics (platform-telemetry) scrapes CoreDNS on 9153 (kube-dns
+# Service annotation) and Traefik on 9100 (pod annotation). It is the only
+# scraper, so the namespaceSelector is the whole source set.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -153,14 +154,10 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: platform-telemetry
-        - ipBlock:
-            cidr: 10.42.0.0/16
       ports:
         - port: 9153
           protocol: TCP
         - port: 9100
-          protocol: TCP
-        - port: 8080
           protocol: TCP
 
 ---

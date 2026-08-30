@@ -18,7 +18,8 @@ metadata:
     app: op-api
     app.kubernetes.io/part-of: openpanel
 spec:
-  replicas: 1
+  # Recreate: op-api runs `migrate:deploy` on boot, so a rolling update would
+  # put two migration runners on the same databases at once.
   strategy:
     type: Recreate
   selector:
@@ -34,7 +35,8 @@ spec:
           image: lindesvard/openpanel-api:2.2.1
           # No uid pin: the lindesvard/openpanel-* images do not document the
           # user they run as, and forcing runAsNonRoot on an image expecting
-          # root fails the pod outright. Pin it once checked — see issue #3.
+          # root fails the pod outright. OPEN: read the uid out of a running
+          # container (`id`) and pin it, for all three op-* Deployments.
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -100,7 +102,6 @@ spec:
     app: op-api
   ports:
     - port: 3000
-      targetPort: 3000
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -111,9 +112,6 @@ metadata:
     app: op-worker
     app.kubernetes.io/part-of: openpanel
 spec:
-  replicas: 1
-  strategy:
-    type: Recreate
   selector:
     matchLabels:
       app: op-worker
@@ -177,7 +175,6 @@ spec:
     app: op-worker
   ports:
     - port: 3000
-      targetPort: 3000
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -188,9 +185,6 @@ metadata:
     app: op-dashboard
     app.kubernetes.io/part-of: openpanel
 spec:
-  replicas: 1
-  strategy:
-    type: Recreate
   selector:
     matchLabels:
       app: op-dashboard
@@ -255,4 +249,3 @@ spec:
     app: op-dashboard
   ports:
     - port: 3000
-      targetPort: 3000

@@ -101,8 +101,8 @@ spec:
     #   169.254.0.0/16  link-local — CNI/flannel edge cases.
     #   198.19.0.0/16   OrbStack machine network: the node's default IPv4
     #                   lives here (RFC2544 block, never routable).
-    #   10.0.0.0/8      RFC1918 — any private LAN the node's default interface
-    #   172.16.0.0/12   might sit on.
-    #   192.168.0.0/16
+    #   172.16.0.0/12   RFC1918 — the private LAN the node's default interface
+    #   192.168.0.0/16  sits on. No 10.0.0.0/8: the only 10-space addresses here
+    #                   are the pod and service CIDRs, both listed above.
     additionalArguments:
-      - "--entryPoints.websecure.forwardedHeaders.trustedIPs=10.42.0.0/16,10.43.0.0/16,127.0.0.1/32,100.64.0.0/10,169.254.0.0/16,198.19.0.0/16,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+      - "--entryPoints.websecure.forwardedHeaders.trustedIPs=10.42.0.0/16,10.43.0.0/16,127.0.0.1/32,100.64.0.0/10,169.254.0.0/16,198.19.0.0/16,172.16.0.0/12,192.168.0.0/16"

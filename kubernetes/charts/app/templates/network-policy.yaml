@@ -51,7 +51,6 @@ spec:
         - port: 53
           protocol: UDP
         - port: 53
-          protocol: TCP
     # This app -> the public internet (RFC1918 excepted, so no lateral reach
     # into the node LAN or another cluster's pod/service CIDR).
     - to:
@@ -72,7 +71,6 @@ spec:
       ports:
         {{- range $port := $entry.egress.ports }}
         - port: {{ $port }}
-          protocol: TCP
         {{- end }}
     {{- end }}
 {{- end }}

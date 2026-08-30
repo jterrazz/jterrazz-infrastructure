@@ -5,21 +5,14 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-external-ingress
+  name: allow-cert-manager-ingress
   namespace: platform-networking
 spec:
   podSelector: {}
   policyTypes:
     - Ingress
-    - Egress
   ingress:
     - ports:
-        # Anything -> this namespace on 80/443: HTTP(S) to whatever ingress
-        # resources land here.
-        - protocol: TCP
-          port: 80
-        - protocol: TCP
-          port: 443
         # kube-apiserver -> cert-manager's admission webhook on 10250. Omit it
         # and every Certificate/Issuer write fails with "no endpoints
         # available for service cert-manager-webhook".
@@ -29,6 +22,19 @@ spec:
         # webhook metrics on 9402.
         - protocol: TCP
           port: 9402
+
+---
+# Egress is DEFAULT-DENY for every pod in the namespace (podSelector {} +
+# policyTypes: Egress), so each rule below is load-bearing.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress
+  namespace: platform-networking
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
   egress:
     # cert-manager -> CoreDNS (kube-system) on 53 for in-cluster names.
     - to:

@@ -11,7 +11,6 @@ metadata:
     app: op-redis
     app.kubernetes.io/part-of: openpanel
 spec:
-  replicas: 1
   strategy:
     type: Recreate
   selector:
@@ -114,4 +113,3 @@ spec:
     app: op-redis
   ports:
     - port: 6379
-      targetPort: 6379

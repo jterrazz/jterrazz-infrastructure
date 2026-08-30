@@ -186,41 +186,12 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # DELIBERATELY UNRESTRICTED, and it has to be. VictoriaMetrics scrapes with
-    # `-promscrape.config` (server.scrape in
-    # kubernetes/services/victoria-metrics/helm.yaml) and its target set is
-    # DISCOVERED FROM ANNOTATIONS at runtime — a static file cannot enumerate
-    # it without re-deriving the list on every app deploy, which is the exact
-    # opposite of what the annotation contract is for.
-    #
-    # The live target set, enumerated rather than guessed (every Service and pod
-    # carrying a prometheus.io annotation, plus the three static jobs):
-    #   node IP:6443     kubernetes-api-servers — the `kubernetes` endpointslice
-    #                    in default/, which on a single node is the node itself
-    #   node IP:10250    kubernetes-nodes and kubernetes-nodes-cadvisor. These
-    #                    hit the KUBELET DIRECTLY: that job has no
-    #                    apiserver-proxy relabel, only a labelmap, so the
-    #                    destination is the node rather than the API server.
-    #   node IP:9100     node-exporter — hostNetwork, so its pod IP IS the node
-    #                    IP, which is also why no ingress rule can cover it
-    #   10.42.x.x:8080   kube-state-metrics       (Service annotation)
-    #   10.42.x.x:9153   CoreDNS / kube-dns       (Service annotation)
-    #   10.42.x.x:9100   Traefik, kube-system     (POD annotation)
-    #   10.42.x.x:9402   cert-manager controller + cainjector + webhook, all
-    #                    three POD-annotated in platform-networking — whose
-    #                    ingress policy already carries the matching 9402 hole
-    #
-    # Not in that list, and worth knowing: NO app pod is annotated for scraping
-    # today, so nothing in a prod-/next-/staging- namespace is a target yet. When
-    # one appears, this egress rule is necessary but NOT sufficient — the app
-    # chart's own policy (kubernetes/charts/app/templates/network-policy.yaml)
-    # admits Traefik and labelled platform clients, not platform-telemetry. The
-    # target will read DOWN until that chart grows a scrape rule; the fix belongs
-    # there, not here.
-    #
-    # The blast radius is bounded on the FAR side rather than at this rule: a
-    # scraper only ever GETs a /metrics path, and every namespace it reaches into
-    # still enforces its own ingress policy.
+    # DELIBERATELY UNRESTRICTED, and it has to be. VictoriaMetrics' target set
+    # is discovered from prometheus.io annotations at runtime (server.scrape in
+    # kubernetes/services/victoria-metrics/helm.yaml), so a static list here
+    # would have to be re-derived on every deploy. The blast radius is bounded
+    # on the far side instead: a scraper only ever GETs /metrics, and every
+    # namespace it reaches into still enforces its own ingress policy.
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0

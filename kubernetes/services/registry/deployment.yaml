@@ -21,7 +21,10 @@ metadata:
   labels:
     app: registry
 spec:
-  replicas: 1
+  # Recreate: /var/lib/registry is an RWO hostPath PVC, and two writers on one
+  # is the same trap the three openpanel datastores avoid.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: registry
@@ -84,17 +87,10 @@ spec:
             # on the retried, wrong-offset resume rather than as an OOM.
             limits:
               memory: 512Mi
-          # ┌──────────────────────────────────────────────────────────────────┐
-          # │ NOT `/v2/`. That is the obvious endpoint and it is the WRONG one: │
-          # │ with REGISTRY_AUTH=htpasswd, `GET /v2/` answers 401 to an         │
-          # │ unauthenticated caller, kubelet treats anything outside 2xx/3xx   │
-          # │ as a failure, and a liveness probe on it would CrashLoop the      │
-          # │ registry on a perfectly healthy pod. It also logs a              │
-          # │ `level=warning error authorizing context` line per probe.         │
-          # │                                                                  │
-          # │ `GET /` answers 200 with an empty body and no auth. Both measured │
-          # │ against registry:3.1.1 (401 for /v2/, 200 for /), not assumed.    │
-          # └──────────────────────────────────────────────────────────────────┘
+          # Probe `/`, NOT `/v2/`: with REGISTRY_AUTH=htpasswd, `GET /v2/`
+          # answers 401 without credentials, which kubelet reads as a failure
+          # and which would CrashLoop a healthy registry.
+          #
           # Port 5000 deliberately, not the debug listener on 5001 (which
           # config-dev.yml also enables, serving /debug/health and /metrics
           # unauthenticated): a probe belongs on the port the Service targets, so
@@ -132,9 +128,10 @@ kind: Service
 metadata:
   name: registry
   namespace: platform-registry
+  labels:
+    app: registry
 spec:
   ports:
     - port: 5000
-      targetPort: 5000
   selector:
     app: registry

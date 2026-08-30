@@ -9,17 +9,9 @@ storage:
   # themselves are provisioned from ConfigMaps and are not stored here.
   data:
     size: 1Gi
-    # NODE-LOCAL, NOT the Mac-side share. Grafana 13 keeps its unified-storage
-    # SQLite plus a bleve search index plus 258MB of plugins here and works
-    # them continuously, and virtiofs made that measurably worse — so this
-    # stays. But do NOT read it as the cure: the spin recurred on this
-    # node-local path afterwards, pegged at the CPU cap with /api/health
-    # 503ing. The trigger is CPU starvation, not the filesystem; the recovery
-    # procedure is in helm.yaml next to the limit that contains it.
-    #
-    # Safe to lose, which is why this volume and not another: everything that
-    # matters here is provisioned from git (dashboards and alert rules as
-    # ConfigMaps, datasources from this chart's values, the admin password
-    # from --set). A repave resets logins, annotations and dashboard-version
-    # history, and nothing else.
+    # NODE-LOCAL on purpose — Grafana works this volume continuously and
+    # virtiofs makes that measurably worse. See the CPU limit note in
+    # helm.yaml; the cost is that a repave resets logins, annotations and
+    # dashboard-version history, all of which are safe to lose because
+    # everything that matters is provisioned from git.
     nodeLocalPath: /var/lib/grafana-node-local

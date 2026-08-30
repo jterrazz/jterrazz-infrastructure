@@ -54,8 +54,7 @@ data:
              ClickHouse detects on its own) as queries touch more parts.
              This instance ingests a few hundred events per WEEK; 128Mi of
              mark cache covers the whole index, and the uncompressed cache is
-             pure loss on a working set that already fits in the page cache.
-             Measured effect: steady state ~250-300Mi instead of ~1.35GiB. -->
+             pure loss on a working set that already fits in the page cache. -->
         <mark_cache_size>134217728</mark_cache_size>
         <index_mark_cache_size>33554432</index_mark_cache_size>
         <uncompressed_cache_size>0</uncompressed_cache_size>
@@ -92,7 +91,6 @@ metadata:
     app: op-clickhouse
     app.kubernetes.io/part-of: openpanel
 spec:
-  replicas: 1
   strategy:
     type: Recreate
   selector:
@@ -201,7 +199,5 @@ spec:
   ports:
     - name: http
       port: 8123
-      targetPort: 8123
     - name: native
       port: 9000
-      targetPort: 9000

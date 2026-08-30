@@ -1,5 +1,4 @@
-# `crds.enabled`, not the deprecated `installCRDs: true` — exactly equivalent,
-# and this renders the same 6 CRDs.
+# `crds.enabled`, not the deprecated `installCRDs: true`.
 crds:
   enabled: true
 global:

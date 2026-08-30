@@ -109,9 +109,7 @@ tests:
                     kubernetes.io/metadata.name: platform-telemetry
             ports:
               - port: 4317
-                protocol: TCP
               - port: 4318
-                protocol: TCP
       - contains:
           path: spec.egress
           content:
@@ -121,7 +119,6 @@ tests:
                     kubernetes.io/metadata.name: prod-gateway-intelligence
             ports:
               - port: 8317
-                protocol: TCP
 
   - it: opts out completely when the list is empty
     # OTel is opt-in as of chart 2.0. It used to be an unconditional default,

@@ -76,8 +76,9 @@ spec:
         - protocol: TCP
           port: 53
     # registry -> the internet on 443. Storage is a local hostPath PVC, so in
-    # principle DNS alone would do; kept open per issue #3 because this
-    # namespace is on the critical path for every app deploy.
+    # principle DNS alone would do. OPEN: confirm distribution 3.x makes no
+    # outbound call at all before removing this — the namespace is on the
+    # critical path for every app deploy, so the failure would land in CI.
     - ports:
         - protocol: TCP
           port: 443

@@ -22,7 +22,22 @@ metadata:
 environment: prod
 
 spec:
+  # Set by app CI in real deploys; pinned here so app.image renders the
+  # explicit branch rather than the <registry>/<app>:latest fallback.
+  image: registry.internal.jterrazz.com/ci-test-app:ci
+
   port: 3000
+
+  # Merged OVER the chart's hardened container defaults, which is the whole
+  # point of the key — one capability back, everything else still dropped.
+  securityContext:
+    capabilities:
+      drop: ["ALL"]
+      add: ["NET_BIND_SERVICE"]
+
+  # False here so prod renders the runAsNonRoot + uid/gid/fsGroup branch; the
+  # `true` branch is exercised by the staging environment below.
+  runAsRoot: false
 
   # >= 512Mi so the NODE_OPTIONS heap-cap branch in _helpers.tpl is exercised
   # (below that floor the chart deliberately injects nothing).
@@ -101,6 +116,22 @@ spec:
     - host: ci-test-app-internal.jterrazz.com
       path: /
       public: false
+    # Sub-path WITHOUT stripPrefix -> the app serves the literal path, so no
+    # stripPrefix Middleware may be emitted for this entry.
+    - host: ci-test-app-mcp.jterrazz.com
+      path: /mcp
+      public: true
+      stripPrefix: false
+    # Canonical-host redirect -> the <app>-<idx>-redirect Middleware, with
+    # preservePath defaulting TRUE (deep links survive).
+    - host: ci-test-app-old.jterrazz.com
+      public: true
+      redirectTo: https://ci-test-app.jterrazz.com
+    # Same, with preservePath false -> one fixed landing page.
+    - host: ci-test-app-legacy.jterrazz.com
+      public: true
+      redirectTo: https://ci-test-app.jterrazz.com/moved
+      preservePath: false
 
 environments:
   prod:
@@ -110,6 +141,9 @@ environments:
     tag: main
     replicas: 1
     secretsEnv: prod
+    # The other arm of the securityContext switch: no runAsNonRoot on the
+    # container and no pod-level uid/gid/fsGroup block at all.
+    runAsRoot: true
     resources:
       memory: 256Mi
     ingress:

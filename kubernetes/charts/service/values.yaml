@@ -28,8 +28,17 @@ aliases: []
 # (templates/ingress-route.yaml).
 access: private
 
-# Named volumes: <key> -> { size, pathSuffix?, claimName? }. Names and paths
-# address live data — see templates/storage.yaml before changing any of them.
+# Named volumes: <key> -> { size, pathSuffix?, claimName?, nodeLocalPath? }.
+# Names and paths address live data — see templates/storage.yaml before
+# changing any of them.
+#
+#   size           required; the PV capacity and the PVC request.
+#   pathSuffix     nests the hostPath under <name>/ (one directory per app).
+#   claimName      overrides the PVC name only, never the PV or the binding.
+#   nodeLocalPath  absolute hostPath OUTSIDE /var/lib/k8s-data, i.e. in the VM
+#                  rather than on the Mac share. For data a service works
+#                  continuously; it does NOT survive a repave, so point it only
+#                  at something reconstructible (grafana-data is the one user).
 #
 #   storage:
 #     data:      { size: 3Gi, pathSuffix: mongo, claimName: storage-svc-0 }

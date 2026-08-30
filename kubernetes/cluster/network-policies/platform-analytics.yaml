@@ -109,8 +109,9 @@ spec:
           port: 8443
         - protocol: TCP
           port: 8000
-    # op-* pods -> the internet on 443 (geo/IP enrichment, avatar fetches);
-    # deliberately un-narrowed, see issue #3.
+    # op-* pods -> the internet on 443 (geo/IP enrichment, avatar fetches).
+    # OPEN: nothing has enumerated which hosts OpenPanel actually dials, so the
+    # rule cannot be narrowed to an ipBlock without breaking enrichment.
     - ports:
         - protocol: TCP
           port: 443

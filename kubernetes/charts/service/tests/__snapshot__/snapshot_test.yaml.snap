@@ -4,13 +4,14 @@ matches the recorded render of the CI fixture:
     kind: Certificate
     metadata:
       labels:
-        app.kubernetes.io/managed-by: helm
+        app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
         app.kubernetes.io/part-of: jterrazz-infrastructure
       name: ci-test-service-tls
     spec:
       dnsNames:
         - ci-test-service.jterrazz.com
+        - ci-test-alias.example
       issuerRef:
         kind: ClusterIssuer
         name: letsencrypt-production
@@ -20,7 +21,7 @@ matches the recorded render of the CI fixture:
     kind: IngressRoute
     metadata:
       labels:
-        app.kubernetes.io/managed-by: helm
+        app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
         app.kubernetes.io/part-of: jterrazz-infrastructure
       name: ci-test-service
@@ -29,7 +30,7 @@ matches the recorded render of the CI fixture:
         - websecure
       routes:
         - kind: Rule
-          match: Host(`ci-test-service.jterrazz.com`)
+          match: Host(`ci-test-service.jterrazz.com`) || Host(`ci-test-alias.example`)
           middlewares:
             - name: cluster-internal-access
               namespace: platform-networking
@@ -44,7 +45,7 @@ matches the recorded render of the CI fixture:
     metadata:
       labels:
         app.kubernetes.io/component: storage
-        app.kubernetes.io/managed-by: helm
+        app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
         app.kubernetes.io/part-of: jterrazz-infrastructure
       name: ci-test-service-data
@@ -72,7 +73,7 @@ matches the recorded render of the CI fixture:
     metadata:
       labels:
         app.kubernetes.io/component: storage
-        app.kubernetes.io/managed-by: helm
+        app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
         app.kubernetes.io/part-of: jterrazz-infrastructure
       name: ci-test-service-data
@@ -90,7 +91,7 @@ matches the recorded render of the CI fixture:
     metadata:
       labels:
         app.kubernetes.io/component: storage
-        app.kubernetes.io/managed-by: helm
+        app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
         app.kubernetes.io/part-of: jterrazz-infrastructure
       name: ci-test-service-metrics
@@ -118,7 +119,7 @@ matches the recorded render of the CI fixture:
     metadata:
       labels:
         app.kubernetes.io/component: storage
-        app.kubernetes.io/managed-by: helm
+        app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
         app.kubernetes.io/part-of: jterrazz-infrastructure
       name: storage-ci-test-0
@@ -136,7 +137,53 @@ matches the recorded render of the CI fixture:
     metadata:
       labels:
         app.kubernetes.io/component: storage
-        app.kubernetes.io/managed-by: helm
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: ci-test-service
+        app.kubernetes.io/part-of: jterrazz-infrastructure
+      name: ci-test-service-node-local
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      capacity:
+        storage: 1Gi
+      hostPath:
+        path: /var/lib/ci-test-node-local
+        type: DirectoryOrCreate
+      nodeAffinity:
+        required:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: kubernetes.io/hostname
+                  operator: In
+                  values:
+                    - ci-test-node
+      persistentVolumeReclaimPolicy: Retain
+      storageClassName: manual
+  8: |
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      labels:
+        app.kubernetes.io/component: storage
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: ci-test-service
+        app.kubernetes.io/part-of: jterrazz-infrastructure
+      name: ci-test-service-node-local
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+      storageClassName: manual
+      volumeName: ci-test-service-node-local
+  9: |
+    apiVersion: v1
+    kind: PersistentVolume
+    metadata:
+      labels:
+        app.kubernetes.io/component: storage
+        app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
         app.kubernetes.io/part-of: jterrazz-infrastructure
       name: ci-test-service-uploads
@@ -158,13 +205,13 @@ matches the recorded render of the CI fixture:
                     - ci-test-node
       persistentVolumeReclaimPolicy: Retain
       storageClassName: manual
-  8: |
+  10: |
     apiVersion: v1
     kind: PersistentVolumeClaim
     metadata:
       labels:
         app.kubernetes.io/component: storage
-        app.kubernetes.io/managed-by: helm
+        app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
         app.kubernetes.io/part-of: jterrazz-infrastructure
       name: ci-test-service-uploads

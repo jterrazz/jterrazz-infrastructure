@@ -57,8 +57,8 @@ kind: Namespace
 metadata:
   name: platform-telemetry
   labels:
-    # hostNetwork/hostPath workloads live here (cloudflared, node-exporter);
-    # baseline forbids both, so enforcing it would evict them.
+    # node-exporter runs hostNetwork + hostPath here; baseline forbids both, so
+    # enforcing it would evict it.
     pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
@@ -88,4 +88,7 @@ kind: Namespace
 metadata:
   name: prod-gateway-intelligence
   labels:
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
     app.kubernetes.io/component: app-gateway

@@ -2,8 +2,6 @@
 # platform_chart_versions.victoria_logs). Two write paths, both on :9428, both
 # always on (no receiver flag to enable):
 #   * OTLP/HTTP  /insert/opentelemetry/v1/logs  — what the OTel collector uses
-#   * Loki push  /insert/loki/api/v1/push       — nothing writes it today; kept
-#     documented because it is the cheapest fallback for pod-log shipping.
 # Query language is LogsQL, not LogQL: stream filters look the same
 # (`{k8s.namespace.name="x"}`), the pipe operators do not — see docs/RUNBOOK.md.
 

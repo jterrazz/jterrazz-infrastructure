@@ -2,6 +2,33 @@ suite: host redirects
 templates:
   - templates/ingress.yaml
 tests:
+  - it: "emits one <app>-<idx>-redirect Middleware per redirect entry"
+    # Rendered from the CI fixture, whose entries 3 and 4 are redirects. The
+    # name is what the entry's own IngressRoute references, so a rename here is
+    # a 404 there. documentSelector fails outright if the object is missing.
+    values:
+      - ../ci/test-values.yaml
+    asserts:
+      - equal:
+          path: spec.redirectRegex.replacement
+          value: "https://ci-test-app.jterrazz.com/${1}"
+        documentSelector:
+          path: metadata.name
+          value: ci-test-app-3-redirect
+      - equal:
+          path: spec.redirectRegex.replacement
+          value: "https://ci-test-app.jterrazz.com/moved"
+        documentSelector:
+          path: metadata.name
+          value: ci-test-app-4-redirect
+      - equal:
+          path: spec.routes[0].middlewares
+          value:
+            - name: ci-test-app-3-redirect
+        documentSelector:
+          path: metadata.name
+          value: ci-test-app-3
+
   - it: "preserves the path by default and emits a 301"
     set:
       metadata.name: web
