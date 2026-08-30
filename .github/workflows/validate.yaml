@@ -263,8 +263,8 @@ jobs:
         run: helmfile --file kubernetes/helmfile.yaml.gotmpl template > /dev/null
 
       - name: Validate raw service manifests
-        # kubernetes/services/** mixes Helm values files (helm.yaml for the
-        # upstream chart, platform.yaml for the service chart) with actual
+        # kubernetes/services/** mixes Helm values files (values.yaml for the
+        # upstream chart, service.yaml for the service chart) with actual
         # hand-written K8s objects (openpanel's stack, LibreChat's
         # mongodb/secret/netpol, cloudflared's Deployment, cert-manager
         # issuers, the registry Deployment, ...). Rather than maintain an

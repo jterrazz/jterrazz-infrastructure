@@ -21,7 +21,7 @@ resources:
     #   resource-server ... error="begin: context deadline exceeded"
     # while Grafana times out calling its own apiserver on 127.0.0.1:3000.
     # RECOVERY: scale to 0, move grafana.db aside, scale to 1. The volume is
-    # safe to lose (see platform.yaml) — everything is provisioned from git.
+    # safe to lose (see service.yaml) — everything is provisioned from git.
     cpu: 1500m
     memory: 384Mi
 

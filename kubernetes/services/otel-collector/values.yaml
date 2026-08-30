@@ -11,7 +11,7 @@ image:
 # k8s_attributes processor and rethinking where the OTLP receiver lives.
 mode: deployment
 
-# 3, not the chart's 10 — see grafana/helm.yaml for the reasoning.
+# 3, not the chart's 10 — see grafana/values.yaml for the reasoning.
 revisionHistoryLimit: 3
 
 # RECREATE, not the chart's RollingUpdate. The filelog receiver keeps its read

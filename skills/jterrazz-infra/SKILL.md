@@ -22,7 +22,7 @@ recipe in `docs/hetzner.md`, not a live mode.
 | Non-inferable gotchas + hand-synced pairs     | `CLAUDE.md`                             |
 | `application.yaml` schema (deploying an app)  | `kubernetes/charts/app/README.md`       |
 | Per-service detail (cloudflared, librechat, openpanel) | `kubernetes/services/<svc>/README.md` |
-| Every other service                           | its release block in `kubernetes/helmfile.yaml.gotmpl` + comments in its `helm.yaml` / `platform.yaml` |
+| Every other service                           | its release block in `kubernetes/helmfile.yaml.gotmpl` + comments in its `values.yaml` / `service.yaml` |
 | Bringing the Hetzner target back              | `docs/hetzner.md`                       |
 
 ## Commands

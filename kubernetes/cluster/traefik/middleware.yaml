@@ -118,7 +118,7 @@ spec:
 #   * registry — containerd on the NODE pulls registry.internal.jterrazz.com, which
 #     CoreDNS maps to the node's own tailnet IP; that hairpins through
 #     hostPort -> svclb -> Traefik, so the source is a pod-CIDR or node
-#     address (kubernetes/services/registry/platform.yaml, `access:
+#     address (kubernetes/services/registry/service.yaml, `access:
 #     cluster-internal`).
 apiVersion: traefik.io/v1alpha1
 kind: Middleware

@@ -21,7 +21,7 @@ server:
   fullnameOverride: victoria-metrics
 
   # DATA LOSS IF CHANGED. Names the PVC that kubernetes/services/victoria-metrics/
-  # platform.yaml creates (<name>-<key> = victoria-metrics-data) over a hostPath
+  # service.yaml creates (<name>-<key> = victoria-metrics-data) over a hostPath
   # PV at /var/lib/k8s-data/victoria-metrics.
   #
   # `existingClaim` is load-bearing beyond the name: this chart runs the server

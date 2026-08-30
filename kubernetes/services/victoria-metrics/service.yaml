@@ -2,7 +2,7 @@
 # deliberately unset (Grafana and the OTel collector reach it in-cluster), and
 # with no host the chart emits neither IngressRoute nor Certificate.
 #
-# The PVC name is load-bearing: victoria-metrics/helm.yaml pins
+# The PVC name is load-bearing: victoria-metrics/values.yaml pins
 # `server.persistentVolume.existingClaim: victoria-metrics-data`, which is
 # <name>-<key> = victoria-metrics-data. Rename either half and VictoriaMetrics
 # starts on a fresh dynamically-provisioned volume.

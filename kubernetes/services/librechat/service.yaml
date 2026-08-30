@@ -1,7 +1,7 @@
 # Service-chart values for LibreChat (Cert + private IngressRoute + storage).
 # Tailnet-only, and NOT exposed through the Cloudflare tunnel. Going public
 # means `access: public` plus leaning on LibreChat's own auth — registration is
-# disabled in helm.yaml until then.
+# disabled in values.yaml until then.
 name: librechat
 host: chat.internal.jterrazz.com
 port: 3080
@@ -12,7 +12,7 @@ storage:
   data:
     size: 3Gi
     pathSuffix: mongo
-  # User-uploaded files and generated images. Mounted by helm.yaml at both
+  # User-uploaded files and generated images. Mounted by values.yaml at both
   # /app/uploads and /app/client/public/images via subPath. Without it these
   # live on the container's ephemeral fs and are lost on every pod restart.
   uploads:

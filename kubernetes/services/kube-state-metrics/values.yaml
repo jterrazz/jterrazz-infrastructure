@@ -7,7 +7,7 @@
 # job keeps exactly that annotation, so the two releases install in either order.
 # Both dashboards query the kube_* metric names directly, never `service`/`instance`.
 
-# 3, not the chart's 10 — see grafana/helm.yaml for the reasoning.
+# 3, not the chart's 10 — see grafana/values.yaml for the reasoning.
 revisionHistoryLimit: 3
 
 resources:

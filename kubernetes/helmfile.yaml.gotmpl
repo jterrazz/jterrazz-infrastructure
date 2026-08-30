@@ -85,7 +85,7 @@ releases:
     labels:
       tier: bootstrap
     values:
-      - services/cert-manager/helm.yaml
+      - services/cert-manager/values.yaml
 
   - name: infisical
     namespace: platform-secrets
@@ -94,7 +94,7 @@ releases:
     labels:
       tier: bootstrap
     values:
-      - services/infisical/helm.yaml
+      - services/infisical/values.yaml
 
   # --- telemetry ------------------------------------------------------------
   - name: grafana-platform
@@ -102,28 +102,28 @@ releases:
     inherit:
       - template: service
     values:
-      - services/grafana/platform.yaml
+      - services/grafana/service.yaml
 
   - name: victoria-metrics-platform
     namespace: platform-telemetry
     inherit:
       - template: service
     values:
-      - services/victoria-metrics/platform.yaml
+      - services/victoria-metrics/service.yaml
 
   - name: victoria-logs-platform
     namespace: platform-telemetry
     inherit:
       - template: service
     values:
-      - services/victoria-logs/platform.yaml
+      - services/victoria-logs/service.yaml
 
   - name: victoria-traces-platform
     namespace: platform-telemetry
     inherit:
       - template: service
     values:
-      - services/victoria-traces/platform.yaml
+      - services/victoria-traces/service.yaml
 
   # Chart minors move fast; read the app version each one ships.
   - name: victoria-metrics
@@ -133,7 +133,7 @@ releases:
     needs:
       - platform-telemetry/victoria-metrics-platform
     values:
-      - services/victoria-metrics/helm.yaml
+      - services/victoria-metrics/values.yaml
 
   - name: victoria-logs
     namespace: platform-telemetry
@@ -142,9 +142,9 @@ releases:
     needs:
       - platform-telemetry/victoria-logs-platform
     values:
-      - services/victoria-logs/helm.yaml
+      - services/victoria-logs/values.yaml
 
-  # PRE-1.0, KNOWINGLY — see the boxed note in victoria-traces/helm.yaml. Do
+  # PRE-1.0, KNOWINGLY — see the boxed note in victoria-traces/values.yaml. Do
   # NOT extend that tolerance to the two 1.x pins above.
   - name: victoria-traces
     namespace: platform-telemetry
@@ -153,23 +153,23 @@ releases:
     needs:
       - platform-telemetry/victoria-traces-platform
     values:
-      - services/victoria-traces/helm.yaml
+      - services/victoria-traces/values.yaml
 
   - name: kube-state-metrics
     namespace: platform-telemetry
     chart: prometheus-community/kube-state-metrics
     version: 8.0.0
     values:
-      - services/kube-state-metrics/helm.yaml
+      - services/kube-state-metrics/values.yaml
 
   # The CHART is `prometheus-node-exporter`; the RELEASE is `node-exporter`
-  # (hence the fullnameOverride in its helm.yaml).
+  # (hence the fullnameOverride in its values.yaml).
   - name: node-exporter
     namespace: platform-telemetry
     chart: prometheus-community/prometheus-node-exporter
     version: 4.56.1
     values:
-      - services/node-exporter/helm.yaml
+      - services/node-exporter/values.yaml
 
   # AFTER VictoriaLogs: the collector owns pod-log shipping (its filelog
   # receiver), so an earlier install has nowhere to write. It also exports to
@@ -183,7 +183,7 @@ releases:
       - platform-telemetry/victoria-metrics
       - platform-telemetry/victoria-traces
     values:
-      - services/otel-collector/helm.yaml
+      - services/otel-collector/values.yaml
 
   # grafana-community repo. grafana.db migrates itself on first boot and is NOT
   # reversible, so the rollback is the /var/lib/k8s-data/grafana restore.
@@ -194,7 +194,7 @@ releases:
     needs:
       - platform-telemetry/grafana-platform
     values:
-      - services/grafana/helm.yaml
+      - services/grafana/values.yaml
       # An inline values map, not `--set`: `--set` puts the password in the
       # helm process' argv, where any user on the box can read it off `ps`.
       - adminPassword: {{ requiredEnv "GRAFANA_ADMIN_PASSWORD" | quote }}
@@ -205,9 +205,9 @@ releases:
     inherit:
       - template: service
     values:
-      - services/librechat/platform.yaml
+      - services/librechat/service.yaml
 
-  # Bump together with the image tag pinned in librechat/helm.yaml.
+  # Bump together with the image tag pinned in librechat/values.yaml.
   #
   # The standalone MongoDB it talks to is librechat/mongodb.yaml, applied by
   # roles/platform/tasks/raw-manifests.yml between the two helmfile passes —
@@ -220,7 +220,7 @@ releases:
     needs:
       - platform-ai/librechat-platform
     values:
-      - services/librechat/helm.yaml
+      - services/librechat/values.yaml
 
   # --- OpenPanel ------------------------------------------------------------
   # No upstream chart: the six workloads are hand-written manifests in
@@ -231,7 +231,7 @@ releases:
     inherit:
       - template: service
     values:
-      - services/openpanel/platform.yaml
+      - services/openpanel/service.yaml
 
   # --- registry -------------------------------------------------------------
   # The Deployment + Service are services/registry/deployment.yaml; this is the
@@ -241,4 +241,4 @@ releases:
     inherit:
       - template: service
     values:
-      - services/registry/platform.yaml
+      - services/registry/service.yaml

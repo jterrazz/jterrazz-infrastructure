@@ -1,7 +1,7 @@
 suite: spec.alerts -> Grafana alert-rule ConfigMap
 #
 # The label is the whole feature: Grafana's alerts sidecar
-# (kubernetes/services/grafana/helm.yaml) selects `grafana_alert: "1"` across
+# (kubernetes/services/grafana/values.yaml) selects `grafana_alert: "1"` across
 # ALL namespaces, so a ConfigMap that loses the label is not a broken alert —
 # it is inert data nobody notices until an outage goes unannounced. Everything
 # below exists because that failure is silent.

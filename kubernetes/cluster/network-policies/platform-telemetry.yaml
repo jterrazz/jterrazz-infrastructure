@@ -102,7 +102,7 @@ spec:
     - Ingress
   ingress:
     # Traefik (kube-system) -> grafana POD port 3000: the private IngressRoute
-    # from kubernetes/services/grafana/platform.yaml (grafana.internal.jterrazz.com,
+    # from kubernetes/services/grafana/service.yaml (grafana.internal.jterrazz.com,
     # `access: private`). Every other pod in this namespace is excluded by the
     # podSelector and stays same-namespace only.
     #
@@ -188,7 +188,7 @@ spec:
   egress:
     # DELIBERATELY UNRESTRICTED, and it has to be. VictoriaMetrics' target set
     # is discovered from prometheus.io annotations at runtime (server.scrape in
-    # kubernetes/services/victoria-metrics/helm.yaml), so a static list here
+    # kubernetes/services/victoria-metrics/values.yaml), so a static list here
     # would have to be re-derived on every deploy. The blast radius is bounded
     # on the far side instead: a scraper only ever GETs /metrics, and every
     # namespace it reaches into still enforces its own ingress policy.

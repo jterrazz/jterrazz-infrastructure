@@ -16,7 +16,7 @@
 #
 # Recreate strategy — never two writers
 # on one RWO hostPath volume. Data is on the `openpanel-postgres` manual
-# hostPath PV/PVC (platform.yaml, Retain) so it survives a repave.
+# hostPath PV/PVC (service.yaml, Retain) so it survives a repave.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

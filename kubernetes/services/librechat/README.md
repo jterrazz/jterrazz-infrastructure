@@ -27,7 +27,7 @@ between the two helmfile passes.
 
 - **Upstream chart, our datastore.** The official LibreChat chart is installed
   as-is, but every bundled datastore subchart is **off** — `mongodb`, `redis` and
-  `meilisearch` are disabled in `helm.yaml`; `librechat-rag-api` is already off by
+  `meilisearch` are disabled in `values.yaml`; `librechat-rag-api` is already off by
   chart default, so nothing sets it. The bundled MongoDB is a
   Bitnami subchart, deprecated upstream since 2025-09 and no longer pullable;
   it would also land on the default `local-path` StorageClass, which does not
@@ -36,8 +36,8 @@ between the two helmfile passes.
 - **No Meilisearch** ⇒ `SEARCH: "false"` — conversation search is off.
 - **Private-only for now**: `ALLOW_REGISTRATION: "false"` plus the
   `private-access` middleware. Going public means flipping `access: private`
-  to `access: public` in `platform.yaml` and leaning on LibreChat's own auth.
-- `fullnameOverride: librechat` — the IngressRoute in `platform.yaml` targets a
+  to `access: public` in `service.yaml` and leaning on LibreChat's own auth.
+- `fullnameOverride: librechat` — the IngressRoute in `service.yaml` targets a
   Service literally named `librechat`, so the chart's fullname must match.
 - **`ingress.enabled: false`** — the chart defaults it to **true** with the
   placeholder host `chat.example.com`, and k3s' Traefik serves Ingress objects as
@@ -82,7 +82,7 @@ Same pattern as the app chart and OpenPanel's datastores.
 ## Where the data lives
 
 Both volumes come from the **service chart's named-volume storage map**
-declared in `platform.yaml` — `uploads` used to be a hand-written
+declared in `service.yaml` — `uploads` used to be a hand-written
 `uploads.yaml`, now deleted. Object names and hostPath paths are unchanged.
 
 | PVC / PV            | Size | Path (`/var/lib/k8s-data/...`) | Holds                                    |
@@ -125,7 +125,7 @@ synced by the Infisical operator (`secret.yaml`) into Secret
 There is **no gateway API key** — see below. `GATEWAY_API_KEY` was removed
 from this folder.
 
-**Non-secret config** lives in `helm.yaml`: `configEnv` (host, `MONGO_URI`,
+**Non-secret config** lives in `values.yaml`: `configEnv` (host, `MONGO_URI`,
 registration/login flags, `ANTHROPIC_REVERSE_PROXY`) and
 `configYamlContent`, which is the full `librechat.yaml` (endpoints, model
 lists, modelSpecs, interface).
@@ -203,7 +203,7 @@ kubectl exec -n platform-ai deploy/librechat-mongodb -- \
 
 There is **no auto-"latest Opus"**: model IDs are opaque and the gateway
 exposes no `-latest` alias. To move the default agent to a newer Opus, edit
-the `opus-full` modelSpec in `helm.yaml` and bump **all three** of `model`,
+the `opus-full` modelSpec in `values.yaml` and bump **all three** of `model`,
 `label` and `description` (there's a boxed reminder in the file), then push to
 main — `deploy-platform.yaml` redeploys on any change under
 `kubernetes/services/**`.
@@ -237,7 +237,7 @@ CLIProxyAPI supports a `claude-opus-latest` alias in
   before this is anything but private.
 - **`strategy: Recreate` on mongod** — never run two writers against one RWO
   hostPath volume.
-- **Changing `pathSuffix` or a PV name in `platform.yaml` moves live data.**
+- **Changing `pathSuffix` or a PV name in `service.yaml` moves live data.**
   The paths are byte-identical to what the pre-2.0 manifests produced, on
   purpose. `hostPath.type` is an immutable PV field: delete and recreate the
   PV if it ever has to change.

@@ -30,7 +30,7 @@ metadata:
     {{- include "app.labels" . | nindent 4 }}
 spec:
   replicas: {{ $spec.replicas }}
-  # 3, not the k8s default 10 — see kubernetes/services/grafana/helm.yaml.
+  # 3, not the k8s default 10 — see kubernetes/services/grafana/values.yaml.
   revisionHistoryLimit: 3
   {{- if $spec.storage }}
   strategy:

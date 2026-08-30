@@ -2,7 +2,7 @@
 # unset (Grafana and the OTel collector both reach it in-cluster), and
 # with no host the chart emits neither IngressRoute nor Certificate.
 #
-# The PVC name is load-bearing: victoria-logs/helm.yaml pins
+# The PVC name is load-bearing: victoria-logs/values.yaml pins
 # `server.persistentVolume.existingClaim: victoria-logs-data`, which is
 # <name>-<key> = victoria-logs-data.
 #

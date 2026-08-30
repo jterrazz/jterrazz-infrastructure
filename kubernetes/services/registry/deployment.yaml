@@ -1,5 +1,5 @@
 # Private container registry — Deployment + Service only. The
-# IngressRoute/Certificate/PV/PVC come from the service chart (platform.yaml in
+# IngressRoute/Certificate/PV/PVC come from the service chart (service.yaml in
 # this directory).
 #
 # AUTH is htpasswd because the registry image offers only that or `token`,
@@ -116,7 +116,7 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            # From the service chart (platform.yaml -> storage.data).
+            # From the service chart (service.yaml -> storage.data).
             claimName: registry-data
         - name: auth
           secret:

@@ -15,18 +15,18 @@
 image:
   tag: "v0.8.7"
 
-# IngressRoute (platform.yaml) targets a Service literally named `librechat`,
+# IngressRoute (service.yaml) targets a Service literally named `librechat`,
 # so override the chart's fullname to match.
 fullnameOverride: librechat
 
 # MUST STAY FALSE. The chart default is `true`, with the placeholder host
 # chat.example.com — and k3s' Traefik serves Ingress objects as well as
 # IngressRoutes, so leaving it unset publishes an unauthenticated route to this
-# Service that bypasses the `private-access` middleware platform.yaml applies.
+# Service that bypasses the `private-access` middleware service.yaml applies.
 ingress:
   enabled: false
 
-# One PVC (`librechat-uploads`, from platform.yaml's storage map) mounted at
+# One PVC (`librechat-uploads`, from service.yaml's storage map) mounted at
 # both LibreChat asset dirs via subPath. Without it uploads and generated
 # images sit on the container fs and are lost on every restart.
 volumes:

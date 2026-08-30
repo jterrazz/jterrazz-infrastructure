@@ -324,7 +324,7 @@ of [openpanel](../kubernetes/services/openpanel/README.md#backup--restore) and
 1. Namespace: add it to `kubernetes/cluster/namespaces.yaml` if it doesn't
    already have one — never `kubectl create ns`. Give it a NetworkPolicy file
    under `kubernetes/cluster/network-policies/`.
-2. Values: add `kubernetes/services/<svc>/{helm.yaml,platform.yaml}` (upstream
+2. Values: add `kubernetes/services/<svc>/{values.yaml,service.yaml}` (upstream
    chart values + service-chart values), following an existing service as a
    template.
 3. Release: add ONE block to `kubernetes/helmfile.yaml.gotmpl` — name,
@@ -334,7 +334,7 @@ of [openpanel](../kubernetes/services/openpanel/README.md#backup--restore) and
    Renovate bumps it, with nothing to keep in sync. If the chart comes from a
    repository not already listed at the top of the file, add that too.
 4. Ingress: set `access: private` (default) or `access: cluster-internal` in
-   `platform.yaml`; add a private hostname to `private_hostnames` in
+   `service.yaml`; add a private hostname to `private_hostnames` in
    group_vars **and** `PRIVATE_CHECKS` in `scripts/smoke.sh`. A public service
    needs a new zone — see "New public zone" in `CLAUDE.md`.
 5. `make check` locally, then a PR — `deploy-platform.yaml` deploys on merge.

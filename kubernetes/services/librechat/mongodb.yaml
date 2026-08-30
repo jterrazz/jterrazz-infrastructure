@@ -2,7 +2,7 @@
 # subchart. No auth: it listens only inside platform-ai and has no other
 # tenants — add auth (and a Secret-injected MONGO_URI) before this is anything
 # but private. Data is on the manual hostPath PVC `librechat-data`
-# (platform.yaml), hence Recreate: never two writers on one RWO hostPath volume.
+# (service.yaml), hence Recreate: never two writers on one RWO hostPath volume.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

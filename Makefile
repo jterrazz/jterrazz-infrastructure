@@ -55,7 +55,7 @@ kubeconfig: ## Regenerate ./kubeconfig.yaml from the VM (server = MagicDNS name)
 # Read-only preview against the LIVE cluster, meant to be run BEFORE
 # `make deploy-platform`: that play runs `helmfile apply` over
 # kubernetes/helmfile.yaml.gotmpl, so a bumped chart version or an edited
-# helm.yaml lands the moment it runs. This shows what would change first.
+# values.yaml lands the moment it runs. This shows what would change first.
 # Installs the helm-diff plugin on first use; needs a working kubeconfig
 # (./kubeconfig.yaml by default, override with KUBECONFIG=...). Narrow it to
 # one release: `./scripts/helmfile.sh diff -l name=grafana`.

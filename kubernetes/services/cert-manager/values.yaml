@@ -3,7 +3,7 @@ crds:
   enabled: true
 global:
   # 3, and this ONE key covers all three Deployments (controller, webhook,
-  # cainjector) — see grafana/helm.yaml for the reasoning.
+  # cainjector) — see grafana/values.yaml for the reasoning.
   revisionHistoryLimit: 3
 # 128Mi floor on every component: these Go processes spike well above idle RSS
 # during cert reconciliation and CRD-watch reconnects, and an OOM-killed

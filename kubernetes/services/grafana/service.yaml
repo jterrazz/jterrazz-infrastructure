@@ -11,7 +11,7 @@ storage:
     size: 1Gi
     # NODE-LOCAL on purpose — Grafana works this volume continuously and
     # virtiofs makes that measurably worse. See the CPU limit note in
-    # helm.yaml; the cost is that a repave resets logins, annotations and
+    # values.yaml; the cost is that a repave resets logins, annotations and
     # dashboard-version history, all of which are safe to lose because
     # everything that matters is provisioned from git.
     nodeLocalPath: /var/lib/grafana-node-local

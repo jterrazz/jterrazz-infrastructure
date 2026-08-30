@@ -113,7 +113,7 @@ kubernetes/
 │                     namespace (all 7 declared namespaces are covered)
 ├── schemas/          vendored kubeconform CRD schemas, for the one CRD whose
 │                     public catalog copy lags the operator we run
-└── services/<svc>/   helm.yaml (upstream chart values) + platform.yaml
+└── services/<svc>/   values.yaml (upstream chart values) + service.yaml
                       (service-chart values) + any raw manifests it needs
 
 pulumi/src/   index.ts (one machine) · targets/orbstack.ts · dns.ts

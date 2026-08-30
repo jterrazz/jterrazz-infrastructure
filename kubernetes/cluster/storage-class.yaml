@@ -7,7 +7,7 @@
 # one — see kubernetes/charts/service/values.yaml).
 # Every `manual` PV/PVC in the cluster is emitted by one of the two
 # charts: kubernetes/charts/service (the `storage` map in each
-# kubernetes/services/<svc>/platform.yaml) or kubernetes/charts/app
+# kubernetes/services/<svc>/service.yaml) or kubernetes/charts/app
 # (<app>-<env>-data, for any app that sets spec.storage).
 #
 # k3s's built-in `local-path` SC stays available for ephemeral data; its

@@ -9,7 +9,7 @@
 #   KUBECONFIG=/path/to/kc ./scripts/helmfile.sh diff
 #
 # `make deploy-platform` is what APPLIES; this is the pre-flight for it. That
-# play runs `helmfile apply`, so a bumped chart version or an edited helm.yaml
+# play runs `helmfile apply`, so a bumped chart version or an edited values.yaml
 # lands the moment it runs — this shows what would change first. Nothing here
 # writes to the cluster unless you pass a subcommand that does.
 #

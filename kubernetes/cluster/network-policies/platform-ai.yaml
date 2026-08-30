@@ -33,7 +33,7 @@ spec:
     - Ingress
   ingress:
     # Traefik (kube-system) -> librechat POD port 3080: the private IngressRoute
-    # from kubernetes/services/librechat/platform.yaml (chat.internal.jterrazz.com,
+    # from kubernetes/services/librechat/service.yaml (chat.internal.jterrazz.com,
     # `access: private`, tailnet-only and NOT through the Cloudflare tunnel).
     #
     # 3080 is both the Service port and the container port here, so unlike
@@ -62,7 +62,7 @@ spec:
     - Ingress
   ingress:
     # LibreChat -> mongod:27017, and NOTHING else, ever. Sourced by
-    # helm.yaml's `MONGO_URI: mongodb://librechat-mongodb:27017/LibreChat`.
+    # values.yaml's `MONGO_URI: mongodb://librechat-mongodb:27017/LibreChat`.
     #
     # This is the rule that substitutes for authentication (see the file header
     # and mongodb.yaml): the pod selector on the source side is deliberately as
@@ -133,7 +133,7 @@ spec:
             matchLabels:
               kubernetes.io/metadata.name: platform-ai
     # librechat -> gateway-intelligence (prod-gateway-intelligence). This is
-    # both endpoints configured in helm.yaml: `ANTHROPIC_REVERSE_PROXY` and the
+    # both endpoints configured in values.yaml: `ANTHROPIC_REVERSE_PROXY` and the
     # custom endpoint's `baseURL`, both of which name the in-cluster Service —
     # never gateway-intelligence.internal.jterrazz.com, which a pod cannot hairpin to.
     #

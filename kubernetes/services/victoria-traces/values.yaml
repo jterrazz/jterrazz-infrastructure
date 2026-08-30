@@ -20,7 +20,7 @@
 # nothing here speaks gRPC to the store.
 #
 # Query, same port — Jaeger-compatible API at /select/jaeger, which is what the
-# Grafana `jaeger` datasource in grafana/helm.yaml points at:
+# Grafana `jaeger` datasource in grafana/values.yaml points at:
 #   https://docs.victoriametrics.com/victoriatraces/querying/grafana/
 # (v0.9.4 also serves a Tempo-compatible API at /select/tempo. Not used: the
 # Jaeger surface is the documented, non-experimental one.)
@@ -30,7 +30,7 @@ server:
   # nameOverride is `vt-single`, not the chart name).
   fullnameOverride: victoria-traces
 
-  # DATA LOSS IF CHANGED — see the matching note in platform.yaml. `existingClaim`
+  # DATA LOSS IF CHANGED — see the matching note in service.yaml. `existingClaim`
   # also makes the chart drop its StatefulSet volumeClaimTemplate and mount this
   # PVC by name, which is why no `claimName` override is needed here.
   persistentVolume:
@@ -39,7 +39,7 @@ server:
   # 720h == 30d. The flag takes s/h/d/w/M/y suffixes; minimum retention is 1d.
   retentionPeriod: "720h"
 
-  # 300s, not the 60s the other two use — rationale in victoria-metrics/helm.yaml,
+  # 300s, not the 60s the other two use — rationale in victoria-metrics/values.yaml,
   # and this store gets the longer interval because it can afford it: the boxed
   # note above already accepts losing trace history outright, and a flush here
   # writes a 32-74 file columnar part (one bloom/values pair per span attribute)
@@ -59,7 +59,7 @@ server:
       # flake — measure before tightening.
       memory: 512Mi
 
-  # Same reasoning as victoria-logs/helm.yaml: uid 1000 / fsGroup 2000 with a
+  # Same reasoning as victoria-logs/values.yaml: uid 1000 / fsGroup 2000 with a
   # read-only root fs, and fsGroup is not applied to hostPath volumes, so a
   # freshly created /var/lib/k8s-data/victoria-traces would be root-owned and
   # unwritable. runAsUser 0 + runAsNonRoot false override the pod-level context.

@@ -85,9 +85,9 @@ One directory per app (repo convention): the three datastores nest under
 `openpanel/` even though each has its own PV/PVC.
 
 All three PV/PVC pairs come from the **service chart**, declared as the
-`storage` map in `platform.yaml`. They used to be hand-written blocks at the
+`storage` map in `service.yaml`. They used to be hand-written blocks at the
 top of `postgres.yaml` / `redis.yaml` / `clickhouse.yaml`; names, sizes and
-hostPaths are unchanged by the move. `platform.yaml` sets no `host` — OpenPanel
+hostPaths are unchanged by the move. `service.yaml` sets no `host` — OpenPanel
 is the one service whose ingress the chart cannot express (two hostnames,
 different exposure, path routing), so `ingress.yaml` stays hand-written.
 

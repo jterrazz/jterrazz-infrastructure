@@ -98,7 +98,7 @@ Repo-specific, each one paid for at least once.
   `app.kubernetes.io/managed-by=Helm`, or the install fails on conflict.
 - **Immutable fields mean delete-and-recreate**: Deployment selectors, PV
   `hostPath.type`, PVC `spec.selector`. Changing a `pathSuffix` or a PV name in
-  a `platform.yaml` moves live data — the current paths are byte-identical to
+  a `service.yaml` moves live data — the current paths are byte-identical to
   what the pre-chart manifests produced, on purpose.
 - **Never chain `private-access` and `cluster-internal-access`.** Traefik ANDs
   chained ipAllowLists, so chaining allows strictly *less*, not more. The

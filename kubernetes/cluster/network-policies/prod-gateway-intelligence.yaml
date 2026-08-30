@@ -25,7 +25,7 @@ spec:
     - Ingress
   ingress:
     # LibreChat (platform-ai) -> gateway-intelligence POD port 8317 (not the
-    # Service port 80); sourced by kubernetes/services/librechat/helm.yaml's
+    # Service port 80); sourced by kubernetes/services/librechat/values.yaml's
     # ANTHROPIC_REVERSE_PROXY / configYamlContent baseURL.
     - from:
         - namespaceSelector:

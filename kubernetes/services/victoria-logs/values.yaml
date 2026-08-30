@@ -9,7 +9,7 @@ server:
   # Without this the objects are named <release>-victoria-logs-single-server.
   fullnameOverride: victoria-logs
 
-  # DATA LOSS IF CHANGED — see the matching note in platform.yaml. `existingClaim`
+  # DATA LOSS IF CHANGED — see the matching note in service.yaml. `existingClaim`
   # also makes the chart drop its StatefulSet volumeClaimTemplate and mount this
   # PVC by name, which is why no `claimName` override is needed here.
   persistentVolume:
@@ -19,7 +19,7 @@ server:
   # rejects ingestion of entries outside it.
   retentionPeriod: "90d"
 
-  # 60s against the 5s default — rationale in victoria-metrics/helm.yaml.
+  # 60s against the 5s default — rationale in victoria-metrics/values.yaml.
   extraArgs:
     inmemoryDataFlushInterval: 60s
 

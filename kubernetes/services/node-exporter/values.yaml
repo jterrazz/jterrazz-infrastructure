@@ -7,7 +7,7 @@
 # `node-exporter` renders every object as `node-exporter-prometheus-node-exporter`.
 fullnameOverride: node-exporter
 
-# 3, not the chart's 10 (ControllerRevisions here) — see grafana/helm.yaml.
+# 3, not the chart's 10 (ControllerRevisions here) — see grafana/values.yaml.
 revisionHistoryLimit: 3
 
 resources:

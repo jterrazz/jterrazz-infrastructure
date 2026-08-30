@@ -67,7 +67,7 @@
   changed_when: false
 
 # `grep -rl '^apiVersion:'`, not `kubectl apply -f <dir>`: the directory also
-# holds platform.yaml, a Helm VALUES file, and kubectl aborts the whole apply
+# holds service.yaml, a Helm VALUES file, and kubectl aborts the whole apply
 # on it with "apiVersion not set". Same structural test
 # .github/workflows/validate.yaml uses to pick manifests out of kubernetes/.
 - name: Apply the registry manifests
@@ -96,7 +96,7 @@
 # APP alert rules and dashboards are deliberately NOT applied here: they ship
 # with the app that emits the metric, through the app chart's `spec.alerts` /
 # `spec.dashboards` (which render the same labelled ConfigMaps the sidecars in
-# grafana/helm.yaml watch). One living in this repo outlives the app it watches
+# grafana/values.yaml watch). One living in this repo outlives the app it watches
 # and goes stale invisibly. Only the infrastructure dashboards below, which
 # describe the cluster itself, belong here — and the sidecar picks them up
 # whenever they appear, so they need no ordering against the Grafana release.
