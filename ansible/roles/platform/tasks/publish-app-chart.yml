@@ -4,6 +4,16 @@
 # registry is empty and no app can pull the chart at all until someone
 # hand-runs it. Skip with `--skip-tags chart-publish` when the chart is there.
 
+# `helm registry login` below talks HTTPS, and on a fresh cluster DNS-01
+# issuance lags the registry pod by a minute or two — without this the login
+# fails with a TLS error. The registry itself is a Helm release applied by the
+# pass before this one, so it is already rolled out by here.
+- name: Wait for the registry TLS certificate to be issued
+  ansible.builtin.command: >
+    kubectl wait --for=condition=Ready certificate/registry-tls
+    -n platform-registry --timeout=180s
+  changed_when: false
+
 - name: Login to the OCI registry for Helm
   ansible.builtin.command:
     argv:

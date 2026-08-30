@@ -244,11 +244,22 @@ releases:
       - services/openpanel/service.yaml
 
   # --- registry -------------------------------------------------------------
-  # The Deployment + Service are services/registry/deployment.yaml; this is the
-  # Certificate, the IngressRoute and the blob volume.
+  # The Certificate, the IngressRoute and the blob volume; the workload itself
+  # is the `registry` release below.
   - name: registry-platform
     namespace: platform-registry
     inherit:
       - template: platform-service
     values:
       - services/registry/service.yaml
+
+  # Every app image and the app chart itself live here, so this release is on
+  # the critical path of every deploy — including publish-app-chart.yml, which
+  # runs after this pass and pushes to it.
+  - name: registry
+    namespace: platform-registry
+    chart: ./charts/app
+    needs:
+      - platform-registry/registry-platform
+    values:
+      - services/registry/app.yaml

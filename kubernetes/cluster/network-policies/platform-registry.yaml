@@ -6,6 +6,10 @@
 # legitimately reaches port 5000: containerd on the node and CI runners on the
 # tailnet both resolve registry.internal.jterrazz.com and terminate at Traefik, which
 # then dials the registry Service.
+#
+# WHAT IS AND IS NOT IN THIS FILE. The namespace BASELINE only. The Traefik
+# -> :5000 rule belongs to the workload and is declared with it, in the
+# `network:` block of kubernetes/services/registry/app.yaml.
 
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -33,27 +37,6 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: platform-registry
-
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-traefik-to-registry
-  namespace: platform-registry
-spec:
-  podSelector: {}
-  policyTypes:
-    - Ingress
-  ingress:
-    # Traefik (kube-system) -> registry:5000. Every pull and push arrives this
-    # way; there is no direct ClusterIP consumer.
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - protocol: TCP
-          port: 5000
 
 ---
 apiVersion: networking.k8s.io/v1

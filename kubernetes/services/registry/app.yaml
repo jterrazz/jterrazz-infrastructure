@@ -1,0 +1,98 @@
+# App-chart values for the private container registry — the workload half.
+# The IngressRoute, Certificate and blob PV/PVC are service.yaml next to this
+# file (the `registry-platform` release, which owns the volume this one only
+# mounts).
+#
+# AUTH is htpasswd because the registry image offers only that or `token`, and
+# `token` needs a whole separate JWT-issuing server for a single-user registry.
+# ONE account (`deploy`), bcrypt-hashed; the hash is in Secret `registry-auth`
+# key `htpasswd`, bootstrapped by ansible/roles/platform/tasks/bootstrap.yml
+# because a password hash must never be committed. Consequence: CI pushes and
+# containerd's node-level pulls share one credential, so rotating means
+# re-running that task AND updating DOCKER_REGISTRY_PASSWORD in Infisical. The
+# other half of the story is `network:` below — nothing but Traefik reaches
+# :5000 at all.
+metadata:
+  name: registry
+
+environment: prod
+
+spec:
+  # distribution 3.x. The 2.8 -> 3.x jump is safe HERE specifically because
+  # this workload configures the registry entirely through REGISTRY_* env vars
+  # and mounts no config file: 3.0 moved the default config path from
+  # /etc/docker/registry/config.yml to /etc/distribution/config.yml, so a
+  # bind-mounted config at the old path would be silently ignored. If one is
+  # ever added (spec.configFiles), mount it at the NEW path.
+  #
+  # The on-disk layout is unchanged (storagePathVersion is still "v2" in 3.x),
+  # so /var/lib/registry is read in place — no migration. What 3.x drops:
+  # schema1 manifests, the oss/swift storage drivers, the `reporting:` config
+  # block, and TLS 1.0/1.1 as selectable minimums. None are used here (buildkit
+  # pushes schema2/OCI, storage is filesystem, TLS terminates at Traefik).
+  image: registry:3.1.1
+  port: 5000
+  # containerd and CI both dial `registry.internal.jterrazz.com` and terminate at
+  # Traefik, whose IngressRoute (service.yaml) names port 5000.
+  servicePort: 5000
+
+  # The image runs as root and its blob store is root-owned. Pinning a uid
+  # would need the whole tree chowned; `storage.owner: ""` says the same thing
+  # from the other side — do not chown 10Gi of layers on every pod start.
+  runAsRoot: true
+
+  env:
+    # THE LOG-VOLUME FIX — do not drop as redundant. No config file is mounted,
+    # but the image BAKES IN distribution's config-dev.yml, which sets
+    # `log.level: debug`; REGISTRY_* env overrides it. At debug, distribution
+    # dumps every request's spans as JSON through the logger
+    # (tracing/loggerwriter.go emits each span at DEBUG), and
+    # OTEL_TRACES_EXPORTER does not stop that — the level is the switch.
+    REGISTRY_LOG_LEVEL: "info"
+    REGISTRY_AUTH: "htpasswd"
+    REGISTRY_AUTH_HTPASSWD_REALM: "Registry"
+    # /auth is the secretMount below; `htpasswd` is the Secret key.
+    REGISTRY_AUTH_HTPASSWD_PATH: "/auth/htpasswd"
+    REGISTRY_STORAGE_DELETE_ENABLED: "true"
+
+  storage:
+    mountPath: /var/lib/registry
+    # From the platform-service chart (service.yaml -> storage.data).
+    claimName: registry-data
+    owner: ""
+
+  secretMounts:
+    # Bootstrapped by ansible/roles/platform/tasks/bootstrap.yml.
+    - secretName: registry-auth
+      mountPath: /auth
+
+  # Probe `/`, NOT `/v2/`: with REGISTRY_AUTH=htpasswd, `GET /v2/` answers 401
+  # without credentials, which kubelet reads as a failure and which would
+  # CrashLoop a healthy registry. Port 5000 deliberately, not the debug
+  # listener on 5001 (which config-dev.yml also enables, serving /debug/health
+  # and /metrics unauthenticated): a probe belongs on the port the Service
+  # targets, so that a wedged main listener actually fails readiness.
+  health:
+    path: /
+
+  resources:
+    cpu: 10m
+    memory: 128Mi
+    # Do not lower: a tight limit makes Go's GC thrash while streaming a large
+    # blob, throughput collapses to ~0.6MB/s, and buildkit's ~60s upload
+    # timeout fires — surfacing as "blob upload invalid" on the retried,
+    # wrong-offset resume rather than as an OOM.
+    memoryLimit: 512Mi
+
+  network:
+    # Traefik and nothing else: every pull and push arrives that way, and there
+    # is no direct ClusterIP consumer. `isolated` is what keeps the chart from
+    # also granting the internet egress an app gets — storage is a local
+    # hostPath, so DNS (which the namespace baseline grants) is the whole of
+    # what the registry legitimately dials.
+    isolated: true
+    exposeTo:
+      - traefik
+
+environments:
+  prod: {}
