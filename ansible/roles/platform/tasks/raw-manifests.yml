@@ -1,0 +1,122 @@
+---
+# The workloads no Helm chart owns: hand-written manifests under
+# kubernetes/services/, plus the Grafana dashboard ConfigMaps this repo
+# generates from JSON.
+#
+# Position is load-bearing. They run AFTER bootstrap.yml (which creates the
+# PV/PVCs they mount and the Secrets they read) and BEFORE the unselected
+# `helmfile apply` (LibreChat will not pass readiness until the MongoDB below
+# is serving). The NetworkPolicies that firewall the unauthenticated
+# datastores are applied earlier still, by cluster-manifests.yml.
+
+# Its tunnel token arrives via the InfisicalSecret bootstrap.yml applied; a pod
+# scheduled before that Secret exists sits in CreateContainerConfigError rather
+# than retrying gracefully.
+- name: Apply the cloudflared deployment
+  ansible.builtin.command: kubectl apply -f {{ manifest_dir }}/kubernetes/services/cloudflared/deployment.yaml
+  register: cloudflared_result
+  changed_when: "'created' in cloudflared_result.stdout or 'configured' in cloudflared_result.stdout"
+
+- name: Deploy LibreChat MongoDB
+  ansible.builtin.command: kubectl apply -f {{ manifest_dir }}/kubernetes/services/librechat/mongodb.yaml
+  register: librechat_mongo_apply
+  changed_when: "'created' in librechat_mongo_apply.stdout or 'configured' in librechat_mongo_apply.stdout"
+
+- name: Wait for LibreChat MongoDB to be ready
+  ansible.builtin.command: kubectl rollout status deployment/librechat-mongodb -n platform-ai --timeout=120s
+  changed_when: false
+
+# 6 workloads: Postgres + Redis + ClickHouse (stateful, on the hostPath PVCs
+# openpanel-platform creates) and op-api / op-worker / op-dashboard. The order
+# below is dependency order — config, then datastores, then op-api, which
+# migrates the schema on boot.
+- name: Apply the OpenPanel shared config
+  ansible.builtin.command: >
+    kubectl apply
+    -f {{ manifest_dir }}/kubernetes/services/openpanel/config.yaml
+  register: openpanel_base_apply
+  changed_when: "'created' in openpanel_base_apply.stdout or 'configured' in openpanel_base_apply.stdout"
+
+- name: Deploy the OpenPanel datastores (Postgres, Redis, ClickHouse)
+  ansible.builtin.command: >
+    kubectl apply
+    -f {{ manifest_dir }}/kubernetes/services/openpanel/postgres.yaml
+    -f {{ manifest_dir }}/kubernetes/services/openpanel/redis.yaml
+    -f {{ manifest_dir }}/kubernetes/services/openpanel/clickhouse.yaml
+  register: openpanel_db_apply
+  changed_when: "'created' in openpanel_db_apply.stdout or 'configured' in openpanel_db_apply.stdout"
+
+- name: Wait for the OpenPanel datastores to be ready
+  ansible.builtin.command: kubectl rollout status deployment/{{ item }} -n platform-analytics --timeout=180s
+  loop:
+    - op-postgres
+    - op-redis
+    - op-clickhouse
+  changed_when: false
+
+- name: Deploy the OpenPanel apps and ingress
+  ansible.builtin.command: >
+    kubectl apply
+    -f {{ manifest_dir }}/kubernetes/services/openpanel/apps.yaml
+    -f {{ manifest_dir }}/kubernetes/services/openpanel/ingress.yaml
+  register: openpanel_apps_apply
+  changed_when: "'created' in openpanel_apps_apply.stdout or 'configured' in openpanel_apps_apply.stdout"
+
+- name: Wait for OpenPanel op-api to be ready (runs DB migrations on boot)
+  ansible.builtin.command: kubectl rollout status deployment/op-api -n platform-analytics --timeout=300s
+  changed_when: false
+
+# `grep -rl '^apiVersion:'`, not `kubectl apply -f <dir>`: the directory also
+# holds platform.yaml, a Helm VALUES file, and kubectl aborts the whole apply
+# on it with "apiVersion not set". Same structural test
+# .github/workflows/validate.yaml uses to pick manifests out of kubernetes/.
+- name: Apply the registry manifests
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      grep -rl '^apiVersion:' "{{ manifest_dir }}/kubernetes/services/registry" \
+        | xargs --no-run-if-empty kubectl apply -f
+    executable: /bin/bash
+  register: registry_result
+  changed_when: "'created' in registry_result.stdout or 'configured' in registry_result.stdout"
+
+- name: Wait for the registry to be ready
+  ansible.builtin.command: kubectl rollout status deployment/registry -n platform-registry --timeout=60s
+  changed_when: false
+
+# publish-app-chart.yml's `helm registry login` talks HTTPS, and on a fresh
+# cluster DNS-01 issuance lags the registry pod by a minute or two — without
+# this the login fails with a TLS error.
+- name: Wait for the registry TLS certificate to be issued
+  ansible.builtin.command: >
+    kubectl wait --for=condition=Ready certificate/registry-tls
+    -n platform-registry --timeout=180s
+  changed_when: false
+
+# APP alert rules and dashboards are deliberately NOT applied here: they ship
+# with the app that emits the metric, through the app chart's `spec.alerts` /
+# `spec.dashboards` (which render the same labelled ConfigMaps the sidecars in
+# grafana/helm.yaml watch). One living in this repo outlives the app it watches
+# and goes stale invisibly. Only the infrastructure dashboards below, which
+# describe the cluster itself, belong here — and the sidecar picks them up
+# whenever they appear, so they need no ordering against the Grafana release.
+- name: Deploy Grafana infrastructure dashboards
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      DASHBOARD_DIR="{{ manifest_dir }}/kubernetes/services/grafana/dashboards"
+      for json_file in "$DASHBOARD_DIR"/*.json; do
+        [ -f "$json_file" ] || continue
+        name="dashboard-$(basename "$json_file" .json)"
+        kubectl create configmap "$name" \
+          --from-file="$(basename "$json_file")=$json_file" \
+          --namespace platform-telemetry \
+          --dry-run=client -o yaml | \
+        kubectl label -f - --local --dry-run=client -o yaml \
+          grafana_dashboard=1 | \
+        kubectl annotate -f - --local --dry-run=client -o yaml \
+          grafana_folder=infrastructure | \
+        kubectl apply -f -
+      done
+    executable: /bin/bash
+  changed_when: true

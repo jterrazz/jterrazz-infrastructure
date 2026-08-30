@@ -53,14 +53,14 @@ kubeconfig: ## Regenerate ./kubeconfig.yaml from the VM (server = MagicDNS name)
 	@echo "✓ $(KUBECONFIG_FILE) → https://$(NODE_FQDN):6443 (needs the tailnet)"
 
 # Read-only preview against the LIVE cluster, meant to be run BEFORE
-# `make deploy-platform`: that play runs `helm upgrade --install` for every
-# release, so a bumped chart version or an edited helm.yaml lands the moment it
-# runs. This shows what would change first. Installs the helm-diff plugin on
-# first use; needs a working kubeconfig (./kubeconfig.yaml by default,
-# override with KUBECONFIG=...). Narrow it to one release: `make diff` then
-# `./scripts/platform-diff.sh grafana`.
-diff: ## Preview what `make deploy-platform` would change (helm diff, read-only)
-	./scripts/platform-diff.sh
+# `make deploy-platform`: that play runs `helmfile apply` over
+# kubernetes/helmfile.yaml.gotmpl, so a bumped chart version or an edited
+# helm.yaml lands the moment it runs. This shows what would change first.
+# Installs the helm-diff plugin on first use; needs a working kubeconfig
+# (./kubeconfig.yaml by default, override with KUBECONFIG=...). Narrow it to
+# one release: `./scripts/helmfile.sh diff -l name=grafana`.
+diff: ## Preview what `make deploy-platform` would change (helmfile diff, read-only)
+	./scripts/helmfile.sh diff
 
 backup: ## Encrypted snapshot of every persistent volume (ARGS=--consistent for a torn-free copy)
 	@./scripts/backup.sh $(ARGS)
@@ -81,6 +81,7 @@ check-tools: ## Check required tools
 	@command -v kubectl     >/dev/null 2>&1 && echo "✓ kubectl"      || echo "✗ kubectl"
 	@command -v orbctl      >/dev/null 2>&1 && echo "✓ orbctl"       || echo "✗ orbctl"
 	@command -v helm        >/dev/null 2>&1 && echo "✓ Helm"         || echo "✗ Helm"
+	@command -v helmfile    >/dev/null 2>&1 && echo "✓ helmfile"     || echo "✗ helmfile"
 	@command -v shellcheck  >/dev/null 2>&1 && echo "✓ shellcheck"   || echo "✗ shellcheck"
 	@command -v ansible-lint >/dev/null 2>&1 && echo "✓ ansible-lint" || echo "✗ ansible-lint"
 	@command -v python3     >/dev/null 2>&1 && echo "✓ python3"      || echo "✗ python3"
@@ -109,12 +110,10 @@ check: ## Run the checks CI runs (shellcheck, python, sync assertions, tsc, ansi
 	@echo "== cross-file sync assertions =="
 	@# Facts this repo has to write down twice (the Infisical var map vs the
 	@# Ansible preflight assert, Traefik's trustedIPs vs the rate-limit
-	@# excludedIPs, chart-version pins vs their consumers, the platform-diff
-	@# release table vs the Ansible helm invocations, the three
-	@# Helm/ansible-core/helm-unittest version pins, the busybox digest, the
-	@# smoke table vs both the private hostnames and the app repo list, the two
-	@# app-chart publish guards). Each pair carries a "keep in sync" comment;
-	@# this is what actually checks them.
+	@# excludedIPs, the four Helm/helmfile/ansible-core/helm-unittest version
+	@# pins, the busybox digest, the smoke table vs both the private hostnames
+	@# and the app repo list, the two app-chart publish guards). Each pair
+	@# carries a "keep in sync" comment; this is what actually checks them.
 	python3 scripts/assert-sync.py
 	@echo ""
 	@echo "== pulumi typecheck =="

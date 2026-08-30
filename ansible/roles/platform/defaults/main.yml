@@ -1,12 +1,22 @@
 ---
 # Values a human should not normally touch; the visible config surface is
-# inventories/group_vars/all.yml. These three are read outside this role
+# inventories/group_vars/all.yml. The first two are read outside this role
 # (playbooks/platform.yml post_tasks), hence the unprefixed names.
 
-# Written by k3s on the node; every kubectl/helm task points KUBECONFIG here.
+# Written by k3s on the node; every kubectl/helm command in the role points
+# KUBECONFIG here.
 kubeconfig: /etc/rancher/k3s/k3s.yaml
 
 # Staged by tasks/stage-manifests.yml, removed by platform.yml's post_tasks.
 manifest_dir: /tmp/k8s-manifests
 
-service_chart: "{{ manifest_dir }}/kubernetes/charts/service"
+# The one declaration of every platform Helm release. The `.gotmpl` suffix is
+# not decoration: helmfile 1.x renders the state file as a Go template only
+# when the extension says so, and this one resolves the node name and the
+# Grafana password from the environment at parse time.
+platform_helmfile: "{{ manifest_dir }}/kubernetes/helmfile.yaml.gotmpl"
+
+# helmfile publishes one archive per GOARCH; Debian reports the kernel's name
+# for the same thing. Unknown values fail the lookup loudly rather than
+# downloading an archive for the wrong machine.
+helmfile_arch: "{{ {'aarch64': 'arm64', 'x86_64': 'amd64'}[ansible_architecture] }}"

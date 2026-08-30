@@ -4,9 +4,9 @@
 Several facts in this repo are necessarily written down twice, in two
 different languages, because two different machines consume them (a Traefik
 entrypoint argument and a Traefik Middleware CRD; a Python secret map and an
-Ansible assert block; a bash release table and the Ansible tasks that deploy
-it). Each pair carries a "KEEP IN SYNC" comment, and a comment is not a check.
-This script is the check.
+Ansible assert block; a tool version pinned for the node and again for the
+runner). Each pair carries a "KEEP IN SYNC" comment, and a comment is not a
+check. This script is the check.
 
 Run it:
     python3 scripts/assert-sync.py
@@ -20,10 +20,10 @@ DESIGN NOTES
 * Stdlib only, on purpose. It has to run on a bare `ubuntu-latest` runner in
   the `scripts` job, which installs nothing (that job is deliberately the fast
   one) — so no PyYAML, no ruamel. The YAML this reads is a handful of flat
-  block lists/maps, which a ~40-line parser handles exactly; anything more
-  exotic than that in those files should fail loudly here rather than be
-  silently half-parsed. Hence `_block_list` / `_block_map` raise on a missing
-  key rather than returning empty.
+  block lists and scalars, which a ~30-line parser handles exactly; anything
+  more exotic than that in those files should fail loudly here rather than be
+  silently half-parsed. Hence `_block_body` raises on a missing key rather than
+  returning empty.
 * infisical-vars.py is read with `ast`, not regex: it is Python, so the real
   parser is free and exact.
 """
@@ -40,9 +40,6 @@ INFISICAL_VARS = "scripts/infisical-vars.py"
 PREFLIGHT = "ansible/roles/platform/tasks/preflight.yml"
 TRAEFIK_CONFIG = "kubernetes/cluster/traefik/traefik-config.yaml"
 MIDDLEWARE = "kubernetes/cluster/traefik/middleware.yaml"
-PLATFORM_TASKS = "ansible/roles/platform/tasks"
-PLATFORM_DIFF = "scripts/platform-diff.sh"
-SERVICE_CHARTS = "ansible/roles/platform/tasks/service-charts.yml"
 SMOKE = "scripts/smoke.sh"
 MAKEFILE = "Makefile"
 VALIDATE_WF = ".github/workflows/validate.yaml"
@@ -127,21 +124,6 @@ def block_list(text, key, source):
     return out
 
 
-def block_map(text, key, source):
-    """Parse a flat YAML block mapping: `key:` then `  name: value` lines."""
-    out = {}
-    for line in _block_body(text, key, source):
-        stripped = line.strip()
-        if ":" not in stripped:
-            raise SyncError(
-                f"{source}: `{key}:` is not a flat `name: value` mapping "
-                f"(offending line: {stripped!r})."
-            )
-        name, _, value = stripped.partition(":")
-        out[name.strip()] = _unquote(_strip_comment(value))
-    return out
-
-
 def block_scalar(text, key, source):
     """Read a top-level `key: value` scalar out of a YAML file."""
     match = re.search(rf"^{re.escape(key)}\s*:\s*(\S.*)$", text, re.MULTILINE)
@@ -190,8 +172,8 @@ def ansible_commands(text):
 
     Handles the three shapes this role uses: an inline `command: helm ...`, a
     folded `command: >` block, and the `argv:` list form (used where a secret
-    must never touch a shell). Everything else is ignored — the callers only
-    look for `helm upgrade --install` in the result.
+    must never touch a shell). Everything else is ignored — the caller only
+    looks for the `helm pull`/`helm push` of the app chart in the result.
     """
     lines = _collapse_jinja(text).splitlines()
     out = []
@@ -233,14 +215,6 @@ def ansible_commands(text):
             out.append(inline.group("body").strip())
         index += 1
     return out
-
-
-def _flag_value(tokens, flag):
-    """The token after `flag`, unquoted; None if the flag is absent."""
-    for position, token in enumerate(tokens):
-        if token == flag and position + 1 < len(tokens):
-            return _unquote(tokens[position + 1])
-    return None
 
 
 # ---------------------------------------------------------------------------
@@ -480,255 +454,6 @@ def check_traefik_trusted_ips():
     return problems
 
 
-def check_chart_version_pins():
-    """Every `platform_chart_versions` pin is actually consumed.
-
-    An orphan pin reads as "this chart is pinned" while the install it was
-    written for is gone or unpinned — i.e. the next deploy silently adopts
-    whatever the upstream repo's latest happens to be that day.
-    """
-    problems = []
-    gv = read(GROUP_VARS)
-    pins = block_map(gv, "platform_chart_versions", GROUP_VARS)
-    if not pins:
-        raise SyncError(f"{GROUP_VARS}: `platform_chart_versions` is empty.")
-
-    tasks_dir = os.path.join(REPO, PLATFORM_TASKS)
-    if not os.path.isdir(tasks_dir):
-        raise SyncError(f"{PLATFORM_TASKS}: directory not found.")
-
-    corpus = ""
-    for name in sorted(os.listdir(tasks_dir)):
-        if name.endswith((".yml", ".yaml")):
-            corpus += read(os.path.join(PLATFORM_TASKS, name))
-
-    orphans = [
-        key
-        for key in sorted(pins)
-        if not re.search(rf"platform_chart_versions\.{re.escape(key)}\b", corpus)
-        and not re.search(
-            rf"platform_chart_versions\[\s*['\"]{re.escape(key)}['\"]\s*\]", corpus
-        )
-    ]
-    if orphans:
-        problems.append(
-            f"pinned in {GROUP_VARS} `platform_chart_versions` but consumed by "
-            f"nothing in {PLATFORM_TASKS}/: {', '.join(orphans)}.\n"
-            f"        FIX: delete the pin (the service is gone) or add "
-            f"`--version {{{{ platform_chart_versions.<key> }}}}` to its "
-            f"`helm upgrade --install`. An unpinned install turns an unrelated "
-            f"deploy into an uncontrolled upgrade of somebody else's service."
-        )
-    return problems
-
-
-def _task_files():
-    tasks_dir = os.path.join(REPO, PLATFORM_TASKS)
-    if not os.path.isdir(tasks_dir):
-        raise SyncError(f"{PLATFORM_TASKS}: directory not found.")
-    return [
-        os.path.join(PLATFORM_TASKS, name)
-        for name in sorted(os.listdir(tasks_dir))
-        if name.endswith((".yml", ".yaml"))
-    ]
-
-
-def _ansible_upstream_releases():
-    """Every `helm upgrade --install` in roles/platform, as a comparable tuple.
-
-    -> {release: (chart, namespace, version key, values path relative to the
-    repo root)}. The service chart's own release is excluded: it is a loop over
-    `service_chart_releases`, handled by _ansible_service_releases().
-    """
-    releases = {}
-    for relpath in _task_files():
-        if relpath.endswith("service-charts.yml"):
-            continue
-        for command in ansible_commands(read(relpath)):
-            tokens = command.split()
-            if "helm" not in tokens or "--install" not in tokens:
-                continue
-            marker = tokens.index("--install")
-            if tokens[:marker].count("upgrade") == 0 or len(tokens) < marker + 3:
-                continue
-            release = _unquote(tokens[marker + 1])
-            chart = _unquote(tokens[marker + 2])
-            namespace = _flag_value(tokens, "--namespace")
-            version = _flag_value(tokens, "--version")
-            values = _flag_value(tokens, "--values")
-            if not namespace or not values:
-                raise SyncError(
-                    f"{relpath}: `helm upgrade --install {release}` has no "
-                    f"--namespace and/or --values. assert-sync.py cannot "
-                    f"compare it with {PLATFORM_DIFF}."
-                )
-            key = None
-            if version:
-                match = re.search(
-                    r"platform_chart_versions(?:\.(\w+)|\[\s*['\"](\w+)['\"]\s*\])",
-                    version,
-                )
-                if not match:
-                    raise SyncError(
-                        f"{relpath}: `--version {version}` for release "
-                        f"{release} does not come from "
-                        f"`platform_chart_versions` — see check (d)."
-                    )
-                key = match.group(1) or match.group(2)
-            values = values.replace("{{manifest_dir}}/", "")
-            releases[release] = (chart, namespace, key, values)
-    if not releases:
-        raise SyncError(
-            f"{PLATFORM_TASKS}: no `helm upgrade --install` found at all. The "
-            f"tasks were restructured — update scripts/assert-sync.py."
-        )
-    return releases
-
-
-def _ansible_service_releases():
-    """The `service_chart_releases` entries every caller passes to the loop."""
-    found = {}
-    for relpath in _task_files():
-        for name, namespace in re.findall(
-            r"-\s*\{\s*name:\s*([\w.-]+)\s*,\s*namespace:\s*([\w.-]+)\s*\}",
-            read(relpath),
-        ):
-            found[name] = namespace
-    if not found:
-        raise SyncError(
-            f"{PLATFORM_TASKS}: no `service_chart_releases` entries of the form "
-            f"`- {{ name: x, namespace: y }}` found — the callers of "
-            f"service-charts.yml were restructured; update assert-sync.py."
-        )
-    return found
-
-
-def check_platform_diff_table():
-    """scripts/platform-diff.sh's release table vs what Ansible installs.
-
-    platform-diff.sh hand-copies the release inventory so it can preview a
-    deploy without running one, and nothing but this check links the two files.
-    A stale copy previews a chart the deploy will not install and says "no
-    changes" about the one it will.
-    """
-    problems = []
-    diff = read(PLATFORM_DIFF)
-
-    # --- upstream charts -----------------------------------------------------
-    table = {}
-    for entry in bash_array(diff, "UPSTREAM_RELEASES", PLATFORM_DIFF):
-        fields = entry.split("|")
-        if len(fields) != 5:
-            raise SyncError(
-                f"{PLATFORM_DIFF}: UPSTREAM_RELEASES entry {entry!r} has "
-                f"{len(fields)} fields, expected 5 "
-                f"(release|namespace|chart|version key|values)."
-            )
-        release, namespace, chart, version_key, values = fields
-        table[release] = (chart, namespace, version_key, values)
-
-    ansible = _ansible_upstream_releases()
-
-    only_table = sorted(set(table) - set(ansible))
-    only_ansible = sorted(set(ansible) - set(table))
-    if only_table:
-        problems.append(
-            f"in UPSTREAM_RELEASES ({PLATFORM_DIFF}) but installed by nothing "
-            f"in {PLATFORM_TASKS}/: {', '.join(only_table)}.\n"
-            f"        FIX: delete the line (the release is gone, and `make "
-            f"diff` is diffing a chart no deploy installs) or restore the "
-            f"`helm upgrade --install`."
-        )
-    if only_ansible:
-        problems.append(
-            f"installed by {PLATFORM_TASKS}/ but missing from "
-            f"UPSTREAM_RELEASES ({PLATFORM_DIFF}): {', '.join(only_ansible)}.\n"
-            f"        FIX: add "
-            f"`<release>|<namespace>|<chart>|<version key>|<values file>` to "
-            f"the table. Until then `make diff` silently previews less than "
-            f"`make deploy-platform` applies."
-        )
-
-    for release in sorted(set(table) & set(ansible)):
-        labels = ("chart ref", "namespace", "version key", "values file")
-        for label, want, got in zip(labels, ansible[release], table[release]):
-            if want != got:
-                problems.append(
-                    f"{release}: {label} is {got!r} in {PLATFORM_DIFF} but "
-                    f"{want!r} in {PLATFORM_TASKS}/.\n"
-                    f"        FIX: Ansible is the deployer — make "
-                    f"{PLATFORM_DIFF} match it."
-                )
-
-    # --- the service chart ---------------------------------------------------
-    # platform-diff.sh reconstructs these release names and values paths from
-    # the service name alone. If the loop's own template changes shape, the
-    # table's assumption is wrong in a way no name-by-name comparison sees.
-    loop = read(SERVICE_CHARTS)
-    expected = [
-        "helm upgrade --install {{item.name}}-platform {{service_chart}}",
-        "--namespace {{item.namespace}}",
-        "--values {{manifest_dir}}/kubernetes/services/{{item.name}}/platform.yaml",
-    ]
-    loop_command = " ".join(ansible_commands(loop))
-    for fragment in expected:
-        if fragment not in loop_command:
-            raise SyncError(
-                f"{SERVICE_CHARTS}: the service-chart install no longer "
-                f"contains {fragment!r}. {PLATFORM_DIFF} rebuilds the release "
-                f"name and values path from the service name on exactly that "
-                f"shape — update both together."
-            )
-
-    service_table = {}
-    for entry in bash_array(diff, "SERVICE_RELEASES", PLATFORM_DIFF):
-        fields = entry.split("|")
-        if len(fields) != 2:
-            raise SyncError(
-                f"{PLATFORM_DIFF}: SERVICE_RELEASES entry {entry!r} has "
-                f"{len(fields)} fields, expected 2 (name|namespace)."
-            )
-        service_table[fields[0]] = fields[1]
-
-    service_ansible = _ansible_service_releases()
-    only_table = sorted(set(service_table) - set(service_ansible))
-    only_ansible = sorted(set(service_ansible) - set(service_table))
-    if only_table:
-        problems.append(
-            f"in SERVICE_RELEASES ({PLATFORM_DIFF}) but no task passes it to "
-            f"service-charts.yml: {', '.join(only_table)}."
-        )
-    if only_ansible:
-        problems.append(
-            f"passed to service-charts.yml but missing from SERVICE_RELEASES "
-            f"({PLATFORM_DIFF}): {', '.join(only_ansible)}."
-        )
-    for name in sorted(set(service_table) & set(service_ansible)):
-        if service_table[name] != service_ansible[name]:
-            problems.append(
-                f"{name}-platform: namespace is {service_table[name]!r} in "
-                f"{PLATFORM_DIFF} but {service_ansible[name]!r} in "
-                f"{PLATFORM_TASKS}/."
-            )
-
-    # --- the values files both sides name must exist -------------------------
-    for release, (_, _, _, values) in sorted(ansible.items()):
-        if not os.path.isfile(os.path.join(REPO, values)):
-            problems.append(
-                f"{release}: `--values {values}` names a file that does not "
-                f"exist. The deploy fails at that task; `make diff` fails at "
-                f"the same one."
-            )
-    for name in sorted(service_ansible):
-        values = f"kubernetes/services/{name}/platform.yaml"
-        if not os.path.isfile(os.path.join(REPO, values)):
-            problems.append(
-                f"{name}-platform: {values} does not exist, but "
-                f"service-charts.yml renders that path from the release name."
-            )
-    return problems
-
-
 def _setup_helm_versions(relpath):
     """Every `version:` given to an `azure/setup-helm` step in a workflow."""
     versions = []
@@ -773,6 +498,34 @@ def check_helm_version():
                     f"        FIX: set both to the same version. The node runs "
                     f"one Helm and CI must render with it."
                 )
+    return problems
+
+
+def check_helmfile_version():
+    """`helmfile_version` in group_vars vs the helmfile CI renders with.
+
+    kubernetes/helmfile.yaml.gotmpl is the only declaration of every platform
+    release; the node APPLIES it and the `kubernetes` job of validate.yaml
+    RENDERS it. helmfile 1.x already changed when a state file is templated at
+    all, so a runner on a different minor can render a file the node would
+    refuse — or, worse, render a different one and pass.
+    """
+    problems = []
+    wanted = block_scalar(read(GROUP_VARS), "helmfile_version", GROUP_VARS)
+    validate = read(VALIDATE_WF)
+    match = re.search(r"HELMFILE_VERSION=(\S+)", validate)
+    if not match:
+        raise SyncError(
+            f"{VALIDATE_WF}: no `HELMFILE_VERSION=` assignment — the install "
+            f"step was rewritten; update scripts/assert-sync.py."
+        )
+    if match.group(1) != wanted:
+        problems.append(
+            f"{VALIDATE_WF}: installs helmfile {match.group(1)}, but "
+            f"`helmfile_version` in {GROUP_VARS} is {wanted}.\n"
+            f"        FIX: set both to the same version. The thing that renders "
+            f"the state file and the thing that applies it must be one binary."
+        )
     return problems
 
 
@@ -1102,9 +855,8 @@ def check_chart_publish_guard():
 CHECKS = [
     ("infisical-vars.py vars == preflight.yml asserts", check_secret_keys),
     ("traefik trustedIPs == rate-limit excludedIPs", check_traefik_trusted_ips),
-    ("platform_chart_versions pins are all consumed", check_chart_version_pins),
-    ("platform-diff.sh release table == ansible helm installs", check_platform_diff_table),
     ("helm_version == the Helm both workflows install", check_helm_version),
+    ("helmfile_version == the helmfile validate.yaml installs", check_helmfile_version),
     ("ansible-core pinned identically in validate + deploy", check_ansible_core_version),
     ("helm-unittest pinned identically in validate + Makefile", check_helm_unittest_version),
     ("one busybox digest repo-wide", check_busybox_digest),

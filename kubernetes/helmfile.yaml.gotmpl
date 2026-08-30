@@ -1,0 +1,244 @@
+# Every platform Helm release, declared once: name, namespace, chart, pinned
+# version and values file. Nothing else in this repo lists releases or chart
+# versions — not Ansible, not a preview script, not Renovate.
+#
+# Applied ON THE NODE by ansible/roles/platform (which stages this whole
+# kubernetes/ tree to /tmp/k8s-manifests), and read-only from the Mac by
+# `make diff`. Every path below is relative to THIS file, which is why it lives
+# in kubernetes/ rather than at the repo root — the node only ever receives
+# this subtree.
+#
+# ADDING A SERVICE: one release block here, one values file beside it, a
+# namespace in cluster/namespaces.yaml and a NetworkPolicy. See
+# docs/RUNBOOK.md#add-a-new-platform-service.
+#
+# THE RELEASE NAME AND NAMESPACE ARE THE IDENTITY OF LIVE DATA. Renaming either
+# creates a NEW release and orphans the hostPath PV the old one bound — see
+# "Immutable fields" in CLAUDE.md.
+
+repositories:
+  - name: jetstack
+    url: https://charts.jetstack.io
+  - name: infisical
+    url: https://dl.cloudsmith.io/public/infisical/helm-charts/helm/charts/
+  # Grafana's OSS charts live here, renumbered; sole consumer is `grafana`. The
+  # OLD `grafana` repo is deliberately absent — nothing pulls from it.
+  - name: grafana-community
+    url: https://grafana-community.github.io/helm-charts
+  # The whole VictoriaMetrics family — victoria-metrics-single,
+  # victoria-logs-single, victoria-traces-single.
+  - name: vm
+    url: https://victoriametrics.github.io/helm-charts/
+  # kube-state-metrics and prometheus-node-exporter, each its own release —
+  # both dashboards depend on the series they produce.
+  - name: prometheus-community
+    url: https://prometheus-community.github.io/helm-charts
+  - name: open-telemetry
+    url: https://open-telemetry.github.io/opentelemetry-helm-charts
+  # OCI rather than a chart index. Declared as a repository (not an inline
+  # `oci://` chart ref) so Renovate's helmfile manager resolves it through the
+  # docker datasource.
+  - name: librechat
+    url: ghcr.io/danny-avila/librechat-chart
+    oci: true
+
+helmDefaults:
+  wait: true
+  timeout: 300
+  # Namespaces are declared in cluster/namespaces.yaml with their Pod Security
+  # Admission labels; helm's own `--create-namespace` (helmfile's default)
+  # would create an unlabelled one first and win the race.
+  createNamespace: false
+
+# `inherit:` rather than a YAML anchor — helmfile 1.x dropped anchor support in
+# the state file.
+templates:
+  # The `<name>-platform` releases: Certificate + IngressRoute + hostPath
+  # PV/PVCs for a service, from one values file. Always installed BEFORE the
+  # upstream chart that mounts the volume — `helm --wait` otherwise blocks on a
+  # pod that cannot schedule for want of a PVC.
+  service:
+    chart: ./charts/service
+    # 2m is enough for PV/PVC binding and a Certificate; there is no pod here.
+    timeout: 120
+    needs:
+      - platform-networking/cert-manager
+    labels:
+      tier: platform
+    values:
+      # The one value no values file can hold: the hostPath PV's nodeAffinity
+      # target. The caller supplies it (Ansible passes inventory_hostname, the
+      # Makefile the VM name) so this file names no machine.
+      - infrastructure:
+          nodeName: {{ requiredEnv "NODE_NAME" | quote }}
+
+releases:
+  # --- bootstrap ------------------------------------------------------------
+  # `tier: bootstrap` is applied on its own, first: the Infisical operator must
+  # provide the InfisicalSecret CRD, and cert-manager the Certificate one,
+  # before roles/platform applies either kind. Everything else follows in the
+  # unselected pass.
+  - name: cert-manager
+    namespace: platform-networking
+    chart: jetstack/cert-manager
+    version: v1.21.0
+    labels:
+      tier: bootstrap
+    values:
+      - services/cert-manager/helm.yaml
+
+  - name: infisical
+    namespace: platform-secrets
+    chart: infisical/secrets-operator
+    version: 0.11.5
+    labels:
+      tier: bootstrap
+    values:
+      - services/infisical/helm.yaml
+
+  # --- telemetry ------------------------------------------------------------
+  - name: grafana-platform
+    namespace: platform-telemetry
+    inherit:
+      - template: service
+    values:
+      - services/grafana/platform.yaml
+
+  - name: victoria-metrics-platform
+    namespace: platform-telemetry
+    inherit:
+      - template: service
+    values:
+      - services/victoria-metrics/platform.yaml
+
+  - name: victoria-logs-platform
+    namespace: platform-telemetry
+    inherit:
+      - template: service
+    values:
+      - services/victoria-logs/platform.yaml
+
+  - name: victoria-traces-platform
+    namespace: platform-telemetry
+    inherit:
+      - template: service
+    values:
+      - services/victoria-traces/platform.yaml
+
+  # Chart minors move fast; read the app version each one ships.
+  - name: victoria-metrics
+    namespace: platform-telemetry
+    chart: vm/victoria-metrics-single
+    version: 0.43.0
+    needs:
+      - platform-telemetry/victoria-metrics-platform
+    values:
+      - services/victoria-metrics/helm.yaml
+
+  - name: victoria-logs
+    namespace: platform-telemetry
+    chart: vm/victoria-logs-single
+    version: 0.13.9
+    needs:
+      - platform-telemetry/victoria-logs-platform
+    values:
+      - services/victoria-logs/helm.yaml
+
+  # PRE-1.0, KNOWINGLY — see the boxed note in victoria-traces/helm.yaml. Do
+  # NOT extend that tolerance to the two 1.x pins above.
+  - name: victoria-traces
+    namespace: platform-telemetry
+    chart: vm/victoria-traces-single
+    version: 0.1.10
+    needs:
+      - platform-telemetry/victoria-traces-platform
+    values:
+      - services/victoria-traces/helm.yaml
+
+  - name: kube-state-metrics
+    namespace: platform-telemetry
+    chart: prometheus-community/kube-state-metrics
+    version: 8.0.0
+    values:
+      - services/kube-state-metrics/helm.yaml
+
+  # The CHART is `prometheus-node-exporter`; the RELEASE is `node-exporter`
+  # (hence the fullnameOverride in its helm.yaml).
+  - name: node-exporter
+    namespace: platform-telemetry
+    chart: prometheus-community/prometheus-node-exporter
+    version: 4.56.1
+    values:
+      - services/node-exporter/helm.yaml
+
+  # AFTER VictoriaLogs: the collector owns pod-log shipping (its filelog
+  # receiver), so an earlier install has nowhere to write. It also exports to
+  # VictoriaMetrics and VictoriaTraces.
+  - name: otel-collector
+    namespace: platform-telemetry
+    chart: open-telemetry/opentelemetry-collector
+    version: 0.165.0
+    needs:
+      - platform-telemetry/victoria-logs
+      - platform-telemetry/victoria-metrics
+      - platform-telemetry/victoria-traces
+    values:
+      - services/otel-collector/helm.yaml
+
+  # grafana-community repo. grafana.db migrates itself on first boot and is NOT
+  # reversible, so the rollback is the /var/lib/k8s-data/grafana restore.
+  - name: grafana
+    namespace: platform-telemetry
+    chart: grafana-community/grafana
+    version: 12.8.0
+    needs:
+      - platform-telemetry/grafana-platform
+    values:
+      - services/grafana/helm.yaml
+      # An inline values map, not `--set`: `--set` puts the password in the
+      # helm process' argv, where any user on the box can read it off `ps`.
+      - adminPassword: {{ requiredEnv "GRAFANA_ADMIN_PASSWORD" | quote }}
+
+  # --- LibreChat ------------------------------------------------------------
+  - name: librechat-platform
+    namespace: platform-ai
+    inherit:
+      - template: service
+    values:
+      - services/librechat/platform.yaml
+
+  # Bump together with the image tag pinned in librechat/helm.yaml.
+  #
+  # The standalone MongoDB it talks to is librechat/mongodb.yaml, applied by
+  # roles/platform/tasks/raw-manifests.yml between the two helmfile passes —
+  # it mounts a PVC this release's `-platform` sibling creates, and LibreChat
+  # will not pass readiness without it.
+  - name: librechat
+    namespace: platform-ai
+    chart: librechat/librechat
+    version: 2.0.7
+    needs:
+      - platform-ai/librechat-platform
+    values:
+      - services/librechat/helm.yaml
+
+  # --- OpenPanel ------------------------------------------------------------
+  # No upstream chart: the six workloads are hand-written manifests in
+  # services/openpanel/, applied by raw-manifests.yml. This release is only
+  # their storage.
+  - name: openpanel-platform
+    namespace: platform-analytics
+    inherit:
+      - template: service
+    values:
+      - services/openpanel/platform.yaml
+
+  # --- registry -------------------------------------------------------------
+  # The Deployment + Service are services/registry/deployment.yaml; this is the
+  # Certificate, the IngressRoute and the blob volume.
+  - name: registry-platform
+    namespace: platform-registry
+    inherit:
+      - template: service
+    values:
+      - services/registry/platform.yaml

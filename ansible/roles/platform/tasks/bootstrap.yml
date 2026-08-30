@@ -1,0 +1,132 @@
+---
+# Everything a platform workload needs to exist before it does, in dependency
+# order:
+#   1. the three Secrets Infisical itself cannot provide (its own credentials,
+#      the Cloudflare token cert-manager needs, and the registry's bcrypt
+#      htpasswd — on a fresh cluster the registry has to be up before anything
+#      can pull the operator's images).
+#   2. `tier: bootstrap` of the helmfile — cert-manager for the Certificate
+#      CRD, the Infisical operator for the InfisicalSecret one. Both kinds are
+#      applied below, so this pass cannot wait for the main one.
+#   3. the ClusterIssuers and every InfisicalSecret.
+#   4. `tier: platform` — the `<name>-platform` releases, i.e. the hostPath
+#      PV/PVCs, Certificates and IngressRoutes. They come before the workloads
+#      in raw-manifests.yml, which mount those claims by name.
+
+# The k8s module, NOT `kubectl create --dry-run | apply` in a shell: a token
+# containing `$`, a backtick or a newline would be mangled or expanded on its
+# way through bash.
+- name: Create the Cloudflare API token secret for networking
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: cloudflare-api-token
+        namespace: platform-networking
+      type: Opaque
+      stringData:
+        api-token: "{{ cloudflare_api_token }}"
+  no_log: true
+
+- name: Create the Infisical credentials secret
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: infisical-credentials
+        namespace: platform-secrets
+      type: Opaque
+      stringData:
+        clientId: "{{ infisical_client_id }}"
+        clientSecret: "{{ infisical_client_secret }}"
+  no_log: true
+
+- name: Install apache2-utils for htpasswd
+  ansible.builtin.apt:
+    name: apache2-utils
+    state: present
+    update_cache: true
+
+# stdin (`-i`) with the value from the task environment, NEVER
+# `htpasswd -nbB deploy <password>`: an argument is visible to any user on the
+# box via `ps` for as long as the command runs.
+- name: Generate the htpasswd hash for the registry
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      printf '%s' "$REGISTRY_PASSWORD" | htpasswd -niB deploy
+    executable: /bin/bash
+  environment:
+    REGISTRY_PASSWORD: "{{ registry_password }}"
+  register: htpasswd_result
+  changed_when: false
+  no_log: true
+
+# The k8s module, NOT `kubectl create --from-literal` in a shell: a bcrypt hash
+# is full of `$` and `/`, which a shell would expand or mangle.
+- name: Create the registry htpasswd bootstrap secret
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: registry-auth
+        namespace: platform-registry
+      type: Opaque
+      stringData:
+        htpasswd: "{{ htpasswd_result.stdout | trim }}"
+  no_log: true
+
+- name: Install cert-manager and the Infisical operator
+  ansible.builtin.include_tasks: helmfile-apply.yml
+  vars:
+    helmfile_tier: bootstrap
+
+- name: Wait for cert-manager webhook to be ready
+  ansible.builtin.command:
+    cmd: kubectl rollout status deployment/cert-manager-webhook -n platform-networking --timeout=120s
+  changed_when: false
+
+- name: Apply cert-manager ClusterIssuers
+  ansible.builtin.command: kubectl apply -f {{ manifest_dir }}/kubernetes/services/cert-manager/issuers.yaml
+  register: issuers_result
+  changed_when: "'created' in issuers_result.stdout or 'configured' in issuers_result.stdout"
+
+# One-time tunnel creation is in kubernetes/services/cloudflared/README.md.
+- name: Provision the cloudflared tunnel token
+  ansible.builtin.include_tasks: infisical-secret.yml
+  vars:
+    secret_manifest: "{{ manifest_dir }}/kubernetes/services/cloudflared/secret.yaml"
+    wait_secret_name: cloudflared-secrets
+    wait_secret_namespace: platform-networking
+
+- name: Provision the OTel Collector credentials
+  ansible.builtin.include_tasks: infisical-secret.yml
+  vars:
+    secret_manifest: "{{ manifest_dir }}/kubernetes/services/otel-collector/secret.yaml"
+    wait_secret_name: otel-collector-secrets
+    wait_secret_namespace: platform-telemetry
+
+- name: Provision the LibreChat credentials
+  ansible.builtin.include_tasks: infisical-secret.yml
+  vars:
+    secret_manifest: "{{ manifest_dir }}/kubernetes/services/librechat/secret.yaml"
+    wait_secret_name: librechat-credentials-env
+    wait_secret_namespace: platform-ai
+
+- name: Provision the OpenPanel secrets
+  ansible.builtin.include_tasks: infisical-secret.yml
+  vars:
+    secret_manifest: "{{ manifest_dir }}/kubernetes/services/openpanel/secret.yaml"
+    wait_secret_name: openpanel-secrets
+    wait_secret_namespace: platform-analytics
+
+- name: Deploy the service-chart storage, certificates and ingress
+  ansible.builtin.include_tasks: helmfile-apply.yml
+  vars:
+    helmfile_tier: platform

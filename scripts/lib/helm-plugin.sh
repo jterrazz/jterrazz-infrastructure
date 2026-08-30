@@ -3,7 +3,7 @@
 #   source "$(dirname "${BASH_SOURCE[0]}")/lib/helm-plugin.sh"
 #   helm_plugin_install https://github.com/databus23/helm-diff v3.15.10
 #
-# Sourced by scripts/platform-diff.sh and by the `kubernetes` job of
+# Sourced by scripts/helmfile.sh and by the `kubernetes` job of
 # .github/workflows/validate.yaml — the two places that install a plugin.
 
 # Helm 4 verifies plugin signatures by default and neither plugin this repo

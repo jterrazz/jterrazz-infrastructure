@@ -218,7 +218,7 @@ jobs:
       # keeps the committed snapshots reproducible between a laptop and here.
       - name: Install helm-unittest
         # scripts/lib/helm-plugin.sh carries the Helm 3/4 --verify fallback, so
-        # this and scripts/platform-diff.sh install plugins the same way.
+        # this and scripts/helmfile.sh install plugins the same way.
         run: |
           set -euo pipefail
           HELM_UNITTEST_VERSION=v1.1.2
@@ -232,6 +232,36 @@ jobs:
         # error rather than an assertion that silently never runs.
         run: helm unittest --strict kubernetes/charts/app kubernetes/charts/service
 
+      # kubernetes/helmfile.yaml.gotmpl is the ONLY declaration of every
+      # platform release, and roles/platform applies it verbatim. Rendering it
+      # here catches a bad chart version, a values file that moved, a `needs:`
+      # pointing at a release that no longer exists — all of which would
+      # otherwise surface mid-deploy, after some releases have already been
+      # upgraded.
+      #
+      # KEEP IN SYNC with `helmfile_version` in
+      # ansible/inventories/group_vars/all.yml (asserted by
+      # scripts/assert-sync.py).
+      - name: Install helmfile
+        run: |
+          set -euo pipefail
+          HELMFILE_VERSION=v1.7.4
+          curl -sSL -o /tmp/helmfile.tar.gz \
+            "https://github.com/helmfile/helmfile/releases/download/${HELMFILE_VERSION}/helmfile_${HELMFILE_VERSION#v}_linux_amd64.tar.gz"
+          tar -xzf /tmp/helmfile.tar.gz -C /tmp helmfile
+          sudo mv /tmp/helmfile /usr/local/bin/helmfile
+          helmfile --version
+
+      - name: Render the platform helmfile
+        # No cluster: `template` is `helm template` per release, so it needs
+        # the chart repositories and nothing else. The two variables are
+        # `requiredEnv` in the state file — real values only matter at apply
+        # time, and helm never sees these because nothing is installed.
+        env:
+          NODE_NAME: ci-render
+          GRAFANA_ADMIN_PASSWORD: ci-render
+        run: helmfile --file kubernetes/helmfile.yaml.gotmpl template > /dev/null
+
       - name: Validate raw service manifests
         # kubernetes/services/** mixes Helm values files (helm.yaml for the
         # upstream chart, platform.yaml for the service chart) with actual
@@ -241,8 +271,8 @@ jobs:
         # explicit file list that goes stale the moment someone adds a file,
         # filter by the one structural property that distinguishes them: a
         # real manifest has a top-level `apiVersion:` key, a values file
-        # doesn't. (roles/platform/tasks/registry.yml applies the same test
-        # for the same reason.)
+        # doesn't. (roles/platform/tasks/raw-manifests.yml applies the same
+        # test for the same reason.)
         run: |
           set -euo pipefail
           mapfile -t manifests < <(grep -rl '^apiVersion:' kubernetes/services --include='*.yaml')

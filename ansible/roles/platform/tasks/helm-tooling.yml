@@ -1,0 +1,114 @@
+---
+# The three binaries the release layer runs on: helm, its diff plugin, and
+# helmfile. All pinned in inventories/group_vars/all.yml, and all checked by
+# VERSION rather than presence — a node left behind on an older helm renders
+# charts differently from the CI that validated them, and `helmfile apply` is
+# helm-diff plus helm underneath.
+#
+# There is no `helm repo add` here any more: kubernetes/helmfile.yaml.gotmpl
+# declares the repositories and helmfile adds them itself on every run.
+
+- name: Get the installed Helm version
+  ansible.builtin.command:
+    argv: [helm, version, --template, "{% raw %}{{.Version}}{% endraw %}"]
+  register: helm_installed
+  changed_when: false
+  failed_when: false
+
+- name: Install Helm
+  when: (helm_installed.rc | default(1)) != 0 or (helm_installed.stdout | default('') | trim) != helm_version
+  block:
+    # A TAG, never `main`: this script is fetched and executed as root, so a
+    # moving branch lets an upstream commit change what runs on the host
+    # between two deploys with no change on our side.
+    - name: Download Helm install script
+      ansible.builtin.get_url:
+        url: "https://raw.githubusercontent.com/helm/helm/{{ helm_version }}/scripts/get-helm-3"
+        dest: /tmp/get_helm.sh
+        mode: "0755"
+
+    - name: Run Helm install script
+      ansible.builtin.command: /tmp/get_helm.sh
+      environment:
+        DESIRED_VERSION: "{{ helm_version }}"
+      changed_when: true
+
+    - name: Cleanup Helm install script
+      ansible.builtin.file:
+        path: /tmp/get_helm.sh
+        state: absent
+
+# `helm plugin list` prints the version without the leading `v` the release tag
+# carries, hence the strip on both sides of the comparison.
+- name: Get the installed helm-diff plugin version
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      helm plugin list | awk '$1 == "diff" { print $2 }'
+    executable: /bin/bash
+  register: helm_diff_installed
+  changed_when: false
+  failed_when: false
+
+- name: Install the helm-diff plugin
+  when: >-
+    (helm_diff_installed.stdout | default('') | trim)
+    != (helm_diff_version | regex_replace('^v', ''))
+  block:
+    # `helm plugin install` refuses to overwrite an existing plugin, so a
+    # version bump is an uninstall away. Never fatal: the uninstall is a no-op
+    # on a node that has no plugin yet.
+    - name: Remove any mismatched helm-diff plugin
+      ansible.builtin.command: helm plugin uninstall diff
+      changed_when: true
+      failed_when: false
+
+    # No `--verify=false`: that flag only exists on Helm 4, and helm_version is
+    # deliberately v3 (see group_vars/all.yml).
+    - name: Install the pinned helm-diff plugin
+      ansible.builtin.command: >-
+        helm plugin install https://github.com/databus23/helm-diff
+        --version {{ helm_diff_version }}
+      changed_when: true
+
+- name: Get the installed helmfile version
+  ansible.builtin.command:
+    argv: [helmfile, --version]
+  register: helmfile_installed
+  changed_when: false
+  failed_when: false
+
+- name: Install helmfile
+  when: >-
+    (helmfile_installed.rc | default(1)) != 0
+    or (helmfile_version | regex_replace('^v', '')) not in (helmfile_installed.stdout | default(''))
+  block:
+    - name: Download the helmfile release archive
+      ansible.builtin.get_url:
+        url: >-
+          https://github.com/helmfile/helmfile/releases/download/{{ helmfile_version }}/helmfile_{{
+          helmfile_version | regex_replace('^v', '') }}_linux_{{ helmfile_arch }}.tar.gz
+        dest: /tmp/helmfile.tar.gz
+        mode: "0600"
+
+    - name: Unpack helmfile into /usr/local/bin
+      ansible.builtin.unarchive:
+        src: /tmp/helmfile.tar.gz
+        dest: /usr/local/bin
+        remote_src: true
+        include: [helmfile]
+        mode: "0755"
+
+    - name: Cleanup the helmfile archive
+      ansible.builtin.file:
+        path: /tmp/helmfile.tar.gz
+        state: absent
+
+    # The download is version-named but the archive's contents are not, so this
+    # is what actually proves the pin landed.
+    - name: Verify the installed helmfile version
+      ansible.builtin.command:
+        argv: [helmfile, --version]
+      register: helmfile_verify
+      changed_when: false
+      failed_when: (helmfile_version | regex_replace('^v', '')) not in helmfile_verify.stdout

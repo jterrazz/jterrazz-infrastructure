@@ -1,10 +1,19 @@
 ---
 # Ordering is dependency order, not preference.
 #
+# Every Helm release lives in kubernetes/helmfile.yaml.gotmpl and nowhere else.
+# This role applies it in three passes because two things have to happen in the
+# middle: the InfisicalSecrets need the operator installed (pass 1) and the
+# hand-written workloads need the PV/PVCs the `-platform` releases create
+# (pass 2). The final pass is deliberately unselected, so a release that
+# carries no tier label is still applied.
+#
 # `preflight` and `stage-manifests` are tagged `always` because every file
-# below reads manifests out of {{ manifest_dir }} and most need the Tailscale
-# facts — a targeted `--tags telemetry` fails on a missing path without them.
-# `--skip-tags chart-publish` leaves the published OCI chart alone.
+# below reads the staged tree out of {{ manifest_dir }} and most need the
+# Tailscale facts — a targeted `--tags releases` fails on a missing path
+# without them. `--skip-tags chart-publish` leaves the published OCI chart
+# alone. To redeploy ONE release, use the helmfile's own selector rather than a
+# tag: `helmfile -f <staged>/kubernetes/helmfile.yaml.gotmpl apply -l name=grafana`.
 
 - name: Validate required secrets
   ansible.builtin.import_tasks: preflight.yml
@@ -26,29 +35,21 @@
   ansible.builtin.import_tasks: coredns.yml
   tags: [coredns, dns]
 
-- name: Install the Helm CLI and repositories
-  ansible.builtin.import_tasks: helm-cli.yml
+- name: Install helm, helm-diff and helmfile
+  ansible.builtin.import_tasks: helm-tooling.yml
   tags: [helm]
 
-- name: Deploy the cluster bootstrap services
-  ansible.builtin.import_tasks: bootstrap-services.yml
-  tags: [bootstrap-services, secrets, certmanager, infisical, cloudflared]
+- name: Bootstrap secrets, CRDs, issuers and service storage
+  ansible.builtin.import_tasks: bootstrap.yml
+  tags: [bootstrap, secrets, certmanager, infisical]
 
-- name: Deploy the telemetry stack
-  ansible.builtin.import_tasks: telemetry.yml
-  tags: [telemetry]
+- name: Deploy the hand-written workloads
+  ansible.builtin.import_tasks: raw-manifests.yml
+  tags: [raw-manifests, cloudflared, librechat, openpanel, registry, grafana]
 
-- name: Deploy LibreChat
-  ansible.builtin.import_tasks: librechat.yml
-  tags: [services, librechat, gateway]
-
-- name: Deploy OpenPanel
-  ansible.builtin.import_tasks: openpanel.yml
-  tags: [services, openpanel]
-
-- name: Deploy the container registry
-  ansible.builtin.import_tasks: registry.yml
-  tags: [registry]
+- name: Apply every platform Helm release
+  ansible.builtin.import_tasks: helmfile-apply.yml
+  tags: [releases]
 
 - name: Publish the app Helm chart
   ansible.builtin.import_tasks: publish-app-chart.yml

@@ -13,9 +13,23 @@ timezone: UTC
 #
 # DELIBERATELY v3, not v4: v4 changes CLI flags/output, makes server-side apply
 # the default upgrade path, and rewrites the plugin ABI — this repo's toolchain
-# (helm-diff, helm-unittest + its committed snapshots, the `changed_when` stdout
-# matching in roles/platform/tasks/*) is calibrated on v3.
+# (helm-diff, helm-unittest + its committed snapshots, helmfile's helm shell-out)
+# is calibrated on v3.
 helm_version: "v3.21.3"
+
+# The release layer. helmfile owns every `helm upgrade --install` this repo
+# performs; the releases themselves are declared in kubernetes/helmfile.yaml.gotmpl
+# and the chart versions live THERE, not here.
+#
+# KEEP IN SYNC with the helmfile version installed by the `kubernetes` job of
+# .github/workflows/validate.yaml — that job renders the same state file, and a
+# renderer that is not the applier proves nothing.
+helmfile_version: "v1.7.4"
+
+# helm-diff is not optional tooling: `helmfile apply` is diff-then-sync, so
+# without the plugin there is no deploy at all. Pinned because it renders the
+# chart AND talks to the cluster.
+helm_diff_version: "v3.15.10"
 
 # SINGLE SOURCE OF TRUTH — deliberately NOT duplicated in roles/k3s/defaults
 # (which is why that file does not exist): a role default wins only when this
@@ -42,36 +56,6 @@ k3s_version: "v1.36.2+k3s1"
 # apiserver's audit-log-path need the path as a value.
 k3s_data_dir: "/var/lib/rancher/k3s"
 k3s_node_ip: "{{ ansible_default_ipv4.address }}"
-
-# Upstream Helm chart versions. Every `helm upgrade --install` in
-# roles/platform MUST pass one of these: unpinned, it silently adopts whatever
-# the repo's latest is at deploy time, turning an unrelated deploy into an
-# uncontrolled upgrade of somebody else's service.
-#
-# `grafana` below is a version from the `grafana-community` repo, NOT the old
-# `grafana` one — the OSS charts moved and restarted their numbering, and the
-# chart in the old repo is frozen at 10.5.15. Repo added in
-# roles/platform/tasks/helm-cli.yml, consumed in tasks/telemetry.yml.
-platform_chart_versions:
-  cert_manager: "v1.21.0"
-  infisical: "0.11.5"
-  # vm repo. Chart minors move fast; read the app version each one ships.
-  victoria_metrics: "0.43.0"
-  victoria_logs: "0.13.9"
-  # PRE-1.0, KNOWINGLY — see the boxed note in victoria-traces/helm.yaml. Do NOT
-  # extend that tolerance to the two 1.x pins above.
-  victoria_traces: "0.1.10"
-  # prometheus-community repo, both of them.
-  kube_state_metrics: "8.0.0"
-  # The CHART is `prometheus-node-exporter`; the RELEASE is `node-exporter`
-  # (hence the fullnameOverride in its helm.yaml).
-  node_exporter: "4.56.1"
-  otel_collector: "0.165.0"
-  # grafana-community repo. grafana.db migrates itself on first boot and is NOT
-  # reversible, so the rollback is the /var/lib/k8s-data/grafana restore.
-  grafana: "12.8.0"
-  # Bump together with the image tag pinned in librechat/helm.yaml.
-  librechat: "2.0.7"
 
 # Private hostnames, short-circuited IN-CLUSTER to the node's own tailnet IP.
 # Needed because CoreDNS cannot chase a CNAME from a public zone into the

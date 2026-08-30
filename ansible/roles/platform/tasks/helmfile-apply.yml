@@ -1,0 +1,32 @@
+---
+# One `helmfile apply` pass over kubernetes/helmfile.yaml.gotmpl — the single
+# declaration of every platform release. Included more than once because a few
+# things the helmfile cannot own (the InfisicalSecrets, the hand-written
+# workloads in raw-manifests.yml) have to be interleaved; see main.yml for the
+# order and bootstrap.yml for why.
+#
+# Args:
+#   helmfile_tier — the `tier:` label to select, or omitted for EVERY release.
+#                   The last pass of a deploy is deliberately unselected, so a
+#                   release that carries no tier label still gets applied.
+#
+# --detailed-exitcode rather than matching stdout: helmfile exits 2 when it
+# changed something and synced it successfully, which is exactly `changed`.
+# Secrets are redacted in the diff by default (--show-secrets is the opt-out),
+# so the diff can stay in the log where a deploy review can see it.
+
+- name: "Apply the platform Helm releases ({{ helmfile_tier | default('every release') }})"
+  ansible.builtin.command:
+    cmd: >-
+      helmfile --file {{ platform_helmfile }}
+      apply --detailed-exitcode --concurrency 1
+      {{ ('--selector tier=' ~ helmfile_tier) if (helmfile_tier | default('')) else '' }}
+  environment:
+    # Consumed by `requiredEnv` in the helmfile: the hostPath PV's nodeAffinity
+    # target, and Grafana's admin password (an inline values map, so it never
+    # reaches a command line).
+    NODE_NAME: "{{ inventory_hostname }}"
+    GRAFANA_ADMIN_PASSWORD: "{{ grafana_admin_password }}"
+  register: helmfile_apply
+  changed_when: helmfile_apply.rc == 2
+  failed_when: helmfile_apply.rc not in [0, 2]
