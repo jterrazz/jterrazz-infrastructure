@@ -1,7 +1,0 @@
-name: jterrazz-infrastructure
-runtime:
-  name: nodejs
-  options:
-    typescript: true
-description: k3s cluster infra — an OrbStack VM on the dev Mac, plus its Cloudflare DNS
-main: src/

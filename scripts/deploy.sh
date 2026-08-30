@@ -1,5 +1,5 @@
 #!/bin/bash
-# Provision the cluster via Pulumi and configure it with Ansible.
+# Create the cluster's VM with orbctl and configure it with Ansible.
 #
 # Ansible's secrets are pulled live from Infisical by
 # scripts/infisical-vars.py using the universal-auth credentials in
@@ -7,10 +7,10 @@
 # 0600, deleted on exit by the trap below.
 #
 # Usage:
-#   ./scripts/deploy.sh                 # full: pulumi up + site.yml
+#   ./scripts/deploy.sh                 # full: create the VM if absent + site.yml
 #   ./scripts/deploy.sh --ansible-only  # site.yml only, assume the VM exists
 #   ./scripts/deploy.sh --platform      # platform.yml only (no host layer)
-#   ./scripts/deploy.sh --destroy       # tear down the stack
+#   ./scripts/deploy.sh --destroy       # delete the VM (Mac-side data stays)
 
 set -euo pipefail
 
@@ -20,12 +20,17 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/common.sh"
 
-STACK="jterrazz/local"
+# One string, three identities: the `orbctl list` name, the Ansible
+# inventory_hostname in inventories/laptop.yml, and the Tailscale hostname the
+# `*.internal` wildcard CNAME resolves to. Renaming it here alone joins the
+# tailnet under a new name and breaks every private hostname.
+VM_NAME="jterrazz-infrastructure"
+VM_DATA_DIR="$HOME/.jterrazz-infrastructure/data"
 INVENTORY="$PROJECT_DIR/ansible/inventories/laptop.yml"
 
 if [ ! -f "$PROJECT_DIR/.env" ]; then
     error "Missing $PROJECT_DIR/.env"
-    error "It must define PULUMI_ACCESS_TOKEN, INFISICAL_CLIENT_ID and INFISICAL_CLIENT_SECRET."
+    error "It must define INFISICAL_CLIENT_ID and INFISICAL_CLIENT_SECRET."
     error "See 'Local .env' in docs/RUNBOOK.md; the file is gitignored on purpose."
     exit 1
 fi
@@ -40,18 +45,42 @@ set +a
 secrets_file=""
 trap 'rm -f "${secrets_file:-}"' EXIT
 
-pulumi_up() {
-    cd "$PROJECT_DIR/pulumi"
-    info "pulumi up --stack $STACK"
-    pulumi stack select "$STACK"
-    pulumi up --yes --refresh
+# The whole provisioning layer: one OrbStack VM. Idempotent by probe rather
+# than by state file — `orbctl info` is the question "does this VM exist", and
+# it is the only question, because OrbStack can change neither image nor
+# architecture in place. To repave, `--destroy` then run this again.
+vm_up() {
+    # First and unconditionally: roles/base symlinks /var/lib/k8s-data at this
+    # directory through OrbStack's /mnt/mac share, and if it does not exist
+    # before the VM boots the symlink dangles and every hostPath mount fails at
+    # the first pod schedule. Its living on the Mac is also what makes the data
+    # survive `make destroy && make deploy` — the VM goes, the directory stays.
+    mkdir -p "$VM_DATA_DIR"
+
+    if orbctl info "$VM_NAME" >/dev/null 2>&1; then
+        info "OrbStack VM $VM_NAME exists — skipping create"
+        return
+    fi
+
+    info "orbctl create debian:trixie $VM_NAME"
+    # `debian:trixie` SPELLED OUT: Debian is the one distro whose bare image
+    # name resolves to the PREVIOUS stable (bookworm), and every Ansible role
+    # here is Debian-13-native. Never drop the tag.
+    #
+    # NO `-u root`: broken since OrbStack 2.2.0, whose setup runs
+    # `usermod --uid 501 root` and fails against PID 1. The VM keeps the
+    # default macOS-named user; Ansible connects as `root@<vm>@orb`.
+    #
+    # NO `--isolated`: isolated machines run in an unprivileged user namespace
+    # where the kernel refuses the `noswap` tmpfs kubelet needs for projected
+    # service-account tokens, so k3s never serves — and it is also what turns
+    # off the /mnt/mac auto-share the data symlink above resolves through.
+    orbctl create -a arm64 debian:trixie "$VM_NAME"
 }
 
-pulumi_destroy() {
-    cd "$PROJECT_DIR/pulumi"
-    info "pulumi destroy --stack $STACK"
-    pulumi stack select "$STACK"
-    pulumi destroy --yes --refresh
+vm_destroy() {
+    info "orbctl delete --force $VM_NAME (the Mac-side data directory stays)"
+    orbctl delete --force "$VM_NAME"
 }
 
 # Sets the script-scope $secrets_file instead of echoing the path: command
@@ -91,7 +120,7 @@ run_platform() {
 
 case "${1:-}" in
     --destroy)
-        pulumi_destroy
+        vm_destroy
         ;;
     --ansible-only)
         run_site
@@ -100,7 +129,7 @@ case "${1:-}" in
         run_platform
         ;;
     "")
-        pulumi_up
+        vm_up
         run_site
         ;;
     *)

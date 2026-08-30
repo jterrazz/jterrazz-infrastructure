@@ -20,10 +20,6 @@ kubernetes/charts/*/Chart.lock
 # Local data
 data/
 
-# Pulumi
-pulumi/node_modules/
-pulumi/bin/
-
 # Ansible
 *.retry
 .ansible/

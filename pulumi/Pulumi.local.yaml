@@ -1,6 +1,0 @@
-config:
-  # The only other key this stack reads is `orbstack:dataPath` (optional;
-  # defaults to ~/.jterrazz-infrastructure/data). Everything else is
-  # hardcoded in src/targets/orbstack.ts on purpose.
-  cloudflare:apiToken:
-    secure: AAABALRpAHstP1AbuEkn8GRkNsB3CEQBQ02CrQPNdIxnLarH9zPndQq0DwfPv1o3a0OyiHwC0GUXSVMZlFArtFrWZU2zxKi0

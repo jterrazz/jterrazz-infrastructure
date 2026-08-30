@@ -1,7 +1,7 @@
 # jterrazz infrastructure
 #
-# One k3s cluster: an OrbStack VM on the dev Mac. `make deploy` provisions it
-# (Pulumi) and configures it (Ansible); `scripts/deploy.sh` is the canonical
+# One k3s cluster: an OrbStack VM on the dev Mac. `make deploy` creates it
+# (orbctl) and configures it (Ansible); `scripts/deploy.sh` is the canonical
 # entry point.
 
 .DEFAULT_GOAL := help
@@ -21,7 +21,7 @@ NODE_FQDN := $(shell awk '/ansible_host:/ {print $$2; exit}' ansible/inventories
 
 ##@ Deploy
 
-deploy: ## Provision + configure the cluster (Pulumi + Ansible site.yml)
+deploy: ## Provision + configure the cluster (orbctl + Ansible site.yml)
 	./scripts/deploy.sh
 
 deploy-platform: ## Re-run the platform layer only (Ansible platform.yml)
@@ -80,8 +80,6 @@ smoke: ## Probe the public surfaces + their TLS expiry (ARGS=--private on the ta
 # check-tools that omits them just moves the failure to the next target.
 check-tools: ## Check required tools
 	@command -v ansible     >/dev/null 2>&1 && echo "✓ Ansible"      || echo "✗ Ansible"
-	@command -v pulumi      >/dev/null 2>&1 && echo "✓ Pulumi"       || echo "✗ Pulumi"
-	@command -v node        >/dev/null 2>&1 && echo "✓ Node.js"      || echo "✗ Node.js"
 	@command -v kubectl     >/dev/null 2>&1 && echo "✓ kubectl"      || echo "✗ kubectl"
 	@command -v orbctl      >/dev/null 2>&1 && echo "✓ orbctl"       || echo "✗ orbctl"
 	@command -v helm        >/dev/null 2>&1 && echo "✓ Helm"         || echo "✗ Helm"
@@ -98,7 +96,7 @@ check-tools: ## Check required tools
 #   pip install ansible-core ansible-lint
 # actionlint and helm-unittest are the two soft skips — CI re-runs both
 # unconditionally, so a laptop without them is not a gap in the gate.
-check: ## Run the checks CI runs (shellcheck, python, sync assertions, tsc, ansible-lint, helm lint + unittest, actionlint)
+check: ## Run the checks CI runs (shellcheck, python, sync assertions, ansible-lint, helm lint + unittest, actionlint)
 	@echo "== shellcheck scripts/ =="
 	shellcheck scripts/*.sh scripts/lib/*.sh
 	@echo "✓ shellcheck clean"
@@ -119,12 +117,6 @@ check: ## Run the checks CI runs (shellcheck, python, sync assertions, tsc, ansi
 	@# chart version vs its two pins). Each pair carries a "keep in sync"
 	@# comment; this is what actually checks them.
 	python3 scripts/assert-sync.py
-	@echo ""
-	@echo "== pulumi typecheck =="
-	@# The `pulumi` job in validate.yaml runs exactly this after `npm ci`.
-	@test -d pulumi/node_modules || { echo "✗ pulumi/node_modules missing — run: npm ci --prefix pulumi"; exit 1; }
-	cd pulumi && npx tsc --noEmit
-	@echo "✓ tsc clean"
 	@echo ""
 	@echo "== ansible-lint ansible/ =="
 	ansible-lint -c ansible/.ansible-lint ansible/

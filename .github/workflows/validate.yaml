@@ -25,33 +25,6 @@ permissions:
   contents: read
 
 jobs:
-  pulumi:
-    name: Validate Pulumi
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          # 24 is the current Active LTS (Node 20 went EOL 2026-04-30, 22 is in
-          # maintenance). NOT 26: it is the current line but does not enter LTS
-          # until 2026-10-28.
-          node-version: "24"
-          cache: "npm"
-          cache-dependency-path: pulumi/package-lock.json
-
-      - name: Install dependencies
-        working-directory: pulumi
-        run: npm ci
-
-      # Typecheck only. There is deliberately NO `pulumi preview` step: the one
-      # stack this repo has is `jterrazz/local`, whose provider drives orbctl on
-      # the dev Mac — a GHA runner has no OrbStack, so a preview could only ever
-      # fail or lie. tsc is what actually catches breakage in pulumi/src.
-      - name: TypeScript Check
-        working-directory: pulumi
-        run: npx tsc --noEmit
-
   scripts:
     name: Validate Scripts
     runs-on: ubuntu-latest

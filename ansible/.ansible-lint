@@ -12,7 +12,6 @@ profile: production
 exclude_paths:
   - .github/
   - kubernetes/
-  - pulumi/
 
 skip_list:
   # This repo drives one node imperatively (helm/kubectl on the host); many

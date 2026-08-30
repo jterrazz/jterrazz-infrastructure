@@ -2,22 +2,12 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": [
     "Boring, weekly-only Renovate config for this repo.",
-    "Watches: npm deps under pulumi/ (minor+patch grouped, majors separate), GitHub Actions versions in .github/workflows/, and the Helm chart pins in kubernetes/helmfile.yaml.gotmpl (native helmfile manager — it reads the repositories and releases, OCI included).",
+    "Watches: GitHub Actions versions in .github/workflows/, and the Helm chart pins in kubernetes/helmfile.yaml.gotmpl (native helmfile manager — it reads the repositories and releases, OCI included).",
     "Automerge is disabled everywhere — every update lands as a PR for manual review."
   ],
   "extends": ["config:recommended", "schedule:weekly"],
   "automerge": false,
   "packageRules": [
-    {
-      "matchFileNames": ["pulumi/**"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "pulumi npm dependencies (minor/patch)"
-    },
-    {
-      "matchFileNames": ["pulumi/**"],
-      "matchUpdateTypes": ["major"],
-      "groupName": "pulumi npm dependencies (major)"
-    },
     {
       "matchManagers": ["github-actions"],
       "matchFileNames": [".github/workflows/**"],
