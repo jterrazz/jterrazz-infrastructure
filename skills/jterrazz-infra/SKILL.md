@@ -20,7 +20,8 @@ recipe in `docs/hetzner.md`, not a live mode.
 | Secrets, troubleshooting, repave, restore     | `docs/RUNBOOK.md`                       |
 | Non-inferable gotchas + hand-synced pairs     | `CLAUDE.md`                             |
 | `application.yaml` schema (deploying an app)  | `kubernetes/charts/app/README.md`       |
-| Per-service detail                            | `kubernetes/services/<svc>/README.md`   |
+| Per-service detail (cloudflared, librechat, openpanel) | `kubernetes/services/<svc>/README.md` |
+| Every other service                           | comments in its `helm.yaml` / `platform.yaml` |
 | Bringing the Hetzner target back              | `docs/hetzner.md`                       |
 
 ## Commands

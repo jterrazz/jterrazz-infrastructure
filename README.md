@@ -89,18 +89,20 @@ missing secret hard-fails the run; there are no fallback defaults.
 
 ```
 ansible/
-├── playbooks/     site.yml     base → security → tailscale → k3s → platform
+├── playbooks/     site.yml     base → security → tailscale → resolved → k3s → platform
 │                  platform.yml the platform layer alone (what CI runs)
-├── roles/         base · security · tailscale · k3s · platform
+├── roles/         base · security · tailscale · resolved · k3s · platform
 └── inventories/   laptop.yml (OrbStack SSH proxy) · ci.yml (over Tailscale)
                    group_vars/all.yml — THE config surface: k3s_version,
                    helm_version, platform_chart_versions, private_hostnames
 
 kubernetes/
-├── charts/app/       application chart (2.4.1), published to the OCI registry.
-│                     Reference: kubernetes/charts/app/README.md
-├── charts/service/   platform-service chart (2.1.0): IngressRoute +
-│                     Certificate + hostPath PV/PVCs from one values file
+├── charts/app/       application chart, published to the OCI registry.
+│                     Version: kubernetes/charts/app/Chart.yaml. Reference:
+│                     kubernetes/charts/app/README.md
+├── charts/service/   platform-service chart: IngressRoute + Certificate +
+│                     hostPath PV/PVCs from one values file. Version:
+│                     kubernetes/charts/service/Chart.yaml
 ├── cluster/          cluster-wide manifests, `kubectl apply -f … -R`:
 │                     namespaces, the `manual` StorageClass, Traefik config +
 │                     middlewares + TLS options, one NetworkPolicy file per
@@ -111,8 +113,9 @@ kubernetes/
                       (service-chart values) + any raw manifests it needs
 
 pulumi/src/   index.ts (one machine) · targets/orbstack.ts · dns.ts
-scripts/      deploy.sh · infisical-vars.py · platform-diff.sh · smoke.sh
-              assert-sync.py · trigger-app-deploys.sh · lib/common.sh
+scripts/      deploy.sh · backup.sh · infisical-vars.py · platform-diff.sh
+              smoke.sh · assert-sync.py · trigger-app-deploys.sh ·
+              publish-app-chart.sh · lib/common.sh · lib/helm-plugin.sh
 ```
 
 ## CI
@@ -122,11 +125,11 @@ scripts/      deploy.sh · infisical-vars.py · platform-diff.sh · smoke.sh
 | `validate.yaml`        | PR to main **and** push to main                                                                    | `tsc --noEmit` on `pulumi/`; shellcheck + python syntax on `scripts/`; `ansible-lint -c ansible/.ansible-lint` + `--syntax-check` on both playbooks; kubeconform over `kubernetes/cluster` and every raw manifest under `kubernetes/services`; both charts rendered against their `ci/test-values.yaml`. Plus gitleaks, helm-unittest, and assertions on the hand-synced pairs. |
 | `deploy-platform.yaml` | push to main touching `ansible/**`, `kubernetes/{services,cluster,charts/service}/**`; or manual   | Runs `platform.yml` only, over Tailscale, from a runner joined as `tag:ci`. Never the host layer — those roles restart sshd/tailscaled and would kill the runner's own session.                    |
 | `publish-chart.yaml`   | push to main touching `kubernetes/charts/app/**`; or manual                                        | Packages and pushes the app chart. Refuses to overwrite a published version (it is consumed unversioned); a no-op when the version already exists.                                                 |
+| `smoke.yaml`           | after `deploy-platform.yaml` completes; weekly schedule; or manual                                  | Runs `scripts/smoke.sh --public --private --certs` against the live cluster — the only workflow that checks the deployed state rather than the tree.                                               |
 
-A weekly workflow runs `scripts/smoke.sh` against the live cluster. The CI
-fixtures are the validation contract: both charts render near-zero objects
-with default values, so a template branch no fixture reaches is a branch CI
-does not check.
+The CI fixtures are the validation contract: both charts render near-zero
+objects with default values, so a template branch no fixture reaches is a
+branch CI does not check.
 
 ## Where to look next
 
@@ -134,6 +137,7 @@ does not check.
 | ------------------------------------------ | ---------------------------------------------------------------- |
 | It's 2am and something is broken           | [docs/RUNBOOK.md](docs/RUNBOOK.md)                                |
 | How do I deploy / configure an app?        | [kubernetes/charts/app/README.md](kubernetes/charts/app/README.md) |
+| How do I add a new platform service / app? | [docs/RUNBOOK.md](docs/RUNBOOK.md#add-a-new-platform-service)     |
 | What does an agent need to know?           | [CLAUDE.md](CLAUDE.md)                                            |
 | How is public traffic wired?               | [kubernetes/services/cloudflared/README.md](kubernetes/services/cloudflared/README.md) |
 | LibreChat / OpenPanel specifics            | [librechat](kubernetes/services/librechat/README.md) · [openpanel](kubernetes/services/openpanel/README.md) |
