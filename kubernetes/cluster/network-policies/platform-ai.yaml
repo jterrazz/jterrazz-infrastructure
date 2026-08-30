@@ -7,6 +7,12 @@
 # password and no TLS, and it holds every account and every conversation. Until
 # this file existed, any pod in the cluster could read or drop that database.
 # These policies are the only thing standing in front of it.
+#
+# WHAT IS AND IS NOT IN THIS FILE. The namespace baseline, and the rules for
+# librechat-mongodb — a hand-written manifest with no Helm release of its own,
+# so nothing else can declare them. LibreChat's own ingress and egress are
+# declared by the service, in the `network:` block in
+# kubernetes/services/librechat/service.yaml.
 
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -17,36 +23,6 @@ spec:
   podSelector: {}
   policyTypes:
     - Ingress
-
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-traefik-to-librechat
-  namespace: platform-ai
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: librechat
-      app.kubernetes.io/instance: librechat
-  policyTypes:
-    - Ingress
-  ingress:
-    # Traefik (kube-system) -> librechat POD port 3080: the private IngressRoute
-    # from kubernetes/services/librechat/service.yaml (chat.internal.jterrazz.com,
-    # `access: private`, tailnet-only and NOT through the Cloudflare tunnel).
-    #
-    # 3080 is both the Service port and the container port here, so unlike
-    # Grafana there is no port rewrite to trip over. The podSelector is what
-    # matters: it excludes librechat-mongodb, so no ingress rule in this file
-    # ever admits Traefik to the database.
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - protocol: TCP
-          port: 3080
 
 ---
 apiVersion: networking.k8s.io/v1
@@ -87,8 +63,8 @@ spec:
 ---
 # Egress is DEFAULT-DENY for every pod in the namespace (podSelector {} +
 # policyTypes: Egress). This policy grants the namespace-wide minimum; the
-# LibreChat-only additions are the policy after it, which is what keeps mongod's
-# egress at "DNS and nothing else".
+# LibreChat-only additions live in that service's `network:` block, which is
+# what keeps mongod's egress at "DNS and nothing else".
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -110,60 +86,3 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-egress-librechat
-  namespace: platform-ai
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: librechat
-      app.kubernetes.io/instance: librechat
-  policyTypes:
-    - Egress
-  egress:
-    # librechat -> librechat-mongodb:27017 in this same namespace (MONGO_URI).
-    # Kept to the namespace rather than the pod so the uploads/config sidecars
-    # the chart may add later do not need an edit here.
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: platform-ai
-    # librechat -> gateway-intelligence (prod-gateway-intelligence). This is
-    # both endpoints configured in values.yaml: `ANTHROPIC_REVERSE_PROXY` and the
-    # custom endpoint's `baseURL`, both of which name the in-cluster Service —
-    # never gateway-intelligence.internal.jterrazz.com, which a pod cannot hairpin to.
-    #
-    # 8317 is the POD port (the app chart renders `Service 80 -> targetPort
-    # 8317`), and it is the port the matching ingress hole names:
-    # kubernetes/cluster/network-policies/prod-gateway-intelligence.yaml. 80 is
-    # listed alongside it purely as belt-and-braces on DNAT ordering — whether
-    # an egress filter sees the Service port or the rewritten pod port is a CNI
-    # implementation detail, and there is no other workload in that namespace
-    # for port 80 to reach.
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: prod-gateway-intelligence
-      ports:
-        - protocol: TCP
-          port: 8317
-        - protocol: TCP
-          port: 80
-    # librechat -> the internet on 443, un-narrowed because the destinations
-    # are not enumerable (model/provider metadata, avatar fetches, its own
-    # update check). The RFC1918 `except` is what keeps it off the node LAN and
-    # the apiserver — unlike platform-telemetry's egress, which needs them.
-    - to:
-        - ipBlock:
-            cidr: 0.0.0.0/0
-            except:
-              - 10.0.0.0/8
-              - 172.16.0.0/12
-              - 192.168.0.0/16
-      ports:
-        - protocol: TCP
-          port: 443

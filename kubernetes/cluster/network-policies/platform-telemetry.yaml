@@ -10,12 +10,17 @@
 # OTLP on :10428. Without this file any pod in the cluster could write junk into
 # all three, or read every series, log line and span back out.
 #
-# TWO rules below are deliberately wider than the rest. Both are called out at
-# the rule itself, so neither can be mistaken for an oversight:
-#   * OTLP ingest (4317/4318) is open to every namespace — the platformServices
-#     contract has nothing narrower to select on.
-#   * VictoriaMetrics' egress is unrestricted — it scrapes an annotation-driven
-#     target set that a static file cannot enumerate.
+# WHAT IS AND IS NOT IN THIS FILE. The namespace BASELINE lives here —
+# default-deny, allow-same-namespace, the namespace-wide egress — plus the one
+# per-workload rule whose workload has no `-platform` release to declare it
+# (otel-collector). Grafana's ingress and VictoriaMetrics' egress are declared
+# by the services themselves, in `network:` blocks in
+# kubernetes/services/{grafana,victoria-metrics}/service.yaml.
+#
+# ONE rule below is deliberately wider than the rest, and it is called out at
+# the rule itself so it cannot be mistaken for an oversight: OTLP ingest
+# (4317/4318) is open to every namespace, because the platformServices contract
+# has nothing narrower to select on.
 
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -47,9 +52,10 @@ spec:
     #
     # CONSEQUENCE: the three stores get NO cross-namespace ingress at all — the
     # only ports reachable from outside this namespace are the collector's two
-    # OTLP ports and Grafana's 3000, both below. node-exporter is not covered and
-    # cannot be: `hostNetwork: true` means its pod IP IS the node IP, so
-    # NetworkPolicy never filters traffic to it (it is scraped via egress below).
+    # OTLP ports (below) and Grafana's 3000 (grafana/service.yaml). node-exporter
+    # is not covered and cannot be: `hostNetwork: true` means its pod IP IS the
+    # node IP, so NetworkPolicy never filters traffic to it (it is scraped via
+    # victoria-metrics' own egress, in victoria-metrics/service.yaml).
     - from:
         - namespaceSelector:
             matchLabels:
@@ -86,38 +92,6 @@ spec:
           port: 4317
         - protocol: TCP
           port: 4318
-
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-traefik-to-grafana
-  namespace: platform-telemetry
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: grafana
-      app.kubernetes.io/instance: grafana
-  policyTypes:
-    - Ingress
-  ingress:
-    # Traefik (kube-system) -> grafana POD port 3000: the private IngressRoute
-    # from kubernetes/services/grafana/service.yaml (grafana.internal.jterrazz.com,
-    # `access: private`). Every other pod in this namespace is excluded by the
-    # podSelector and stays same-namespace only.
-    #
-    # 3000, NOT the Service's 80. The Service is `port: 80 -> targetPort:
-    # grafana (3000)`, and a NetworkPolicy only ever sees the POD port —
-    # kube-proxy has already rewritten the destination by the time the packet is
-    # filtered. Same trap, same answer as the 8317-not-80 note in
-    # kubernetes/cluster/network-policies/prod-gateway-intelligence.yaml.
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - protocol: TCP
-          port: 3000
 
 ---
 # Egress is DEFAULT-DENY for every pod in the namespace (podSelector {} +
@@ -171,27 +145,3 @@ spec:
           port: 443
         - protocol: TCP
           port: 6443
-
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-egress-victoria-metrics-scrape
-  namespace: platform-telemetry
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: victoria-metrics-single
-      app.kubernetes.io/instance: victoria-metrics
-  policyTypes:
-    - Egress
-  egress:
-    # DELIBERATELY UNRESTRICTED, and it has to be. VictoriaMetrics' target set
-    # is discovered from prometheus.io annotations at runtime (server.scrape in
-    # kubernetes/services/victoria-metrics/values.yaml), so a static list here
-    # would have to be re-derived on every deploy. The blast radius is bounded
-    # on the far side instead: a scraper only ever GETs /metrics, and every
-    # namespace it reaches into still enforces its own ingress policy.
-    - to:
-        - ipBlock:
-            cidr: 0.0.0.0/0
