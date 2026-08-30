@@ -13,6 +13,19 @@ trixie, arm64) on the dev Mac. Pulumi stack `jterrazz/local`, Ansible inventory
 history, **not** a live mode — do not reintroduce a `target` / `manageDns` /
 `deployment_target` branch anywhere.
 
+## Vocabulary
+
+One word, one meaning. Everything below "platform" is one of four layers.
+
+- **Host layer** — the VM and what runs directly on it: `roles/{base,security,resolved,tailscale,k3s}`, applied only by `make deploy` from the Mac.
+- **Cluster layer** — objects that belong to no single release: `kubernetes/cluster/` (namespaces, StorageClass, NetworkPolicies, Traefik middlewares + TLSOption), applied by `roles/platform`'s `cluster-manifests`.
+- **Platform services** — `kubernetes/services/<x>/`, one release block each in `kubernetes/helmfile.yaml.gotmpl`. `values.yaml` = values for the UPSTREAM chart; `service.yaml` = values for our `charts/platform-service`; the release it produces is `<x>-platform` and **that name is frozen** (renaming it orphans the hostPath PV).
+- **Apps** — deployed from their own repos through `charts/app`, into `prod-*` / `next-*` / `staging-*`. This repo owns the chart, not the app.
+
+`roles/platform`, `playbooks/platform.yml`, `make deploy-platform`, the
+`platform-*` namespaces and the app chart's `platformServices` all name the
+LAYER, not the chart — they are consistent and stay as they are.
+
 ## Hand-synced pairs
 
 Nothing enforces these at runtime; each has drifted at least once. Change one,
