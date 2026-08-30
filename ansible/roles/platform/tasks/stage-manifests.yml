@@ -23,3 +23,18 @@
     name: tailscale
     tasks_from: facts
   when: tailscale_ip is not defined
+
+# facts.yml gathers the address with `failed_when: false`, so a node that is
+# not on the tailnet yields an EMPTY tailscale_ip — which templates/coredns-
+# custom.yaml.j2 renders as a one-field hosts entry, and CoreDNS crashloops on
+# it. Fail here instead, before anything is applied.
+- name: Assert the node has a tailnet address
+  ansible.builtin.assert:
+    that:
+      - tailscale_ip | default('') | length > 0
+    fail_msg: >-
+      This node has no Tailscale IPv4 address, so the CoreDNS private-hostname
+      overrides would render as blank hosts entries and take cluster DNS down.
+      Join the tailnet first: `make deploy` (the tailscale role), or on the node
+      `/usr/local/bin/tailscale-autoauth.sh`.
+    quiet: true

@@ -10,12 +10,10 @@
 # inventories/group_vars/all.yml, rendered by templates/coredns-custom.yaml.j2.
 
 # Looked up at deploy time, not hardcoded: the ClusterIP is dynamic per
-# cluster, so a fixed value silently breaks on the next repave.
-# Retried: on a FRESH cluster this play reaches here before k3s' own
-# helm-install job has created the Service, and the lookup fails with
-# `services "traefik" not found` — a first-boot-only failure that a second run
-# never reproduces, which is exactly the kind that survives in a repo. The
-# deadline covers a cold VM pulling the Traefik image.
+# cluster, so a fixed value silently breaks on the next repave. The Service is
+# created by k3s' own Traefik helm-install job, which cluster-manifests.yml
+# waits for — hence its ordering before this file in main.yml; the retries
+# cover the remaining gap on a cold VM still pulling the image.
 - name: Get Traefik ClusterIP (in-cluster target for openpanel.internal.jterrazz.com)
   ansible.builtin.command: kubectl get svc traefik -n kube-system -o jsonpath='{.spec.clusterIP}'
   register: traefik_cluster_ip

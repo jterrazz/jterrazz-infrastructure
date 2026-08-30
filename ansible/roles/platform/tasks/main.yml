@@ -14,13 +14,17 @@
   ansible.builtin.import_tasks: stage-manifests.yml
   tags: [always]
 
-- name: Configure CoreDNS split-DNS for private hostnames
-  ansible.builtin.import_tasks: coredns.yml
-  tags: [coredns, dns]
-
+# BEFORE coredns.yml, which waits on svc/traefik: that wait would otherwise let
+# k3s' bundled Traefik install without the HelmChartConfig applied here, i.e.
+# without `loadBalancerSourceRanges` restricting host ports 80/443 to the
+# tailnet.
 - name: Deploy the cluster-wide manifests
   ansible.builtin.import_tasks: cluster-manifests.yml
   tags: [cluster-manifests, namespaces]
+
+- name: Configure CoreDNS split-DNS for private hostnames
+  ansible.builtin.import_tasks: coredns.yml
+  tags: [coredns, dns]
 
 - name: Install the Helm CLI and repositories
   ansible.builtin.import_tasks: helm-cli.yml

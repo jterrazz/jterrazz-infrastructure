@@ -1,14 +1,10 @@
 ---
-security_ssh_port: 22
 security_ssh_permit_root_login: "prohibit-password"
 security_ssh_password_authentication: "no"
-security_ssh_pubkey_authentication: "yes"
 security_ssh_max_auth_tries: 3
 security_ssh_client_alive_interval: 300
 security_ssh_client_alive_count_max: 2
 
-security_ufw_default_incoming: "deny"
-security_ufw_default_outgoing: "allow"
 security_ufw_default_forward: "deny"
 
 # Public half of a split keypair; installed into root's authorized_keys so
@@ -34,14 +30,6 @@ security_ufw_rules:
   - { port: "443", proto: "tcp", rule: "allow", from: "100.64.0.0/10", comment: "HTTPS (Tailscale only)" }
   # Tailnet clients (laptop kubectl, CI runners) -> the k3s API server.
   - { port: "6443", proto: "tcp", rule: "allow", from: "100.64.0.0/10", comment: "K8s API (Tailscale)" }
-  # RFC1918 -> the k3s API server, for a node reached over a private LAN
-  # rather than the tailnet.
-  - { port: "6443", proto: "tcp", rule: "allow", from: "10.0.0.0/8", comment: "K8s API (Private)" }
-  - { port: "6443", proto: "tcp", rule: "allow", from: "172.16.0.0/12", comment: "K8s API (Private)" }
-  - { port: "6443", proto: "tcp", rule: "allow", from: "192.168.0.0/16", comment: "K8s API (Private)" }
-
-security_auto_reboot_enabled: false
-security_auto_reboot_time: "06:00"
 
 security_kernel_params:
   - { name: "net.ipv4.tcp_syncookies", value: "1" }

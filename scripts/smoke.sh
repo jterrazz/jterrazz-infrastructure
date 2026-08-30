@@ -190,7 +190,6 @@ run_http_check() {
     status="${out%% *}"
     status="${status:-000}"
     location="${out#* }"
-    [ "$location" = "$status" ] && location=""
 
     if [[ ",$codes," != *",$status,"* ]]; then
         if [ "$status" = "000" ]; then
