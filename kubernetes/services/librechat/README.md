@@ -145,22 +145,16 @@ for a specific reason:
    to the node's ServiceLB — the connection just times out. Service port 80 →
    pod port 8317.
 
-2. **`kubernetes/cluster/network-policies/prod-gateway-intelligence.yaml` —
-   an additive NetworkPolicy.** The gateway is an
-   app-chart workload; since chart 2.0 its ingress admits any pod stamped
+2. **The gateway admits `platform-ai`, and says so itself.** Since app chart
+   2.0 the gateway's ingress admits any pod stamped
    `platform-client.jterrazz.com/gateway-intelligence: "true"`, which
-   consumers get by declaring `spec.platformServices`. LibreChat is not an
-   app-chart workload (its pod labels come from the upstream chart), so it
-   can't easily stamp that label. NetworkPolicies are additive, so a small
-   policy in the **gateway's** namespace grants `platform-ai` → 8317 without
-   touching the gateway's chart. It lives here, not in the gateway repo,
-   because it exists solely for LibreChat. *(Deferred alternative: set the
-   client label via the upstream chart's pod labels and delete this file.)*
-
-   The `prod-gateway-intelligence` namespace is pre-declared in
-   `kubernetes/cluster/namespaces.yaml` (applied by `cluster-manifests.yml`, which
-   runs before this policy) — on a fresh cluster the gateway app doesn't exist
-   yet, and Helm adopts the pre-created namespace when its CI deploys later.
+   consumers get by declaring `spec.platformServices`. LibreChat cannot: its
+   pods come from the upstream LibreChat chart, which does not stamp that
+   label. So `gateway-intelligence`'s own `.infrastructure/application.yaml`
+   declares `spec.network.exposeTo: [namespace:platform-ai]`, and its chart
+   renders the rule. Nothing about it lives in this repo any more — the
+   additive policy that used to sit in `cluster/network-policies/` was a rule
+   granting access to an app this repo does not deploy.
 
 3. **`ANTHROPIC_API_KEY: "gateway-noauth"` is a non-secret placeholder.**
    CLIProxyAPI (the gateway) runs with `api-keys: []`, which leaves its access

@@ -86,7 +86,7 @@ librechat:
   # Always the gateway's in-cluster Service, never gateway-intelligence.internal.jterrazz.com: that
   # hostname resolves to the node's own tailnet IP and a pod cannot hairpin to
   # the node's ServiceLB (the connection times out). The matching ingress hole
-  # is kubernetes/cluster/network-policies/prod-gateway-intelligence.yaml.
+  # is the gateway's own `spec.network.exposeTo: [namespace:platform-ai]`.
   configYamlContent: |
     version: 1.2.8
     cache: true

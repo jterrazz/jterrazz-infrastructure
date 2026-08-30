@@ -243,8 +243,9 @@ Step 5 is required, not optional: registry blobs are hostPath and do survive,
 but no app's Helm release does — the cluster is new. The script staggers the
 six dispatches by 20s so six simultaneous Docker builds don't compete for RAM
 on one node. Post-repave verification items (uid pins, remaining egress narrowing)
-live in the pinned GitHub issue. Every namespace in
-`kubernetes/cluster/namespaces.yaml` has a NetworkPolicy file. The OpenPanel
+live in the pinned GitHub issue. Every PLATFORM namespace in
+`kubernetes/cluster/namespaces.yaml` has a baseline NetworkPolicy file; an app
+namespace has only what its own chart renders. The OpenPanel
 `API_URL_SSR` rationale lives in `kubernetes/services/openpanel/config.yaml` —
 do not retell it here.
 

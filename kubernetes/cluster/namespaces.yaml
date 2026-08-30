@@ -77,12 +77,10 @@ metadata:
     app.kubernetes.io/component: analytics
 
 ---
-# The gateway app's namespace, pre-declared here (not by its CI) because
-# network-policies/prod-gateway-intelligence.yaml — applied in the same
-# cluster-manifests pass — must land in an existing namespace on a fresh cluster,
-# before the app's first deploy. Helm's --create-namespace adopts it as-is.
-# kubectl walks this directory lexically, so namespaces.yaml sorts before
-# network-policies/ — the ordering this relies on.
+# The gateway app's namespace, pre-declared here (not by its CI) for the Pod
+# Security Admission labels below: Helm's --create-namespace would create an
+# unlabelled namespace first and win the race, and PSA enforcement is a cluster
+# concern, not an app's. Helm adopts an existing namespace as-is.
 apiVersion: v1
 kind: Namespace
 metadata:

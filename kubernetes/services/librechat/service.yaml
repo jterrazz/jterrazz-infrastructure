@@ -39,7 +39,7 @@ network:
     # -> gateway-intelligence: both endpoints in values.yaml
     # (`ANTHROPIC_REVERSE_PROXY` and the custom endpoint's `baseURL`) name the
     # in-cluster Service. 8317 is the POD port, and the port the matching
-    # ingress hole in cluster/network-policies/prod-gateway-intelligence.yaml
+    # ingress hole the gateway's own `spec.network.exposeTo` renders
     # names; 80 is belt-and-braces on DNAT ordering, and there is no other
     # workload in that namespace for it to reach.
     - to: namespace:prod-gateway-intelligence
