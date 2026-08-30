@@ -24,12 +24,12 @@ deepCopy because mergeOverwrite mutates its first argument, and .Values is
 shared across every template in the render.
 */}}
 {{- define "app.merged" -}}
-{{- $env := .Values.environment | required "environment is required" -}}
+{{- $env := .Values.environment -}}
 {{- $envConfig := dict -}}
 {{- if hasKey .Values.environments $env -}}
 {{- $envConfig = index .Values.environments $env -}}
 {{- end -}}
-{{- mergeOverwrite (deepCopy (.Values.spec | default dict)) (deepCopy $envConfig) | toYaml -}}
+{{- mergeOverwrite (deepCopy .Values.spec) (deepCopy $envConfig) | toYaml -}}
 {{- end -}}
 
 {{/*
@@ -53,7 +53,7 @@ are { host, path?, public?, stripPrefix? } objects. Returns YAML; consume via
 fromYamlArray.
 */}}
 {{- define "app.ingressList" -}}
-{{- $list := (fromYaml (include "app.merged" .)).ingress | default list -}}
+{{- $list := (fromYaml (include "app.merged" .)).ingress -}}
 {{- if not (kindIs "slice" $list) -}}
 {{- fail "ingress must be a list of { host, path?, public? } entries. The single-object form was removed in chart 1.17.0 — migrate to a one-element list." -}}
 {{- end -}}
@@ -89,7 +89,7 @@ derived limit is always emitted in Mi; a request in neither Mi nor Gi passes
 through unchanged.
 */}}
 {{- define "app.memoryLimit" -}}
-{{- $resources := (fromYaml (include "app.merged" .)).resources | default dict -}}
+{{- $resources := (fromYaml (include "app.merged" .)).resources -}}
 {{- $memLimit := $resources.memoryLimit -}}
 {{- if $memLimit -}}
 {{- $memLimit -}}
@@ -111,7 +111,7 @@ service) starves SSR boot and crash-loops the pod. Returns "" there, and for a
 non-Mi/Gi request, so the caller skips injection entirely.
 */}}
 {{- define "app.nodeMaxOldSpace" -}}
-{{- $resources := (fromYaml (include "app.merged" .)).resources | default dict -}}
+{{- $resources := (fromYaml (include "app.merged" .)).resources -}}
 {{- $mem := $resources.memory -}}
 {{- $reqMi := include "app.memMi" $mem | default "0" | int -}}
 {{- if ge $reqMi 512 -}}
@@ -181,7 +181,7 @@ render a silently-broken manifest. Returns a YAML list (fromYamlArray).
 */}}
 {{- define "app.platformServices" -}}
 {{- $catalog := fromYaml (include "app.platformCatalog" .) -}}
-{{- $services := (fromYaml (include "app.merged" .)).platformServices | default list -}}
+{{- $services := (fromYaml (include "app.merged" .)).platformServices -}}
 {{- range $svc := $services -}}
 {{- if not (hasKey $catalog $svc) -}}
 {{- fail (printf "spec.platformServices: unknown service %q (valid: %s)" $svc (keys $catalog | sortAlpha | join ", ")) -}}
@@ -229,7 +229,7 @@ catalog entry with no clientLabel.
 app: {{ include "app.name" . }}
 app.kubernetes.io/name: {{ include "app.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
-app.kubernetes.io/managed-by: helm
+app.kubernetes.io/managed-by: {{ .Release.Service }}
 environment: {{ .Values.environment }}
 {{- end -}}
 

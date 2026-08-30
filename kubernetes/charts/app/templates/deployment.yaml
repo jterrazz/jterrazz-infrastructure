@@ -1,9 +1,9 @@
 {{- if eq (include "app.envExists" .) "true" -}}
 {{- $spec := fromYaml (include "app.merged" .) -}}
-{{- $secrets := $spec.secrets | default dict -}}
-{{- $envVars := $spec.env | default dict -}}
-{{- $health := $spec.health | default dict -}}
-{{- $resources := $spec.resources | default dict -}}
+{{- $secrets := $spec.secrets -}}
+{{- $envVars := $spec.env -}}
+{{- $health := $spec.health -}}
+{{- $resources := $spec.resources -}}
 {{- $platformEnv := fromYaml (include "app.platformEnv" .) -}}
 {{- $platformClientLabels := fromYaml (include "app.platformClientLabels" .) -}}
 {{- /*
@@ -21,7 +21,7 @@ mergeOverwrite mutates its first argument.
 {{- if not $spec.runAsRoot -}}
 {{- $_ := set $secDefaults "runAsNonRoot" true -}}
 {{- end -}}
-{{- $securityContext := mergeOverwrite (deepCopy $secDefaults) ($spec.securityContext | default dict) -}}
+{{- $securityContext := mergeOverwrite (deepCopy $secDefaults) $spec.securityContext -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -29,7 +29,8 @@ metadata:
   labels:
     {{- include "app.labels" . | nindent 4 }}
 spec:
-  replicas: {{ $spec.replicas | default 1 }}
+  replicas: {{ $spec.replicas }}
+  # 3, not the k8s default 10 — see kubernetes/services/grafana/helm.yaml.
   revisionHistoryLimit: 3
   {{- if $spec.storage }}
   strategy:
@@ -84,6 +85,8 @@ spec:
       containers:
         - name: {{ include "app.name" . }}
           image: {{ include "app.image" . }}
+          # Always: `main` / `next` tags are mutable, so IfNotPresent would
+          # keep serving whatever the node cached at the first pull.
           imagePullPolicy: Always
           securityContext:
             {{- toYaml $securityContext | nindent 12 }}

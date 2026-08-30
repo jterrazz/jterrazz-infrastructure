@@ -4,4 +4,4 @@ description: Shared chart for platform service ingress, certificates, and storag
 type: application
 # Not published to any registry and has no out-of-repo consumers, so this
 # version is bookkeeping only — nothing pulls the chart by version.
-version: 2.4.0
+version: 2.5.0

@@ -34,19 +34,6 @@ tests:
       - hasDocuments:
           count: 0
 
-  - it: renders zero manifests for an EMPTY environment string
-    # Note app.merged carries `required "environment is required"`, but no
-    # template ever reaches it: app.envExists gates first and short-circuits on
-    # a falsy value. So an unset environment is silently empty too, exactly
-    # like a typo'd one — the `required` is an unreachable safety net today.
-    values:
-      - ../ci/test-values.yaml
-    set:
-      environment: ""
-    asserts:
-      - hasDocuments:
-          count: 0
-
   - it: drops the prod-only dashboard ConfigMap in another environment
     # dashboard-configmap.yaml is additionally gated on environment == prod:
     # Grafana has one folder per app, and three environments' worth of the same

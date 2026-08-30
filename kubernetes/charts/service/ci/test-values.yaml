@@ -17,6 +17,11 @@ name: ci-test-service
 host: ci-test-service.jterrazz.com
 port: 8080
 
+# Second name on the same route + a SAN on the same certificate — the rename
+# path. `Host(a) || Host(b)`, never the v2 `Host(a, b)`.
+aliases:
+  - ci-test-alias.example
+
 # cluster-internal-access instead of private-access on the IngressRoute.
 # This is the branch registry and openpanel need and the pre-2.1 boolean
 # could not express. Flip to `private` (the default) or `public` locally to
@@ -35,16 +40,18 @@ storage:
   uploads:
     size: 5Gi
     pathSuffix: uploads
-  # claimName override (chart 2.1): the PV stays ci-test-service-metrics and
-  # the PVC's volumeName still points at it, but the PVC itself is named
-  # storage-ci-test-0 — the shape a StatefulSet volumeClaimTemplate imposes.
-  # No live service needs it today (loki and tempo did, and are gone; the
-  # Victoria charts take `existingClaim` and drop their volumeClaimTemplate
-  # instead) — the fixture keeps the branch covered for the next one that does.
+  # claimName override: the PVC is named storage-ci-test-0 while the PV keeps
+  # its <name>-<key> identity — see templates/storage.yaml for why that matters.
   metrics:
     size: 1Gi
     pathSuffix: metrics
     claimName: storage-ci-test-0
+  # nodeLocalPath override: the hostPath leaves /var/lib/k8s-data entirely, so
+  # the data lives in the VM and does NOT survive a repave (grafana-data is the
+  # one live user — see templates/storage.yaml).
+  node-local:
+    size: 1Gi
+    nodeLocalPath: /var/lib/ci-test-node-local
 
 # Populated so the PV nodeAffinity block renders. With this empty the block
 # must be omitted entirely rather than emit `values: [""]`.

@@ -2,8 +2,7 @@ suite: service.labels is stamped on all four kinds
 #
 # The chart emits exactly four kinds — IngressRoute, Certificate,
 # PersistentVolume, PersistentVolumeClaim — and every one of them must carry
-# the common label set. `part-of: jterrazz-infrastructure` is the grouping the
-# deleted kustomize base used to stamp cluster-wide; it is what makes
+# the common label set. `part-of: jterrazz-infrastructure` is what makes
 # `kubectl get <kind> -l app.kubernetes.io/part-of=jterrazz-infrastructure`
 # answer "what does the platform own" across namespaces.
 #
@@ -24,7 +23,7 @@ tests:
           value:
             app.kubernetes.io/name: ci-test-service
             app.kubernetes.io/part-of: jterrazz-infrastructure
-            app.kubernetes.io/managed-by: helm
+            app.kubernetes.io/managed-by: Helm
 
   - it: labels the Certificate
     templates:
@@ -37,7 +36,7 @@ tests:
           value:
             app.kubernetes.io/name: ci-test-service
             app.kubernetes.io/part-of: jterrazz-infrastructure
-            app.kubernetes.io/managed-by: helm
+            app.kubernetes.io/managed-by: Helm
 
   - it: labels the PersistentVolume, plus the storage component label
     templates:
@@ -51,7 +50,7 @@ tests:
           value:
             app.kubernetes.io/name: ci-test-service
             app.kubernetes.io/part-of: jterrazz-infrastructure
-            app.kubernetes.io/managed-by: helm
+            app.kubernetes.io/managed-by: Helm
             app.kubernetes.io/component: storage
         documentIndex: 0
 
@@ -67,7 +66,7 @@ tests:
           value:
             app.kubernetes.io/name: ci-test-service
             app.kubernetes.io/part-of: jterrazz-infrastructure
-            app.kubernetes.io/managed-by: helm
+            app.kubernetes.io/managed-by: Helm
             app.kubernetes.io/component: storage
         documentIndex: 1
 

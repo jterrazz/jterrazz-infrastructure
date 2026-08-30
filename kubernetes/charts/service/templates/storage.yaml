@@ -7,9 +7,9 @@ DATA-DESTROYING IF CHANGED. Object names and hostPath paths address LIVE data:
        storage-<release>-<ordinal> and silently provisions a FRESH dynamic
        volume if it does not find one, which is how Loki/Tempo lost every
        log/trace (claimName storage-loki-0 / storage-tempo-0 over PVs that
-       stayed loki-data / tempo-data). NOTHING sets claimName today: the
-       VictoriaMetrics charts that replaced them take `existingClaim`, which
-       makes them drop their volumeClaimTemplate entirely.
+       stayed loki-data / tempo-data). No live service sets it — the
+       VictoriaMetrics charts take `existingClaim` — and the CI fixture keeps
+       the branch covered.
   path /var/lib/k8s-data/<name>[/<pathSuffix>], e.g. librechat + `mongo` ->
        /var/lib/k8s-data/librechat/mongo. Renaming a key moves the directory
        and the pod comes up on an empty volume.

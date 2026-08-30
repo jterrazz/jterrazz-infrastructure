@@ -1,11 +1,20 @@
 # Default values for app chart
 # Apps define their config in .infrastructure/application.yaml
+#
+# Every key the templates read is declared here with its default, so a template
+# never re-defaults one (`values.yaml` owns defaults; templates read them
+# plainly). An empty string / map / list means "unset" for the branch that
+# reads it.
 
 metadata:
   name: ""
 
 spec:
+  # Set by app CI: --set spec.image=registry.internal.jterrazz.com/<app>:<tag>.
+  # Empty falls back to <registry>/<app>:latest (_helpers.tpl app.image).
+  image: ""
   port: 3000
+  replicas: 1
   resources:
     cpu: 100m
     memory: 256Mi
@@ -15,7 +24,17 @@ spec:
   dashboards: {}
   # name -> Grafana unified-alerting provisioning YAML. prod-only, like dashboards.
   alerts: {}
+  # Merged OVER the chart's hardened container defaults (deployment.yaml).
   securityContext: {}
+  # Drops runAsNonRoot and the pod-level uid/gid/fsGroup block.
+  runAsRoot: false
+  env: {}
+  # { path, env[] } — an empty path renders no InfisicalSecret.
+  secrets: {}
+  # Infisical env slug; empty means "the deploy environment's own name".
+  secretsEnv: ""
+  # List of { host, path?, public, stripPrefix?, redirectTo?, preservePath? }.
+  ingress: []
   # Opt-in in-cluster platform services, resolved against the catalog in
   # templates/_helpers.tpl (app.platformCatalog). Valid: otel-collector,
   # gateway-intelligence. Unknown names hard-fail the render.

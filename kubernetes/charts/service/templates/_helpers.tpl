@@ -14,5 +14,5 @@ spelunking only — nothing selects on it.
 {{- define "service.labels" -}}
 app.kubernetes.io/name: {{ include "service.name" . }}
 app.kubernetes.io/part-of: jterrazz-infrastructure
-app.kubernetes.io/managed-by: helm
+app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}

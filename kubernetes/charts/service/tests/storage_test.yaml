@@ -8,8 +8,8 @@ suite: named-volume storage map, claimName override, nodeAffinity
 # node's disk, so every one of them is pinned below.
 #
 # Document order is Helm's map iteration order — sorted by key — with a PV then
-# a PVC per volume. The fixture's keys are data, metrics, uploads:
-#   0/1 data   2/3 metrics   4/5 uploads
+# a PVC per volume. The fixture's keys are data, metrics, node-local, uploads:
+#   0/1 data   2/3 metrics   4/5 node-local   6/7 uploads
 templates:
   - templates/storage.yaml
 values:
@@ -18,7 +18,7 @@ tests:
   - it: emits one PV and one PVC per named volume
     asserts:
       - hasDocuments:
-          count: 6
+          count: 8
       - isKind:
           of: PersistentVolume
         documentIndex: 0
@@ -55,6 +55,19 @@ tests:
       - equal:
           path: spec.hostPath.path
           value: /var/lib/k8s-data/ci-test-service/uploads
+        documentIndex: 6
+
+  - it: takes nodeLocalPath verbatim, outside /var/lib/k8s-data
+    # The opt-out from the Mac share. A path that silently kept the
+    # /var/lib/k8s-data prefix would put the data back on virtiofs.
+    asserts:
+      - equal:
+          path: spec.hostPath.path
+          value: /var/lib/ci-test-node-local
+        documentIndex: 4
+      - equal:
+          path: metadata.name
+          value: ci-test-service-node-local
         documentIndex: 4
 
   - it: defaults the PVC name to <name>-<key> and binds it by volumeName
@@ -77,11 +90,7 @@ tests:
         documentIndex: 1
 
   - it: claimName overrides ONLY the PVC name, never the PV or the binding
-    # A StatefulSet volumeClaimTemplate looks for storage-<release>-<ordinal>
-    # and provisions a fresh dynamic volume if it does not find one — which is
-    # how Loki and Tempo, before they were retired, would have silently
-    # abandoned their hostPath data. The PV keeps its <name>-<key> identity and
-    # the PVC still binds to it.
+    # Why that separation is data-destroying if it breaks: templates/storage.yaml.
     asserts:
       - equal:
           path: metadata.name

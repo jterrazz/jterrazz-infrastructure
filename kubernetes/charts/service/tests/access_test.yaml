@@ -79,7 +79,26 @@ tests:
       - failedTemplate:
           errorMessage: "`private` was replaced by `access: private|cluster-internal|public` in service chart 2.1 — remove it from this values file"
 
+  - it: "ORs the canonical host with every alias — never the v2 Host(a, b)"
+    # Traefik v3 dropped multi-value matchers. `Host(a, b)` passes the CRD
+    # schema and then fails to build the router: 404 on every name, no error
+    # on apply and nothing in `kubectl get` to say so.
+    asserts:
+      - equal:
+          path: spec.routes[0].match
+          value: Host(`ci-test-service.jterrazz.com`) || Host(`ci-test-alias.example`)
+
+  - it: matches the canonical host alone when no alias is declared
+    set:
+      aliases: null
+    asserts:
+      - equal:
+          path: spec.routes[0].match
+          value: Host(`ci-test-service.jterrazz.com`)
+
   - it: routes to the named service on the declared port
+    set:
+      aliases: null
     asserts:
       - equal:
           path: spec.routes[0].match
