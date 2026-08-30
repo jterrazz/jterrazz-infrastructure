@@ -109,7 +109,7 @@ kubernetes/
 │                     platform service, from one values file. Version:
 │                     kubernetes/charts/platform-service/Chart.yaml
 ├── cluster/          cluster-wide manifests, `kubectl apply -f … -R`:
-│                     namespaces, the `manual` StorageClass, Traefik config +
+│                     namespaces, the `manual` StorageClass, Traefik
 │                     middlewares + TLS options, one NetworkPolicy file per
 │                     namespace (all 7 declared namespaces are covered)
 ├── schemas/          vendored kubeconform CRD schemas, for the one CRD whose

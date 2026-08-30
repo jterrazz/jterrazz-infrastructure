@@ -1,6 +1,10 @@
 ---
 # Everything under kubernetes/cluster/: namespaces, the `manual` StorageClass,
-# Traefik config/middleware/TLS options and the default-deny NetworkPolicies.
+# Traefik middlewares/TLS options and the default-deny NetworkPolicies. Plus
+# the one file outside that tree this step owns: Traefik's own HelmChartConfig,
+# which is the VALUES of a single release (k3s' bundled Traefik) and therefore
+# lives in kubernetes/services/traefik/ with every other release's values, not
+# among the cluster-wide objects.
 
 # Apply the HelmChartConfig BEFORE waiting on the Traefik install job, not
 # after: on a k3s version bump the bundled chart can require the NEW values
@@ -15,7 +19,7 @@
       - kubectl
       - apply
       - -f
-      - "{{ manifest_dir }}/kubernetes/cluster/traefik/traefik-config.yaml"
+      - "{{ manifest_dir }}/kubernetes/services/traefik/helm-chart-config.yaml"
   register: traefik_config_apply
   changed_when: "'created' in traefik_config_apply.stdout or 'configured' in traefik_config_apply.stdout"
 

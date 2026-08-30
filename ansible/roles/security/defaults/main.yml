@@ -19,7 +19,7 @@ security_ci_deploy_pubkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPPCsf2boqXrePRF
 # NOTE UFW is the second gate for 80/443, not the first: klipper-lb DNATs in
 # PREROUTING before UFW's INPUT filter sees the packet, so the real gate is
 # `loadBalancerSourceRanges` in
-# kubernetes/cluster/traefik/traefik-config.yaml.
+# kubernetes/services/traefik/helm-chart-config.yaml.
 security_ufw_rules:
   # Any source -> sshd. Deliberately unrestricted: the host has no public
   # inbound path at all, so a source rule buys nothing and can lock out the Mac.

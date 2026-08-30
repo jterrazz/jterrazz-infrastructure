@@ -1,7 +1,7 @@
 ---
 # Global rate limit — 100 req/s average, burst 200: normal browsing passes,
 # aggressive scrapers do not. Attached to the websecure entrypoint for every
-# route (traefik-config.yaml).
+# route (kubernetes/services/traefik/helm-chart-config.yaml).
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -27,7 +27,7 @@ spec:
     #
     # KEEP IN SYNC, entry for entry, with
     # `--entryPoints.websecure.forwardedHeaders.trustedIPs` in
-    # kubernetes/cluster/traefik/traefik-config.yaml
+    # kubernetes/services/traefik/helm-chart-config.yaml
     # (spec.valuesContent additionalArguments) — a range trusted there but
     # missing here becomes the "client IP" this limiter buckets on.
     #

@@ -38,7 +38,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GROUP_VARS = "ansible/inventories/group_vars/all.yml"
 INFISICAL_VARS = "scripts/infisical-vars.py"
 PREFLIGHT = "ansible/roles/platform/tasks/preflight.yml"
-TRAEFIK_CONFIG = "kubernetes/cluster/traefik/traefik-config.yaml"
+TRAEFIK_CONFIG = "kubernetes/services/traefik/helm-chart-config.yaml"
 MIDDLEWARE = "kubernetes/cluster/traefik/middleware.yaml"
 SMOKE = "scripts/smoke.sh"
 MAKEFILE = "Makefile"
@@ -382,7 +382,7 @@ def check_traefik_trusted_ips():
     """
     problems = []
 
-    # traefik-config.yaml embeds the whole Traefik chart config as a
+    # helm-chart-config.yaml embeds the whole Traefik chart config as a
     # `valuesContent: |-` STRING, so this is not addressable YAML. Match the
     # CLI argument itself, wherever it sits and however it is quoted.
     config = read(TRAEFIK_CONFIG)

@@ -41,7 +41,7 @@ helm_diff_version: "v3.15.10"
 # Kubernetes' version-skew policy forbids it.
 #
 # A k3s minor can move the BUNDLED TRAEFIK CHART across a breaking major, so
-# re-read kubernetes/cluster/traefik/traefik-config.yaml against the new chart's
+# re-read kubernetes/services/traefik/helm-chart-config.yaml against the new chart's
 # values.schema.json IN THE SAME CHANGE. Renamed *port* keys hard-fail the
 # helm-install job; a renamed `service.*` key does NOT — `service` carries no
 # `additionalProperties: false`, so a stale key is a SILENT no-op. That is the

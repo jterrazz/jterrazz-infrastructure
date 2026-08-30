@@ -1,5 +1,12 @@
 ---
-# Overrides for the k3s-managed Traefik install.
+# The values of ONE release: k3s' bundled Traefik, which helm-controller
+# installs from a HelmChart in kube-system. That is why this sits with every
+# other release's values under kubernetes/services/ rather than among the
+# cluster-wide objects in kubernetes/cluster/traefik/ (the middlewares and the
+# TLSOption, which belong to no single release).
+#
+# Applied by roles/platform/tasks/cluster-manifests.yml, explicitly and FIRST —
+# `kubectl apply -f kubernetes/cluster -R` no longer reaches it.
 apiVersion: helm.cattle.io/v1
 kind: HelmChartConfig
 metadata:

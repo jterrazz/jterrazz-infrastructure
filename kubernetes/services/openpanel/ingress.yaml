@@ -6,7 +6,7 @@
 #   /api/track -> op-api and NOTHING else — any other path 404s at Traefik,
 #   which is what keeps dashboard/admin/export off the internet. Abuse is
 #   guarded by the rate-limit middleware the websecure entrypoint attaches to
-#   every route (cluster/traefik/traefik-config.yaml) plus OpenPanel's
+#   every route (services/traefik/helm-chart-config.yaml) plus OpenPanel's
 #   per-project clientId/CORS.
 #
 # Both hosts strip /api before op-api, which serves /track, /trpc and /live at
