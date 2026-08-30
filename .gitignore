@@ -37,3 +37,6 @@ id_ed25519*
 # Claude Code (local agent state / settings)
 .claude/settings.local.json
 .claude/projects/
+
+# Agent worktrees (Claude Code isolation)
+.claude/worktrees/

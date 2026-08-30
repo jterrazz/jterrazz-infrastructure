@@ -47,7 +47,7 @@ make diff             # what a deploy would change, without changing it
 make redeploy-apps    # trigger every app's CI to rebuild + redeploy
 make destroy          # delete the VM (the Mac-side data directory stays)
 make check            # the checks CI runs, locally (alias: make lint)
-make check-tools      # ansible / pulumi / node / kubectl / orbctl present?
+make check-tools      # ansible / pulumi / node / kubectl / orbctl / helm / shellcheck / ansible-lint / python3 present?
 make kubeconfig       # regenerate ./kubeconfig.yaml from the VM (needs the tailnet)
 ```
 
@@ -89,9 +89,9 @@ missing secret hard-fails the run; there are no fallback defaults.
 
 ```
 ansible/
-├── playbooks/     site.yml     base → security → tailscale → resolved → k3s → platform
+├── playbooks/     site.yml     base → security → resolved → tailscale → k3s → platform
 │                  platform.yml the platform layer alone (what CI runs)
-├── roles/         base · security · tailscale · resolved · k3s · platform
+├── roles/         base · security · resolved · tailscale · k3s · platform
 └── inventories/   laptop.yml (OrbStack SSH proxy) · ci.yml (over Tailscale)
                    group_vars/all.yml — THE config surface: k3s_version,
                    helm_version, platform_chart_versions, private_hostnames
@@ -124,7 +124,7 @@ scripts/      deploy.sh · backup.sh · infisical-vars.py · platform-diff.sh
 | ---------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `validate.yaml`        | PR to main **and** push to main                                                                    | `tsc --noEmit` on `pulumi/`; shellcheck + python syntax on `scripts/`; `ansible-lint -c ansible/.ansible-lint` + `--syntax-check` on both playbooks; kubeconform over `kubernetes/cluster` and every raw manifest under `kubernetes/services`; both charts rendered against their `ci/test-values.yaml`. Plus gitleaks, helm-unittest, and assertions on the hand-synced pairs. |
 | `deploy-platform.yaml` | push to main touching `ansible/**`, `kubernetes/{services,cluster,charts/service}/**`; or manual   | Runs `platform.yml` only, over Tailscale, from a runner joined as `tag:ci`. Never the host layer — those roles restart sshd/tailscaled and would kill the runner's own session.                    |
-| `publish-chart.yaml`   | push to main touching `kubernetes/charts/app/**`; or manual                                        | Packages and pushes the app chart. Refuses to overwrite a published version (it is consumed unversioned); a no-op when the version already exists.                                                 |
+| `publish-chart.yaml`   | push to main touching `kubernetes/charts/app/**` or `scripts/publish-app-chart.sh`; or manual                                        | Packages and pushes the app chart. Refuses to overwrite a published version (it is consumed unversioned); a no-op when the version already exists.                                                 |
 | `smoke.yaml`           | after `deploy-platform.yaml` completes; weekly schedule; or manual                                  | Runs `scripts/smoke.sh --public --private --certs` against the live cluster — the only workflow that checks the deployed state rather than the tree.                                               |
 
 The CI fixtures are the validation contract: both charts render near-zero
