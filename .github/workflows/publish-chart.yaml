@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'kubernetes/charts/app/**'
+      - 'scripts/publish-app-chart.sh'
   workflow_dispatch:
 
 concurrency:
@@ -18,8 +19,6 @@ jobs:
   publish:
     name: Package and Push
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -38,48 +37,13 @@ jobs:
           infisical-client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           infisical-client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
 
-      - name: Login to OCI registry
-        run: |
-          echo "${{ env.DOCKER_REGISTRY_PASSWORD }}" | helm registry login registry.internal.jterrazz.com \
-            --username ${{ env.DOCKER_REGISTRY_USERNAME }} --password-stdin
-
-      # This chart is pulled UNVERSIONED by every app's deploy
-      # (`oci://…/charts/app`, no explicit version pin — see CLAUDE.md), so
-      # a push here reaches every app on its next deploy. Silently
-      # overwriting an already-published version would mean two different
-      # sets of templates answering to the same tag depending on which
-      # ones an app happened to pull before/after the overwrite — fail the
-      # build instead and force an explicit version bump in Chart.yaml.
-      # Skip (green no-op), don't fail, when the version already exists: the
-      # Ansible publish-app-chart task also publishes during a full deploy
-      # (with the same guard, see roles/platform/tasks/publish-app-chart.yml),
-      # so a push landing right after `make deploy` would otherwise go red on
-      # an already-current registry. The guard's real job is only to prevent
-      # OVERWRITING a published version (the chart is consumed unversioned, so
-      # a silent overwrite changes what every app deploys next) — publishing
-      # nothing when it's already there achieves that.
-      - name: Check whether this chart version is already published
-        id: version_check
-        run: |
-          set -euo pipefail
-          VERSION="$(awk -F': *' '/^version:/ {print $2; exit}' kubernetes/charts/app/Chart.yaml)"
-          if [ -z "$VERSION" ]; then
-            echo "::error::Could not read version: from kubernetes/charts/app/Chart.yaml"
-            exit 1
-          fi
-          echo "Chart.yaml version: $VERSION"
-          if helm pull oci://registry.internal.jterrazz.com/charts/app --version "$VERSION" --destination /tmp/chart-version-check >/dev/null 2>&1; then
-            echo "::notice::app chart $VERSION is already published — nothing to do. If you CHANGED templates, bump version: in kubernetes/charts/app/Chart.yaml, or this run silently publishes nothing."
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "Version $VERSION not yet published — proceeding."
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Package and push chart
-        if: steps.version_check.outputs.publish == 'true'
-        run: |
-          helm package kubernetes/charts/app --destination /tmp/
-          PKG=$(ls /tmp/app-*.tgz)
-          helm push "$PKG" oci://registry.internal.jterrazz.com/charts
-          echo "Published: $PKG"
+      # The login, the already-published guard and the push all live in the
+      # script, which is also what documents them — and what
+      # scripts/assert-sync.py compares against the Ansible copy of the same
+      # guard. Credentials go through `env:` so the registry password never
+      # lands in the expanded shell text of a step.
+      - name: Publish the app chart
+        env:
+          REGISTRY_USERNAME: ${{ env.DOCKER_REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ env.DOCKER_REGISTRY_PASSWORD }}
+        run: ./scripts/publish-app-chart.sh

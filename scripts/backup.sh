@@ -9,10 +9,9 @@
 # the control to where copies of this data actually travel: Time Machine, an
 # external disk, another machine.
 #
-# THE PASSPHRASE IS PERMANENT. Rotating it does not re-encrypt old archives,
-# it only orphans them. Keep it in Infisical (/jterrazz-actions,
-# BACKUP_ENCRYPTION_KEY under /jterrazz-infrastructure) — losing it loses
-# every archive it ever made, and
+# THE PASSPHRASE IS PERMANENT. Rotating it does not re-encrypt old archives, it
+# only orphans them. It lives in Infisical as BACKUP_ENCRYPTION_KEY under
+# /jterrazz-infrastructure; losing it loses every archive it ever made, and
 # there is no recovery path by design.
 #
 #   ./scripts/backup.sh                 # snapshot, workloads left running
@@ -47,7 +46,8 @@ require_key() {
     # Still nothing: pull it from Infisical directly. Deliberately NOT routed
     # through infisical-vars.py — that writes the deploy extra-vars file onto
     # the node, and this key has no business there.
-    if [ -z "${BACKUP_ENCRYPTION_KEY:-}" ] && [ -n "${INFISICAL_CLIENT_ID:-}" ]; then
+    if [ -z "${BACKUP_ENCRYPTION_KEY:-}" ] && [ -n "${INFISICAL_CLIENT_ID:-}" ] \
+        && [ -n "${INFISICAL_CLIENT_SECRET:-}" ]; then
         info "Fetching BACKUP_ENCRYPTION_KEY from Infisical"
         local token
         token=$(curl -s -X POST https://eu.infisical.com/api/v1/auth/universal-auth/login \
@@ -79,9 +79,15 @@ verify() {
     local archive="$1"
     info "Verifying $archive"
     local count
-    count=$(openssl enc -d -aes-256-cbc -pbkdf2 -iter "$ITER" \
-                -pass env:BACKUP_ENCRYPTION_KEY -in "$archive" \
-            | tar -tzf - | wc -l | tr -d ' ')
+    # `if ! count=$(...)`, not a bare assignment: under `set -e` a failed
+    # decrypt aborts the script outright and the branches below never run, so
+    # the one failure this function exists to report is the one it misses.
+    if ! count=$(openssl enc -d -aes-256-cbc -pbkdf2 -iter "$ITER" \
+                     -pass env:BACKUP_ENCRYPTION_KEY -in "$archive" \
+                 | tar -tzf - | wc -l | tr -d ' '); then
+        error "Archive did not decrypt — wrong BACKUP_ENCRYPTION_KEY or corrupt file"
+        return 1
+    fi
     if [ "$count" -lt 1 ]; then
         error "Archive decrypted to an empty listing."
         return 1
@@ -110,8 +116,8 @@ main() {
 
     if [ "$consistent" -eq 1 ]; then
         # `systemctl stop k3s` does NOT stop the containers — they keep writing
-        # through the whole tar and the databases land torn. This has produced
-        # two unusable backups already; killall is the only thing that works.
+        # through the whole tar and the databases land torn. killall is the
+        # only thing that actually stops them.
         section "Stopping workloads"
         orb -m "$MACHINE" -u root /usr/local/bin/k3s-killall.sh >/dev/null 2>&1 || true
         success "Workloads stopped"

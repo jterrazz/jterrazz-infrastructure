@@ -26,7 +26,7 @@ INVENTORY="$PROJECT_DIR/ansible/inventories/laptop.yml"
 if [ ! -f "$PROJECT_DIR/.env" ]; then
     error "Missing $PROJECT_DIR/.env"
     error "It must define PULUMI_ACCESS_TOKEN, INFISICAL_CLIENT_ID and INFISICAL_CLIENT_SECRET."
-    error "See the '.env' section of CLAUDE.md; the file is gitignored on purpose."
+    error "See 'Local .env' in docs/RUNBOOK.md; the file is gitignored on purpose."
     exit 1
 fi
 set -a
@@ -94,13 +94,6 @@ case "${1:-}" in
         pulumi_destroy
         ;;
     --ansible-only)
-        run_site
-        ;;
-    # Deprecated spelling of --ansible-only, accepted for one release. "skip-up"
-    # named the thing it does NOT do (pulumi up), which read as "skip the
-    # deploy" often enough to be worth renaming.
-    --skip-up)
-        echo "warning: --skip-up is deprecated, use --ansible-only" >&2
         run_site
         ;;
     --platform)

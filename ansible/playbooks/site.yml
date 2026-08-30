@@ -18,9 +18,10 @@
       register: python_bootstrap
       changed_when: "'Setting up python3' in python_bootstrap.stdout"
 
-# Role order is load-bearing: base installs systemd-resolved and creates the
-# /var/lib/k8s-data symlink; tailscale must unmask and start resolved before
-# k3s, whose kubelet pins the resolved uplink resolv.conf.
+# Role order is load-bearing: base installs the systemd-resolved package and
+# creates the /var/lib/k8s-data symlink; resolved must unmask and repair it
+# before k3s, whose kubelet pins the resolved uplink resolv.conf, and before
+# tailscale, whose daemon reads /etc/resolv.conf at startup.
 - name: Configure the cluster node
   hosts: cluster
   become: true
@@ -30,6 +31,8 @@
       tags: [base]
     - role: security
       tags: [security]
+    - role: resolved
+      tags: [resolved, dns, networking]
     - role: tailscale
       tags: [tailscale, networking]
     - role: k3s

@@ -2,11 +2,10 @@
 #
 # One k3s cluster: an OrbStack VM on the dev Mac. `make deploy` provisions it
 # (Pulumi) and configures it (Ansible); `scripts/deploy.sh` is the canonical
-# entry point. The Hetzner target was removed — docs/hetzner.md has the
-# resurrection recipe.
+# entry point.
 
 .DEFAULT_GOAL := help
-.PHONY: help deploy deploy-platform destroy redeploy-apps check-tools check lint diff smoke kubeconfig
+.PHONY: help deploy deploy-platform destroy redeploy-apps check-tools check lint diff smoke backup kubeconfig
 
 GREEN := \033[32m
 YELLOW := \033[33m
@@ -18,7 +17,7 @@ NC := \033[0m
 # inventories/ci.yml are the other two places it appears).
 VM_NAME := jterrazz-infrastructure
 KUBECONFIG_FILE := kubeconfig.yaml
-NODE_FQDN = $(shell awk '/ansible_host:/ {print $$2; exit}' ansible/inventories/ci.yml)
+NODE_FQDN := $(shell awk '/ansible_host:/ {print $$2; exit}' ansible/inventories/ci.yml)
 
 ##@ Deploy
 
@@ -39,11 +38,8 @@ redeploy-apps: ## Trigger every app's CI to rebuild+redeploy (bootstrap after cl
 # `make deploy` writes kubeconfig.yaml as a side effect (roles/k3s/tasks/
 # kubeconfig.yml); this is the same two steps on their own, for the far more
 # common case of "the file is stale/gone and I only want to look at the
-# cluster". k3s writes a server address of 127.0.0.1 (0.0.0.0 here, since the
-# API server binds every interface), which is useless from the Mac — the
-# rewrite to the MagicDNS name is what makes the fetched file usable, and it is
-# the step that was easy to forget when this was two lines of prose in
-# scripts/platform-diff.sh's error path.
+# cluster". k3s writes a loopback server address, which is useless from the
+# Mac — the rewrite to the MagicDNS name is what makes the fetched file usable.
 kubeconfig: ## Regenerate ./kubeconfig.yaml from the VM (server = MagicDNS name)
 	@test -n "$(NODE_FQDN)" || { echo "✗ no ansible_host in ansible/inventories/ci.yml"; exit 1; }
 	@orb -m $(VM_NAME) -u root cat /etc/rancher/k3s/k3s.yaml > $(KUBECONFIG_FILE).tmp \
@@ -66,33 +62,38 @@ kubeconfig: ## Regenerate ./kubeconfig.yaml from the VM (server = MagicDNS name)
 diff: ## Preview what `make deploy-platform` would change (helm diff, read-only)
 	./scripts/platform-diff.sh
 
+backup: ## Encrypted snapshot of every persistent volume (ARGS=--consistent for a torn-free copy)
+	@./scripts/backup.sh $(ARGS)
+
 # Black-box probe of the deployed surfaces. `--public` needs nothing;
 # `--private` and the private half of `--certs` need this machine to be on the
 # tailnet, so they are left out of the default target here — CI
 # (.github/workflows/smoke.yaml) runs the full set from a runner that joins it.
-backup: ## Encrypted snapshot of every persistent volume (add --consistent for a torn-free copy)
-	@./scripts/backup.sh $(ARGS)
+smoke: ## Probe the public surfaces + their TLS expiry (ARGS=--private on the tailnet)
+	./scripts/smoke.sh --public --certs $(ARGS)
 
-smoke: ## Probe the public surfaces + their TLS expiry (add --private on the tailnet)
-	./scripts/smoke.sh --public --certs
-
+# The deploy tools first, then the four `make check` hard-fails on — a green
+# check-tools that omits them just moves the failure to the next target.
 check-tools: ## Check required tools
-	@command -v ansible >/dev/null 2>&1 && echo "✓ Ansible"   || echo "✗ Ansible"
-	@command -v pulumi  >/dev/null 2>&1 && echo "✓ Pulumi"    || echo "✗ Pulumi"
-	@command -v node    >/dev/null 2>&1 && echo "✓ Node.js"   || echo "✗ Node.js"
-	@command -v kubectl >/dev/null 2>&1 && echo "✓ kubectl"   || echo "✗ kubectl"
-	@command -v orbctl  >/dev/null 2>&1 && echo "✓ orbctl"    || echo "✗ orbctl"
+	@command -v ansible     >/dev/null 2>&1 && echo "✓ Ansible"      || echo "✗ Ansible"
+	@command -v pulumi      >/dev/null 2>&1 && echo "✓ Pulumi"       || echo "✗ Pulumi"
+	@command -v node        >/dev/null 2>&1 && echo "✓ Node.js"      || echo "✗ Node.js"
+	@command -v kubectl     >/dev/null 2>&1 && echo "✓ kubectl"      || echo "✗ kubectl"
+	@command -v orbctl      >/dev/null 2>&1 && echo "✓ orbctl"       || echo "✗ orbctl"
+	@command -v helm        >/dev/null 2>&1 && echo "✓ Helm"         || echo "✗ Helm"
+	@command -v shellcheck  >/dev/null 2>&1 && echo "✓ shellcheck"   || echo "✗ shellcheck"
+	@command -v ansible-lint >/dev/null 2>&1 && echo "✓ ansible-lint" || echo "✗ ansible-lint"
+	@command -v python3     >/dev/null 2>&1 && echo "✓ python3"      || echo "✗ python3"
 
 ##@ Check
 
-# Deliberately strict: every check below is also a CI job, and a missing tool
-# used to be a soft "skipped" line, which meant this target could print all
-# green on a machine where it had checked nothing. Install the tools:
+# Deliberately strict: a missing tool is a hard failure, so this can never
+# print all green on a machine where it checked nothing. Install them with:
 #   brew install shellcheck helm actionlint
 #   pip install ansible-core ansible-lint
-# actionlint is the ONE soft skip — it validates .github/workflows only, which
-# CI necessarily re-validates by simply running.
-check: ## Run the checks CI runs (shellcheck, python, sync assertions, ansible-lint, helm lint + unittest, actionlint)
+# actionlint and helm-unittest are the two soft skips — CI re-runs both
+# unconditionally, so a laptop without them is not a gap in the gate.
+check: ## Run the checks CI runs (shellcheck, python, sync assertions, tsc, ansible-lint, helm lint + unittest, actionlint)
 	@echo "== shellcheck scripts/ =="
 	shellcheck scripts/*.sh scripts/lib/*.sh
 	@echo "✓ shellcheck clean"
@@ -106,14 +107,21 @@ check: ## Run the checks CI runs (shellcheck, python, sync assertions, ansible-l
 	@echo "✓ python clean"
 	@echo ""
 	@echo "== cross-file sync assertions =="
-	@# Facts this repo has to write down twice (Pulumi DNS vs CoreDNS overrides,
-	@# the Infisical var map vs the Ansible preflight assert, Traefik's
-	@# trustedIPs vs the rate-limit excludedIPs, chart-version pins vs their
-	@# consumers, the platform-diff release table vs the Ansible helm
-	@# invocations, the three Helm/ansible-core/helm-unittest version pins, the
-	@# busybox digest, private hostnames vs the smoke table). Each pair carries
-	@# a "keep in sync" comment; this is what actually checks them.
+	@# Facts this repo has to write down twice (the Infisical var map vs the
+	@# Ansible preflight assert, Traefik's trustedIPs vs the rate-limit
+	@# excludedIPs, chart-version pins vs their consumers, the platform-diff
+	@# release table vs the Ansible helm invocations, the three
+	@# Helm/ansible-core/helm-unittest version pins, the busybox digest, the
+	@# smoke table vs both the private hostnames and the app repo list, the two
+	@# app-chart publish guards). Each pair carries a "keep in sync" comment;
+	@# this is what actually checks them.
 	python3 scripts/assert-sync.py
+	@echo ""
+	@echo "== pulumi typecheck =="
+	@# The `pulumi` job in validate.yaml runs exactly this after `npm ci`.
+	@test -d pulumi/node_modules || { echo "✗ pulumi/node_modules missing — run: npm ci --prefix pulumi"; exit 1; }
+	cd pulumi && npx tsc --noEmit
+	@echo "✓ tsc clean"
 	@echo ""
 	@echo "== ansible-lint ansible/ =="
 	ansible-lint -c ansible/.ansible-lint ansible/
@@ -134,8 +142,8 @@ check: ## Run the checks CI runs (shellcheck, python, sync assertions, ansible-l
 	@# helm lint + kubeconform only prove the rendered YAML is well-formed and
 	@# schema-valid. These assert what the templates COMPUTED: the NODE_OPTIONS
 	@# floor, the Mi/Gi parser, the dockerconfigjson escaping, which ipAllowList
-	@# an `access:` value selects. The plugin is the ONE soft skip here (like
-	@# actionlint) because CI installs and runs it unconditionally.
+	@# an `access:` value selects. The plugin is a soft skip (like actionlint)
+	@# because CI installs and runs it unconditionally.
 	@if helm plugin list 2>/dev/null | awk '{print $$1}' | grep -qx unittest; then \
 		helm unittest --strict kubernetes/charts/app kubernetes/charts/service || exit 1; \
 	else \
@@ -151,10 +159,8 @@ check: ## Run the checks CI runs (shellcheck, python, sync assertions, ansible-l
 		echo "⚠ actionlint not installed (brew install actionlint) — skipped"; \
 	fi
 
-# `check` is the real name — the target runs unit tests and cross-file
-# assertions, not just linters. `lint` stays as an alias: it is the name in
-# every app repo's universal CI interface (make build / lint / test), and
-# muscle memory does not need to be re-trained for a rename.
+# `lint` is the name in every app repo's universal CI interface (make build /
+# lint / test); `check` is what this target actually is.
 lint: check
 
 ##@ Help

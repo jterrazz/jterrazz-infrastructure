@@ -4,7 +4,3 @@
 # login block rather than failing.
 tailscale_oauth_client_id: ""
 tailscale_oauth_client_secret: ""
-
-tailscale_hostname: "{{ inventory_hostname | regex_replace('[^a-zA-Z0-9-]', '-') }}"
-tailscale_tags: ["tag:ci"]
-tailscale_accept_dns: true

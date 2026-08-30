@@ -25,6 +25,8 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/common.sh"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/helm-plugin.sh"
 
 GROUP_VARS="$PROJECT_DIR/ansible/inventories/group_vars/all.yml"
 SERVICE_CHART="$PROJECT_DIR/kubernetes/charts/service"
@@ -50,9 +52,8 @@ export KUBECONFIG
 #
 # This table IS checked: scripts/assert-sync.py parses both arrays below and
 # the Ansible tasks, and fails if a release, chart ref, namespace, version key
-# or values path differs. It drifted twice before that check existed (the three
-# grafana-community charts were still listed under `grafana/`), and a stale
-# preview is worse than no preview — it diffs a chart the deploy will not use.
+# or values path differs. A stale preview is worse than no preview — it diffs a
+# chart the deploy will not use, and says "no changes" about the one it will.
 #
 # UPSTREAM_RELEASES: <release>|<namespace>|<chart ref>|<version key in
 #                    group_vars platform_chart_versions>|<values file>
@@ -119,13 +120,7 @@ require_helm_diff() {
         return
     fi
     info "helm-diff plugin missing — installing $HELM_DIFF_VERSION"
-    # helm 4 verifies plugin signatures by default and this plugin publishes
-    # none; helm 3 has no --verify flag at all. Only pass it where it exists.
-    if helm plugin install --help 2>&1 | grep -q -- '--verify'; then
-        helm plugin install https://github.com/databus23/helm-diff --version "$HELM_DIFF_VERSION" --verify=false
-    else
-        helm plugin install https://github.com/databus23/helm-diff --version "$HELM_DIFF_VERSION"
-    fi
+    helm_plugin_install https://github.com/databus23/helm-diff "$HELM_DIFF_VERSION"
 }
 
 # `<repo>/<chart>` needs `helm repo add <repo>`; an OCI ref or a local path

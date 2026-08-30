@@ -25,6 +25,8 @@ on:
       - 'kubernetes/services/**'
       - 'kubernetes/cluster/**'
       - 'kubernetes/charts/service/**'
+      # The job runs this to build its extra-vars file.
+      - 'scripts/infisical-vars.py'
   workflow_dispatch:
 
 permissions:
@@ -42,9 +44,6 @@ jobs:
   deploy:
     name: Apply platform via Ansible
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      deployments: write
     # Records a GitHub Deployment under the `production` environment and
     # auto-updates its status (in_progress → success/failure) as this job
     # runs, so the repo's Environments/Deployments view stays live.
@@ -119,7 +118,7 @@ jobs:
           echo "EXTRA_VARS_FILE=$EXTRA" >> "$GITHUB_ENV"
 
       # Scope: platform.yml only (Helm-managed services + manifests).
-      # Skips the base/security/tailscale/k3s roles because those can restart
+      # Skips the base/security/resolved/tailscale/k3s roles because those can restart
       # sshd or tailscaled and would kill the runner's SSH session mid-run.
       # Use `make deploy` from the laptop when you need to apply changes
       # outside the platform layer.

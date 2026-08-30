@@ -2,11 +2,11 @@
 """Assert the cross-file invariants this repo cannot express in one place.
 
 Several facts in this repo are necessarily written down twice, in two
-different languages, because two different machines consume them (Cloudflare
-via Pulumi/TypeScript and CoreDNS via Ansible/YAML; a Traefik entrypoint
-argument and a Traefik Middleware CRD; a Python secret map and an Ansible
-assert block). Each pair carries a "KEEP IN SYNC" comment, and a comment is
-not a check. This script is the check.
+different languages, because two different machines consume them (a Traefik
+entrypoint argument and a Traefik Middleware CRD; a Python secret map and an
+Ansible assert block; a bash release table and the Ansible tasks that deploy
+it). Each pair carries a "KEEP IN SYNC" comment, and a comment is not a check.
+This script is the check.
 
 Run it:
     python3 scripts/assert-sync.py
@@ -48,6 +48,9 @@ MAKEFILE = "Makefile"
 VALIDATE_WF = ".github/workflows/validate.yaml"
 PUBLISH_WF = ".github/workflows/publish-chart.yaml"
 DEPLOY_WF = ".github/workflows/deploy-platform.yaml"
+TRIGGER_DEPLOYS = "scripts/trigger-app-deploys.sh"
+PUBLISH_SCRIPT = "scripts/publish-app-chart.sh"
+ANSIBLE_PUBLISH = "ansible/roles/platform/tasks/publish-app-chart.yml"
 
 
 # ---------------------------------------------------------------------------
@@ -240,28 +243,12 @@ def _flag_value(tokens, flag):
     return None
 
 
-def ts_string_array(text, name, source):
-    """Read a `const NAME = ["a", "b"];` array literal out of TypeScript."""
-    match = re.search(
-        rf"^const\s+{re.escape(name)}\s*(?::[^=]+)?=\s*\[(?P<body>[^\]]*)\]\s*;",
-        text,
-        re.MULTILINE,
-    )
-    if not match:
-        raise SyncError(
-            f"{source}: no `const {name} = [...]` array literal. It was "
-            f"renamed, moved, or made computed — update the matching check in "
-            f"scripts/assert-sync.py so the two files stay verifiably in sync."
-        )
-    return re.findall(r"""["'`]([^"'`]+)["'`]""", match.group("body"))
-
-
 # ---------------------------------------------------------------------------
 # Checks. Each returns a list of human-readable problems (empty == pass).
 # ---------------------------------------------------------------------------
 
 def check_secret_keys():
-    """(b) The Infisical var map (Python) vs the Ansible preflight assert.
+    """The Infisical var map (Python) vs the Ansible preflight assert.
 
     infisical-vars.py writes exactly one extra-vars file; preflight.yml is the
     gate that refuses to deploy without those vars. A var fetched but not
@@ -410,7 +397,7 @@ def check_secret_keys():
 
 
 def check_traefik_trusted_ips():
-    """(c) Entrypoint forwardedHeaders.trustedIPs vs rate-limit excludedIPs.
+    """Entrypoint forwardedHeaders.trustedIPs vs rate-limit excludedIPs.
 
     Both lists answer the same question — "which addresses are OUR hops" —
     for two different Traefik features. trustedIPs decides whether Traefik
@@ -494,7 +481,7 @@ def check_traefik_trusted_ips():
 
 
 def check_chart_version_pins():
-    """(d) Every `platform_chart_versions` pin is actually consumed.
+    """Every `platform_chart_versions` pin is actually consumed.
 
     An orphan pin reads as "this chart is pinned" while the install it was
     written for is gone or unpinned — i.e. the next deploy silently adopts
@@ -617,14 +604,12 @@ def _ansible_service_releases():
 
 
 def check_platform_diff_table():
-    """(e) scripts/platform-diff.sh's release table vs what Ansible installs.
+    """scripts/platform-diff.sh's release table vs what Ansible installs.
 
     platform-diff.sh hand-copies the release inventory so it can preview a
-    deploy without running one. Nothing links the two files, and the copy HAS
-    drifted: the three charts that moved to the `grafana-community` repo were
-    still listed under `grafana/` here long after telemetry.yml was migrated —
-    so the preview rendered a chart the deploy would never install, and said
-    "no changes" about the one it would.
+    deploy without running one, and nothing but this check links the two files.
+    A stale copy previews a chart the deploy will not install and says "no
+    changes" about the one it will.
     """
     problems = []
     diff = read(PLATFORM_DIFF)
@@ -768,7 +753,7 @@ def _setup_helm_versions(relpath):
 
 
 def check_helm_version():
-    """(f) `helm_version` in group_vars vs the Helm CI installs.
+    """`helm_version` in group_vars vs the Helm CI installs.
 
     Three machines, one Helm: the node (where roles/platform runs `helm
     upgrade`), the validate runner (which renders and unit-tests the charts)
@@ -792,7 +777,7 @@ def check_helm_version():
 
 
 def check_ansible_core_version():
-    """(g) The ansible-core pin in the linting workflow vs the deploying one.
+    """The ansible-core pin in the linting workflow vs the deploying one.
 
     validate.yaml lints and syntax-checks the playbooks; deploy-platform.yaml
     APPLIES them. If those two interpreters differ, a green lint proves nothing
@@ -826,7 +811,7 @@ def check_ansible_core_version():
 
 
 def check_helm_unittest_version():
-    """(h) The helm-unittest plugin version in CI vs the one `make check` names.
+    """The helm-unittest plugin version in CI vs the one `make check` names.
 
     The plugin embeds its own rendering library, so the committed snapshots in
     charts/*/tests/__snapshot__ are reproducible only against the version that
@@ -874,14 +859,13 @@ def _repo_files():
 
 
 def check_busybox_digest():
-    """(i) One busybox digest, repo-wide.
+    """One busybox digest, repo-wide.
 
-    busybox is the init container that chowns a hostPath volume before the real
-    workload starts — the app chart's, LibreChat's mongo, Prometheus' and all
-    three OpenPanel datastores'. They are pinned by digest so the tag cannot be
-    re-pointed under us, which only works if a bump touches every copy: a tree
-    with two digests is a tree where one manifest was missed, and the one that
-    was missed is exactly the one nobody rendered afterwards.
+    busybox is the init container that chowns a hostPath volume before the
+    real workload starts, wherever one exists. They are pinned by digest so the
+    tag cannot be re-pointed under us, which only works if a bump touches every
+    copy: a tree with two digests is a tree where one manifest was missed, and
+    the one that was missed is exactly the one nobody rendered afterwards.
     """
     problems = []
     digests = {}
@@ -919,7 +903,7 @@ def check_busybox_digest():
 
 
 def check_private_hosts_smoked():
-    """(j) Every private hostname is actually probed by smoke.sh.
+    """Every private hostname is actually probed by smoke.sh.
 
     group_vars' two private-hostname lists are the definition of "this name is
     served, tailnet-only". scripts/smoke.sh is the only thing that goes in the
@@ -964,6 +948,157 @@ def check_private_hosts_smoked():
     return problems
 
 
+def _smoke_public_hosts():
+    """Every hostname in smoke.sh's PUBLIC_CHECKS table."""
+    hosts = set()
+    for entry in bash_array(read(SMOKE), "PUBLIC_CHECKS", SMOKE):
+        fields = entry.split("|")
+        if len(fields) not in (4, 5):
+            raise SyncError(
+                f"{SMOKE}: PUBLIC_CHECKS entry {entry!r} has {len(fields)} "
+                f"fields, expected 4 or 5 "
+                f"(method|url|codes|label[|expected Location])."
+            )
+        hosts.add(fields[1].split("://", 1)[-1].split("/", 1)[0])
+    return hosts
+
+
+def check_public_hosts_have_repo():
+    """Every public surface smoke.sh probes names the repo that deploys it.
+
+    scripts/trigger-app-deploys.sh is what rebuilds the fleet after a repave.
+    A repo missing from it is a service that silently never comes back — which
+    is how jterrazz-web ended up absent while smoke.sh probed three of its
+    hostnames. The hostname column in REPOS is only there to make that
+    omission checkable; PLATFORM_PUBLIC_HOSTS covers the surfaces this repo
+    deploys itself, so the check spans the whole table rather than a subset.
+    """
+    problems = []
+    trigger = read(TRIGGER_DEPLOYS)
+
+    claimed = {}
+    for entry in bash_array(trigger, "REPOS", TRIGGER_DEPLOYS):
+        fields = entry.split("|")
+        if len(fields) != 2:
+            raise SyncError(
+                f"{TRIGGER_DEPLOYS}: REPOS entry {entry!r} has {len(fields)} "
+                f"fields, expected 2 (owner/repo|space-separated hostnames)."
+            )
+        repo, hosts = fields
+        if "/" not in repo:
+            raise SyncError(
+                f"{TRIGGER_DEPLOYS}: REPOS entry {entry!r} does not start with "
+                f"an `owner/repo`."
+            )
+        for host in hosts.split():
+            claimed[host] = repo
+    for host in bash_array(trigger, "PLATFORM_PUBLIC_HOSTS", TRIGGER_DEPLOYS):
+        claimed[host] = "this repo (roles/platform)"
+
+    probed = _smoke_public_hosts()
+
+    unclaimed = sorted(probed - set(claimed))
+    unprobed = sorted(set(claimed) - probed)
+    if unclaimed:
+        problems.append(
+            f"public hostname(s) in PUBLIC_CHECKS ({SMOKE}) that no entry in "
+            f"{TRIGGER_DEPLOYS} claims: {', '.join(unclaimed)}.\n"
+            f"        FIX: add the hostname to the owning repo's REPOS line "
+            f"(adding the repo itself if it is missing — `make redeploy-apps` "
+            f"is what brings it back after a repave), or to "
+            f"PLATFORM_PUBLIC_HOSTS if this repo deploys it."
+        )
+    if unprobed:
+        problems.append(
+            f"hostname(s) named in {TRIGGER_DEPLOYS} that PUBLIC_CHECKS "
+            f"({SMOKE}) does not probe: {', '.join(unprobed)}.\n"
+            f"        FIX: add "
+            f"`GET|https://<host>/|<codes>|<what it is>` to PUBLIC_CHECKS, or "
+            f"drop the hostname here. An unprobed public surface is one whose "
+            f"loss nobody notices."
+        )
+    return problems
+
+
+def check_chart_publish_guard():
+    """The two app-chart publish paths agree on the registry.
+
+    The chart is pulled UNVERSIONED by every app, so both publishers — the
+    script the workflow runs, and the Ansible task that covers the
+    fresh-cluster case where the node has no checkout — must guard the same
+    coordinates. The node cannot call the script (stage-manifests.yml copies
+    only kubernetes/ to it), so the duplication is real; this is what keeps it
+    honest.
+    """
+    problems = []
+    script = read(PUBLISH_SCRIPT)
+    workflow = read(PUBLISH_WF)
+
+    if PUBLISH_SCRIPT not in workflow:
+        problems.append(
+            f"{PUBLISH_WF} does not run {PUBLISH_SCRIPT}.\n"
+            f"        FIX: call the script. A second, hand-written copy of the "
+            f"guard in the workflow is exactly what drifted before."
+        )
+
+    registry = re.search(r"^REGISTRY=(\S+)$", script, re.MULTILINE)
+    if not registry:
+        raise SyncError(
+            f"{PUBLISH_SCRIPT}: no `REGISTRY=<host>` assignment — the script "
+            f"was restructured; update scripts/assert-sync.py."
+        )
+    want_pull = f"oci://{registry.group(1)}/charts/app"
+    want_push = f"oci://{registry.group(1)}/charts"
+
+    if f'"oci://$REGISTRY/charts/app"' not in script or f'"oci://$REGISTRY/charts"' not in script:
+        raise SyncError(
+            f"{PUBLISH_SCRIPT}: expected a `helm pull oci://$REGISTRY/charts/"
+            f"app` and a `helm push ... oci://$REGISTRY/charts`."
+        )
+
+    commands = ansible_commands(read(ANSIBLE_PUBLISH))
+    pulls = [c for c in commands if "helm pull" in c]
+    pushes = [c for c in commands if "helm push" in c]
+    if len(pulls) != 1 or len(pushes) != 1:
+        raise SyncError(
+            f"{ANSIBLE_PUBLISH}: expected exactly one `helm pull` and one "
+            f"`helm push`, found {len(pulls)} and {len(pushes)}."
+        )
+    # `.strip` because the inline `command: "helm push ... oci://…"` form keeps
+    # its closing quote in the flattened token.
+    def _oci(command):
+        for token in command.split():
+            if token.startswith("oci://"):
+                return token.strip("\"'")
+        return None
+
+    got_pull = _oci(pulls[0])
+    got_push = _oci(pushes[0])
+
+    if got_pull != want_pull:
+        problems.append(
+            f"the already-published guard pulls {got_pull!r} in "
+            f"{ANSIBLE_PUBLISH} but {want_pull!r} in {PUBLISH_SCRIPT}.\n"
+            f"        FIX: one registry, one chart path. A guard pointed "
+            f"somewhere else always says 'not published' and overwrites."
+        )
+    if got_push != want_push:
+        problems.append(
+            f"the push targets {got_push!r} in {ANSIBLE_PUBLISH} but "
+            f"{want_push!r} in {PUBLISH_SCRIPT}.\n"
+            f"        FIX: make them identical, or the two publishers fill two "
+            f"different registries and apps pull whichever one they were "
+            f"pointed at."
+        )
+    if "kubernetes/charts/app" not in " ".join(commands):
+        problems.append(
+            f"{ANSIBLE_PUBLISH} no longer packages kubernetes/charts/app.\n"
+            f"        FIX: both publishers must package the same chart "
+            f"directory."
+        )
+    return problems
+
+
 CHECKS = [
     ("infisical-vars.py vars == preflight.yml asserts", check_secret_keys),
     ("traefik trustedIPs == rate-limit excludedIPs", check_traefik_trusted_ips),
@@ -974,6 +1109,8 @@ CHECKS = [
     ("helm-unittest pinned identically in validate + Makefile", check_helm_unittest_version),
     ("one busybox digest repo-wide", check_busybox_digest),
     ("private hostnames are all probed by smoke.sh", check_private_hosts_smoked),
+    ("public hostnames all name a deploying repo", check_public_hosts_have_repo),
+    ("both app-chart publish guards agree", check_chart_publish_guard),
 ]
 
 

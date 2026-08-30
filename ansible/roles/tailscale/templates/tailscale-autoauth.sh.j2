@@ -26,10 +26,11 @@ echo "Tailscale not Running; re-authenticating with OAuth client."
 args=(
     --client-id="${TS_CLIENT_ID}"
     --client-secret="${TS_CLIENT_SECRET}"
-    --hostname="{{ tailscale_hostname }}"
-    --advertise-tags="{{ tailscale_tags | join(',') }}"
-{% if tailscale_accept_dns %}
-    --accept-dns
-{% endif %}
+    --hostname="{{ inventory_hostname | regex_replace('[^a-zA-Z0-9-]', '-') }}"
+    --advertise-tags="tag:ci"
+    # Spelled out because it is load-bearing, not because it differs from the
+    # default: MagicDNS is what resolves the *.ts.net targets every
+    # <svc>.internal.jterrazz.com CNAME points at.
+    --accept-dns=true
 )
 tailscale up "${args[@]}"

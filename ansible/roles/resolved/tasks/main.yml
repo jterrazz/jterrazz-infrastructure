@@ -1,0 +1,130 @@
+---
+# The DNS repair the OrbStack image needs before anything else resolves
+# reliably. It is its own role because it is load-bearing for k3s and CoreDNS,
+# not for Tailscale: site.yml runs it before roles/tailscale, and roles/k3s
+# pins kubelet's --resolv-conf at the uplink file this role fixes.
+
+# The OrbStack image ships systemd-resolved MASKED (the base role installs the
+# package). Without a stub resolver Tailscale writes /etc/resolv.conf itself
+# with `nameserver 100.100.100.100`, which does not chase CNAMEs from a public
+# zone into the tailnet zone — the deploy then fails at
+# "helm registry login registry.internal.jterrazz.com".
+- name: Ensure systemd-resolved is enabled (needed for CNAME chasing into tailnet)
+  ansible.builtin.systemd_service:
+    name: systemd-resolved
+    masked: false
+    enabled: true
+    state: started
+    daemon_reload: true
+  tags: [resolved, dns]
+
+# OrbStack's DHCP hands out a bogus DNS server (0.250.250.200) that silently
+# drops queries. Without an override resolved tries it first and CoreDNS
+# upstream forwarding times out for every non-tailnet name.
+- name: Ensure the systemd-resolved drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    mode: "0755"
+  tags: [resolved, dns]
+
+- name: Configure the systemd-resolved global DNS overrides
+  ansible.builtin.copy:
+    dest: /etc/systemd/resolved.conf.d/upstream.conf
+    mode: "0644"
+    content: |
+      [Resolve]
+      DNS=1.1.1.1 9.9.9.9
+      FallbackDNS=1.0.0.1 8.8.8.8
+      # Both default to yes and both open a listener on 5355 (LLMNR) and
+      # 5353 (mDNS) bound to every interface, answerable by any peer on the
+      # OrbStack bridge. Nothing here resolves by either protocol: names are
+      # tailnet MagicDNS, cluster DNS or public.
+      LLMNR=no
+      MulticastDNS=no
+  notify: Restart systemd-resolved
+  tags: [resolved, dns]
+
+# upstream.conf ABOVE IS NOT ENOUGH — this is the other half. `DNS=` in
+# resolved.conf sets the GLOBAL resolver and does NOT remove the PER-LINK one
+# DHCP supplies; resolved keeps both, and because eth0 has DefaultRoute it also
+# writes the bogus server into /run/systemd/resolve/resolv.conf. That file is
+# what kubelet pins with `--resolv-conf` (roles/k3s/templates/config.yaml.j2) and
+# therefore what CoreDNS forwards to, so a third of every in-cluster upstream
+# lookup was aimed at a resolver that silently drops queries.
+#
+# systemd-networkd is the DHCP client here, so its own knob is the fix:
+# `UseDNS=false` in a `<name>.network.d/*.conf` drop-in, which overrides
+# OrbStack's eth0.network without replacing a file the image owns. A
+# dhclient.conf `supersede` or an ifupdown hook would be dead config.
+- name: Discover the systemd-networkd file configuring the default interface
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      networkctl status {{ ansible_default_ipv4.interface }} --no-pager \
+        | awk '/Network File:/ {print $3; exit}'
+    executable: /bin/bash
+  register: resolved_networkd_file
+  changed_when: false
+  tags: [resolved, dns]
+
+# Fails loudly rather than writing a drop-in for a file that does not exist: a
+# `.network.d` directory whose base file was renamed is inert, and an inert
+# drop-in here means the bogus resolver comes back with nobody noticing.
+- name: Assert the default interface is managed by systemd-networkd
+  ansible.builtin.assert:
+    that:
+      - resolved_networkd_file.stdout is match('.*\.network$')
+    fail_msg: >-
+      networkctl reports no .network file for
+      {{ ansible_default_ipv4.interface }} (got
+      {{ resolved_networkd_file.stdout | default('') | trim | default('nothing', true) }}).
+      This role disables the DHCP-supplied resolver through a systemd-networkd
+      drop-in, which only works if networkd owns the link. If the OrbStack image
+      switched network stacks, the fix has to switch with it — see the block
+      comment above this task.
+  tags: [resolved, dns]
+
+- name: Ensure the systemd-networkd drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/network/{{ resolved_networkd_file.stdout | trim | basename }}.d
+    state: directory
+    mode: "0755"
+  tags: [resolved, dns]
+
+- name: Stop DHCP from installing its own resolver on the default link
+  ansible.builtin.copy:
+    dest: /etc/systemd/network/{{ resolved_networkd_file.stdout | trim | basename }}.d/10-no-dhcp-dns.conf
+    mode: "0644"
+    content: |
+      # Managed by ansible/roles/resolved. OrbStack's DHCP hands out
+      # 0.250.250.200, which silently drops every query; a global DNS= cannot
+      # remove a per-link server. Only UseDNS is disabled — address, route
+      # and search domain still come from DHCP.
+      [DHCPv4]
+      UseDNS=false
+
+      [DHCPv6]
+      UseDNS=false
+
+      # RDNSS from router advertisements, the IPv6 equivalent of the same trap.
+      [IPv6AcceptRA]
+      UseDNS=false
+  notify: Reload systemd-networkd
+  tags: [resolved, dns]
+
+# The resolver must be live BEFORE the symlink below and before roles/tailscale
+# restarts tailscaled, so this cannot wait for end-of-play handler execution.
+- name: Apply the resolved and networkd config changes now
+  ansible.builtin.meta: flush_handlers
+
+# roles/tailscale reads `resolved_stub_link.changed` to decide whether an
+# already-running tailscaled is holding a stale resolv.conf.
+- name: Point /etc/resolv.conf at the systemd-resolved stub
+  ansible.builtin.file:
+    src: /run/systemd/resolve/stub-resolv.conf
+    dest: /etc/resolv.conf
+    state: link
+    force: true
+  register: resolved_stub_link
+  tags: [resolved, dns]

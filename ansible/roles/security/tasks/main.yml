@@ -93,18 +93,8 @@
     line: "IPV6=no"
   tags: [security, firewall]
 
-- name: Configure the UFW default incoming policy # noqa: args[module]
-  community.general.ufw:
-    direction: incoming
-    policy: "{{ security_ufw_default_incoming }}"
-  tags: [security, firewall]
-
-- name: Configure the UFW default outgoing policy # noqa: args[module]
-  community.general.ufw:
-    direction: outgoing
-    policy: "{{ security_ufw_default_outgoing }}"
-  tags: [security, firewall]
-
+# Only the forward policy: UFW already defaults incoming to deny and outgoing
+# to allow.
 - name: Configure the UFW default forward policy # noqa: args[module]
   community.general.ufw:
     direction: routed

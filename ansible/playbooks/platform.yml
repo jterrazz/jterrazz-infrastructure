@@ -32,19 +32,14 @@
         state: absent
       tags: [always]
 
-    # Deliberately lists NO version numbers: a hand-written banner drifts from
-    # the actual --version pins and then confidently reports versions that were
-    # never deployed. `helm list -A` is the only honest answer.
+    # Names neither a service nor a version: a hand-written inventory drifts
+    # from the tasks and then confidently reports something that was never
+    # deployed. `helm list -A` is the only honest answer.
     - name: Deployment complete
       ansible.builtin.debug:
         msg: |
           Platform deployment complete.
 
-          Deployed: cert-manager, infisical secrets-operator, cloudflared,
-          grafana + victoria-metrics + victoria-logs + victoria-traces +
-          kube-state-metrics + node-exporter + otel-collector,
-          librechat, openpanel, registry.
-
           App chart published to: oci://registry.internal.jterrazz.com/charts/app
-          Installed versions:     helm list -A --kubeconfig {{ kubeconfig }}
+          Installed releases:     helm list -A --kubeconfig {{ kubeconfig }}
       tags: [always]
