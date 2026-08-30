@@ -3,9 +3,11 @@
 # Chart version is pinned in ansible/inventories/group_vars/all.yml
 # (platform_chart_versions.librechat).
 #
-# ALL bundled datastore subcharts are disabled: they pull from the deprecated
-# Bitnami repo. A standalone mongo:7.0 (mongodb.yaml) on a `manual` hostPath
-# PVC replaces them — that survives a repave, `local-path` does not.
+# The two bundled datastore subcharts the chart enables by default — mongodb
+# and meilisearch — are disabled: they pull from the deprecated Bitnami repo.
+# A standalone mongo:7.0 (mongodb.yaml) on a `manual` hostPath PVC replaces
+# them; that survives a repave, `local-path` does not. (redis is off in the
+# chart's own defaults.)
 
 # Tag pinned EXPLICITLY: an empty tag inherits the chart's appVersion, so the
 # running image would change under us with no diff here. Bump this together
@@ -58,17 +60,10 @@ global:
 # Bundled datastores: OFF (see header).
 mongodb:
   enabled: false
-redis:
-  enabled: false
 meilisearch:
   enabled: false
 
 librechat:
-  # The chart wires envFrom to a secret literally named
-  # `librechat-credentials-env` regardless of this value, so secret.yaml MUST
-  # create that exact name. Set here too, to stop the chart generating its own.
-  existingSecretName: librechat-credentials-env
-
   # Off because the `volumes:` block above already provides persistence, on a
   # repave-safe manual hostPath PVC rather than local-path.
   imageVolume:
@@ -127,13 +122,9 @@ librechat:
       enforce: false
       prioritize: true
       list:
-        # ┌─────────────────────────────────────────────────────────────────┐
-        # │ UPGRADE THE DEFAULT MODEL (new Opus): bump `model` AND `label` +  │
-        # │ `description` below, then push to main — CI redeploys. Applies to │
-        # │ every user automatically; existing conversations keep their       │
-        # │ original model, new chats use the new default. (No gateway alias  │
-        # │ — see CLAUDE.md "LibreChat: upgrading the default model".)        │
-        # └─────────────────────────────────────────────────────────────────┘
+        # UPGRADE THE DEFAULT MODEL (new Opus): bump `model`, `label` and
+        # `description` together — procedure and rationale in README.md,
+        # "Upgrading the default model".
         - name: "opus-full"
           label: "Opus 4.8 — Web + Artifacts"          # bump on new Opus
           default: true
