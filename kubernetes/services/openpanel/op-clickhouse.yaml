@@ -1,0 +1,136 @@
+# App-chart values for op-clickhouse — the event store and the dominant
+# resource user.
+#
+# The config below is upstream's self-hosting config verbatim, which is also
+# the fix for upstream issue #324 (ClickHouse pegged at ~140% CPU once
+# logrotate breaks its file log handle): log to console, drop every heavy
+# system log table. Kubernetes captures stdout, so there is no file log left
+# for logrotate to break.
+#
+# Runs the default no-auth user (CLICKHOUSE_SKIP_USER_SETUP=1, upstream
+# parity); ClusterIP-only and firewalled to this namespace by `network:` below
+# — that policy is the ONLY thing standing in front of an unauthenticated
+# database.
+metadata:
+  name: op-clickhouse
+
+environment: prod
+
+spec:
+  # ALREADY the newest OpenPanel-compatible version: their self-hosting compose
+  # pins exactly 25.10.2.65. Two upstream changes would bite this workload if
+  # bumped past it — 26.5 flips `date_time_input_format` to `best_effort`
+  # (changes event-ingest parsing), and 26.7 rejects the AggregatingMergeTree
+  # shape OpenPanel's materialized views use.
+  image: clickhouse/clickhouse-server:25.10.2.65
+  # The HTTP interface. `http://op-clickhouse:8123/openpanel` is CLICKHOUSE_URL
+  # in config.yaml; the native protocol on 9000 is listened on but nothing here
+  # dials it, so the Service no longer publishes it.
+  port: 8123
+  servicePort: 8123
+
+  # uid/gid 101 is the image's `clickhouse` user — the same uid
+  # `storage.owner` chowns to. Dropping ALL caps is safe: ClickHouse wants
+  # CAP_NET_ADMIN / IPC_LOCK / SYS_NICE only as optional optimisations and
+  # merely warns when they are absent.
+  securityContext:
+    runAsUser: 101
+    runAsGroup: 101
+
+  env:
+    CLICKHOUSE_SKIP_USER_SETUP: "1"
+
+  storage:
+    mountPath: /var/lib/clickhouse
+    claimName: openpanel-clickhouse
+    owner: "101:101"
+
+  health:
+    path: /ping
+
+  resources:
+    cpu: 100m
+    memory: 512Mi
+    memoryLimit: 1536Mi
+
+  network:
+    isolated: true
+
+  # Each file is mounted where the IMAGE looks for it, not under /app.
+  configFiles:
+    op-config.xml:
+      path: /etc/clickhouse-server/config.d/op-config.xml
+      content: |
+        <clickhouse>
+            <logger>
+                <level>warning</level>
+                <console>true</console>
+            </logger>
+
+            <!-- Must exceed op-api's client socket-reuse interval: at the 10s
+                 default, @clickhouse/client pings SELECT 1 on pooled sockets
+                 ClickHouse has already closed, producing "HTTP request error"
+                 spam (real queries unaffected). -->
+            <keep_alive_timeout>60</keep_alive_timeout>
+
+            <!-- issue #324 mitigation, see the file header. -->
+            <query_thread_log remove="remove"/>
+            <query_log remove="remove"/>
+            <text_log remove="remove"/>
+            <trace_log remove="remove"/>
+            <metric_log remove="remove"/>
+            <asynchronous_metric_log remove="remove"/>
+            <session_log remove="remove"/>
+            <part_log remove="remove"/>
+
+            <!-- Ours, not upstream's, and not about #324 — this one is about disk
+                 writes. op-api's keep-alive SELECT 1 pings each emit several
+                 processor rows; the table flushes every 7.5s onto the Mac's SSD and
+                 had grown to ~370x the row count of the OpenPanel data it profiles.
+                 A re-sync of this block from upstream must keep this line. -->
+            <processors_profile_log remove="remove"/>
+
+            <!-- Caches sized for THIS dataset, not for ClickHouse's defaults.
+                 Upstream ships mark_cache 5GiB and uncompressed_cache 8GiB, i.e.
+                 ceilings 3-5x larger than this container's whole 1536Mi limit.
+                 They are lazy, so the pod looks fine at ~500Mi and then drifts up
+                 to max_server_memory_usage (1.35GiB = 90% of the cgroup, which
+                 ClickHouse detects on its own) as queries touch more parts.
+                 This instance ingests a few hundred events per WEEK; 128Mi of
+                 mark cache covers the whole index, and the uncompressed cache is
+                 pure loss on a working set that already fits in the page cache. -->
+            <mark_cache_size>134217728</mark_cache_size>
+            <index_mark_cache_size>33554432</index_mark_cache_size>
+            <uncompressed_cache_size>0</uncompressed_cache_size>
+
+            <listen_host>0.0.0.0</listen_host>
+            <interserver_http_host>op-clickhouse</interserver_http_host>
+        </clickhouse>
+    op-user-config.xml:
+      path: /etc/clickhouse-server/users.d/op-user-config.xml
+      content: |
+        <clickhouse>
+            <profiles>
+                <default>
+                    <log_queries>0</log_queries>
+                    <log_query_threads>0</log_query_threads>
+                    <!-- Per-query cap on top of ClickHouse's cgroup-aware server
+                         cap, so a runaway "Paths" query (upstream issue #382)
+                         errors instead of OOM-killing the pod. -->
+                    <max_memory_usage>1073741824</max_memory_usage>
+                </default>
+            </profiles>
+        </clickhouse>
+    # Runs only against an empty data directory; the entrypoint `bash`es it
+    # rather than exec-ing it, so the ConfigMap's non-executable mode is fine.
+    init-db.sh:
+      path: /docker-entrypoint-initdb.d/init-db.sh
+      content: |
+        #!/bin/bash
+        set -e
+        clickhouse client -n <<-EOSQL
+            CREATE DATABASE IF NOT EXISTS openpanel;
+        EOSQL
+
+environments:
+  prod: {}

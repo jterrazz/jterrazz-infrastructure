@@ -1,0 +1,57 @@
+# App-chart values for op-dashboard — the Next.js admin UI, and the whole
+# reason the private host is `cluster-internal` rather than tailnet-only: it
+# SSRs against its own public URL from inside its pod. See config.yaml.
+metadata:
+  name: op-dashboard
+
+spec:
+  image: lindesvard/openpanel-dashboard:2.2.1
+  port: 3000
+  servicePort: 3000
+
+  # No uid pin — see the note in op-api.yaml.
+  runAsRoot: true
+
+  env:
+    ALLOW_REGISTRATION: "false"
+    NODE_OPTIONS: "--max-old-space-size=384"
+
+  resources:
+    cpu: 50m
+    memory: 128Mi
+    memoryLimit: 384Mi
+
+  health:
+    path: /api/healthcheck
+
+  ingress:
+    # The catch-all half of the private host: op-api's route carries the same
+    # host with `PathPrefix(/api)`, and Traefik ranks the more specific rule
+    # first, so /api/* reaches the API and everything else lands here.
+    - host: openpanel.internal.jterrazz.com
+      access: cluster-internal
+      tlsSecret: openpanel-tls
+      # The derived probe would be this host's /api/healthcheck, which the more
+      # specific route sends to op-api — i.e. it would not test the dashboard
+      # at all. It SSRs and bounces an unauthenticated visitor to /login or
+      # /onboarding, so 307 is the normal answer and 200 the already-rendered one.
+      smoke:
+        path: /
+        expect: "307,200"
+
+  network:
+    exposeTo:
+      - traefik
+    egress:
+      - to: namespace:platform-analytics
+      # -> Traefik, for the SSR fetch of its own public URL, which
+      # coredns-custom maps to Traefik's ClusterIP. THE PORT IS 8443, NOT 443:
+      # a NetworkPolicy is evaluated AFTER kube-proxy's DNAT, so the
+      # destination it sees is Traefik's containerPort. Writing 443 denies the
+      # traffic while reading as if it allows it, and the pod sees
+      # ECONNREFUSED with nothing logged anywhere. 8000 is web/HTTP, kept for
+      # symmetry.
+      - to: traefik
+        ports: [8443, 8000]
+      - to: internet
+        ports: [443]

@@ -1,42 +1,71 @@
-# Shared non-secret env for op-api / op-worker / op-dashboard, via envFrom;
-# secrets come from the Infisical-synced `openpanel-secrets` (secret.yaml).
+# The non-secret env every OpenPanel APPLICATION release shares — op-api,
+# op-worker and op-dashboard each load this file before their own, which is
+# what the `openpanel-config` ConfigMap and its three `envFrom` blocks used to
+# do. The datastores do not read it; their own values files carry the two
+# Postgres bootstrap variables they need.
+#
 # DASHBOARD_URL / API_URL are the PRIVATE host only — the public ingest host
 # analytics.jterrazz.com carries /api/track alone, configured per sending site.
 #
 # THE DASHBOARD SSRs AGAINST ITS OWN PUBLIC URL — image 2.2.1 has no separate
 # server-side URL — so that fetch rests on three things together: the host in
 # `private_hostnames_via_traefik` (group_vars/all.yml), the kube-system:8443
-# egress rule in cluster/network-policies/platform-analytics.yaml, and
-# ingress.yaml's `cluster-internal-access`. Remove one and /onboarding fails
+# egress rule in op-dashboard.yaml, and `access: cluster-internal` on the
+# routes in op-api.yaml / op-dashboard.yaml. Remove one and /onboarding fails
 # with `[tRPC SSR Error] fetch failed`. RETIRE all three the day a dashboard
 # image newer than 2.2.1 honours `API_URL_SSR`: set it, verify SSR, then drop
-# the hostname from private_hostnames_via_traefik and re-tighten the route to
-# private-access. (Nothing else lists the hostname — scripts/smoke.sh probes
-# whatever the IngressRoute in this directory says it should.)
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: openpanel-config
-  namespace: platform-analytics
-data:
-  NODE_ENV: "production"
-  SELF_HOSTED: "true"
-  BATCH_SIZE: "5000"
-  BATCH_INTERVAL: "10000"
-  ALLOW_INVITATION: "true"
-  # ALLOW_REGISTRATION is deliberately NOT here: it is a per-container env in
-  # apps.yaml so the true/false flip stays greppable.
-  REDIS_URL: "redis://op-redis:6379"
-  # The /openpanel path segment is the DB init-db.sh creates.
-  CLICKHOUSE_URL: "http://op-clickhouse:8123/openpanel"
-  DASHBOARD_URL: "https://openpanel.internal.jterrazz.com"
-  API_URL: "https://openpanel.internal.jterrazz.com/api"
-  # Browser origins allowed to POST events to /api/track on the public host.
-  # jterrazz.com + www.jterrazz.com are LIVE senders (the externally-hosted
-  # site posts here directly); the rest are pre-authorised and cost nothing.
-  # There is no shared SDK — each site integrates OpenPanel's browser snippet
-  # itself, so adding a sender means adding its apex (and www./sub) here.
-  API_CORS_ORIGINS: "https://openpanel.internal.jterrazz.com,https://jterrazz.com,https://www.jterrazz.com,https://spwn.sh,https://sig.news,https://clawssify.com,https://clawrr.com"
-  # Postgres bootstrap (non-secret half; password is in the Secret).
-  POSTGRES_USER: "openpanel"
-  POSTGRES_DB: "openpanel"
+# the hostname from private_hostnames_via_traefik and re-tighten both routes to
+# `access: private`.
+
+environment: prod
+
+spec:
+  env:
+    NODE_ENV: "production"
+    SELF_HOSTED: "true"
+    BATCH_SIZE: "5000"
+    BATCH_INTERVAL: "10000"
+    ALLOW_INVITATION: "true"
+    # ALLOW_REGISTRATION is deliberately NOT here: it is per-release in
+    # op-api.yaml and op-dashboard.yaml so the true/false flip stays greppable.
+    REDIS_URL: "redis://op-redis:6379"
+    # The /openpanel path segment is the DB init-db.sh creates.
+    CLICKHOUSE_URL: "http://op-clickhouse:8123/openpanel"
+    DASHBOARD_URL: "https://openpanel.internal.jterrazz.com"
+    API_URL: "https://openpanel.internal.jterrazz.com/api"
+    # Browser origins allowed to POST events to /api/track on the public host.
+    # jterrazz.com + www.jterrazz.com are LIVE senders (the externally-hosted
+    # site posts here directly); the rest are pre-authorised and cost nothing.
+    # There is no shared SDK — each site integrates OpenPanel's browser snippet
+    # itself, so adding a sender means adding its apex (and www./sub) here.
+    API_CORS_ORIGINS: "https://openpanel.internal.jterrazz.com,https://jterrazz.com,https://www.jterrazz.com,https://spwn.sh,https://sig.news,https://clawssify.com,https://clawrr.com"
+
+  # Infisical /jterrazz-infrastructure/openpanel, env prod. Each release syncs
+  # its own copy of the folder and projects only the keys it names — the
+  # `openpanel-secrets` Secret that all three read wholesale through `envFrom`
+  # is gone, and with it the Ansible task that had to create it before any of
+  # them started.
+  #
+  #   DATABASE_URL         postgresql://openpanel:<POSTGRES_PASSWORD>@op-postgres:5432/openpanel
+  #   DATABASE_URL_DIRECT  same as DATABASE_URL (no pooler here; used by migrations)
+  #   COOKIE_SECRET        32+ byte random — session/cookie signing
+  #
+  # ClickHouse and Redis have NO credential to store: they run unauthenticated
+  # and are isolated by their own `network:` blocks. Email
+  # (RESEND_API_KEY/SMTP) is omitted on purpose — no invitations or resets.
+  secrets:
+    path: /jterrazz-infrastructure/openpanel
+    env:
+      - DATABASE_URL
+      - DATABASE_URL_DIRECT
+      - COOKIE_SECRET
+
+  # Nothing in this namespace gets the reach the chart derives for an app:
+  # every rule below is one flow that was in
+  # cluster/network-policies/platform-analytics.yaml when these six workloads
+  # had no release to declare it with.
+  network:
+    isolated: true
+
+environments:
+  prod: {}

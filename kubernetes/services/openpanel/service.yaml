@@ -1,13 +1,27 @@
-# Service-chart values for OpenPanel — storage only.
+# Service-chart values for OpenPanel — the storage and the certificates its six
+# app-chart releases share.
 #
-# `host` is deliberately unset: OpenPanel is the one service whose ingress the
-# chart cannot express (two hostnames, different exposure, path-level routing,
-# a stripPrefix middleware), so ingress.yaml in this directory stays
-# hand-written.
+# `host` is deliberately unset: this service has no single route. Two hostnames
+# with different exposure, path-level routing between two backends — each route
+# is declared by the release that answers it (op-api.yaml, op-dashboard.yaml).
+# The CERTIFICATES cannot be, because op-api and op-dashboard answer on the
+# same hostname and only one object may own it.
 name: openpanel
+
+certificates:
+  # openpanel.internal.jterrazz.com — routed to op-api under /api and to
+  # op-dashboard everywhere else. Both routes name this secret.
+  openpanel-tls:
+    dnsNames:
+      - openpanel.internal.jterrazz.com
+  # analytics.jterrazz.com — public ingest, /api/track and nothing else.
+  openpanel-analytics-tls:
+    dnsNames:
+      - analytics.jterrazz.com
+
 storage:
   # Orgs, projects, dashboards, users. PGDATA is a `pgdata` subdir of the
-  # mount (postgres.yaml) so initdb's empty-dir check never sees lost+found.
+  # mount (op-postgres.yaml) so initdb's empty-dir check never sees lost+found.
   postgres:
     size: 3Gi
     pathSuffix: postgres

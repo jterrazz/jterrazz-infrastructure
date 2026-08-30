@@ -1,0 +1,58 @@
+# App-chart values for op-redis — the BullMQ job queue + event buffer, NOT an
+# evictable cache: `--appendonly yes` so in-flight events survive a restart.
+# No auth, so `network:` below is the only thing keeping other namespaces off it.
+metadata:
+  name: op-redis
+
+environment: prod
+
+spec:
+  # Latest 7.x. Deliberately NOT 8.x: OpenPanel's self-hosting compose pins
+  # redis:7.2.5-alpine and neither OpenPanel nor BullMQ publishes any statement
+  # supporting Redis 8, so 8.x would be two uncited assumptions under the job
+  # queue. 7.4 is a minor bump inside the line upstream pins — verified to
+  # start under this exact uid (999:1000) and these args.
+  # NOTE: 7.4's RDB/AOF are not readable by 7.2, so this is forward-only —
+  # acceptable because this volume is a rebuildable queue, not a source of truth.
+  image: redis:7.4.9-alpine
+  port: 6379
+  # `redis://op-redis:6379` is REDIS_URL in config.yaml.
+  servicePort: 6379
+
+  # uid 999 / gid 1000 is the image's `redis` user — the official image creates
+  # the group at 1000 and the user at 999, hence the mismatch.
+  securityContext:
+    runAsUser: 999
+    runAsGroup: 1000
+
+  args:
+    - "redis-server"
+    - "--appendonly"
+    - "yes"
+    # `everysec` is the default: one fsync per second, forever. The AOF lives
+    # on /var/lib/k8s-data, i.e. the Mac's APFS over virtiofs, where an fsync
+    # costs far more than the bytes it commits — and this is a job queue, so it
+    # churns keys far faster than it stores them. `no` leaves the flush to the
+    # kernel: a normal pod restart still replays the AOF, only a host-level
+    # crash loses the tail.
+    - "--appendfsync"
+    - "no"
+
+  storage:
+    mountPath: /data
+    claimName: openpanel-redis
+    owner: "999:1000"
+
+  health:
+    exec: ["redis-cli", "ping"]
+
+  resources:
+    cpu: 25m
+    memory: 64Mi
+    memoryLimit: 256Mi
+
+  network:
+    isolated: true
+
+environments:
+  prod: {}

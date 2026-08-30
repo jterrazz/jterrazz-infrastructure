@@ -233,15 +233,79 @@ releases:
       - services/librechat/values.yaml
 
   # --- OpenPanel ------------------------------------------------------------
-  # No upstream chart: the six workloads are hand-written manifests in
-  # services/openpanel/, applied by raw-manifests.yml. This release is only
-  # their storage.
+  # No upstream chart: six app-chart releases, one values file each, plus the
+  # shared non-secret env in services/openpanel/config.yaml (which the three
+  # APPLICATION releases load first — helm merges the two files).
+  #
+  # This release is their storage and the two certificates their routes name:
+  # op-api and op-dashboard both answer on openpanel.internal.jterrazz.com, so
+  # neither can own that hostname's certificate.
   - name: openpanel-platform
     namespace: platform-analytics
     inherit:
       - template: platform-service
     values:
       - services/openpanel/service.yaml
+
+  # The three datastores. Each mounts a claim openpanel-platform owns and is
+  # `isolated:` — reachable only from this namespace, dialling nothing but DNS.
+  - name: op-postgres
+    namespace: platform-analytics
+    chart: ./charts/app
+    needs:
+      - platform-analytics/openpanel-platform
+    values:
+      - services/openpanel/op-postgres.yaml
+
+  - name: op-redis
+    namespace: platform-analytics
+    chart: ./charts/app
+    needs:
+      - platform-analytics/openpanel-platform
+    values:
+      - services/openpanel/op-redis.yaml
+
+  - name: op-clickhouse
+    namespace: platform-analytics
+    chart: ./charts/app
+    needs:
+      - platform-analytics/openpanel-platform
+    values:
+      - services/openpanel/op-clickhouse.yaml
+
+  # op-api owns the schema — it runs `migrate:deploy` on boot — so it installs
+  # after the datastores and before the two releases that read what it wrote.
+  # 10m rather than the 5m default: a first-boot migration is the slow case,
+  # and its startupProbe alone allows 300s.
+  - name: op-api
+    namespace: platform-analytics
+    chart: ./charts/app
+    timeout: 600
+    needs:
+      - platform-analytics/op-postgres
+      - platform-analytics/op-redis
+      - platform-analytics/op-clickhouse
+    values:
+      - services/openpanel/config.yaml
+      - services/openpanel/op-api.yaml
+
+  - name: op-worker
+    namespace: platform-analytics
+    chart: ./charts/app
+    needs:
+      - platform-analytics/op-api
+    values:
+      - services/openpanel/config.yaml
+      - services/openpanel/op-worker.yaml
+
+  - name: op-dashboard
+    namespace: platform-analytics
+    chart: ./charts/app
+    needs:
+      - platform-analytics/op-api
+    values:
+      - services/openpanel/config.yaml
+      - services/openpanel/op-dashboard.yaml
 
   # --- registry -------------------------------------------------------------
   # The Certificate, the IngressRoute and the blob volume; the workload itself

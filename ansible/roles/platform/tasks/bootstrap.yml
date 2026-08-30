@@ -119,13 +119,6 @@
     wait_secret_name: librechat-credentials-env
     wait_secret_namespace: platform-ai
 
-- name: Provision the OpenPanel secrets
-  ansible.builtin.include_tasks: infisical-secret.yml
-  vars:
-    secret_manifest: "{{ manifest_dir }}/kubernetes/services/openpanel/secret.yaml"
-    wait_secret_name: openpanel-secrets
-    wait_secret_namespace: platform-analytics
-
 - name: Deploy the platform-service chart storage, certificates and ingress
   ansible.builtin.include_tasks: helmfile-apply.yml
   vars:

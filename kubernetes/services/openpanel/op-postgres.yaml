@@ -1,0 +1,70 @@
+# App-chart values for op-postgres — orgs, projects, dashboards, users.
+# Upstream self-hosting pins postgres:14-alpine.
+#
+# HELD AT 14 ON PURPOSE. OpenPanel pins `postgres:14-alpine` in BOTH
+# self-hosting/docker-compose.template.yml and the repo-root docker-compose.yml,
+# and documents no supported version anywhere else; their self-hosting
+# changelog has never recorded a Postgres bump. The only support statement
+# reaching higher is Prisma 6's supported-databases list (PG 9.6-18) — that is
+# the ORM, not the application. A major bump is a dump/restore one-way door on
+# live data, so it is not worth taking on an uncited target. `14-alpine`
+# already floats to the latest 14 patch (14.23).
+#
+# WORTH SCHEDULING SEPARATELY: PostgreSQL 14 goes EOL 2026-11-12. Before then
+# this needs either an OpenPanel release that pins a newer major, or a
+# deliberate accept-the-risk migration (procedure in docs/RUNBOOK.md).
+metadata:
+  name: op-postgres
+
+environment: prod
+
+spec:
+  image: postgres:14-alpine
+  port: 5432
+  # `postgresql://openpanel:<password>@op-postgres:5432/openpanel` is the
+  # DATABASE_URL in Infisical, so the Service answers on 5432, not on 80.
+  servicePort: 5432
+
+  # uid/gid 70 is the ALPINE image's `postgres` user — the Debian-based
+  # postgres images use 999. The same uid `storage.owner` chowns to: pinning it
+  # is what stops the entrypoint chowning PGDATA and su-exec-ing down itself.
+  securityContext:
+    runAsUser: 70
+    runAsGroup: 70
+
+  env:
+    POSTGRES_USER: openpanel
+    POSTGRES_DB: openpanel
+    # Keep PGDATA in a subdir so lost+found / hostPath root never collides with
+    # initdb's empty-dir check.
+    PGDATA: /var/lib/postgresql/data/pgdata
+
+  secrets:
+    path: /jterrazz-infrastructure/openpanel
+    env:
+      - POSTGRES_PASSWORD
+
+  storage:
+    mountPath: /var/lib/postgresql/data
+    # openpanel-platform owns this claim (service.yaml, Retain) so the data
+    # survives a repave; this release only mounts it.
+    claimName: openpanel-postgres
+    owner: "70:70"
+
+  health:
+    exec: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+
+  resources:
+    cpu: 25m
+    memory: 128Mi
+    memoryLimit: 384Mi
+
+  network:
+    # Postgres has a password, but the two stores beside it do not, and the
+    # rule is the same for all three: reachable only from this namespace (the
+    # baseline in cluster/network-policies/platform-analytics.yaml), dialling
+    # nothing but DNS.
+    isolated: true
+
+environments:
+  prod: {}

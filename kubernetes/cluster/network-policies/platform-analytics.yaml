@@ -1,8 +1,13 @@
 ---
 # platform-analytics (OpenPanel). k3s enforces NetworkPolicy, so this is real
-# isolation: ClickHouse, Postgres and Redis run WITHOUT passwords (upstream
-# design), and these policies are the only thing keeping another namespace off
-# them.
+# isolation: ClickHouse and Redis run WITHOUT passwords (upstream design), and
+# these policies plus the per-workload ones are the only thing keeping another
+# namespace off them.
+#
+# WHAT IS AND IS NOT IN THIS FILE. The namespace BASELINE only — default-deny,
+# allow-same-namespace, the namespace-wide DNS egress. Every rule that names
+# one workload is declared with that workload, in the `network:` block of its
+# values file in kubernetes/services/openpanel/.
 
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -26,44 +31,20 @@ spec:
     - Ingress
   ingress:
     # OpenPanel's own pods -> each other (apps to datastores); sourced by the
-    # namespace label, so nothing outside platform-analytics matches.
+    # namespace label, so nothing outside platform-analytics matches. This is
+    # the whole of what the three datastores admit: their own policies grant
+    # nothing, and Traefik reaches only op-api and op-dashboard, which say so
+    # themselves.
     - from:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: platform-analytics
 
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-traefik-to-frontends
-  namespace: platform-analytics
-spec:
-  podSelector:
-    matchExpressions:
-      - key: app
-        operator: In
-        values:
-          - op-api
-          - op-dashboard
-  policyTypes:
-    - Ingress
-  ingress:
-    # Traefik (kube-system) -> op-api and op-dashboard on 3000, i.e. both
-    # IngressRoutes in kubernetes/services/openpanel/ingress.yaml. op-worker
-    # is excluded by the podSelector and stays same-namespace only.
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - port: 3000
-          protocol: TCP
-
----
 # Egress is DEFAULT-DENY for every pod in the namespace (podSelector {} +
-# policyTypes: Egress), so each rule below is load-bearing — an OpenPanel flow
-# not listed here stops working.
+# policyTypes: Egress). This policy grants the namespace-wide minimum and
+# nothing else; each application release declares the rest — which is what
+# keeps the three datastores at "DNS and nothing else".
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -83,35 +64,3 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    # op-api / op-worker / op-dashboard -> the three datastores in this same
-    # namespace (Postgres 5432, Redis 6379, ClickHouse 8123 HTTP + 9000 native).
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: platform-analytics
-    # op-dashboard SSR -> Traefik: it fetches its OWN public URL from inside the
-    # pod, and coredns-custom maps that host to Traefik's ClusterIP. Without
-    # this, /login and /onboarding render "Something went wrong / fetch failed"
-    # server-side — the page itself, not just a log line.
-    #
-    # THE PORT IS 8443, NOT 443. A NetworkPolicy is evaluated AFTER kube-proxy's
-    # DNAT, so the destination it sees is the Traefik POD's containerPort, not
-    # the Service port the client dialled. Writing 443 here (as this rule did)
-    # denies the traffic while reading as if it allows it, and the pod sees
-    # ECONNREFUSED with nothing logged anywhere. Same trap for any Service whose
-    # port differs from its targetPort. 8000 is web/HTTP, kept for symmetry.
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - protocol: TCP
-          port: 8443
-        - protocol: TCP
-          port: 8000
-    # op-* pods -> the internet on 443 (geo/IP enrichment, avatar fetches).
-    # OPEN: nothing has enumerated which hosts OpenPanel actually dials, so the
-    # rule cannot be narrowed to an ipBlock without breaking enrichment.
-    - ports:
-        - protocol: TCP
-          port: 443
