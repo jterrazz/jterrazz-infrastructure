@@ -19,9 +19,9 @@ reviewable file.
 
 ## What is here, and why
 
-| File | Chart it tracks | Why the catalog copy is unusable |
+| File | Chart it tracks | How the catalog copy differs |
 | ---- | --------------- | -------------------------------- |
-| `secrets.infisical.com/infisicalsecret_v1alpha1.json` | `infisical/secrets-operator`, pinned by `platform_chart_versions.infisical` | The catalog schema still marks the **deprecated** flat `spec.resyncInterval` as `required` and sets `additionalProperties: false`, so it rejects `spec.syncConfig` outright. Every InfisicalSecret in this repo uses `syncConfig` + `managedKubeSecretReferences`, i.e. the shape 0.11.5 documents. |
+| `secrets.infisical.com/infisicalsecret_v1alpha1.json` | `infisical/secrets-operator`, pinned by `platform_chart_versions.infisical` | The catalog copy sets `additionalProperties: false` at every object level; the operator's own CRD does not, because the API server *prunes* unknown fields rather than refusing the object. That is the only remaining divergence — see "One difference from the catalog" below, and "Deleting a file here". |
 
 ## Regenerating
 
@@ -74,6 +74,12 @@ what `kubectl apply` would actually do, at the cost of not catching a typo'd key
 thing protecting against it). Type and shape errors are still caught: verified
 that `managedKubeSecretReferences` as a map and `syncConfig.resyncInterval` as an
 integer both fail.
+
+This is now the **whole** difference. A field-by-field diff of the vendored file
+against the catalog copy at operator 0.11.5 finds no other divergence: same
+properties (`syncConfig` included), same `required` lists, same types. Neither
+schema requires the deprecated flat `spec.resyncInterval`, and no manifest in
+this repo sets `syncConfig` at all — they use `managedKubeSecretReferences`.
 
 ## Deleting a file here
 

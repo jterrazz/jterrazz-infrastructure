@@ -2,7 +2,10 @@
 # `manual` — static provisioning against pre-created hostPath PVs under
 # /var/lib/k8s-data (on OrbStack a symlink to the Mac, so the data also
 # survives a `pulumi destroy` repave). Retain, so deleting a PVC keeps the
-# data. Every `manual` PV/PVC in the cluster is emitted by one of the two
+# data. ONE exception: a volume with `nodeLocalPath` set leaves that tree and
+# lives in the VM, so it does NOT survive a repave (grafana-data is the only
+# one — see kubernetes/charts/service/values.yaml).
+# Every `manual` PV/PVC in the cluster is emitted by one of the two
 # charts: kubernetes/charts/service (the `storage` map in each
 # kubernetes/services/<svc>/platform.yaml) or kubernetes/charts/app
 # (<app>-<env>-data, for any app that sets spec.storage).

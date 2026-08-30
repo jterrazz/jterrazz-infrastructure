@@ -83,13 +83,8 @@ default**. Whole-value replacement, not deep merge, with two exceptions:
 | any list (`ingress`, `platformServices`) | **Replaces** — an env's list fully supersedes `spec`'s, deliberately (a half-merged list of network surfaces is unreadable) |
 | any scalar              | Env value if present, else `spec`, else default                   |
 
-(Chart 2.2's README said base wins on `env`/`secrets` collisions. That was
-never the behaviour — the environment has always won. The doc was wrong; the
-code did not change.)
-
-One resolver implements all of it: `app.merged` in `templates/_helpers.tpl`
-(chart 2.3), which is why an environment can override **any** `spec` key
-rather than the handful that used to have a bespoke helper.
+One resolver implements all of it: `app.merged` in `templates/_helpers.tpl`,
+which is why an environment can override **any** `spec` key.
 
 **Nothing renders for an environment that isn't declared.** Every template is
 gated on `environment` existing as a key under `environments:` — a typo'd
@@ -224,8 +219,8 @@ storage:
   mountPath: /data     # required when `storage` is set
 ```
 
-Both keys are `required` as of chart 2.2 — a missing one used to render an
-unbindable PV or an empty mountPath, diagnosable only at runtime.
+Both keys are `required`: a missing one would otherwise render an unbindable
+PV or an empty mountPath, diagnosable only at runtime.
 
 Renders a `Retain` hostPath PV `<app>-<env>-data` at
 `/var/lib/k8s-data/<app>-<env>` (`storageClassName: manual`,
@@ -234,12 +229,10 @@ the Deployment to `strategy: Recreate`. A root `fix-permissions`
 initContainer `chown -R 1000:1000`s the mount, because hostPath dirs are
 created root-owned and the app container runs as 1000.
 
-The PV carries **no `nodeAffinity`** as of chart 2.3. The `infrastructure.nodeName`
-value that used to gate it was removed: only app CI installs this chart and it
-never passed one, so the branch never rendered. (The `service` chart, whose PVs
-Ansible creates, still pins node affinity.) If a second node is ever added,
-this needs restoring — an unpinned hostPath PV can bind on a node whose disk
-holds an empty directory.
+The PV carries **no `nodeAffinity`** — only app CI installs this chart and it
+passes no node name. (The `service` chart, whose PVs Ansible creates, does pin
+it.) If a second node is ever added, this needs restoring: an unpinned hostPath
+PV can bind on a node whose disk holds an empty directory.
 
 ### `spec.configFiles`
 
@@ -379,22 +372,18 @@ For a declared environment, namespace `<environment>-<app>`:
 | Secret (dockerconfigjson) | `registry-credentials`        | registry username + password set |
 | Certificate               | `<app>-<host-slug>-tls`       | per unique ingress host         |
 | IngressRoute              | `<app>-<idx>`                 | per ingress entry               |
-| Middleware (stripPrefix)  | `<app>-<idx>-strip-prefix`    | entry has a non-`/` path and `stripPrefix` is not false |
+| Middleware (stripPrefix)  | `<app>-<idx>-strip-prefix`    | entry has a non-`/` path, `stripPrefix` is not false, and it is not a redirect |
+| Middleware (redirectRegex) | `<app>-<idx>-redirect`       | entry sets `redirectTo`          |
 | InfisicalSecret           | `<app>-infisical`             | `spec.secrets.path` set         |
 | ConfigMap                 | `<app>-config`                | `spec.configFiles` set          |
 | ConfigMap                 | `<app>-dashboard-<name>`      | `spec.dashboards` set **and** env is prod |
 | ConfigMap                 | `<app>-alerts`                | `spec.alerts` set **and** env is prod |
 | PV / PVC                  | `<app>-<env>-data` / `<app>-data` | `spec.storage` set          |
 
-The `registry-credentials` `.dockerconfigjson` is built with `dict | toJson`
-(chart 2.2) — the previous hand-written JSON string broke on any password
-containing `"` or `\`, producing a Secret that applied cleanly and then
-failed every image pull with an unhelpful auth error.
-
 ## Versioning and publishing
 
-`kubernetes/charts/app/Chart.yaml` carries the chart `version:` (currently
-**2.6.0**). Push to `main` touching `kubernetes/charts/app/**` and
+`kubernetes/charts/app/Chart.yaml` carries the chart `version:`. Push to
+`main` touching `kubernetes/charts/app/**` and
 `.github/workflows/publish-chart.yaml` packages and pushes it to
 `oci://registry.internal.jterrazz.com/charts/app`.
 

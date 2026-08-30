@@ -153,12 +153,10 @@ spec:
           port: 8317
         - protocol: TCP
           port: 80
-    # librechat -> the internet on 443. Deliberately un-narrowed: LibreChat
-    # fetches over HTTPS on paths that are not enumerable from here (model and
-    # provider metadata, avatar/OG fetches for shared links, its own update
-    # check). No `except` on RFC1918 is needed — it has no reason to reach the
-    # node LAN — so unlike platform-telemetry's egress this one keeps the
-    # exclusion, which also means it cannot be used to reach the apiserver.
+    # librechat -> the internet on 443, un-narrowed because the destinations
+    # are not enumerable (model/provider metadata, avatar fetches, its own
+    # update check). The RFC1918 `except` is what keeps it off the node LAN and
+    # the apiserver — unlike platform-telemetry's egress, which needs them.
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0

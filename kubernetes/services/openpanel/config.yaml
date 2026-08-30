@@ -3,16 +3,15 @@
 # DASHBOARD_URL / API_URL are the PRIVATE host only — the public ingest host
 # analytics.jterrazz.com carries /api/track alone, configured per sending site.
 #
-# API_URL_SSR IS INERT: dashboard image 2.2.1 predates the commit that added it
-# (2026-07-01) and is still the newest published tag; at that tree SSR and the
-# browser shared ONE url. So the dashboard's SSR fetch of its own public URL
-# rests on THREE things together — the host in `private_hostnames_via_traefik`
-# (group_vars/all.yml), the kube-system:443 egress rule in
-# cluster/network-policies/platform-analytics.yaml, and ingress.yaml using
-# `cluster-internal-access`; remove one and /onboarding fails with
-# `[tRPC SSR Error] fetch failed`. TO RETIRE: move to a dashboard image newer
-# than 2026-07-01, verify SSR, then drop the hostname from
-# private_hostnames_via_traefik + PRIVATE_CHECKS and re-tighten to private-access.
+# THE DASHBOARD SSRs AGAINST ITS OWN PUBLIC URL — image 2.2.1 has no separate
+# server-side URL — so that fetch rests on three things together: the host in
+# `private_hostnames_via_traefik` (group_vars/all.yml), the kube-system:8443
+# egress rule in cluster/network-policies/platform-analytics.yaml, and
+# ingress.yaml's `cluster-internal-access`. Remove one and /onboarding fails
+# with `[tRPC SSR Error] fetch failed`. RETIRE all three the day a dashboard
+# image newer than 2.2.1 honours `API_URL_SSR`: set it, verify SSR, then drop
+# the hostname from private_hostnames_via_traefik + PRIVATE_CHECKS and
+# re-tighten the route to private-access.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -31,7 +30,6 @@ data:
   CLICKHOUSE_URL: "http://op-clickhouse:8123/openpanel"
   DASHBOARD_URL: "https://openpanel.internal.jterrazz.com"
   API_URL: "https://openpanel.internal.jterrazz.com/api"
-  API_URL_SSR: "http://op-api:3000"
   # Browser origins allowed to POST events to /api/track on the public host.
   # jterrazz.com + www.jterrazz.com are LIVE senders (the externally-hosted
   # site posts here directly); the rest are pre-authorised and cost nothing.

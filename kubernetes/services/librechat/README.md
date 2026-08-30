@@ -40,9 +40,8 @@ Deployed by `ansible/roles/platform/tasks/librechat.yml` (tags: `librechat`,
 - **`ingress.enabled: false`** — the chart defaults it to **true** with the
   placeholder host `chat.example.com`, and k3s' Traefik serves Ingress objects as
   happily as IngressRoutes. So the default renders a second, middleware-free
-  route to this Service, reachable on that Host header alone. One lived in the
-  cluster until 2026-07-26. Never remove the override; the real route is the
-  IngressRoute the service chart renders.
+  route to this Service, reachable on that Host header alone. Never remove the
+  override; the real route is the IngressRoute the service chart renders.
 - **NetworkPolicy**: `kubernetes/cluster/network-policies/platform-ai.yaml`. It
   is the substitute for MongoDB auth — mongod has none — so it admits :27017
   from the LibreChat pod and nothing else, and gives mongod no egress beyond DNS.
@@ -59,8 +58,8 @@ Deployed by `ansible/roles/platform/tasks/librechat.yml` (tags: `librechat`,
 The image tag is pinned **explicitly** rather than inherited from the chart's
 `appVersion`: an empty tag means "whatever appVersion this chart revision
 happens to carry", so the running image could change with no diff here.
-`v0.8.7` is the stable release pinned explicitly (chart 2.0.7 defaults were an rc for
-this chart revision, so the rc is deliberate. Bump the two together.
+`v0.8.7` is chart 2.0.7's own `appVersion`, written out here so a chart bump
+cannot move the running image with no diff. Bump the two together.
 
 MongoDB is pinned to the **7.0 minor**, not the floating `7`. A silent minor
 jump rewrites on-disk feature-compatibility metadata, and mongod refuses to
