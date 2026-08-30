@@ -71,11 +71,19 @@ k3s_node_ip: "{{ ansible_default_ipv4.address }}"
 # An explicit list rather than a wildcard because CoreDNS's `hosts` plugin
 # matches exact names only — expressing `*.internal` needs the `template`
 # plugin, which k3s's CoreDNS build does not include.
+#
+# This list is the ONE private-hostname fact the cluster cannot supply: CoreDNS
+# needs the name before any route exists. scripts/smoke.sh checks it against the
+# live IngressRoutes in BOTH directions, so a name here that nothing serves and
+# a tailnet-only route missing from here are each a reported failure.
 private_hostnames:
   - registry.internal.jterrazz.com
   - grafana.internal.jterrazz.com
   - gateway-intelligence.internal.jterrazz.com
   - chat.internal.jterrazz.com
+  # An app-chart route (prod-signews-api), not a platform service — this list
+  # is about who answers the name, not about which repo declares it.
+  - signews.internal.jterrazz.com
 
 # Same as above, but mapped to Traefik's ClusterIP rather than the node's
 # tailnet IP — for a pod that fetches its own PUBLIC URL from inside the

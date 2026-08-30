@@ -22,8 +22,8 @@ DESIGN NOTES
   one) — so no PyYAML, no ruamel. The YAML this reads is a handful of flat
   block lists and scalars, which a ~30-line parser handles exactly; anything
   more exotic than that in those files should fail loudly here rather than be
-  silently half-parsed. Hence `_block_body` raises on a missing key rather than
-  returning empty.
+  silently half-parsed. Hence `block_scalar` raises on a missing key rather
+  than returning empty.
 * infisical-vars.py is read with `ast`, not regex: it is Python, so the real
   parser is free and exact.
 """
@@ -40,12 +40,10 @@ INFISICAL_VARS = "scripts/infisical-vars.py"
 PREFLIGHT = "ansible/roles/platform/tasks/preflight.yml"
 TRAEFIK_CONFIG = "kubernetes/services/traefik/helm-chart-config.yaml"
 MIDDLEWARE = "kubernetes/cluster/traefik/middleware.yaml"
-SMOKE = "scripts/smoke.sh"
 MAKEFILE = "Makefile"
 VALIDATE_WF = ".github/workflows/validate.yaml"
 PUBLISH_WF = ".github/workflows/publish-chart.yaml"
 DEPLOY_WF = ".github/workflows/deploy-platform.yaml"
-TRIGGER_DEPLOYS = "scripts/trigger-app-deploys.sh"
 PUBLISH_SCRIPT = "scripts/publish-app-chart.sh"
 COMMON_CHART = "kubernetes/charts/common/Chart.yaml"
 LIBRARY_CONSUMERS = (
@@ -91,44 +89,6 @@ def _unquote(value):
     return value
 
 
-def _block_body(text, key, source):
-    """Return the indented lines that follow a top-level `key:` line."""
-    lines = text.splitlines()
-    start = None
-    for index, line in enumerate(lines):
-        if re.match(rf"^{re.escape(key)}\s*:\s*$", line):
-            start = index + 1
-            break
-    if start is None:
-        raise SyncError(
-            f"{source}: no top-level `{key}:` block. If it was renamed or "
-            f"restructured, update scripts/assert-sync.py alongside it."
-        )
-    body = []
-    for line in lines[start:]:
-        if not line.strip() or line.lstrip().startswith("#"):
-            continue
-        if not line[:1].isspace():
-            break
-        body.append(line)
-    return body
-
-
-def block_list(text, key, source):
-    """Parse a flat YAML block sequence: `key:` then `  - value` lines."""
-    out = []
-    for line in _block_body(text, key, source):
-        stripped = line.strip()
-        if not stripped.startswith("- "):
-            raise SyncError(
-                f"{source}: `{key}:` is not a flat list of `- value` entries "
-                f"(offending line: {stripped!r}). assert-sync.py's parser is "
-                f"deliberately narrow — extend it or simplify the file."
-            )
-        out.append(_unquote(_strip_comment(stripped[2:])))
-    return out
-
-
 def block_scalar(text, key, source):
     """Read a top-level `key: value` scalar out of a YAML file."""
     match = re.search(rf"^{re.escape(key)}\s*:\s*(\S.*)$", text, re.MULTILINE)
@@ -138,33 +98,6 @@ def block_scalar(text, key, source):
             f"— update scripts/assert-sync.py alongside it."
         )
     return _unquote(_strip_comment(match.group(1)))
-
-
-def bash_array(text, name, source):
-    """Read a `NAME=( "a|b" ... )` bash array of quoted strings."""
-    match = re.search(
-        rf"^{re.escape(name)}=\((?P<body>.*?)^\)\s*$", text, re.MULTILINE | re.DOTALL
-    )
-    if not match:
-        raise SyncError(
-            f"{source}: no `{name}=( ... )` array literal. It was renamed or "
-            f"restructured — update scripts/assert-sync.py so the two files "
-            f"stay verifiably in sync."
-        )
-    entries = []
-    for line in match.group("body").splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        item = re.match(r'^"(?P<value>[^"]*)"$', stripped)
-        if not item:
-            raise SyncError(
-                f"{source}: `{name}` entry is not a single double-quoted "
-                f"string ({stripped!r}). assert-sync.py's parser is "
-                f"deliberately narrow — keep the table flat."
-            )
-        entries.append(item.group("value"))
-    return entries
 
 
 def _collapse_jinja(text):
@@ -660,124 +593,6 @@ def check_busybox_digest():
     return problems
 
 
-def check_private_hosts_smoked():
-    """Every private hostname is actually probed by smoke.sh.
-
-    group_vars' two private-hostname lists are the definition of "this name is
-    served, tailnet-only". scripts/smoke.sh is the only thing that goes in the
-    front door and finds out. A host in the config and not in the table is a
-    surface nothing would notice the loss of — which is how a service stays
-    down between two deploys.
-
-    ONE-WAY on purpose: smoke.sh legitimately probes more than these lists
-    (public hosts through the tunnel, plus app surfaces this repo does not
-    declare), and the accepted status codes are a judgement call per service
-    that no config file should try to express.
-    """
-    problems = []
-    gv = read(GROUP_VARS)
-    configured = set(block_list(gv, "private_hostnames", GROUP_VARS)) | set(
-        block_list(gv, "private_hostnames_via_traefik", GROUP_VARS)
-    )
-
-    smoke = read(SMOKE)
-    probed = set()
-    for entry in bash_array(smoke, "PRIVATE_CHECKS", SMOKE):
-        fields = entry.split("|")
-        if len(fields) != 4:
-            raise SyncError(
-                f"{SMOKE}: PRIVATE_CHECKS entry {entry!r} has {len(fields)} "
-                f"fields, expected 4 (method|url|codes|label)."
-            )
-        url = fields[1]
-        host = url.split("://", 1)[-1].split("/", 1)[0]
-        probed.add(host)
-
-    missing = sorted(configured - probed)
-    if missing:
-        problems.append(
-            f"private hostname(s) in {GROUP_VARS} with no probe in "
-            f"PRIVATE_CHECKS ({SMOKE}): {', '.join(missing)}.\n"
-            f"        FIX: add "
-            f"`GET|https://<host>/|<codes>|<what it is>` for each. Pick the "
-            f"codes from what the service actually serves an unauthenticated "
-            f"caller (a redirect to a login page is a pass; 000/5xx never is)."
-        )
-    return problems
-
-
-def _smoke_public_hosts():
-    """Every hostname in smoke.sh's PUBLIC_CHECKS table."""
-    hosts = set()
-    for entry in bash_array(read(SMOKE), "PUBLIC_CHECKS", SMOKE):
-        fields = entry.split("|")
-        if len(fields) not in (4, 5):
-            raise SyncError(
-                f"{SMOKE}: PUBLIC_CHECKS entry {entry!r} has {len(fields)} "
-                f"fields, expected 4 or 5 "
-                f"(method|url|codes|label[|expected Location])."
-            )
-        hosts.add(fields[1].split("://", 1)[-1].split("/", 1)[0])
-    return hosts
-
-
-def check_public_hosts_have_repo():
-    """Every public surface smoke.sh probes names the repo that deploys it.
-
-    scripts/trigger-app-deploys.sh is what rebuilds the fleet after a repave.
-    A repo missing from it is a service that silently never comes back — which
-    is how jterrazz-web ended up absent while smoke.sh probed three of its
-    hostnames. The hostname column in REPOS is only there to make that
-    omission checkable; PLATFORM_PUBLIC_HOSTS covers the surfaces this repo
-    deploys itself, so the check spans the whole table rather than a subset.
-    """
-    problems = []
-    trigger = read(TRIGGER_DEPLOYS)
-
-    claimed = {}
-    for entry in bash_array(trigger, "REPOS", TRIGGER_DEPLOYS):
-        fields = entry.split("|")
-        if len(fields) != 2:
-            raise SyncError(
-                f"{TRIGGER_DEPLOYS}: REPOS entry {entry!r} has {len(fields)} "
-                f"fields, expected 2 (owner/repo|space-separated hostnames)."
-            )
-        repo, hosts = fields
-        if "/" not in repo:
-            raise SyncError(
-                f"{TRIGGER_DEPLOYS}: REPOS entry {entry!r} does not start with "
-                f"an `owner/repo`."
-            )
-        for host in hosts.split():
-            claimed[host] = repo
-    for host in bash_array(trigger, "PLATFORM_PUBLIC_HOSTS", TRIGGER_DEPLOYS):
-        claimed[host] = "this repo (roles/platform)"
-
-    probed = _smoke_public_hosts()
-
-    unclaimed = sorted(probed - set(claimed))
-    unprobed = sorted(set(claimed) - probed)
-    if unclaimed:
-        problems.append(
-            f"public hostname(s) in PUBLIC_CHECKS ({SMOKE}) that no entry in "
-            f"{TRIGGER_DEPLOYS} claims: {', '.join(unclaimed)}.\n"
-            f"        FIX: add the hostname to the owning repo's REPOS line "
-            f"(adding the repo itself if it is missing — `make redeploy-apps` "
-            f"is what brings it back after a repave), or to "
-            f"PLATFORM_PUBLIC_HOSTS if this repo deploys it."
-        )
-    if unprobed:
-        problems.append(
-            f"hostname(s) named in {TRIGGER_DEPLOYS} that PUBLIC_CHECKS "
-            f"({SMOKE}) does not probe: {', '.join(unprobed)}.\n"
-            f"        FIX: add "
-            f"`GET|https://<host>/|<codes>|<what it is>` to PUBLIC_CHECKS, or "
-            f"drop the hostname here. An unprobed public surface is one whose "
-            f"loss nobody notices."
-        )
-    return problems
-
-
 def check_chart_publish_guard():
     """The two app-chart publish paths agree on the registry.
 
@@ -903,8 +718,6 @@ CHECKS = [
     ("ansible-core pinned identically in validate + deploy", check_ansible_core_version),
     ("helm-unittest pinned identically in validate + Makefile", check_helm_unittest_version),
     ("one busybox digest repo-wide", check_busybox_digest),
-    ("private hostnames are all probed by smoke.sh", check_private_hosts_smoked),
-    ("public hostnames all name a deploying repo", check_public_hosts_have_repo),
     ("both app-chart publish guards agree", check_chart_publish_guard),
     ("common library version == both dependents' pins", check_common_chart_version),
 ]

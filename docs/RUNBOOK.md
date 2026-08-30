@@ -161,6 +161,10 @@ kubectl get pod -A | grep -v Running ; helm list -A ; kubectl get certificate -A
 
 # What would the next platform deploy change? (read-only, needs the tailnet)
 make diff
+
+# What does smoke think it should be probing, and what did it fall back on?
+./scripts/smoke.sh --public --private --list
+./scripts/trigger-app-deploys.sh --dry-run     # which repos would be rebuilt
 ./scripts/helmfile.sh diff -l name=grafana     # one release
 
 # cert-manager after any k3s churn (webhook + cainjector lose the API)
@@ -221,6 +225,11 @@ not, check that unit's journal first — the failure chain is registry NXDOMAIN
 The sequence as executed on 2026-07-25 (Debian 13 migration):
 
 ```bash
+# 0. Snapshot the fleet WHILE IT STILL EXISTS. `make redeploy-apps` discovers
+#    the repos from the live Deployments' app.jterrazz.com/repository
+#    annotation, and a rebuilt cluster has no Deployments to read.
+./scripts/trigger-app-deploys.sh --dry-run > ~/fleet-$(date +%F).txt
+
 # 1. Stop the workloads. `systemctl stop k3s` does NOT stop running
 #    containers — they keep writing to /var/lib/k8s-data mid-backup.
 orb -m jterrazz-infrastructure -u root /usr/local/bin/k3s-killall.sh
@@ -235,13 +244,15 @@ make deploy
 # 4. Refresh KUBECONFIG_BASE64 in Infisical /jterrazz-actions (see above) —
 #    nothing else will deploy until this is done.
 
-# 5. Rebuild + redeploy every app onto the new (empty) registry.
-make redeploy-apps
+# 5. Rebuild + redeploy every app onto the new (empty) registry, from the
+#    snapshot taken in step 0 (there is nothing left in the cluster to
+#    discover). `make redeploy-apps` is the discovery form, for every other day.
+./scripts/trigger-app-deploys.sh --from ~/fleet-YYYY-MM-DD.txt
 ```
 
 Step 5 is required, not optional: registry blobs are hostPath and do survive,
 but no app's Helm release does — the cluster is new. The script staggers the
-six dispatches by 20s so six simultaneous Docker builds don't compete for RAM
+dispatches by 20s so simultaneous Docker builds don't compete for RAM
 on one node. Post-repave verification items (uid pins, remaining egress narrowing)
 live in the pinned GitHub issue. Every PLATFORM namespace in
 `kubernetes/cluster/namespaces.yaml` has a baseline NetworkPolicy file; an app
@@ -337,9 +348,14 @@ of [openpanel](../kubernetes/services/openpanel/README.md#backup--restore) and
    Renovate bumps it, with nothing to keep in sync. If the chart comes from a
    repository not already listed at the top of the file, add that too.
 4. Ingress: set `access: private` (default) or `access: cluster-internal` in
-   `service.yaml`; add a private hostname to `private_hostnames` in
-   group_vars **and** `PRIVATE_CHECKS` in `scripts/smoke.sh`. A public service
+   `service.yaml`, and add the private hostname to `private_hostnames` in
+   group_vars — CoreDNS needs the name before the route exists, and `smoke.sh`
+   fails if the list and the live routes disagree either way. A public service
    needs a new zone — see "New public zone" in `CLAUDE.md`.
+   Smoke: **nothing**, unless the default (`GET /` -> 200) is wrong for this
+   service, in which case add `smoke: { path, expect }` to the same
+   `service.yaml`. The chart stamps it on the route and `scripts/smoke.sh`
+   discovers it.
 5. Network: declare `network:` in the same `service.yaml` — the pod selector
    (read it off the upstream chart's pods, it cannot be derived) plus the
    ingress and egress this workload needs. Schema and peer vocabulary:
@@ -355,14 +371,21 @@ chart they render through. Full schema and merge semantics:
 [kubernetes/charts/app/README.md](../kubernetes/charts/app/README.md).
 
 1. Add `.infrastructure/application.yaml` to the app repo, with `tag:` set on
-   every environment — omitting it silently deploys "staging" instead.
+   every environment — omitting it silently deploys "staging" instead. Smoke
+   needs **nothing**: the chart derives each route's probe from the path and
+   the `health.path` the app already declares. Add `smoke: { path, expect }`
+   to an ingress entry only when that derivation is wrong, `smoke: false` to
+   opt a route out.
 2. Set `INFISICAL_CLIENT_ID` / `INFISICAL_CLIENT_SECRET` as GitHub secrets on
    the app repo — see [GitHub secrets (every app repo)](#github-secrets-every-app-repo)
    above.
 3. Expose `make build`, `make lint`, `make test` and call the shared workflow
    in `jterrazz/jterrazz-actions`.
 4. First deploy creates the namespace and Certificate; this repo needs no
-   changes.
+   changes — `make redeploy-apps` picks the repo up from the
+   `app.jterrazz.com/repository` annotation its Deployment now carries. A
+   tailnet-only hostname is the one exception: add it to `private_hostnames`
+   in group_vars, or smoke fails on the mismatch.
 
 ## Version decisions
 

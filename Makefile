@@ -69,6 +69,10 @@ backup: ## Encrypted snapshot of every persistent volume (ARGS=--consistent for 
 # `--private` and the private half of `--certs` need this machine to be on the
 # tailnet, so they are left out of the default target here — CI
 # (.github/workflows/smoke.yaml) runs the full set from a runner that joins it.
+# The check list is DISCOVERED from the cluster's IngressRoutes (their
+# smoke.jterrazz.com/* annotations), so this needs a kubeconfig — ./kubeconfig.yaml
+# by default, `make kubeconfig` to refresh it. `--list` prints what it found
+# without probing anything.
 smoke: ## Probe the public surfaces + their TLS expiry (ARGS=--private on the tailnet)
 	./scripts/smoke.sh --public --certs $(ARGS)
 
@@ -111,9 +115,9 @@ check: ## Run the checks CI runs (shellcheck, python, sync assertions, tsc, ansi
 	@# Facts this repo has to write down twice (the Infisical var map vs the
 	@# Ansible preflight assert, Traefik's trustedIPs vs the rate-limit
 	@# excludedIPs, the four Helm/helmfile/ansible-core/helm-unittest version
-	@# pins, the busybox digest, the smoke table vs both the private hostnames
-	@# and the app repo list, the two app-chart publish guards). Each pair
-	@# carries a "keep in sync" comment; this is what actually checks them.
+	@# pins, the busybox digest, the two app-chart publish guards, the library
+	@# chart version vs its two pins). Each pair carries a "keep in sync"
+	@# comment; this is what actually checks them.
 	python3 scripts/assert-sync.py
 	@echo ""
 	@echo "== pulumi typecheck =="

@@ -32,6 +32,8 @@ make deploy           # pulumi up + ansible site.yml
 make deploy-platform  # ansible platform.yml only (everything above k3s)
 make diff             # what a deploy would change
 make redeploy-apps    # trigger every app's CI to rebuild + redeploy
+                      # (repos DISCOVERED from the app.jterrazz.com/repository
+                      #  annotation on each app Deployment; --dry-run lists them)
 make destroy          # delete the VM (Mac-side data stays)
 make check            # the checks CI runs (alias: make lint)
 make check-tools      # required toolchain present?
@@ -74,3 +76,8 @@ cd ansible && ansible-playbook playbooks/platform.yml \
 - **Never delete a PVC without checking `/var/lib/k8s-data`** first. PVs are
   `Retain`, and a stale `claimRef` blocks rebinding.
 - **Never skip Cloudflare Full (Strict)** SSL mode on a new zone.
+- **Never re-add a hostname table to `scripts/smoke.sh`.** It lists every
+  IngressRoute in the cluster and probes what each one's
+  `smoke.jterrazz.com/{path,expect}` annotations say — the charts stamp them
+  from facts the service already declares. A wrong expectation is fixed in the
+  values file or `application.yaml` that owns the route, never here.

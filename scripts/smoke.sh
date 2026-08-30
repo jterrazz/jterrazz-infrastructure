@@ -2,99 +2,52 @@
 # Black-box smoke test: does every surface this cluster is supposed to serve
 # actually answer, and are its certificates still valid?
 #
-# Nothing here talks to the Kubernetes API. That is the point — `kubectl get
-# pods` being green has never been the same claim as "the site loads". These
-# checks go in the front door: public hostnames through the Cloudflare tunnel,
-# private hostnames over the tailnet, TLS from the wire.
+# The PROBES go in the front door — public hostnames through the Cloudflare
+# tunnel, private hostnames over the tailnet, TLS from the wire. `kubectl get
+# pods` being green has never been the same claim as "the site loads".
+#
+# What comes from the API server is only the QUESTION LIST. Every IngressRoute
+# in the cluster carries its own smoke contract as annotations (the charts stamp
+# them; a hand-written route writes them), so this script holds no table of
+# hostnames or status codes for services it does not deploy:
+#
+#   smoke.jterrazz.com/path      externally-visible path to probe
+#   smoke.jterrazz.com/expect    accepted status codes, comma-separated
+#   smoke.jterrazz.com/method    default GET
+#   smoke.jterrazz.com/location  asserts the Location header (redirects)
+#   smoke.jterrazz.com/probe     "false" opts the route out
+#
+# The contract is kubernetes/charts/common/templates/_smoke.tpl. A route with no
+# annotation is still probed — GET / expecting 200 — and REPORTED, because an
+# unannotated route is an app that has not redeployed onto the current chart,
+# not a surface nobody cares about.
 #
 # Usage:
 #   ./scripts/smoke.sh                        # public surfaces only (default)
 #   ./scripts/smoke.sh --private              # tailnet hosts too (needs tailnet)
 #   ./scripts/smoke.sh --public --private --certs
 #   ./scripts/smoke.sh --certs                # certs for the selected scopes
+#   ./scripts/smoke.sh --list                 # print the discovered checks, probe nothing
 #
 # Flags are additive; --public is implied when no scope flag is given. Exit
 # status is 0 only if every check passed.
 #
+# HOW IT SEES THE CLUSTER: `cluster_kubectl` in scripts/lib/common.sh, shared
+# with trigger-app-deploys.sh — CLUSTER_KUBECTL, CLUSTER_SSH_KEY, or a
+# kubeconfig. No new secret either way.
+#
 # --private and the private half of --certs require tailnet membership. On a
 # GitHub runner that means the jterrazz-actions/actions/infra-connect step, the
-# same one deploy-platform.yaml uses (.github/workflows/smoke.yaml does this).
-# From the laptop it just means being logged into Tailscale.
+# same one deploy-platform.yaml uses. From the laptop it just means being
+# logged into Tailscale.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(dirname "$SCRIPT_DIR")"
 
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/common.sh"
-
-# =============================================================================
-# THE TABLE — the only thing to edit when a surface is added or moved
-# =============================================================================
-# Format:  <method>|<url>|<accepted status codes, comma-separated>|<what it is>[|<expected Location>]
-#
-# The optional 5th field asserts the redirect TARGET. Use it on every redirect:
-# a 301 to the wrong host is indistinguishable from a correct one by status.
-#
-# Accepted codes are a LIST because several of these surfaces have more than
-# one legitimate answer (an app that redirects to a login page vs. one that
-# serves it). Keep each list as narrow as the service genuinely allows: the
-# whole value of this script is that a 502/503/000 can never be mistaken for
-# "fine". Never add 000 (curl could not connect) or a 5xx to a list.
-#
-# No redirects are followed (`curl -L` is deliberately absent) — a 301 where a
-# 200 belongs is exactly the kind of regression this should catch.
-
-PUBLIC_CHECKS=(
-    "GET|https://spwn.sh/|200|spwn-web landing page"
-    "GET|https://sig.news/|200|signews-web landing page"
-    "GET|https://clawssify.com/|200|clawssify-web landing page"
-    "GET|https://clawrr.com/|200|clawrr web-landing"
-    "GET|https://signews.jterrazz.com/api/|200|signews-api, prod"
-    "GET|https://signews-next.jterrazz.com/api/|200|signews-api, next"
-    "GET|https://signews-staging.jterrazz.com/api/|200|signews-api, staging"
-    # OpenPanel event ingest. POST-only by design: only /api/track is routed on
-    # this host (see kubernetes/services/openpanel/ingress.yaml), and a GET is
-    # NOT a valid probe — it answers 404 whether op-api is healthy or not.
-    # The POST below carries an empty JSON object, which reaches op-api and is
-    # rejected for want of a client id: 401 is the proof the route is wired end
-    # to end AND that ingest is not anonymous. (A body-less POST answers 400
-    # and a non-JSON one 415 — both would also prove liveness, but 401 is the
-    # only one that also asserts the auth check still runs.)
-    "POST|https://analytics.jterrazz.com/api/track|401|OpenPanel ingest (unauthenticated POST must be rejected)"
-    # jterrazz-web. www is canonical; the other two exist only to send callers
-    # there, so each asserts its Location — a 301 to the wrong host is
-    # indistinguishable from a correct one by status alone.
-    "GET|https://www.jterrazz.com/|200|jterrazz-web (canonical host)"
-    "GET|https://jterrazz.com/|301|jterrazz-web apex -> www|https://www.jterrazz.com/"
-    "GET|https://blog.jterrazz.com/|301|jterrazz-web legacy blog subdomain -> articles|https://www.jterrazz.com/articles"
-)
-
-PRIVATE_CHECKS=(
-    # Tailnet-only. Traefik's private-access / cluster-internal-access
-    # ipAllowList sits in front of each, so a non-tailnet caller gets 403 and
-    # this whole block fails — which is itself the correct answer to "is the
-    # allow-list still doing its job".
-    #
-    # Grafana redirects an unauthenticated browser to /login (302). A 200 is
-    # also acceptable: it is what an already-anonymous-allowed instance or a
-    # future auth change would serve. Anything else means Grafana is down.
-    "GET|https://grafana.internal.jterrazz.com/|302,200|Grafana"
-    # The registry's own API root. 401 is the CORRECT answer — /v2/ demands a
-    # bearer token, and containerd relies on that challenge to authenticate.
-    # A 200 would mean the registry became anonymous-readable.
-    "GET|https://registry.internal.jterrazz.com/v2/|401|Docker registry API"
-    "GET|https://chat.internal.jterrazz.com/|200|LibreChat"
-    # OpenPanel's dashboard SSRs and bounces an unauthenticated visitor to
-    # /login or /onboarding, so 307 is the normal answer and 200 is the
-    # already-rendered one.
-    "GET|https://openpanel.internal.jterrazz.com/|307,200|OpenPanel dashboard"
-    # gateway-intelligence is an OpenAI-compatible API with no route mounted at
-    # `/`, so upstream answers 404 — which still proves DNS, the tailnet path,
-    # Traefik and the pod are all alive. 200 is accepted in case a root handler
-    # is ever added. The point of this entry is to exclude 000/502/503.
-    "GET|https://gateway-intelligence.internal.jterrazz.com/|200,404|gateway-intelligence (root is unrouted; 404 = alive)"
-)
 
 # Fail a certificate that expires within this many days. Let's Encrypt renews
 # at 30 days remaining via cert-manager, so 15 means "renewal has been failing
@@ -109,15 +62,17 @@ CURL_TIMEOUT=15
 want_public=false
 want_private=false
 want_certs=false
+list_only=false
 
 usage() {
     cat <<'EOF'
-Usage: scripts/smoke.sh [--public] [--private] [--certs] [--help]
+Usage: scripts/smoke.sh [--public] [--private] [--certs] [--list] [--help]
 
   --public    Public hostnames through the Cloudflare tunnel. The default when
               no scope flag is given.
   --private   Tailnet-only hostnames. Requires tailnet membership.
   --certs     TLS expiry check for every host in the selected scopes.
+  --list      Print the discovered check list and exit without probing.
 EOF
 }
 
@@ -126,6 +81,7 @@ for arg in "$@"; do
         --public) want_public=true ;;
         --private) want_private=true ;;
         --certs) want_certs=true ;;
+        --list) list_only=true ;;
         -h | --help)
             usage
             exit 0
@@ -157,6 +113,181 @@ record_fail() {
     failed=$((failed + 1))
     failures+=("$1")
 }
+
+# ---------------------------------------------------------------------------
+# Discovery
+# ---------------------------------------------------------------------------
+
+# Every IngressRoute in the cluster, as JSON. Fails loudly rather than returning
+# nothing: an empty list would report "0 failures" about a cluster that is
+# entirely down, which is the worst answer this script could give.
+ingressroutes_json() {
+    cluster_kubectl get ingressroute.traefik.io -A -o json
+}
+
+# JSON in, one PIPE-separated check per line out:
+#   scope|method|url|codes|location|source|origin
+# Pipe, not tab: bash `read` collapses runs of IFS *whitespace*, so a tab-
+# separated line with an empty `location` would silently shift every field after
+# it. No URL or status list contains a pipe.
+# where `source` is annotated | fallback | skipped and `origin` is
+# <namespace>/<name>. Also emits `!<message>` lines for the private-hostname
+# cross-check, which replaces the static assertion this script used to need.
+#
+# Inline rather than a scripts/*.py of its own: it has exactly one caller, and a
+# separate file would need adding to the two python-syntax lists (Makefile and
+# validate.yaml) — one more pair to keep in sync, which is what this whole
+# change is removing.
+# shellcheck disable=SC2016  # this is a Python program, not a shell string
+DISCOVER_PY='
+import json, re, sys
+
+HOST = re.compile(r"Host\(`([^`]+)`\)")
+ACCESS = {"private-access", "cluster-internal-access"}
+A = "smoke.jterrazz.com/"
+
+doc = json.load(sys.stdin)
+if not doc.get("items"):
+    sys.exit("the cluster returned no IngressRoutes at all")
+private_hosts = set()
+
+for item in doc.get("items", []):
+    meta = item.get("metadata", {})
+    origin = "%s/%s" % (meta.get("namespace", "?"), meta.get("name", "?"))
+    ann = meta.get("annotations") or {}
+    hosts, gated = [], False
+    for route in (item.get("spec") or {}).get("routes", []):
+        for h in HOST.findall(route.get("match", "")):
+            if h not in hosts:
+                hosts.append(h)
+        for mw in route.get("middlewares") or []:
+            if mw.get("name") in ACCESS:
+                gated = True
+    if not hosts:
+        print("!%s matches no Host() — nothing to probe" % origin)
+        continue
+
+    if str(ann.get(A + "probe", "")).lower() == "false":
+        source = "skipped"
+    elif A + "expect" in ann or A + "path" in ann:
+        source = "annotated"
+    else:
+        source = "fallback"
+
+    path = ann.get(A + "path", "/")
+    codes = ann.get(A + "expect", "200")
+    method = ann.get(A + "method", "GET")
+    location = ann.get(A + "location", "")
+
+    for host in hosts:
+        # An ipAllowList in front of the route, or the private zone: either way
+        # a non-tailnet caller cannot reach it. The middleware is the actual
+        # enforcement; the suffix catches a route whose gate was dropped.
+        scope = "private" if (gated or ".internal." in host) else "public"
+        if scope == "private":
+            private_hosts.add(host)
+        if source == "skipped":
+            print("|".join(["skip", "", host, "", "", source, origin]))
+            continue
+        url = "https://%s%s" % (host, path if path.startswith("/") else "/" + path)
+        print("|".join([scope, method, url, codes, location, source, origin]))
+
+# The one fact group_vars must hold that the cluster cannot supply: CoreDNS
+# needs a private name before any route exists. Checked against reality here
+# instead of against a second copy of the table in another file.
+gv = open(sys.argv[1], encoding="utf-8").read().splitlines()
+configured = set()
+for key in ("private_hostnames", "private_hostnames_via_traefik"):
+    if key + ":" not in gv:
+        print("!cannot read the `%s:` list from %s" % (key, sys.argv[1]))
+        continue
+    # Blank and comment lines are skipped, not treated as the end of the block:
+    # the entries carry per-entry comments, and a parser that stopped at the
+    # first one would silently see a shorter list.
+    for line in gv[gv.index(key + ":") + 1:]:
+        entry = line.strip()
+        if not entry or entry.startswith("#"):
+            continue
+        if not entry.startswith("- "):
+            break
+        configured.add(entry[2:].split("#")[0].strip())
+
+for host in sorted(private_hosts - configured):
+    print("!%s is served tailnet-only but is missing from private_hostnames "
+          "(group_vars) — in-cluster lookups fall back to the public CNAME chain" % host)
+for host in sorted(configured - private_hosts):
+    print("!%s is in private_hostnames (group_vars) but no IngressRoute serves "
+          "it — CoreDNS answers for a name nothing routes" % host)
+'
+
+section "Discovering surfaces from the cluster"
+
+routes_json=""
+if ! routes_json="$(ingressroutes_json 2>&1)"; then
+    error "could not read IngressRoutes from the cluster:"
+    printf '%s\n' "$routes_json" >&2
+    cluster_access_hint
+    exit 1
+fi
+
+discovered=""
+if ! discovered="$(printf '%s' "$routes_json" |
+    python3 -c "$DISCOVER_PY" "$REPO_DIR/ansible/inventories/group_vars/all.yml")"; then
+    error "could not parse the IngressRoute list"
+    exit 1
+fi
+
+declare -a checks=() notes=() fallbacks=() skips=()
+while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    case "$line" in
+        '!'*) notes+=("${line#!}") ;;
+        "skip|"*) skips+=("$line") ;;
+        *)
+            checks+=("$line")
+            case "$line" in
+                *"|fallback|"*) fallbacks+=("$line") ;;
+            esac
+            ;;
+    esac
+done <<<"$discovered"
+
+if [ ${#checks[@]} -eq 0 ]; then
+    error "discovery returned ZERO probeable routes. That is a broken cluster or a broken query, never 'nothing to check'."
+    exit 1
+fi
+
+info "${#checks[@]} check(s) from $(printf '%s\n' "${checks[@]}" | cut -d'|' -f7 | sort -u | wc -l | tr -d ' ') IngressRoute(s)"
+
+for entry in "${checks[@]}"; do
+    IFS='|' read -r scope method url codes location _ origin <<<"$entry"
+    printf '    %-7s %-4s %-58s %-9s %s\n' "$scope" "$method" "$url" "[$codes]" "$origin"
+    [ -z "$location" ] || printf '    %-7s %-4s   -> %s\n' "" "" "$location"
+done
+
+if [ ${#fallbacks[@]} -gt 0 ]; then
+    warn "${#fallbacks[@]} route(s) carry NO smoke annotation and were probed with the fallback (GET / -> 200):"
+    for entry in "${fallbacks[@]}"; do
+        IFS='|' read -r _ _ url _ _ _ origin <<<"$entry"
+        warn "  - $origin ($url) — redeploy the app so its chart stamps the contract"
+    done
+fi
+
+if [ ${#skips[@]} -gt 0 ]; then
+    info "${#skips[@]} route(s) opted out (smoke.jterrazz.com/probe: \"false\"):"
+    for entry in "${skips[@]}"; do
+        IFS='|' read -r _ _ host _ _ _ origin <<<"$entry"
+        info "  - $origin ($host)"
+    done
+fi
+
+if $list_only; then
+    exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Probes
+# ---------------------------------------------------------------------------
 
 # curl's %{http_code} is 000 when the connection never completed (DNS failure,
 # refused, timeout). That is always a failure — it can never be in an accepted
@@ -232,29 +363,29 @@ run_cert_check() {
     fi
 }
 
-host_of() {
-    local url="${1#https://}"
-    printf '%s' "${url%%/*}"
+in_scope() {
+    case "$1" in
+        public) $want_public ;;
+        private) $want_private ;;
+        *) false ;;
+    esac
 }
 
-# ---------------------------------------------------------------------------
-
-selected=()
-$want_public && selected+=("${PUBLIC_CHECKS[@]}")
-$want_private && selected+=("${PRIVATE_CHECKS[@]}")
-
 section "HTTP checks"
-for entry in "${selected[@]}"; do
-    IFS='|' read -r method url codes label want_location <<<"$entry"
-    run_http_check "$method" "$url" "$codes" "$label" "$want_location"
+for entry in "${checks[@]}"; do
+    IFS='|' read -r scope method url codes location _ origin <<<"$entry"
+    in_scope "$scope" || continue
+    run_http_check "$method" "$url" "$codes" "$origin" "$location"
 done
 
 if $want_certs; then
     section "TLS expiry (fail under ${CERT_MIN_DAYS} days)"
     seen=""
-    for entry in "${selected[@]}"; do
-        IFS='|' read -r _ url _ _ <<<"$entry"
-        host="$(host_of "$url")"
+    for entry in "${checks[@]}"; do
+        IFS='|' read -r scope _ url _ _ _ _ <<<"$entry"
+        in_scope "$scope" || continue
+        host="${url#https://}"
+        host="${host%%/*}"
         # Several checks share a hostname (and several hostnames share one
         # certificate); probe each host once.
         case " $seen " in
@@ -262,6 +393,16 @@ if $want_certs; then
         esac
         seen="$seen $host"
         run_cert_check "$host"
+    done
+fi
+
+# The live replacement for the static "every private hostname is probed"
+# assertion: group_vars and the cluster are compared to each other, not to a
+# third copy of the list.
+if [ ${#notes[@]} -gt 0 ]; then
+    section "Cluster vs. configuration"
+    for note in "${notes[@]}"; do
+        record_fail "$note"
     done
 fi
 

@@ -46,7 +46,7 @@ standing between you and the drift is this table.
 
 | A                                                     | B                                                        | Checked by | Why they must match                                                    |
 | ----------------------------------------------------- | -------------------------------------------------------- | ---------- | ---------------------------------------------------------------------- |
-| the same two lists                                    | `PRIVATE_CHECKS` (`scripts/smoke.sh`)                     | `assert-sync.py` (one-way: config ⊆ smoke) | A private hostname nothing probes is a surface whose loss nobody notices. The status codes stay a per-service judgement call, so the check never derives them. |
+| `private_hostnames` + `private_hostnames_via_traefik` (`group_vars/all.yml`) | the tailnet-only IngressRoutes in the LIVE cluster | `scripts/smoke.sh`, at run time, BOTH ways | Not a file pair — the live routes are side B, so the check cannot go stale the way a second table does. A name here that nothing serves is CoreDNS answering for a dead surface; a tailnet-only route missing from here resolves through the public CNAME chain instead. |
 | `SCOPES` in `scripts/infisical-vars.py`               | the `assert` list in `roles/platform/tasks/preflight.yml` | `assert-sync.py` | Preflight is the second gate on the same secret set; a secret fetched but unasserted fails halfway through a deploy instead of at the start. |
 | `forwardedHeaders.trustedIPs` (`services/traefik/helm-chart-config.yaml`) | `rate-limit` `ipStrategy.excludedIPs` (`cluster/traefik/middleware.yaml`) | `assert-sync.py` | Both enumerate "hops that are ours". If they disagree, the rate limiter keys on the wrong XFF element or on nothing. |
 | `helm_version` (`group_vars/all.yml`)                 | `azure/setup-helm` version in `validate.yaml` **and** `publish-chart.yaml` | `assert-sync.py` | Three machines, one Helm. A chart packaged by one version and rendered by another is a silent behaviour difference. |
@@ -55,7 +55,6 @@ standing between you and the drift is this table.
 | helm-unittest version in `validate.yaml`              | the same version in the `Makefile`                        | `assert-sync.py` | The plugin embeds its own renderer, so the committed `__snapshot__` files only reproduce against the version that wrote them. |
 | every `busybox@sha256:` in the tree                   | each other                                                | `assert-sync.py` | Digest pins only work if a bump touches every copy; the one that was missed is the one nobody re-rendered. |
 | the `infisical` release's `version:` (`kubernetes/helmfile.yaml.gotmpl`) | `kubernetes/schemas/secrets.infisical.com/infisicalsecret_v1alpha1.json` | **nothing** — a stale schema still validates | The vendored schema overrides a datreeio catalog copy that differs in exactly one way: the catalog sets `additionalProperties: false` at every object level, while the operator's own CRD does not (the API server *prunes* unknown fields rather than refusing the object). Bump the chart, re-extract the CRD — regeneration command in `kubernetes/schemas/README.md`. Skip it and CI validates against a CRD the cluster no longer has, so the break lands at `kubectl apply`. |
-| `PUBLIC_CHECKS` (`scripts/smoke.sh`)                  | `REPOS` + `PLATFORM_PUBLIC_HOSTS` (`scripts/trigger-app-deploys.sh`) | `assert-sync.py` (both ways) | `make redeploy-apps` is what brings the fleet back after a repave. A repo missing from it is a service that silently never returns while smoke keeps reporting its hosts down. |
 | `scripts/publish-app-chart.sh` (run by `publish-chart.yaml`) | the guard in `roles/platform/tasks/publish-app-chart.yml` | `assert-sync.py` (pull ref, push ref, chart dir, and that the workflow calls the script) | The node has no checkout of this repo (`stage-manifests.yml` copies only `kubernetes/`), so the fresh-cluster publisher must stay a separate copy. Both must guard the same coordinates or one overwrites a version the other thinks is published. |
 | `security_ci_deploy_pubkey` (`roles/security/defaults/main.yml`) | GitHub secret `CI_DEPLOY_SSH_PRIVATE`              | **nothing** — B lives outside the repo | Split keypair. Rotating needs both plus a `make deploy` to roll the pubkey onto the VM. |
 | `version:` in `charts/app/Chart.yaml`                 | the published OCI chart                                   | **nothing** at PR time — B lives in the registry | The chart is pulled **unversioned** by every app. Two publish guards exist (`scripts/publish-app-chart.sh` via `publish-chart.yaml`, and `roles/platform/tasks/publish-app-chart.yml`) and both skip rather than overwrite — so forgetting the bump publishes nothing, silently. |
@@ -193,6 +192,20 @@ Repo-specific, each one paid for at least once.
 - **Namespaces**: `prod-<app>` / `next-<app>` / `staging-<app>` for apps,
   `platform-*` for infrastructure. All platform namespaces are declared in
   `kubernetes/cluster/namespaces.yaml` — never `kubectl create ns`.
+- **Smoke and `redeploy-apps` discover their targets from the cluster; the
+  expectations are annotations the charts stamp.** `scripts/smoke.sh` lists
+  every IngressRoute and probes what its `smoke.jterrazz.com/{path,expect,
+  method,location,probe}` annotations say; `scripts/trigger-app-deploys.sh`
+  reads `app.jterrazz.com/repository` off every app Deployment. Neither holds a
+  list of hostnames, status codes or repos, and `assert-sync.py` no longer
+  needs a check to hold two such lists together. Add a surface and it is probed
+  with no edit here; the contract is
+  `kubernetes/charts/common/templates/_smoke.tpl`. Two consequences worth
+  knowing: an unannotated route is probed with a `GET / -> 200` FALLBACK and
+  named in the output (it means an app has not redeployed onto the current
+  chart, not that it is uninteresting), and a repave leaves nothing to
+  discover — hence `--dry-run > file` before, `--from file` after, in the
+  RUNBOOK's repave sequence.
 - **DNS has exactly three owners, and only one of them is this repo.**
   *Private* = `<svc>.internal.jterrazz.com`, covered by the single `*.internal`
   wildcard in `pulumi/src/dns.ts` — adding one needs **no DNS change at all**,

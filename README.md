@@ -129,6 +129,8 @@ pulumi/src/   index.ts (one machine) · targets/orbstack.ts · dns.ts
 scripts/      deploy.sh · backup.sh · infisical-vars.py · helmfile.sh
               smoke.sh · assert-sync.py · trigger-app-deploys.sh ·
               publish-app-chart.sh · lib/common.sh · lib/helm-plugin.sh
+              (smoke.sh and trigger-app-deploys.sh DISCOVER their targets from
+              the cluster — the charts stamp the expectations as annotations)
 ```
 
 ## CI
@@ -138,7 +140,7 @@ scripts/      deploy.sh · backup.sh · infisical-vars.py · helmfile.sh
 | `validate.yaml`        | PR to main **and** push to main                                                                    | `tsc --noEmit` on `pulumi/`; shellcheck + python syntax on `scripts/`; `ansible-lint -c ansible/.ansible-lint` + `--syntax-check` on both playbooks; kubeconform over `kubernetes/cluster` and every raw manifest under `kubernetes/services`; both charts rendered against their `ci/test-values.yaml`; `helmfile template` over every declared release. Plus gitleaks, helm-unittest, and assertions on the hand-synced pairs. |
 | `deploy-platform.yaml` | push to main touching `ansible/**`, `kubernetes/{services,cluster,charts/platform-service}/**`; or manual   | Runs `platform.yml` only, over Tailscale, from a runner joined as `tag:ci`. Never the host layer — those roles restart sshd/tailscaled and would kill the runner's own session.                    |
 | `publish-chart.yaml`   | push to main touching `kubernetes/charts/app/**` or `scripts/publish-app-chart.sh`; or manual                                        | Packages and pushes the app chart. Refuses to overwrite a published version (it is consumed unversioned); a no-op when the version already exists.                                                 |
-| `smoke.yaml`           | after `deploy-platform.yaml` completes; weekly schedule; or manual                                  | Runs `scripts/smoke.sh --public --private --certs` against the live cluster — the only workflow that checks the deployed state rather than the tree.                                               |
+| `smoke.yaml`           | after `deploy-platform.yaml` completes; weekly schedule; or manual                                  | Runs `scripts/smoke.sh --public --private --certs` against the live cluster — the only workflow that checks the deployed state rather than the tree. It lists every IngressRoute (kubectl on the node, over the deploy SSH key) and probes what each one's `smoke.jterrazz.com/*` annotations say, so a surface an app added yesterday is checked with no edit here. |
 
 The CI fixtures are the validation contract: both charts render near-zero
 objects with default values, so a template branch no fixture reaches is a
