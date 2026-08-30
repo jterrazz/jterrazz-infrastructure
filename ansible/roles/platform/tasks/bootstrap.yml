@@ -8,10 +8,12 @@
 #   2. `tier: bootstrap` of the helmfile — cert-manager for the Certificate
 #      CRD, the Infisical operator for the InfisicalSecret one. Both kinds are
 #      applied below, so this pass cannot wait for the main one.
-#   3. the ClusterIssuers and every InfisicalSecret.
+#   3. the ClusterIssuers, which are the one cert-manager object no chart here
+#      renders.
 #   4. `tier: platform` — the `<name>-platform` releases, i.e. the hostPath
-#      PV/PVCs, Certificates and IngressRoutes. They come before the workloads
-#      in raw-manifests.yml, which mount those claims by name.
+#      PV/PVCs, Certificates, IngressRoutes and InfisicalSecrets. They come
+#      before the workloads in raw-manifests.yml and before the unselected
+#      pass, both of which mount those claims and read those Secrets by name.
 
 # The k8s module, NOT `kubectl create --dry-run | apply` in a shell: a token
 # containing `$`, a backtick or a newline would be mangled or expanded on its
@@ -97,29 +99,7 @@
   register: issuers_result
   changed_when: "'created' in issuers_result.stdout or 'configured' in issuers_result.stdout"
 
-# One-time tunnel creation is in kubernetes/services/cloudflared/README.md.
-- name: Provision the cloudflared tunnel token
-  ansible.builtin.include_tasks: infisical-secret.yml
-  vars:
-    secret_manifest: "{{ manifest_dir }}/kubernetes/services/cloudflared/secret.yaml"
-    wait_secret_name: cloudflared-secrets
-    wait_secret_namespace: platform-networking
-
-- name: Provision the OTel Collector credentials
-  ansible.builtin.include_tasks: infisical-secret.yml
-  vars:
-    secret_manifest: "{{ manifest_dir }}/kubernetes/services/otel-collector/secret.yaml"
-    wait_secret_name: otel-collector-secrets
-    wait_secret_namespace: platform-telemetry
-
-- name: Provision the LibreChat credentials
-  ansible.builtin.include_tasks: infisical-secret.yml
-  vars:
-    secret_manifest: "{{ manifest_dir }}/kubernetes/services/librechat/secret.yaml"
-    wait_secret_name: librechat-credentials-env
-    wait_secret_namespace: platform-ai
-
-- name: Deploy the platform-service chart storage, certificates and ingress
+- name: Deploy the platform-service chart storage, certificates, ingress and secrets
   ansible.builtin.include_tasks: helmfile-apply.yml
   vars:
     helmfile_tier: platform

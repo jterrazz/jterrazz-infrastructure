@@ -6,6 +6,16 @@ name: librechat
 host: chat.internal.jterrazz.com
 port: 3080
 access: private
+# Infisical /jterrazz-infrastructure/librechat (env prod).
+#
+# THE SECRET NAME IS THE CHART'S, NOT OURS: LibreChat wires `envFrom` to
+# `librechat-credentials-env` (its own `existingSecretName` default, so nothing
+# sets it). Anything else and CREDS_KEY / CREDS_IV / JWT_SECRET /
+# JWT_REFRESH_SECRET never reach the container — with no error anywhere.
+secrets:
+  path: /jterrazz-infrastructure/librechat
+  secretName: librechat-credentials-env
+
 storage:
   # Backs the standalone MongoDB in mongodb.yaml (users, logins, chat
   # history). Nested under librechat/ so the on-disk layout is 1 dir = 1 app.

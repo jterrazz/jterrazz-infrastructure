@@ -1,0 +1,25 @@
+# Service-chart values for cloudflared — its tunnel token, and nothing else.
+# No host (cloudflared serves no route; it DIALS the edge), no storage, and no
+# `network:`: its rules cannot be separated from cert-manager's in
+# kubernetes/cluster/network-policies/platform-networking.yaml, because
+# `hostNetwork: true` means the policies never see its traffic at all.
+#
+# Infisical /jterrazz-infrastructure (the platform-services root path; apps
+# deployed by CI use /jterrazz-ci instead), env prod.
+#
+# THE SECRET NAME IS READ BY A LITERAL STRING: deployment.yaml's TUNNEL_TOKEN
+# secretKeyRef names `cloudflared-secrets`.
+#
+#   CLOUDFLARE_TUNNEL_TOKEN   the connector token from Cloudflare Zero Trust →
+#                             Networks → Tunnels (starts with `eyJ…`). See
+#                             README.md in this directory for the one-time
+#                             tunnel creation.
+#
+# cloudflared reads TUNNEL_TOKEN once at startup, so a token rotation needs
+# `kubectl rollout restart deploy/cloudflared` to take effect — the resync only
+# ever updates the Secret.
+name: cloudflared
+
+secrets:
+  path: /jterrazz-infrastructure
+  secretName: cloudflared-secrets

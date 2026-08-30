@@ -175,6 +175,16 @@ releases:
     values:
       - services/node-exporter/values.yaml
 
+  # The collector's Langfuse credentials and its OTLP-ingest NetworkPolicy. No
+  # host, no storage — a `-platform` release can be just the things that must
+  # exist BEFORE the workload does.
+  - name: otel-collector-platform
+    namespace: platform-telemetry
+    inherit:
+      - template: platform-service
+    values:
+      - services/otel-collector/service.yaml
+
   # AFTER VictoriaLogs: the collector owns pod-log shipping (its filelog
   # receiver), so an earlier install has nowhere to write. It also exports to
   # VictoriaMetrics and VictoriaTraces.
@@ -183,6 +193,7 @@ releases:
     chart: open-telemetry/opentelemetry-collector
     version: 0.165.0
     needs:
+      - platform-telemetry/otel-collector-platform
       - platform-telemetry/victoria-logs
       - platform-telemetry/victoria-metrics
       - platform-telemetry/victoria-traces
@@ -202,6 +213,17 @@ releases:
       # An inline values map, not `--set`: `--set` puts the password in the
       # helm process' argv, where any user on the box can read it off `ps`.
       - adminPassword: {{ requiredEnv "GRAFANA_ADMIN_PASSWORD" | quote }}
+
+  # --- networking -----------------------------------------------------------
+  # cloudflared's tunnel token. The Deployment itself stays a raw manifest
+  # (`hostNetwork: true`, applied by roles/platform/tasks/raw-manifests.yml) —
+  # it is the one workload the app chart deliberately does not own.
+  - name: cloudflared-platform
+    namespace: platform-networking
+    inherit:
+      - template: platform-service
+    values:
+      - services/cloudflared/service.yaml
 
   # --- LibreChat ------------------------------------------------------------
   - name: librechat-platform

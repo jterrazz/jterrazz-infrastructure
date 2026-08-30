@@ -10,17 +10,11 @@
 # OTLP on :10428. Without this file any pod in the cluster could write junk into
 # all three, or read every series, log line and span back out.
 #
-# WHAT IS AND IS NOT IN THIS FILE. The namespace BASELINE lives here —
-# default-deny, allow-same-namespace, the namespace-wide egress — plus the one
-# per-workload rule whose workload has no `-platform` release to declare it
-# (otel-collector). Grafana's ingress and VictoriaMetrics' egress are declared
-# by the services themselves, in `network:` blocks in
-# kubernetes/services/{grafana,victoria-metrics}/service.yaml.
-#
-# ONE rule below is deliberately wider than the rest, and it is called out at
-# the rule itself so it cannot be mistaken for an oversight: OTLP ingest
-# (4317/4318) is open to every namespace, because the platformServices contract
-# has nothing narrower to select on.
+# WHAT IS AND IS NOT IN THIS FILE. The namespace BASELINE only —
+# default-deny, allow-same-namespace, the namespace-wide egress. Every rule that
+# names one workload is declared by that service, in the `network:` block of its
+# kubernetes/services/<svc>/service.yaml — Grafana's ingress, VictoriaMetrics'
+# egress, and the collector's deliberately namespace-wide OTLP ingest.
 
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -60,38 +54,6 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: platform-telemetry
-
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-otlp-ingest
-  namespace: platform-telemetry
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: opentelemetry-collector
-      app.kubernetes.io/instance: otel-collector
-  policyTypes:
-    - Ingress
-  ingress:
-    # ANY pod in ANY namespace -> the collector's OTLP ports: the ingest half of
-    # the app chart's `platformServices: [otel-collector]` contract.
-    #
-    # DELIBERATELY namespace-wide, because nothing narrower is expressible.
-    # NetworkPolicy has no globbing, so `prod-*` is not a selector; the only
-    # labels app namespaces carry are their own names; and the otel-collector
-    # catalog entry has no `clientLabel`, so opted-in app pods carry no marker.
-    # The narrowing that IS applied is one pod, two ports, and the widest thing
-    # granted is "write telemetry". Tightening means adding a clientLabel to that
-    # catalog entry — land it only AFTER every app has redeployed carrying it.
-    - from:
-        - namespaceSelector: {}
-      ports:
-        - protocol: TCP
-          port: 4317
-        - protocol: TCP
-          port: 4318
 
 ---
 # Egress is DEFAULT-DENY for every pod in the namespace (podSelector {} +
