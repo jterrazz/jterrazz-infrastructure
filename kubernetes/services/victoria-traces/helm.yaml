@@ -1,6 +1,6 @@
 # VictoriaTraces single-node — the trace store.
 #
-# Chart: vm/victoria-traces-single (see platform_chart_versions.victoria_traces).
+# Chart: vm/victoria-traces-single, pinned in kubernetes/helmfile.yaml.gotmpl.
 #
 # ┌──────────────────────────────────────────────────────────────────────────┐
 # │ 0.x, KNOWINGLY. VictoriaTraces is the youngest member of the family and  │

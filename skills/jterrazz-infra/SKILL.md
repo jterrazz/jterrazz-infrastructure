@@ -7,7 +7,8 @@ description: Infrastructure and deployment for jterrazz projects — k3s, Helm, 
 
 One k3s cluster on one machine: an OrbStack VM (`jterrazz-infrastructure`,
 Debian 13 trixie, arm64) on the dev Mac. Pulumi provisions it, Ansible
-configures it, Helm deploys onto it. Public traffic enters through a Cloudflare
+configures it, Helmfile deploys onto it — every platform release declared
+once in `kubernetes/helmfile.yaml.gotmpl`. Public traffic enters through a Cloudflare
 tunnel; private services are tailnet-only. Apps live in their own repos and
 deploy themselves through the shared `app` chart published here. Hetzner is a
 recipe in `docs/hetzner.md`, not a live mode.
@@ -21,7 +22,7 @@ recipe in `docs/hetzner.md`, not a live mode.
 | Non-inferable gotchas + hand-synced pairs     | `CLAUDE.md`                             |
 | `application.yaml` schema (deploying an app)  | `kubernetes/charts/app/README.md`       |
 | Per-service detail (cloudflared, librechat, openpanel) | `kubernetes/services/<svc>/README.md` |
-| Every other service                           | comments in its `helm.yaml` / `platform.yaml` |
+| Every other service                           | its release block in `kubernetes/helmfile.yaml.gotmpl` + comments in its `helm.yaml` / `platform.yaml` |
 | Bringing the Hetzner target back              | `docs/hetzner.md`                       |
 
 ## Commands
@@ -40,10 +41,14 @@ orb -m jterrazz-infrastructure -u root kubectl get pod -A   # cluster access
 kubectl rollout restart -n platform-networking \
   deploy/cert-manager deploy/cert-manager-webhook deploy/cert-manager-cainjector
 
-# One slice of the platform layer (tags: coredns, cluster-manifests, helm,
-# bootstrap-services, telemetry, librechat, openpanel, registry, chart-publish)
+# One slice of the platform layer (tags: cluster-manifests, coredns, helm,
+# bootstrap, raw-manifests, releases, chart-publish)
 cd ansible && ansible-playbook playbooks/platform.yml \
-  -i inventories/laptop.yml -e "@<extra-vars>" --tags telemetry
+  -i inventories/laptop.yml -e "@<extra-vars>" --tags raw-manifests
+
+# One Helm release, rather than a tag — every release is declared in
+# kubernetes/helmfile.yaml.gotmpl and helmfile selects by label or name.
+./scripts/helmfile.sh diff -l name=grafana
 ```
 
 ## Never

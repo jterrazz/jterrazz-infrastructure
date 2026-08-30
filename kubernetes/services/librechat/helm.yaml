@@ -1,7 +1,7 @@
 # Values for the official LibreChat chart
 #   oci://ghcr.io/danny-avila/librechat-chart/librechat
-# Chart version is pinned in ansible/inventories/group_vars/all.yml
-# (platform_chart_versions.librechat).
+# Chart version is pinned on the `librechat` release in
+# kubernetes/helmfile.yaml.gotmpl.
 #
 # The two bundled datastore subcharts the chart enables by default — mongodb
 # and meilisearch — are disabled: they pull from the deprecated Bitnami repo.
@@ -11,7 +11,7 @@
 
 # Tag pinned EXPLICITLY: an empty tag inherits the chart's appVersion, so the
 # running image would change under us with no diff here. Bump this together
-# with platform_chart_versions.librechat.
+# with the chart version in kubernetes/helmfile.yaml.gotmpl.
 image:
   tag: "v0.8.7"
 

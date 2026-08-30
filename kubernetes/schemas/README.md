@@ -21,19 +21,20 @@ reviewable file.
 
 | File | Chart it tracks | How the catalog copy differs |
 | ---- | --------------- | -------------------------------- |
-| `secrets.infisical.com/infisicalsecret_v1alpha1.json` | `infisical/secrets-operator`, pinned by `platform_chart_versions.infisical` | The catalog copy sets `additionalProperties: false` at every object level; the operator's own CRD does not, because the API server *prunes* unknown fields rather than refusing the object. That is the only remaining divergence — see "One difference from the catalog" below, and "Deleting a file here". |
+| `secrets.infisical.com/infisicalsecret_v1alpha1.json` | `infisical/secrets-operator`, pinned by the `infisical` release in `kubernetes/helmfile.yaml.gotmpl` | The catalog copy sets `additionalProperties: false` at every object level; the operator's own CRD does not, because the API server *prunes* unknown fields rather than refusing the object. That is the only remaining divergence — see "One difference from the catalog" below, and "Deleting a file here". |
 
 ## Regenerating
 
-Run this whenever `platform_chart_versions.infisical` moves — that is the
+Run this whenever the `infisical` release's `version:` moves — that is the
 **hand-synced pair** this directory creates, and it is in the table in
 [CLAUDE.md](../../CLAUDE.md). Nothing checks it automatically: a stale file here
 validates against a CRD the cluster no longer has, and the failure surfaces at
 `kubectl apply` time instead of at PR time.
 
 ```bash
-VERSION=$(awk '/^  infisical:/ {gsub(/"/,"",$2); print $2}' \
-  ansible/inventories/group_vars/all.yml)
+VERSION=$(awk '/chart: infisical\/secrets-operator/ {found=1} \
+  found && /^ *version:/ {gsub(/"/,"",$2); print $2; exit}' \
+  kubernetes/helmfile.yaml.gotmpl)
 
 helm repo add infisical \
   https://dl.cloudsmith.io/public/infisical/helm-charts/helm/charts/

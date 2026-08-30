@@ -26,13 +26,12 @@ standing between you and the drift is this table.
 | the same two lists                                    | `PRIVATE_CHECKS` (`scripts/smoke.sh`)                     | `assert-sync.py` (one-way: config ⊆ smoke) | A private hostname nothing probes is a surface whose loss nobody notices. The status codes stay a per-service judgement call, so the check never derives them. |
 | `SCOPES` in `scripts/infisical-vars.py`               | the `assert` list in `roles/platform/tasks/preflight.yml` | `assert-sync.py` | Preflight is the second gate on the same secret set; a secret fetched but unasserted fails halfway through a deploy instead of at the start. |
 | `forwardedHeaders.trustedIPs` (`cluster/traefik/traefik-config.yaml`) | `rate-limit` `ipStrategy.excludedIPs` (`cluster/traefik/middleware.yaml`) | `assert-sync.py` | Both enumerate "hops that are ours". If they disagree, the rate limiter keys on the wrong XFF element or on nothing. |
-| `platform_chart_versions` (`group_vars/all.yml`)      | the `--version` on every `helm upgrade --install` in `roles/platform/tasks/` | `assert-sync.py` | An orphan pin reads as "this chart is pinned" while the install it was written for is unpinned — i.e. the next deploy adopts whatever upstream's latest is that day. |
-| the `helm upgrade --install` set in `roles/platform/tasks/` | `UPSTREAM_RELEASES` / `SERVICE_RELEASES` (`scripts/platform-diff.sh`) | `assert-sync.py` (release, chart ref, namespace, version key, values file) | `make diff` is the pre-flight for `make deploy-platform`. A stale table previews a chart the deploy will not install and reports "no changes" about the one it will. |
 | `helm_version` (`group_vars/all.yml`)                 | `azure/setup-helm` version in `validate.yaml` **and** `publish-chart.yaml` | `assert-sync.py` | Three machines, one Helm. A chart packaged by one version and rendered by another is a silent behaviour difference. |
+| `helmfile_version` (`group_vars/all.yml`)             | `HELMFILE_VERSION=` in `validate.yaml`                    | `assert-sync.py` | The node applies `kubernetes/helmfile.yaml.gotmpl`; CI renders it. helmfile 1.x already changed *when* a state file is templated at all, so a runner on another minor can render a file the node would refuse — or render a different one and pass. |
 | `ansible-core==` in `validate.yaml`                   | `ansible-core==` in `deploy-platform.yaml`                | `assert-sync.py` | One lints the playbooks, the other applies them. Different minors, and a green lint proves nothing about the run. |
 | helm-unittest version in `validate.yaml`              | the same version in the `Makefile`                        | `assert-sync.py` | The plugin embeds its own renderer, so the committed `__snapshot__` files only reproduce against the version that wrote them. |
 | every `busybox@sha256:` in the tree                   | each other                                                | `assert-sync.py` | Digest pins only work if a bump touches every copy; the one that was missed is the one nobody re-rendered. |
-| `platform_chart_versions.infisical` (`group_vars/all.yml`) | `kubernetes/schemas/secrets.infisical.com/infisicalsecret_v1alpha1.json` | **nothing** — a stale schema still validates | The vendored schema overrides a datreeio catalog copy that differs in exactly one way: the catalog sets `additionalProperties: false` at every object level, while the operator's own CRD does not (the API server *prunes* unknown fields rather than refusing the object). Bump the chart, re-extract the CRD — regeneration command in `kubernetes/schemas/README.md`. Skip it and CI validates against a CRD the cluster no longer has, so the break lands at `kubectl apply`. |
+| the `infisical` release's `version:` (`kubernetes/helmfile.yaml.gotmpl`) | `kubernetes/schemas/secrets.infisical.com/infisicalsecret_v1alpha1.json` | **nothing** — a stale schema still validates | The vendored schema overrides a datreeio catalog copy that differs in exactly one way: the catalog sets `additionalProperties: false` at every object level, while the operator's own CRD does not (the API server *prunes* unknown fields rather than refusing the object). Bump the chart, re-extract the CRD — regeneration command in `kubernetes/schemas/README.md`. Skip it and CI validates against a CRD the cluster no longer has, so the break lands at `kubectl apply`. |
 | `PUBLIC_CHECKS` (`scripts/smoke.sh`)                  | `REPOS` + `PLATFORM_PUBLIC_HOSTS` (`scripts/trigger-app-deploys.sh`) | `assert-sync.py` (both ways) | `make redeploy-apps` is what brings the fleet back after a repave. A repo missing from it is a service that silently never returns while smoke keeps reporting its hosts down. |
 | `scripts/publish-app-chart.sh` (run by `publish-chart.yaml`) | the guard in `roles/platform/tasks/publish-app-chart.yml` | `assert-sync.py` (pull ref, push ref, chart dir, and that the workflow calls the script) | The node has no checkout of this repo (`stage-manifests.yml` copies only `kubernetes/`), so the fresh-cluster publisher must stay a separate copy. Both must guard the same coordinates or one overwrites a version the other thinks is published. |
 | `security_ci_deploy_pubkey` (`roles/security/defaults/main.yml`) | GitHub secret `CI_DEPLOY_SSH_PRIVATE`              | **nothing** — B lives outside the repo | Split keypair. Rotating needs both plus a `make deploy` to roll the pubkey onto the VM. |
@@ -148,6 +147,21 @@ Repo-specific, each one paid for at least once.
   values a human should not touch; `k3s_version` is single-sourced in
   group_vars and deliberately absent from `roles/k3s/defaults/` (which is why
   that file does not exist).
+- **One helmfile, applied in three passes.** Every platform release lives in
+  `kubernetes/helmfile.yaml.gotmpl` and nowhere else — Ansible holds no chart
+  name, no version and no values path. `roles/platform` applies it three times
+  because two things must happen in the middle: the `InfisicalSecret`s need the
+  operator's CRD (so `tier: bootstrap` goes first), and the hand-written
+  workloads in `raw-manifests.yml` mount PVCs the `<svc>-platform` releases
+  create (so `tier: platform` goes second). The last pass carries **no
+  selector**, which is what guarantees a release with no tier label still
+  deploys. A `--tags telemetry`-style redeploy of one service is now
+  `helmfile apply -l name=<release>`, not an Ansible tag.
+- **The `.gotmpl` suffix is load-bearing.** helmfile 1.x renders the state file
+  as a Go template only when the extension says so, and this one resolves
+  `NODE_NAME` (the hostPath PV's nodeAffinity) and `GRAFANA_ADMIN_PASSWORD`
+  from the environment at parse time. Rename it to `helmfile.yaml` and every
+  `requiredEnv` becomes a YAML syntax error.
 - **Namespaces**: `prod-<app>` / `next-<app>` / `staging-<app>` for apps,
   `platform-*` for infrastructure. All platform namespaces are declared in
   `kubernetes/cluster/namespaces.yaml` — never `kubectl create ns`.

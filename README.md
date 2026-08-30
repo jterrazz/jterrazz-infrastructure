@@ -10,9 +10,10 @@ is intact in git history.
 
 **Three layers, three tools.** Pulumi provisions (the VM, plus the Cloudflare
 DNS records that point at it), Ansible configures (host hardening, Tailscale,
-k3s, then every platform Helm release), Helm deploys. There is no GitOps
-controller — a deploy is a `helm upgrade --install`, from CI or from the
-laptop.
+k3s, then the release layer), Helmfile deploys. Every platform release —
+name, namespace, chart, pinned version, values file — is declared once, in
+`kubernetes/helmfile.yaml.gotmpl`. There is no GitOps controller: a deploy is
+`helmfile apply`, run on the node from CI or from the laptop.
 
 **Two ways in, neither an open port.** Public traffic arrives through an
 outbound QUIC tunnel: Cloudflare edge → `cloudflared` pod → Traefik → app.
@@ -43,7 +44,7 @@ Mac anyway. Re-add `cluster-init: true` the day a second node exists.
 ```bash
 make deploy           # pulumi up + ansible site.yml — the whole machine
 make deploy-platform  # ansible platform.yml only — everything above k3s
-make diff             # what a deploy would change, without changing it
+make diff             # what a deploy would change, without changing it (helmfile diff)
 make redeploy-apps    # trigger every app's CI to rebuild + redeploy
 make destroy          # delete the VM (the Mac-side data directory stays)
 make check            # the checks CI runs, locally (alias: make lint)
@@ -94,9 +95,12 @@ ansible/
 ├── roles/         base · security · resolved · tailscale · k3s · platform
 └── inventories/   laptop.yml (OrbStack SSH proxy) · ci.yml (over Tailscale)
                    group_vars/all.yml — THE config surface: k3s_version,
-                   helm_version, platform_chart_versions, private_hostnames
+                   helm_version, helmfile_version, private_hostnames
 
 kubernetes/
+├── helmfile.yaml.gotmpl  every platform Helm release, declared ONCE: name,
+│                     namespace, chart, pinned version, values file. Applied on
+│                     the node by roles/platform; previewed by `make diff`.
 ├── charts/app/       application chart, published to the OCI registry.
 │                     Version: kubernetes/charts/app/Chart.yaml. Reference:
 │                     kubernetes/charts/app/README.md
@@ -113,7 +117,7 @@ kubernetes/
                       (service-chart values) + any raw manifests it needs
 
 pulumi/src/   index.ts (one machine) · targets/orbstack.ts · dns.ts
-scripts/      deploy.sh · backup.sh · infisical-vars.py · platform-diff.sh
+scripts/      deploy.sh · backup.sh · infisical-vars.py · helmfile.sh
               smoke.sh · assert-sync.py · trigger-app-deploys.sh ·
               publish-app-chart.sh · lib/common.sh · lib/helm-plugin.sh
 ```
@@ -122,7 +126,7 @@ scripts/      deploy.sh · backup.sh · infisical-vars.py · platform-diff.sh
 
 | Workflow               | Trigger                                                                                          | Does                                                                                                                                                                                             |
 | ---------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `validate.yaml`        | PR to main **and** push to main                                                                    | `tsc --noEmit` on `pulumi/`; shellcheck + python syntax on `scripts/`; `ansible-lint -c ansible/.ansible-lint` + `--syntax-check` on both playbooks; kubeconform over `kubernetes/cluster` and every raw manifest under `kubernetes/services`; both charts rendered against their `ci/test-values.yaml`. Plus gitleaks, helm-unittest, and assertions on the hand-synced pairs. |
+| `validate.yaml`        | PR to main **and** push to main                                                                    | `tsc --noEmit` on `pulumi/`; shellcheck + python syntax on `scripts/`; `ansible-lint -c ansible/.ansible-lint` + `--syntax-check` on both playbooks; kubeconform over `kubernetes/cluster` and every raw manifest under `kubernetes/services`; both charts rendered against their `ci/test-values.yaml`; `helmfile template` over every declared release. Plus gitleaks, helm-unittest, and assertions on the hand-synced pairs. |
 | `deploy-platform.yaml` | push to main touching `ansible/**`, `kubernetes/{services,cluster,charts/service}/**`; or manual   | Runs `platform.yml` only, over Tailscale, from a runner joined as `tag:ci`. Never the host layer — those roles restart sshd/tailscaled and would kill the runner's own session.                    |
 | `publish-chart.yaml`   | push to main touching `kubernetes/charts/app/**` or `scripts/publish-app-chart.sh`; or manual                                        | Packages and pushes the app chart. Refuses to overwrite a published version (it is consumed unversioned); a no-op when the version already exists.                                                 |
 | `smoke.yaml`           | after `deploy-platform.yaml` completes; weekly schedule; or manual                                  | Runs `scripts/smoke.sh --public --private --certs` against the live cluster — the only workflow that checks the deployed state rather than the tree.                                               |

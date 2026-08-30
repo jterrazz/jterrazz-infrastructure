@@ -1,5 +1,6 @@
 # kube-state-metrics — the source of every kube_* series. Its own release, from
-# prometheus-community, pinned by platform_chart_versions.kube_state_metrics.
+# prometheus-community. Chart version: the `kube-state-metrics` release in
+# kubernetes/helmfile.yaml.gotmpl.
 #
 # Nothing here configures scraping: the chart annotates its own Service with
 # prometheus.io/scrape=true and victoria-metrics' `kubernetes-service-endpoints`

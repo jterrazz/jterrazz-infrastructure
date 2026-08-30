@@ -1,6 +1,6 @@
-# VictoriaLogs single-node — the log store. Chart: vm/victoria-logs-single (see
-# platform_chart_versions.victoria_logs). Two write paths, both on :9428, both
-# always on (no receiver flag to enable):
+# VictoriaLogs single-node — the log store. Chart: vm/victoria-logs-single,
+# pinned in kubernetes/helmfile.yaml.gotmpl. Two write paths, both on :9428,
+# both always on (no receiver flag to enable):
 #   * OTLP/HTTP  /insert/opentelemetry/v1/logs  — what the OTel collector uses
 # Query language is LogsQL, not LogQL: stream filters look the same
 # (`{k8s.namespace.name="x"}`), the pipe operators do not — see docs/RUNBOOK.md.

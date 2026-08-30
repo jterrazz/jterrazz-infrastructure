@@ -45,8 +45,8 @@ access: private
 #     uploads:   { size: 5Gi, pathSuffix: uploads }
 storage: {}
 
-# Injected by Ansible at deploy time (roles/platform/tasks/service-charts.yml
-# passes --set infrastructure.nodeName={{ inventory_hostname }}). Used as the
-# hostPath PV's nodeAffinity match.
+# Injected at deploy time: the `service` release template in
+# kubernetes/helmfile.yaml.gotmpl sets it from $NODE_NAME. Used as the hostPath
+# PV's nodeAffinity match.
 infrastructure:
   nodeName: ""

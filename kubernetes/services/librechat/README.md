@@ -5,8 +5,10 @@ Private chat UI on **`chat.internal.jterrazz.com`** (Tailscale-only), namespace
 (`gateway-intelligence`) rather than any provider API directly, so no
 provider key is ever stored here.
 
-Deployed by `ansible/roles/platform/tasks/librechat.yml` (tags: `librechat`,
-`services`, `gateway`).
+Two Helm releases in `kubernetes/helmfile.yaml.gotmpl` — `librechat-platform`
+(storage, certificate, ingress) and `librechat` (the app) — plus the standalone
+`mongodb.yaml`, applied by `ansible/roles/platform/tasks/raw-manifests.yml`
+between the two helmfile passes.
 
 ## Architecture
 
@@ -50,7 +52,7 @@ Deployed by `ansible/roles/platform/tasks/librechat.yml` (tags: `librechat`,
 
 | Component      | Version                                                     |
 | -------------- | ----------------------------------------------------------- |
-| Helm chart     | `oci://ghcr.io/danny-avila/librechat-chart/librechat` **2.0.7** (pinned as `platform_chart_versions.librechat` in `ansible/inventories/group_vars/all.yml`) |
+| Helm chart     | `oci://ghcr.io/danny-avila/librechat-chart/librechat` **2.0.7** (pinned on the `librechat` release in `kubernetes/helmfile.yaml.gotmpl`) |
 | LibreChat app  | `registry.librechat.ai/danny-avila/librechat:v0.8.7`     |
 | MongoDB        | `mongo:7.0`                                                  |
 | (init) chown   | `busybox:1.38` (digest-pinned in `mongodb.yaml`)             |

@@ -1,6 +1,6 @@
 # VictoriaMetrics single-node — the metrics store.
 #
-# Chart: vm/victoria-metrics-single (see platform_chart_versions.victoria_metrics).
+# Chart: vm/victoria-metrics-single, pinned in kubernetes/helmfile.yaml.gotmpl.
 # Two ingest paths, both on :8428 —
 #   * it SCRAPES, via `-promscrape.config` (server.scrape below), a
 #     Prometheus-compatible scrape config;

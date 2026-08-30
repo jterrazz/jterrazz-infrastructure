@@ -63,7 +63,7 @@ deploy script never sees these:
 
 There is no `/jterrazz-infrastructure/registry` folder: the registry's password
 is `DOCKER_REGISTRY_PASSWORD` at the root path, bcrypt-hashed into the
-`registry-auth` Secret by `roles/platform/tasks/registry.yml`.
+`registry-auth` Secret by `roles/platform/tasks/bootstrap.yml`.
 
 ### `/jterrazz-actions` — app CI
 
@@ -158,6 +158,10 @@ curl -sk -H "Host: grafana.internal.jterrazz.com" https://<tailnet-ip>/api/healt
 
 ```bash
 kubectl get pod -A | grep -v Running ; helm list -A ; kubectl get certificate -A
+
+# What would the next platform deploy change? (read-only, needs the tailnet)
+make diff
+./scripts/helmfile.sh diff -l name=grafana     # one release
 
 # cert-manager after any k3s churn (webhook + cainjector lose the API)
 kubectl rollout restart -n platform-networking \
@@ -323,12 +327,12 @@ of [openpanel](../kubernetes/services/openpanel/README.md#backup--restore) and
 2. Values: add `kubernetes/services/<svc>/{helm.yaml,platform.yaml}` (upstream
    chart values + service-chart values), following an existing service as a
    template.
-3. Pin the chart version in `platform_chart_versions`
-   (`ansible/inventories/group_vars/all.yml`) and add the matching
-   `helm upgrade --install` in `ansible/roles/platform/tasks/`, then add the
-   release to `UPSTREAM_RELEASES`/`SERVICE_RELEASES` in
-   `scripts/platform-diff.sh` so `make diff` previews it — see the
-   "Hand-synced pairs" table in `CLAUDE.md`.
+3. Release: add ONE block to `kubernetes/helmfile.yaml.gotmpl` — name,
+   namespace, chart, pinned `version:` and `values:`. Its `<svc>-platform`
+   sibling is `inherit: [{template: service}]` and needs no version. That block
+   is the whole declaration: Ansible applies it, `make diff` previews it and
+   Renovate bumps it, with nothing to keep in sync. If the chart comes from a
+   repository not already listed at the top of the file, add that too.
 4. Ingress: set `access: private` (default) or `access: cluster-internal` in
    `platform.yaml`; add a private hostname to `private_hostnames` in
    group_vars **and** `PRIVATE_CHECKS` in `scripts/smoke.sh`. A public service

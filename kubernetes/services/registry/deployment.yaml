@@ -6,7 +6,7 @@
 # and `token` needs a whole separate JWT-issuing server for a single-user
 # registry. ONE account (`deploy`), bcrypt-hashed; the hash is in Secret
 # `registry-auth` key `htpasswd`, bootstrapped by
-# ansible/roles/platform/tasks/registry.yml because a password hash must never
+# ansible/roles/platform/tasks/bootstrap.yml because a password hash must never
 # be committed. Consequence: CI pushes and containerd's node-level pulls share
 # one credential, so rotating means re-running that task AND updating
 # DOCKER_REGISTRY_PASSWORD in Infisical. The other half of the story is
@@ -120,7 +120,7 @@ spec:
             claimName: registry-data
         - name: auth
           secret:
-            # Bootstrapped by ansible/roles/platform/tasks/registry.yml.
+            # Bootstrapped by ansible/roles/platform/tasks/bootstrap.yml.
             secretName: registry-auth
 ---
 apiVersion: v1
