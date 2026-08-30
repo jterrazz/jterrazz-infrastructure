@@ -8,5 +8,16 @@ type: application
 # ansible/roles/platform/tasks/publish-app-chart.yml) refuse to overwrite an
 # already-published version — so an unbumped template change publishes nothing
 # and every app keeps rendering the old templates.
-version: 2.8.1
+version: 2.9.0
 appVersion: "1.17.1"
+
+# The one implementation of every concern this chart shares with
+# `platform-service`. A relative file:// repository so `helm dependency update`
+# resolves it from the working tree with no registry and no network — and
+# `helm package` bundles it into the .tgz every app pulls, so an app repo needs
+# nothing new. KEEP THE VERSION IN SYNC with kubernetes/charts/common/Chart.yaml
+# — asserted by scripts/assert-sync.py.
+dependencies:
+  - name: common
+    version: 1.0.0
+    repository: file://../common

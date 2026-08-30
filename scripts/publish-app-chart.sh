@@ -62,6 +62,13 @@ if helm pull "oci://$REGISTRY/charts/app" --version "$version" \
     exit 0
 fi
 
+# `common` (the library chart) is declared as a file://../common dependency and
+# nothing is vendored, so it has to be resolved before `helm package` will run
+# at all. It is then bundled INTO the .tgz as charts/common-<version>.tgz —
+# which is what lets an app repo keep pulling one unversioned chart and needing
+# no new repository of its own. Local path, so no network.
+helm dependency update "$CHART_DIR"
+
 # The .tgz filename is not knowable here (helm derives it from Chart.yaml) and
 # parsing it out of `helm package` stdout breaks on any warning line. An empty
 # directory means the one file in it IS the chart.

@@ -1,83 +1,31 @@
 {{- /*
-DATA-DESTROYING IF CHANGED. Object names and hostPath paths address LIVE data:
+The named-volume map is this chart's; the PV/PVC pair is common.volume
+(kubernetes/charts/common), which carries the data-safety notes.
 
-  PV   <name>-<key>           (the PVC binds to it by volumeName)
-  PVC  <name>-<key>, unless `claimName` overrides metadata.name — needed when
-       the consumer imposes it. A StatefulSet volumeClaimTemplate looks for
-       storage-<release>-<ordinal> and silently provisions a FRESH dynamic
-       volume if it does not find one, which is how Loki/Tempo lost every
-       log/trace (claimName storage-loki-0 / storage-tempo-0 over PVs that
-       stayed loki-data / tempo-data). No live service sets it — the
-       VictoriaMetrics charts take `existingClaim` — and the CI fixture keeps
-       the branch covered.
+  PV   <name>-<key>
+  PVC  <name>-<key>, unless `claimName` overrides metadata.name
   path /var/lib/k8s-data/<name>[/<pathSuffix>], e.g. librechat + `mongo` ->
        /var/lib/k8s-data/librechat/mongo. Renaming a key moves the directory
        and the pod comes up on an empty volume.
 
-hostPath.type is an IMMUTABLE PV field, so the unconditional
-DirectoryOrCreate below only applies to freshly created PVs.
+`nodeLocalPath` opts a volume OUT of /var/lib/k8s-data, which on this target is
+a symlink to the Mac over OrbStack's virtiofs share. Use it for data a service
+reads and writes constantly rather than merely stores: virtiofs adds
+per-syscall latency, and a SQLite-plus-index workload (Grafana's unified
+storage) turns that into a CPU spin that pegs the pod. The cost is that this
+data does NOT survive a repave — only ever point it at something
+reconstructible.
 */ -}}
 {{- $name := include "platform-service.name" . -}}
-{{- /*
-nodeAffinity pins each hostPath PV to the node holding the data. Emitted only
-when a node name is supplied — an empty infrastructure.nodeName renders
-`values: [""]`, a PV that matches no node and can never bind. Also immutable
-once set: adding it to a pre-existing PV means delete-and-recreate the PV
-object (the DATA survives — hostPath dirs plus a Retain reclaim policy).
-*/ -}}
+{{- $labels := include "platform-service.labels" . -}}
 {{- $nodeName := .Values.infrastructure.nodeName | default "" -}}
 {{- range $key, $volume := .Values.storage }}
 {{- $size := $volume.size | required (printf "storage.%s.size is required" $key) }}
-{{- $claimName := $volume.claimName | default (printf "%s-%s" $name $key) }}
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: {{ $name }}-{{ $key }}
-  labels:
-    {{- include "platform-service.labels" $ | nindent 4 }}
-    app.kubernetes.io/component: storage
-spec:
-  capacity:
-    storage: {{ $size }}
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: manual
-  hostPath:
-    {{/* `nodeLocalPath` opts a volume OUT of /var/lib/k8s-data, which on this
-         target is a symlink to the Mac over OrbStack's virtiofs share. Use it
-         for data a service reads and writes constantly rather than merely
-         stores: virtiofs adds per-syscall latency, and a SQLite-plus-index
-         workload (Grafana's unified storage) turns that into a CPU spin that
-         pegs the pod. The cost is that this data does NOT survive a repave —
-         only ever point it at something reconstructible. */}}
-    path: {{ $volume.nodeLocalPath | default (printf "/var/lib/k8s-data/%s%s" $name (ternary (printf "/%s" ($volume.pathSuffix | toString)) "" (hasKey $volume "pathSuffix"))) }}
-    type: DirectoryOrCreate
-  {{- if $nodeName }}
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-        - matchExpressions:
-            - key: kubernetes.io/hostname
-              operator: In
-              values:
-                - {{ $nodeName }}
-  {{- end }}
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ $claimName }}
-  labels:
-    {{- include "platform-service.labels" $ | nindent 4 }}
-    app.kubernetes.io/component: storage
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: manual
-  resources:
-    requests:
-      storage: {{ $size }}
-  volumeName: {{ $name }}-{{ $key }}
+{{ include "common.volume" (dict
+      "name" (printf "%s-%s" $name $key)
+      "claimName" ($volume.claimName | default (printf "%s-%s" $name $key))
+      "labels" (printf "%s\napp.kubernetes.io/component: storage" $labels)
+      "size" $size
+      "path" ($volume.nodeLocalPath | default (printf "/var/lib/k8s-data/%s%s" $name (ternary (printf "/%s" ($volume.pathSuffix | toString)) "" (hasKey $volume "pathSuffix"))))
+      "nodeName" $nodeName) }}
 {{- end }}

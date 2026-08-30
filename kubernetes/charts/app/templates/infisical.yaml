@@ -3,31 +3,12 @@
 {{- if $secrets.path -}}
 {{- $appName := include "app.name" . -}}
 ---
-apiVersion: secrets.infisical.com/v1alpha1
-kind: InfisicalSecret
-metadata:
-  name: {{ $appName }}-infisical
-  labels:
-    {{- include "app.labels" . | nindent 4 }}
-spec:
-  hostAPI: https://eu.infisical.com
-  authentication:
-    universalAuth:
-      secretsScope:
-        projectSlug: jterrazz
-        envSlug: {{ include "app.infisicalEnv" . }}
-        secretsPath: {{ $secrets.path }}
-      credentialsRef:
-        secretName: infisical-credentials
-        secretNamespace: platform-secrets
-  # LIST form (`managedKubeSecretReferences`), not the deprecated singular
-  # `managedSecretReference:` map. Same fields, same behaviour for one entry —
-  # and `creationPolicy` is left at its default `Orphan`, which is what the
-  # singular field always did: the managed Secret outlives the CR rather than
-  # being garbage-collected with it.
-  managedKubeSecretReferences:
-    - secretName: {{ include "app.secretsName" . }}
-      secretNamespace: {{ .Release.Namespace }}
-      secretType: Opaque
+{{ include "common.infisicalSecret" (dict
+     "name" (printf "%s-infisical" $appName)
+     "labels" (include "app.labels" .)
+     "envSlug" (include "app.infisicalEnv" .)
+     "secretsPath" $secrets.path
+     "secretName" (include "app.secretsName" .)
+     "secretNamespace" .Release.Namespace) }}
 {{- end }}
 {{- end }}

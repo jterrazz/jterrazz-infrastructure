@@ -196,9 +196,16 @@ jobs:
         # templates.
         run: |
           set -euo pipefail
+          # `common` is a LIBRARY chart — no values, no fixture, renders
+          # nothing — so it is linted alone. Both consumers pull it through a
+          # relative file:// repository and nothing is vendored, so
+          # `helm dependency update` has to run before helm will render them at
+          # all. No network is involved: every dependency here is a local path.
+          helm lint kubernetes/charts/common
           for chart in app platform-service; do
             fixture="kubernetes/charts/$chart/ci/test-values.yaml"
             echo "== $chart chart =="
+            helm dependency update "kubernetes/charts/$chart"
             helm lint "kubernetes/charts/$chart" -f "$fixture"
             # shellcheck disable=SC2086
             helm template ci-test "kubernetes/charts/$chart" -f "$fixture" \

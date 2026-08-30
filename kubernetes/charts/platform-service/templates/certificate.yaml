@@ -1,18 +1,7 @@
 {{- if .Values.host }}
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: {{ include "platform-service.name" . }}-tls
-  labels:
-    {{- include "platform-service.labels" . | nindent 4 }}
-spec:
-  secretName: {{ include "platform-service.name" . }}-tls
-  issuerRef:
-    name: letsencrypt-production
-    kind: ClusterIssuer
-  dnsNames:
-    - {{ include "platform-service.host" . }}
-    {{- range .Values.aliases | default list }}
-    - {{ . }}
-    {{- end }}
+{{- include "common.certificate" (dict
+      "name" (printf "%s-tls" (include "platform-service.name" .))
+      "labels" (include "platform-service.labels" .)
+      "secretName" (printf "%s-tls" (include "platform-service.name" .))
+      "dnsNames" (concat (list (include "platform-service.host" .)) (.Values.aliases | default list))) }}
 {{- end }}

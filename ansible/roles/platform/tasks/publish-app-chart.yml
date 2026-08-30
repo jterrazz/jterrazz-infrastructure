@@ -66,6 +66,14 @@
         state: directory
         mode: "0700"
 
+    # `common` (the library chart) is a file://../common dependency and nothing
+    # is vendored, so it has to be resolved before `helm package` will run at
+    # all. It is then bundled into the .tgz, which is what lets an app repo
+    # keep pulling one unversioned chart. Local path, so no network.
+    - name: Resolve the app chart's library dependency
+      ansible.builtin.command: helm dependency update {{ manifest_dir }}/kubernetes/charts/app
+      changed_when: true
+
     - name: Package the app Helm chart
       ansible.builtin.command: helm package {{ manifest_dir }}/kubernetes/charts/app --destination /tmp/app-chart
       changed_when: true

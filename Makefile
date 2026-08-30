@@ -126,13 +126,20 @@ check: ## Run the checks CI runs (shellcheck, python, sync assertions, tsc, ansi
 	ansible-lint -c ansible/.ansible-lint ansible/
 	@echo "✓ ansible-lint clean"
 	@echo ""
-	@echo "== helm lint (app, platform-service) =="
+	@echo "== helm lint (common, app, platform-service) =="
+	@# `common` is a LIBRARY chart: no values, no fixture, renders nothing — so
+	@# it is linted on its own. Its two consumers resolve it through a relative
+	@# file:// repository and nothing is vendored, so `helm dependency update`
+	@# has to run before helm will render either of them at all. It needs no
+	@# network: every dependency in this tree is a local path.
+	helm lint kubernetes/charts/common
 	@for chart in app platform-service; do \
 		fixture="kubernetes/charts/$$chart/ci/test-values.yaml"; \
 		if [ ! -f "$$fixture" ]; then \
 			echo "✗ $$fixture missing — the fixture IS the validation contract for this chart"; \
 			exit 1; \
 		fi; \
+		helm dependency update "kubernetes/charts/$$chart" >/dev/null || exit 1; \
 		helm lint "kubernetes/charts/$$chart" -f "$$fixture" || exit 1; \
 	done
 	@echo "✓ helm lint clean"

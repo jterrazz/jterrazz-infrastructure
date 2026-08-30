@@ -1,5 +1,6 @@
 {{- if eq (include "app.envExists" .) "true" -}}
 {{- $appName := include "app.name" . -}}
+{{- $labels := include "app.labels" . -}}
 {{- $ingressList := fromYamlArray (include "app.ingressList" .) -}}
 
 {{- /* One Certificate per unique host — multiple ingress entries on the
@@ -14,19 +15,11 @@
 {{- range $host, $_ := $hosts }}
 {{- $hostSlug := include "app.hostSlug" $host }}
 ---
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: {{ $appName }}-{{ $hostSlug }}-tls
-  labels:
-    {{- include "app.labels" $ | nindent 4 }}
-spec:
-  secretName: {{ $appName }}-{{ $hostSlug }}-tls
-  issuerRef:
-    name: letsencrypt-production
-    kind: ClusterIssuer
-  dnsNames:
-    - {{ $host }}
+{{ include "common.certificate" (dict
+     "name" (printf "%s-%s-tls" $appName $hostSlug)
+     "labels" $labels
+     "secretName" (printf "%s-%s-tls" $appName $hostSlug)
+     "dnsNames" (list $host)) }}
 {{- end }}
 
 {{- /* Resource name is {app}-{idx} so two entries sharing a host or path
@@ -64,68 +57,43 @@ spec:
 {{- end }}
 {{- if and $emitStripPrefix (not $isRedirect) }}
 ---
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: {{ $routeName }}-strip-prefix
-  labels:
-    {{- include "app.labels" $ | nindent 4 }}
-spec:
-  stripPrefix:
-    prefixes:
-      - {{ $path }}
+{{ include "common.middleware.stripPrefix" (dict
+     "name" (printf "%s-strip-prefix" $routeName)
+     "labels" $labels
+     "prefix" $path) }}
 {{- end }}
 {{- if $isRedirect }}
 ---
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: {{ $routeName }}-redirect
-  labels:
-    {{- include "app.labels" $ | nindent 4 }}
-spec:
-  redirectRegex:
-    # Anchored on the scheme too: Traefik matches against the full URL, so an
-    # unanchored pattern would also rewrite a request whose PATH happens to
-    # contain the host.
-    regex: ^https?://{{ $entry.host | replace "." "\\." }}/(.*)
-    replacement: {{ if $preservePath }}{{ $redirectTo }}/${1}{{ else }}{{ $redirectTo }}{{ end }}
-    # 301, not 302: this host is not coming back, and a permanent redirect is
-    # what moves search rankings to the canonical host.
-    permanent: true
+{{ include "common.middleware.redirect" (dict
+     "name" (printf "%s-redirect" $routeName)
+     "labels" $labels
+     "host" $entry.host
+     "replacement" (ternary (printf "%s/${1}" $redirectTo) $redirectTo $preservePath)) }}
 {{- end }}
+{{- /* Exactly one access middleware, never chained — common.accessMiddleware.
+       A private entry gets private-access; a public one gets none and stays
+       behind the global websecure chain. */ -}}
+{{- $middlewares := list }}
+{{- $access := include "common.accessMiddleware" (ternary "public" "private" $isPublic) }}
+{{- if $access }}
+{{- $middlewares = append $middlewares (dict "name" $access "namespace" "platform-networking") }}
+{{- end }}
+{{- if $isRedirect }}
+{{- $middlewares = append $middlewares (dict "name" (printf "%s-redirect" $routeName)) }}
+{{- end }}
+{{- if and $emitStripPrefix (not $isRedirect) }}
+{{- $middlewares = append $middlewares (dict "name" (printf "%s-strip-prefix" $routeName)) }}
+{{- end }}
+{{- /* A redirect still names a service: Traefik requires one on every route,
+       and the redirect middleware answers before it is ever dialled. */}}
 ---
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: {{ $routeName }}
-  labels:
-    {{- include "app.labels" $ | nindent 4 }}
-spec:
-  entryPoints:
-    - websecure
-  routes:
-    - match: Host(`{{ $entry.host }}`){{ if $hasPath }} && PathPrefix(`{{ $path }}`){{ end }}
-      kind: Rule
-      {{- if or (not $isPublic) $emitStripPrefix $isRedirect }}
-      middlewares:
-        {{- if not $isPublic }}
-        - name: private-access
-          namespace: platform-networking
-        {{- end }}
-        {{- if $isRedirect }}
-        - name: {{ $routeName }}-redirect
-        {{- end }}
-        {{- if and $emitStripPrefix (not $isRedirect) }}
-        - name: {{ $routeName }}-strip-prefix
-        {{- end }}
-      {{- end }}
-      {{- /* A redirect still needs a service: Traefik requires one on every
-             route, and the middleware answers before it is ever dialled. */}}
-      services:
-        - name: {{ $appName }}
-          port: 80
-  tls:
-    secretName: {{ $appName }}-{{ $hostSlug }}-tls
+{{ include "common.ingressRoute" (dict
+     "name" $routeName
+     "labels" $labels
+     "match" (printf "Host(`%s`)%s" $entry.host (ternary (printf " && PathPrefix(`%s`)" $path) "" $hasPath))
+     "middlewares" $middlewares
+     "serviceName" $appName
+     "servicePort" 80
+     "tlsSecret" (printf "%s-%s-tls" $appName $hostSlug)) }}
 {{- end }}
 {{- end }}

@@ -1,8 +1,6 @@
 {{- /*
-`access` picks the Traefik ipAllowList middleware for this route: exactly one,
-or none. NEVER chain the two allow-lists — Traefik ANDs chained ipAllowLists,
-so the source would have to satisfy BOTH and chaining allows strictly less,
-not more.
+Access, aliases and the match expression are this chart's; the IngressRoute
+itself is common.ingressRoute (kubernetes/charts/common).
 
 A leftover boolean `private:` key fails the render rather than being ignored:
 ignoring it would silently apply the `private` DEFAULT to a values file that
@@ -11,42 +9,22 @@ meant `private: false`, i.e. change network exposure by omission.
 {{- if hasKey .Values "private" }}
 {{- fail "`private` was replaced by `access: private|cluster-internal|public` — remove it from this values file" }}
 {{- end }}
-{{- $access := .Values.access | default "private" -}}
-{{- $middleware := "" -}}
-{{- if eq $access "private" -}}
-{{- $middleware = "private-access" -}}
-{{- else if eq $access "cluster-internal" -}}
-{{- $middleware = "cluster-internal-access" -}}
-{{- else if ne $access "public" -}}
-{{- fail (printf "access must be one of private|cluster-internal|public, got %q" $access) -}}
-{{- end -}}
+{{- $middleware := include "common.accessMiddleware" (.Values.access | default "private") -}}
+{{- $middlewares := list -}}
+{{- if $middleware }}
+{{- $middlewares = list (dict "name" $middleware "namespace" "platform-networking") -}}
+{{- end }}
 {{- if .Values.host }}
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: {{ include "platform-service.name" . }}
-  labels:
-    {{- include "platform-service.labels" . | nindent 4 }}
-spec:
-  entryPoints:
-    - websecure
-  routes:
-    {{/* One rule matching the canonical host plus any `aliases` (see values.yaml).
-
-         `Host(a) || Host(b)`, NOT `Host(a, b)`: Traefik v3 dropped
-         multi-value matchers. The v2 form is accepted by the CRD schema and
-         then fails to build the router at runtime, so the only symptom is a
-         404 on every name — no error on apply, nothing in `kubectl get`. */}}
-    - match: {{ range $i, $h := (concat (list (include "platform-service.host" .)) (.Values.aliases | default list)) }}{{ if $i }} || {{ end }}Host(`{{ $h }}`){{ end }}
-      kind: Rule
-      {{- if $middleware }}
-      middlewares:
-        - name: {{ $middleware }}
-          namespace: platform-networking
-      {{- end }}
-      services:
-        - name: {{ include "platform-service.name" . }}
-          port: {{ .Values.port }}
-  tls:
-    secretName: {{ include "platform-service.name" . }}-tls
+{{- /* One rule matching the canonical host plus any `aliases` (see values.yaml). */ -}}
+{{- $hosts := concat (list (include "platform-service.host" .)) (.Values.aliases | default list) -}}
+{{- $match := "" -}}
+{{- range $i, $h := $hosts }}{{ if $i }}{{ $match = printf "%s || " $match }}{{ end }}{{ $match = printf "%sHost(`%s`)" $match $h }}{{ end }}
+{{- include "common.ingressRoute" (dict
+      "name" (include "platform-service.name" .)
+      "labels" (include "platform-service.labels" .)
+      "match" $match
+      "middlewares" $middlewares
+      "serviceName" (include "platform-service.name" .)
+      "servicePort" .Values.port
+      "tlsSecret" (printf "%s-tls" (include "platform-service.name" .))) }}
 {{- end }}

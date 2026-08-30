@@ -4,40 +4,15 @@
 {{- $appName := include "app.name" . -}}
 {{- $size := $spec.storage.size | required (printf "spec.storage.size is required when spec.storage is set (app %s)" $appName) -}}
 {{- $_ := $spec.storage.mountPath | required (printf "spec.storage.mountPath is required when spec.storage is set (app %s)" $appName) -}}
-{{- /* No nodeAffinity: app CI passes no node name. A second node would need
-it here AND in charts/platform-service/templates/storage.yaml, or a hostPath
-PV can bind where the disk is empty. */ -}}
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: {{ $appName }}-{{ .Values.environment }}-data
-  labels:
-    {{- include "app.labels" . | nindent 4 }}
-spec:
-  capacity:
-    storage: {{ $size }}
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: manual
-  hostPath:
-    path: /var/lib/k8s-data/{{ $appName }}-{{ .Values.environment }}
-    type: DirectoryOrCreate
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ $appName }}-data
-  labels:
-    {{- include "app.labels" . | nindent 4 }}
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: {{ $size }}
-  storageClassName: manual
-  volumeName: {{ $appName }}-{{ .Values.environment }}-data
+{{- /* No nodeAffinity: app CI passes no node name. A second node would need one
+       here AND on every platform-service volume, or a hostPath PV can bind
+       where the disk is empty. The PV/PVC pair itself is common.volume. */ -}}
+{{- include "common.volume" (dict
+      "name" (printf "%s-%s-data" $appName .Values.environment)
+      "claimName" (printf "%s-data" $appName)
+      "labels" (include "app.labels" .)
+      "size" $size
+      "path" (printf "/var/lib/k8s-data/%s-%s" $appName .Values.environment)
+      "nodeName" "") }}
 {{- end }}
 {{- end }}

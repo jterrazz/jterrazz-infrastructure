@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - 'kubernetes/charts/app/**'
+      # Bundled INTO the app chart by `helm package`, so a change here
+      # changes what every app renders.
+      - 'kubernetes/charts/common/**'
       - 'scripts/publish-app-chart.sh'
   workflow_dispatch:
 

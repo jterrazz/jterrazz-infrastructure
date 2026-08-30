@@ -1,0 +1,13 @@
+apiVersion: v2
+name: common
+description: Library chart — the one implementation of every concern app and platform-service share
+# A LIBRARY chart: it is never installed, and Helm renders none of its files.
+# Everything it owns lives in templates/_*.tpl as a named template, included by
+# the two consumer charts.
+type: library
+# KEEP IN SYNC with the `version:` of the `common` entry in the `dependencies:`
+# of BOTH kubernetes/charts/app/Chart.yaml and
+# kubernetes/charts/platform-service/Chart.yaml — a file:// dependency resolves
+# by exact version, and a mismatch fails `helm dependency update` rather than
+# rendering something stale. Asserted by scripts/assert-sync.py.
+version: 1.0.0

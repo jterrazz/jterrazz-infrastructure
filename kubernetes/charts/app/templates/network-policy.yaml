@@ -1,76 +1,44 @@
+{{- /*
+Always rendered, with no per-app knob. The peer vocabulary and the two
+NetworkPolicy traps are documented in common.networkPolicy
+(kubernetes/charts/common); this file is only what an APP allows.
+
+Ingress: Traefik on the app port — every IngressRoute this chart renders
+terminates there, so without it the app is unreachable. Plus, if this app is
+itself a platformServices catalog target carrying a clientLabel, any pod in any
+namespace stamped with that label; consumers opt in via spec.platformServices,
+so a new consumer needs ZERO edit here.
+
+Egress: DNS, the public internet minus RFC1918, and one hole per opted-in
+platform service — on the POD ports from the catalog, never the Service port.
+*/ -}}
 {{- if eq (include "app.envExists" .) "true" -}}
 {{- $catalog := fromYaml (include "app.platformCatalog" .) -}}
 {{- $platformServices := fromYamlArray (include "app.platformServices" .) -}}
 {{- $spec := fromYaml (include "app.merged" .) -}}
 {{- $appName := include "app.name" . -}}
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: {{ include "app.name" . }}
-  labels:
-    {{- include "app.labels" . | nindent 4 }}
-spec:
-  podSelector:
-    matchLabels:
-      {{- include "app.selectorLabels" . | nindent 6 }}
-  policyTypes:
-    - Ingress
-    - Egress
-  ingress:
-    # Traefik (kube-system) -> this app on {{ $spec.port }}: every IngressRoute
-    # this chart renders terminates here, so without it the app is unreachable.
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - port: {{ $spec.port }}
-    {{- /* Server side: if THIS app is a catalog target carrying a clientLabel,
-           admit any pod (any namespace) stamped with it. Consumers opt in via
-           spec.platformServices, so a new consumer needs ZERO edit here. */}}
-    {{- if hasKey $catalog $appName }}
-    {{- $selfEntry := index $catalog $appName }}
-    {{- if $selfEntry.clientLabel }}
-    # Opted-in platform consumers (labelled {{ $selfEntry.clientLabel }}, any
-    # namespace) -> this app on {{ $spec.port }}; sourced by app.platformCatalog.
-    - from:
-        - namespaceSelector: {}
-          podSelector:
-            matchLabels:
-              {{ $selfEntry.clientLabel }}: "true"
-      ports:
-        - port: {{ $spec.port }}
-    {{- end }}
-    {{- end }}
-  egress:
-    # This app -> CoreDNS (kube-system) on 53; namespace-wide because a pod
-    # resolves before it can know which namespace answered.
-    - to:
-        - namespaceSelector: {}
-      ports:
-        - port: 53
-          protocol: UDP
-        - port: 53
-    # This app -> the public internet (RFC1918 excepted, so no lateral reach
-    # into the node LAN or another cluster's pod/service CIDR).
-    - to:
-        - ipBlock:
-            cidr: 0.0.0.0/0
-            except:
-              - 10.0.0.0/8
-              - 172.16.0.0/12
-              - 192.168.0.0/16
-    {{- range $svc := $platformServices }}
-    {{- $entry := index $catalog $svc }}
-    # This app -> {{ $svc }} in {{ $entry.egress.namespace }} on the POD ports
-    # (never the Service port); sourced by spec.platformServices -> catalog.
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: {{ $entry.egress.namespace }}
-      ports:
-        {{- range $port := $entry.egress.ports }}
-        - port: {{ $port }}
-        {{- end }}
-    {{- end }}
+{{- $ingress := list (dict "from" "traefik" "ports" (list $spec.port)) -}}
+{{- if hasKey $catalog $appName -}}
+{{- $selfEntry := index $catalog $appName -}}
+{{- if $selfEntry.clientLabel -}}
+{{- $ingress = append $ingress (dict "from" (printf "any-namespace-pods:%s=true" $selfEntry.clientLabel) "ports" (list $spec.port)) -}}
+{{- end -}}
+{{- end -}}
+{{- /* A pod resolves before it can know which namespace answered, so DNS is
+       namespace-wide. The bare 53 is TCP — the Kubernetes default, left
+       unwritten so the rendered object matches what the API server stores. */ -}}
+{{- $egress := list
+      (dict "to" "any-namespace" "ports" (list "53/UDP" 53))
+      (dict "to" "internet") -}}
+{{- range $svc := $platformServices -}}
+{{- $entry := index $catalog $svc -}}
+{{- $egress = append $egress (dict "to" (printf "namespace:%s" $entry.egress.namespace) "ports" $entry.egress.ports) -}}
+{{- end -}}
+{{- include "common.networkPolicy" (dict
+      "name" $appName
+      "labels" (include "app.labels" .)
+      "podSelector" (include "app.selectorLabels" .)
+      "policyTypes" (list "Ingress" "Egress")
+      "ingress" $ingress
+      "egress" $egress) }}
 {{- end }}

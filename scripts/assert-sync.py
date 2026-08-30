@@ -47,6 +47,11 @@ PUBLISH_WF = ".github/workflows/publish-chart.yaml"
 DEPLOY_WF = ".github/workflows/deploy-platform.yaml"
 TRIGGER_DEPLOYS = "scripts/trigger-app-deploys.sh"
 PUBLISH_SCRIPT = "scripts/publish-app-chart.sh"
+COMMON_CHART = "kubernetes/charts/common/Chart.yaml"
+LIBRARY_CONSUMERS = (
+    "kubernetes/charts/app/Chart.yaml",
+    "kubernetes/charts/platform-service/Chart.yaml",
+)
 ANSIBLE_PUBLISH = "ansible/roles/platform/tasks/publish-app-chart.yml"
 
 
@@ -852,6 +857,44 @@ def check_chart_publish_guard():
     return problems
 
 
+def check_common_chart_version():
+    """`common`'s own version == the version both consumers depend on.
+
+    `common` is a LIBRARY chart pulled through a relative `file://../common`
+    repository, and helm resolves a file:// dependency by EXACT version. Bump
+    the library without bumping the two `dependencies:` entries and
+    `helm dependency update` fails — on a runner mid-validate, or worse, on the
+    node mid-deploy. Nothing else in the tree ties the three numbers together.
+    """
+    problems = []
+    library = block_scalar(read(COMMON_CHART), "version", COMMON_CHART)
+
+    for consumer in LIBRARY_CONSUMERS:
+        text = read(consumer)
+        match = re.search(
+            r"^\s*-\s*name:\s*common\s*$\n\s*version:\s*(?P<version>\S+)\s*$",
+            text,
+            re.MULTILINE,
+        )
+        if not match:
+            raise SyncError(
+                f"{consumer}: no `- name: common` dependency with a `version:` "
+                f"on the next line. assert-sync.py's parser is deliberately "
+                f"narrow — keep the entry in that shape, or extend it here."
+            )
+        got = _unquote(_strip_comment(match.group("version")))
+        if got != library:
+            problems.append(
+                f"{consumer} depends on common {got!r} but "
+                f"{COMMON_CHART} is {library!r}.\n"
+                f"        FIX: one version in all three files. A file:// "
+                f"dependency resolves by exact version, so a mismatch fails "
+                f"`helm dependency update` rather than rendering something "
+                f"stale."
+            )
+    return problems
+
+
 CHECKS = [
     ("infisical-vars.py vars == preflight.yml asserts", check_secret_keys),
     ("traefik trustedIPs == rate-limit excludedIPs", check_traefik_trusted_ips),
@@ -863,6 +906,7 @@ CHECKS = [
     ("private hostnames are all probed by smoke.sh", check_private_hosts_smoked),
     ("public hostnames all name a deploying repo", check_public_hosts_have_repo),
     ("both app-chart publish guards agree", check_chart_publish_guard),
+    ("common library version == both dependents' pins", check_common_chart_version),
 ]
 
 
