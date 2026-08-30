@@ -19,7 +19,7 @@ One word, one meaning. Everything below "platform" is one of four layers.
 
 - **Host layer** — the VM and what runs directly on it: `roles/{base,security,resolved,tailscale,k3s}`, applied only by `make deploy` from the Mac.
 - **Cluster layer** — objects that belong to no single release: `kubernetes/cluster/` (namespaces, StorageClass, NetworkPolicies, Traefik middlewares + TLSOption), applied by `roles/platform`'s `cluster-manifests`.
-- **Platform services** — `kubernetes/services/<x>/`, one release block each in `kubernetes/helmfile.yaml.gotmpl`. `values.yaml` = values for the UPSTREAM chart; `service.yaml` = values for our `charts/platform-service`; the release it produces is `<x>-platform` and **that name is frozen** (renaming it orphans the hostPath PV).
+- **Platform services** — `kubernetes/services/<x>/`, one release block per file in `kubernetes/helmfile.yaml.gotmpl`. Every file there is a VALUES FILE, named after the chart that consumes it: `values.yaml` = the UPSTREAM chart; `service.yaml` = our `charts/platform-service`, whose release is `<x>-platform` and **that name is frozen** (renaming it orphans the hostPath PV); anything else = one app-chart release, named after it (`op-api.yaml`, `mongodb.yaml`, or `app.yaml` when the service is a single workload). The one exception is `cloudflared/deployment.yaml`, below.
 - **Apps** — deployed from their own repos through `charts/app`, into `prod-*` / `next-*` / `staging-*`. This repo owns the chart, not the app.
 
 `charts/common` is the odd one out: a Helm **library chart**, installed by
@@ -178,12 +178,24 @@ Repo-specific, each one paid for at least once.
   `kubernetes/helmfile.yaml.gotmpl` and nowhere else — Ansible holds no chart
   name, no version and no values path. `roles/platform` applies it three times
   because two things must happen in the middle: the `InfisicalSecret`s need the
-  operator's CRD (so `tier: bootstrap` goes first), and the hand-written
-  workloads in `raw-manifests.yml` mount PVCs the `<svc>-platform` releases
-  create (so `tier: platform` goes second). The last pass carries **no
-  selector**, which is what guarantees a release with no tier label still
-  deploys. A `--tags telemetry`-style redeploy of one service is now
+  operator's CRD and cert-manager the Certificate one (so `tier: bootstrap`
+  goes first), and cloudflared's raw Deployment mounts a Secret the
+  `<svc>-platform` releases declare (so `tier: platform` goes second). The last
+  pass carries **no selector**, which is what guarantees a release with no tier
+  label still deploys. A `--tags telemetry`-style redeploy of one service is now
   `helmfile apply -l name=<release>`, not an Ansible tag.
+- **A workload is an app-chart release or an upstream chart. The only raw
+  Deployment left is cloudflared**, and it is an exception on purpose:
+  `hostNetwork: true` (the CNI bridge mangles its tunnel handshake — see
+  Gotchas) plus `dnsPolicy: ClusterFirstWithHostNet`, neither of which the app
+  chart expresses, for the one workload in the cluster that needs them. Its
+  `cloudflared-platform` release still carries the tunnel-token InfisicalSecret,
+  so the manifest is a Deployment and nothing else. Everything that used to sit
+  beside it — OpenPanel's six workloads, LibreChat's MongoDB, the registry —
+  now renders through `charts/app`, which is why that chart grew
+  `command`/`args`, an exec/tcp probe, `storage.claimName`, `servicePort` and
+  `network.isolated`. Reach for a new raw manifest only when the app chart
+  genuinely cannot express the thing, and say why in this list when you do.
 - **The `.gotmpl` suffix is load-bearing.** helmfile 1.x renders the state file
   as a Go template only when the extension says so, and this one resolves
   `NODE_NAME` (the hostPath PV's nodeAffinity) and `GRAFANA_ADMIN_PASSWORD`
@@ -265,11 +277,16 @@ editing any values file, manifest, or template in this repo.
 Each has its own README with versions, data paths, secrets and gotchas:
 
 - **LibreChat** — private AI chat at `chat.internal.jterrazz.com`, `platform-ai`.
-  [README](kubernetes/services/librechat/README.md)
+  Three releases: `librechat-platform`, `librechat-mongodb` (app chart) and the
+  upstream `librechat`. [README](kubernetes/services/librechat/README.md)
 - **OpenPanel** — product analytics; private dashboard at
   `openpanel.internal.jterrazz.com`, public ingest at `analytics.jterrazz.com/api/track`,
-  `platform-analytics`. [README](kubernetes/services/openpanel/README.md)
-- **cloudflared** — the public-traffic tunnel, `platform-networking`.
+  `platform-analytics`. Six app-chart releases (`op-postgres`, `op-redis`,
+  `op-clickhouse`, `op-api`, `op-worker`, `op-dashboard`) plus
+  `openpanel-platform`, which owns the volumes and the two certificates its
+  routes share. [README](kubernetes/services/openpanel/README.md)
+- **cloudflared** — the public-traffic tunnel, `platform-networking`. THE ONE
+  RAW DEPLOYMENT in the tree, deliberately (`hostNetwork: true`).
   [README](kubernetes/services/cloudflared/README.md)
 - Telemetry (`platform-telemetry`): the **VictoriaMetrics family** —
   VictoriaMetrics (metrics, 30d, scrapes via `-promscrape.config` *and* receives
@@ -284,7 +301,10 @@ Each has its own README with versions, data paths, secrets and gotchas:
   reference them); only the names, URLs and two of the types changed.
 - **Registry** — `registry.internal.jterrazz.com`, `platform-registry`. Its IngressRoute
   uses `cluster-internal-access` because containerd's hairpin pull is sourced
-  from a pod-CIDR/node address, not a tailnet IP.
+  from a pod-CIDR/node address, not a tailnet IP. Note the loop: the deploy
+  workflow's own setup logs into this registry, so taking the `registry`
+  release down means the deploy that would restore it cannot start — recover
+  with `make deploy-platform` from the Mac.
 - **gateway-intelligence** (an app-chart workload, deployed by its own repo)
   runs CLIProxyAPI with `api-keys: []`, which leaves its auth middleware
   allowing everything. The security boundary is **NetworkPolicy + private-only

@@ -50,14 +50,16 @@ Tailscale *facts* off an already-joined node. `infisical_client_id` /
 because the in-cluster operator needs them and they cannot come from Infisical
 itself.
 
-Synced **into the cluster** by the operator from `InfisicalSecret` CRs — the
-deploy script never sees these:
+Synced **into the cluster** by the operator from `InfisicalSecret` CRs, which
+are rendered by the release that needs them — a platform service's `secrets:`
+block (`services/<x>/service.yaml`) or an app-chart release's `spec.secrets`.
+The deploy script never sees these:
 
 | Path                                       | Becomes Secret                | Keys                                                            |
 | ------------------------------------------ | ----------------------------- | --------------------------------------------------------------- |
 | `/jterrazz-infrastructure`                 | `cloudflared-secrets`         | `CLOUDFLARE_TUNNEL_TOKEN`                                        |
 | `/jterrazz-infrastructure/librechat`       | `librechat-credentials-env`   | `CREDS_KEY`, `CREDS_IV`, `JWT_SECRET`, `JWT_REFRESH_SECRET`      |
-| `/jterrazz-infrastructure/openpanel`       | `openpanel-secrets`           | `POSTGRES_PASSWORD`, `COOKIE_SECRET`, `DATABASE_URL`, `DATABASE_URL_DIRECT` |
+| `/jterrazz-infrastructure/openpanel`       | `op-{api,worker,dashboard,postgres}-secrets` | `POSTGRES_PASSWORD`, `COOKIE_SECRET`, `DATABASE_URL`, `DATABASE_URL_DIRECT` — one Secret per release that needs them, each projecting only the keys it names |
 | `/jterrazz-infrastructure/otel-collector`  | `otel-collector-secrets`      | `LANGFUSE_BASIC_AUTH`                                            |
 | `/<app>/…`                                 | `<app>-secrets`               | whatever the app's `spec.secrets.env` lists                      |
 
@@ -333,14 +335,24 @@ of [openpanel](../kubernetes/services/openpanel/README.md#backup--restore) and
 
 ## Add a new platform service
 
+A "platform service" is a directory under `kubernetes/services/` and one or
+more releases. Which chart renders the workload decides the shape: an UPSTREAM
+chart (`values.yaml`) when one exists and is maintained, otherwise the **app
+chart** — one values file per release, named after it (`op-api.yaml`,
+`mongodb.yaml`, or `app.yaml` for a single-workload service). Writing a raw
+Deployment is the last resort, for something no chart can express; cloudflared
+(`hostNetwork: true`) is the only one left.
+
 1. Namespace: add it to `kubernetes/cluster/namespaces.yaml` if it doesn't
    already have one — never `kubectl create ns`. A NEW namespace also needs a
    baseline NetworkPolicy file under `kubernetes/cluster/network-policies/`:
    default-deny, allow-same-namespace, namespace-wide DNS egress, and nothing
    that names one workload.
-2. Values: add `kubernetes/services/<svc>/{values.yaml,service.yaml}` —
-   values for the upstream chart and for the platform-service chart,
-   following an existing service as a template.
+2. Values: add `kubernetes/services/<svc>/service.yaml` (the platform-service
+   chart: certificate, route, volumes, credentials, per-service NetworkPolicy)
+   plus either `values.yaml` for the upstream chart or one app-chart values
+   file per workload. Follow an existing service as a template — `registry/`
+   for a single app-chart workload, `openpanel/` for several.
 3. Release: add ONE block to `kubernetes/helmfile.yaml.gotmpl` — name,
    namespace, chart, pinned `version:` and `values:`. Its `<svc>-platform`
    sibling is `inherit: [{template: platform-service}]` and needs no version. That block
@@ -356,13 +368,30 @@ of [openpanel](../kubernetes/services/openpanel/README.md#backup--restore) and
    service, in which case add `smoke: { path, expect }` to the same
    `service.yaml`. The chart stamps it on the route and `scripts/smoke.sh`
    discovers it.
-5. Network: declare `network:` in the same `service.yaml` — the pod selector
-   (read it off the upstream chart's pods, it cannot be derived) plus the
-   ingress and egress this workload needs. Schema and peer vocabulary:
+5. Network: for an upstream chart, declare `network:` in the same
+   `service.yaml` — the pod selector (read it off that chart's pods, it cannot
+   be derived) plus the ingress and egress the workload needs. For an app-chart
+   workload it is `spec.network` in its own values file, and a datastore wants
+   `isolated: true` so the chart derives no Traefik ingress and no internet
+   egress. Schema and peer vocabulary:
    `kubernetes/charts/platform-service/README.md`. Nothing goes in
    `cluster/network-policies/` for a service that has a release, and every
    port is a POD port, never a Service port.
-6. `make check` locally, then a PR — `deploy-platform.yaml` deploys on merge.
+6. Secrets: `secrets: { path, secretName }` in `service.yaml` for a name an
+   upstream chart reads literally, or `spec.secrets` on the app-chart release
+   for one that becomes env vars. Nothing is applied by Ansible any more.
+7. `make check` locally, then a PR — `deploy-platform.yaml` deploys on merge.
+
+   If the release replaces a live object the cluster already has, Helm must
+   ADOPT it first: annotate `meta.helm.sh/release-name` +
+   `meta.helm.sh/release-namespace` and label
+   `app.kubernetes.io/managed-by=Helm`, or the install fails on conflict. A
+   Deployment whose SELECTOR changes cannot be adopted at all — the field is
+   immutable — so it is `kubectl delete deployment <name>` immediately before
+   the deploy, which is a real outage for that workload. Never do that to
+   `registry`: the deploy workflow's own setup logs into it, so the run that
+   would recreate it cannot start (`make deploy-platform` from the Mac is the
+   way out).
 
 ## Add a new app
 
@@ -406,7 +435,9 @@ Not scheduled — recorded here so it is not re-derived under time pressure. DB 
 PostgreSQL docs require across majors.
 
 ```bash
-# 1. Stop the writers (NOT postgres itself — it must serve the dump).
+# 1. Stop the writers (NOT postgres itself — it must serve the dump). A scale
+#    is reverted by the next `helmfile apply`, so do this with the deploy
+#    workflow quiet.
 kubectl scale -n platform-analytics --replicas=0 deploy/op-api deploy/op-worker deploy/op-dashboard
 
 # 2. Dump using a throwaway PG 17 client against the live PG 14 service.
@@ -423,12 +454,12 @@ mv ~/.jterrazz-infrastructure/data/openpanel/postgres/pgdata \
    ~/.jterrazz-infrastructure/data/openpanel/postgres/pgdata-pg14-$(date +%F)
 mkdir -p ~/.jterrazz-infrastructure/data/openpanel/postgres/pgdata
 
-# 4. Swap the image to postgres:17-alpine in kubernetes/services/openpanel/postgres.yaml.
+# 4. Swap the image to postgres:17-alpine in
+#    kubernetes/services/openpanel/op-postgres.yaml, push, and let the deploy
+#    apply it (or run `helmfile apply -l name=op-postgres` on the node).
 #    uid/gid 70:70 is correct for the alpine variant on 17 as well; the
-#    fix-perms initContainer chowns the new empty dir. PGDATA stays
+#    fix-permissions initContainer chowns the new empty dir. PGDATA stays
 #    /var/lib/postgresql/data/pgdata so initdb never sees lost+found.
-kubectl apply -f kubernetes/services/openpanel/postgres.yaml
-kubectl scale -n platform-analytics --replicas=1 deploy/op-postgres
 kubectl rollout status -n platform-analytics deploy/op-postgres --timeout=180s
 
 # 5. Restore, then bring the app back. op-api runs Prisma migrations on boot.

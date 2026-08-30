@@ -79,7 +79,7 @@ missing secret hard-fails the run; there are no fallback defaults.
 │   │  cert-manager · Infisical operator · private Docker registry   │  │
 │   │  VictoriaMetrics · VictoriaLogs · VictoriaTraces · Grafana     │  │
 │   │  kube-state-metrics · node-exporter · OTel Collector           │  │
-│   │  LibreChat · OpenPanel                                         │  │
+│   │  LibreChat (+ mongod) · OpenPanel (6 workloads)                │  │
 │   └────────────────────────────────────────────────────────────────┘  │
 │                                                                       │
 │   /var/lib/k8s-data ──symlink──► /mnt/mac/…/.jterrazz-infrastructure  │
@@ -121,9 +121,13 @@ kubernetes/
 │                     with the service, in its `network:` block)
 ├── schemas/          vendored kubeconform CRD schemas, for the one CRD whose
 │                     public catalog copy lags the operator we run
-└── services/<svc>/   values.yaml (upstream chart values) + service.yaml
-                      (platform-service chart values) + any raw manifests
-                      it needs
+└── services/<svc>/   one VALUES FILE per release, named after the chart that
+                      consumes it: values.yaml (an upstream chart), service.yaml
+                      (platform-service: route, cert, volumes, credentials,
+                      netpol) and one file per app-chart workload
+                      (op-api.yaml, mongodb.yaml, app.yaml). The only raw
+                      manifests left are cloudflared's Deployment and
+                      cert-manager's ClusterIssuers.
 
 pulumi/src/   index.ts (one machine) · targets/orbstack.ts · dns.ts
 scripts/      deploy.sh · backup.sh · infisical-vars.py · helmfile.sh
@@ -138,7 +142,7 @@ scripts/      deploy.sh · backup.sh · infisical-vars.py · helmfile.sh
 | Workflow               | Trigger                                                                                          | Does                                                                                                                                                                                             |
 | ---------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `validate.yaml`        | PR to main **and** push to main                                                                    | `tsc --noEmit` on `pulumi/`; shellcheck + python syntax on `scripts/`; `ansible-lint -c ansible/.ansible-lint` + `--syntax-check` on both playbooks; kubeconform over `kubernetes/cluster` and every raw manifest under `kubernetes/services`; both charts rendered against their `ci/test-values.yaml`; `helmfile template` over every declared release. Plus gitleaks, helm-unittest, and assertions on the hand-synced pairs. |
-| `deploy-platform.yaml` | push to main touching `ansible/**`, `kubernetes/{services,cluster,charts/platform-service}/**`; or manual   | Runs `platform.yml` only, over Tailscale, from a runner joined as `tag:ci`. Never the host layer — those roles restart sshd/tailscaled and would kill the runner's own session.                    |
+| `deploy-platform.yaml` | push to main touching `ansible/**`, `kubernetes/{services,cluster,charts}/**`; or manual   | Runs `platform.yml` only, over Tailscale, from a runner joined as `tag:ci`. Never the host layer — those roles restart sshd/tailscaled and would kill the runner's own session.                    |
 | `publish-chart.yaml`   | push to main touching `kubernetes/charts/app/**` or `scripts/publish-app-chart.sh`; or manual                                        | Packages and pushes the app chart. Refuses to overwrite a published version (it is consumed unversioned); a no-op when the version already exists.                                                 |
 | `smoke.yaml`           | after `deploy-platform.yaml` completes; weekly schedule; or manual                                  | Runs `scripts/smoke.sh --public --private --certs` against the live cluster — the only workflow that checks the deployed state rather than the tree. It lists every IngressRoute (kubectl on the node, over the deploy SSH key) and probes what each one's `smoke.jterrazz.com/*` annotations say, so a surface an app added yesterday is checked with no edit here. |
 

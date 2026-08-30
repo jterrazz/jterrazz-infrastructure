@@ -65,8 +65,19 @@ the routing rule is added in the dashboard.
 
 ## Deploy
 
-`platform.yml` applies this manifest automatically. For a targeted
-apply from the cluster host:
+Two halves, and only one of them is a manifest. `service.yaml` is
+platform-service values for the `cloudflared-platform` release, which carries
+the InfisicalSecret that becomes `cloudflared-secrets`; `deployment.yaml` is
+**the one raw Deployment left in this repo**, applied by
+`roles/platform/tasks/raw-manifests.yml` after that release exists.
+
+It stays raw on purpose: `hostNetwork: true` plus
+`dnsPolicy: ClusterFirstWithHostNet` are what make the tunnel work here at all
+(the CNI bridge mangles outbound TCP/7844 — see the note in the manifest), and
+the app chart expresses neither. It is the exception; anything else new should
+be a chart release.
+
+For a targeted apply from the cluster host:
 
 ```bash
 kubectl apply -f /tmp/k8s-manifests/kubernetes/services/cloudflared/deployment.yaml

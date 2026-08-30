@@ -3,10 +3,10 @@
 #
 # Every Helm release lives in kubernetes/helmfile.yaml.gotmpl and nowhere else.
 # This role applies it in three passes because two things have to happen in the
-# middle: the InfisicalSecrets need the operator installed (pass 1) and the
-# hand-written workloads need the PV/PVCs the `-platform` releases create
-# (pass 2). The final pass is deliberately unselected, so a release that
-# carries no tier label is still applied.
+# middle: the ClusterIssuers need cert-manager's CRD (pass 1), and cloudflared's
+# raw Deployment needs the Secret its `-platform` release declares (pass 2).
+# The final pass is deliberately unselected, so a release that carries no tier
+# label is still applied.
 #
 # `preflight` and `stage-manifests` are tagged `always` because every file
 # below reads the staged tree out of {{ manifest_dir }} and most need the
@@ -43,9 +43,9 @@
   ansible.builtin.import_tasks: bootstrap.yml
   tags: [bootstrap, secrets, certmanager, infisical]
 
-- name: Deploy the hand-written workloads
+- name: Deploy the raw manifests
   ansible.builtin.import_tasks: raw-manifests.yml
-  tags: [raw-manifests, cloudflared, librechat, openpanel, registry, grafana]
+  tags: [raw-manifests, cloudflared, grafana]
 
 - name: Apply every platform Helm release
   ansible.builtin.import_tasks: helmfile-apply.yml

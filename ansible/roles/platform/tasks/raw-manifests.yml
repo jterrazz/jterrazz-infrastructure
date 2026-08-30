@@ -1,12 +1,15 @@
 ---
-# The workloads no Helm chart owns: hand-written manifests under
-# kubernetes/services/, plus the Grafana dashboard ConfigMaps this repo
-# generates from JSON.
+# What is left after every workload that a chart CAN express became a Helm
+# release: cloudflared's Deployment, and the Grafana dashboard ConfigMaps this
+# repo generates from JSON.
 #
-# Position is load-bearing. They run AFTER bootstrap.yml (which creates the
-# PV/PVCs they mount and the Secrets they read) and BEFORE the unselected
-# `helmfile apply`. The NetworkPolicies that firewall the unauthenticated
-# datastores are applied earlier still, by cluster-manifests.yml.
+# cloudflared is a raw manifest on purpose — `hostNetwork: true` and
+# `dnsPolicy: ClusterFirstWithHostNet`, which the app chart does not express,
+# for the one workload that needs them (see the Gotchas in CLAUDE.md). Anything
+# else that lands here should be a release instead.
+#
+# Position is load-bearing: this runs AFTER bootstrap.yml, whose `tier: platform`
+# pass declares the InfisicalSecret whose Secret cloudflared reads at startup.
 
 # Its tunnel token arrives via the InfisicalSecret bootstrap.yml applied; a pod
 # scheduled before that Secret exists sits in CreateContainerConfigError rather

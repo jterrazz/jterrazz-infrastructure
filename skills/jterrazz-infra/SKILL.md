@@ -46,7 +46,7 @@ kubectl rollout restart -n platform-networking \
 # One slice of the platform layer (tags: cluster-manifests, coredns, helm,
 # bootstrap, raw-manifests, releases, chart-publish)
 cd ansible && ansible-playbook playbooks/platform.yml \
-  -i inventories/laptop.yml -e "@<extra-vars>" --tags raw-manifests
+  -i inventories/laptop.yml -e "@<extra-vars>" --tags cluster-manifests
 
 # One Helm release, rather than a tag — every release is declared in
 # kubernetes/helmfile.yaml.gotmpl and helmfile selects by label or name.

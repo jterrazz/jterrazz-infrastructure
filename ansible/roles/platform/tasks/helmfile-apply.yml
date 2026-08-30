@@ -1,9 +1,9 @@
 ---
 # One `helmfile apply` pass over kubernetes/helmfile.yaml.gotmpl — the single
 # declaration of every platform release. Included more than once because a few
-# things the helmfile cannot own (the InfisicalSecrets, the hand-written
-# workloads in raw-manifests.yml) have to be interleaved; see main.yml for the
-# order and bootstrap.yml for why.
+# things the helmfile cannot own (the ClusterIssuers, cloudflared's raw
+# Deployment) have to be interleaved; see main.yml for the order and
+# bootstrap.yml for why.
 #
 # Args:
 #   helmfile_tier — the `tier:` label to select, or omitted for EVERY release.

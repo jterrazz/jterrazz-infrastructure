@@ -102,7 +102,8 @@ than by file convenience:
 | --- | --- |
 | default-deny, allow-same-namespace, namespace-wide DNS/egress | `kubernetes/cluster/network-policies/<ns>.yaml` |
 | anything that names ONE workload with a `-platform` release | that service's `network:` |
-| anything that names a workload with no release of its own (otel-collector, librechat-mongodb, the openpanel stack, the registry Deployment, cloudflared) | still `cluster/network-policies/<ns>.yaml` |
+| anything that names ONE workload rendered by the **app** chart | that workload's `spec.network` (`isolated:`, `exposeTo:`, `egress:`) |
+| anything that names a workload with no release of its own (cloudflared, whose `hostNetwork: true` means NetworkPolicy never sees its traffic anyway) | still `cluster/network-policies/<ns>.yaml` |
 
 ```yaml
 network:

@@ -270,12 +270,12 @@ jobs:
         run: helmfile --file kubernetes/helmfile.yaml.gotmpl template > /dev/null
 
       - name: Validate raw service manifests
-        # kubernetes/services/** mixes Helm values files (values.yaml for
-        # the upstream chart, service.yaml for the platform-service chart)
-        # with actual hand-written K8s objects (openpanel's stack, LibreChat's
-        # mongodb/secret/netpol, cloudflared's Deployment, cert-manager
-        # issuers, the registry Deployment, ...). Rather than maintain an
-        # explicit file list that goes stale the moment someone adds a file,
+        # kubernetes/services/** is mostly Helm values files (values.yaml for
+        # an upstream chart, service.yaml for platform-service, one per release
+        # for the app chart) with two actual K8s manifests left among them:
+        # cloudflared's Deployment and cert-manager's ClusterIssuers. Rather
+        # than maintain an explicit file list that goes stale the moment
+        # someone adds a file,
         # filter by the one structural property that distinguishes them: a
         # real manifest has a top-level `apiVersion:` key, a values file
         # doesn't. (roles/platform/tasks/raw-manifests.yml applies the same
