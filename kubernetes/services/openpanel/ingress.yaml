@@ -5,8 +5,9 @@
 # PUBLIC   analytics.jterrazz.com (cloudflared, NO access middleware):
 #   /api/track -> op-api and NOTHING else — any other path 404s at Traefik,
 #   which is what keeps dashboard/admin/export off the internet. Abuse is
-#   guarded by the shared rate-limit middleware plus OpenPanel's per-project
-#   clientId/CORS.
+#   guarded by the rate-limit middleware the websecure entrypoint attaches to
+#   every route (cluster/traefik/traefik-config.yaml) plus OpenPanel's
+#   per-project clientId/CORS.
 #
 # Both hosts strip /api before op-api, which serves /track, /trpc and /live at
 # root.
@@ -94,8 +95,6 @@ spec:
     - match: Host(`analytics.jterrazz.com`) && PathPrefix(`/api/track`)
       kind: Rule
       middlewares:
-        - name: rate-limit
-          namespace: platform-networking
         - name: openpanel-strip-api
       services:
         - name: op-api
