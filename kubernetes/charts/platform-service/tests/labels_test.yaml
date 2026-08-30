@@ -1,4 +1,4 @@
-suite: service.labels is stamped on all four kinds
+suite: platform-service.labels is stamped on all four kinds
 #
 # The chart emits exactly four kinds — IngressRoute, Certificate,
 # PersistentVolume, PersistentVolumeClaim — and every one of them must carry
@@ -6,7 +6,7 @@ suite: service.labels is stamped on all four kinds
 # `kubectl get <kind> -l app.kubernetes.io/part-of=jterrazz-infrastructure`
 # answer "what does the platform own" across namespaces.
 #
-# A per-template test rather than one loop, because `include "service.labels"`
+# A per-template test rather than one loop, because `include "platform-service.labels"`
 # is pasted into each template separately and has been forgotten on a new
 # template before.
 values:

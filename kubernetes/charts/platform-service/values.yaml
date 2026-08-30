@@ -1,4 +1,4 @@
-# service chart defaults
+# platform-service chart defaults
 # Each platform service overrides these in kubernetes/services/<svc>/service.yaml
 
 name: ""
@@ -45,7 +45,7 @@ access: private
 #     uploads:   { size: 5Gi, pathSuffix: uploads }
 storage: {}
 
-# Injected at deploy time: the `service` release template in
+# Injected at deploy time: the `platform-service` release template in
 # kubernetes/helmfile.yaml.gotmpl sets it from $NODE_NAME. Used as the hostPath
 # PV's nodeAffinity match.
 infrastructure:

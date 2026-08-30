@@ -43,7 +43,8 @@ between the two helmfile passes.
   placeholder host `chat.example.com`, and k3s' Traefik serves Ingress objects as
   happily as IngressRoutes. So the default renders a second, middleware-free
   route to this Service, reachable on that Host header alone. Never remove the
-  override; the real route is the IngressRoute the service chart renders.
+  override; the real route is the IngressRoute the platform-service chart
+  renders.
 - **NetworkPolicy**: `kubernetes/cluster/network-policies/platform-ai.yaml`. It
   is the substitute for MongoDB auth — mongod has none — so it admits :27017
   from the LibreChat pod and nothing else, and gives mongod no egress beyond DNS.
@@ -81,7 +82,7 @@ Same pattern as the app chart and OpenPanel's datastores.
 
 ## Where the data lives
 
-Both volumes come from the **service chart's named-volume storage map**
+Both volumes come from the **platform-service chart's named-volume storage map**
 declared in `service.yaml` — `uploads` used to be a hand-written
 `uploads.yaml`, now deleted. Object names and hostPath paths are unchanged.
 

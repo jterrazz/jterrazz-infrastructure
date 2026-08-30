@@ -5,7 +5,7 @@
 {{- $size := $spec.storage.size | required (printf "spec.storage.size is required when spec.storage is set (app %s)" $appName) -}}
 {{- $_ := $spec.storage.mountPath | required (printf "spec.storage.mountPath is required when spec.storage is set (app %s)" $appName) -}}
 {{- /* No nodeAffinity: app CI passes no node name. A second node would need it
-here AND in charts/service/templates/storage.yaml, or a hostPath PV can bind
+here AND in charts/platform-service/templates/storage.yaml, or a hostPath PV can bind
 where the disk is empty. */ -}}
 ---
 apiVersion: v1

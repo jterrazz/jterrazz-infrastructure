@@ -84,7 +84,7 @@ spec:
       Server: ""
 
 ---
-# Tailnet-only allow-list: service chart `access: private`, app chart
+# Tailnet-only allow-list: platform-service chart `access: private`, app chart
 # `public: false`. 10.42/16 is load-bearing, not slack — klipper-lb DNATs and
 # MASQUERADEs inside the svclb pod's netns (the Traefik Service is
 # externalTrafficPolicy: Cluster), so a tailnet request reaches Traefik with an

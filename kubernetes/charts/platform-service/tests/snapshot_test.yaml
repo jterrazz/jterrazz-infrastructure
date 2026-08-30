@@ -10,7 +10,7 @@ suite: full fixture render (snapshot)
 # stores, LibreChat, OpenPanel and registry state.
 #
 # Reviewing a failure: read the diff. If every changed line is intended,
-#   helm unittest -u kubernetes/charts/service
+#   helm unittest -u kubernetes/charts/platform-service
 # regenerates the .snap — and that diff is what the change review should
 # actually look at. Never regenerate without reading it.
 values:

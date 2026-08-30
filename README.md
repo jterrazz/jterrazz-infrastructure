@@ -104,9 +104,10 @@ kubernetes/
 ├── charts/app/       application chart, published to the OCI registry.
 │                     Version: kubernetes/charts/app/Chart.yaml. Reference:
 │                     kubernetes/charts/app/README.md
-├── charts/service/   platform-service chart: IngressRoute + Certificate +
-│                     hostPath PV/PVCs from one values file. Version:
-│                     kubernetes/charts/service/Chart.yaml
+├── charts/platform-service/
+│                     IngressRoute + Certificate + hostPath PV/PVCs for a
+│                     platform service, from one values file. Version:
+│                     kubernetes/charts/platform-service/Chart.yaml
 ├── cluster/          cluster-wide manifests, `kubectl apply -f … -R`:
 │                     namespaces, the `manual` StorageClass, Traefik config +
 │                     middlewares + TLS options, one NetworkPolicy file per
@@ -114,7 +115,8 @@ kubernetes/
 ├── schemas/          vendored kubeconform CRD schemas, for the one CRD whose
 │                     public catalog copy lags the operator we run
 └── services/<svc>/   values.yaml (upstream chart values) + service.yaml
-                      (service-chart values) + any raw manifests it needs
+                      (platform-service chart values) + any raw manifests
+                      it needs
 
 pulumi/src/   index.ts (one machine) · targets/orbstack.ts · dns.ts
 scripts/      deploy.sh · backup.sh · infisical-vars.py · helmfile.sh
@@ -127,7 +129,7 @@ scripts/      deploy.sh · backup.sh · infisical-vars.py · helmfile.sh
 | Workflow               | Trigger                                                                                          | Does                                                                                                                                                                                             |
 | ---------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `validate.yaml`        | PR to main **and** push to main                                                                    | `tsc --noEmit` on `pulumi/`; shellcheck + python syntax on `scripts/`; `ansible-lint -c ansible/.ansible-lint` + `--syntax-check` on both playbooks; kubeconform over `kubernetes/cluster` and every raw manifest under `kubernetes/services`; both charts rendered against their `ci/test-values.yaml`; `helmfile template` over every declared release. Plus gitleaks, helm-unittest, and assertions on the hand-synced pairs. |
-| `deploy-platform.yaml` | push to main touching `ansible/**`, `kubernetes/{services,cluster,charts/service}/**`; or manual   | Runs `platform.yml` only, over Tailscale, from a runner joined as `tag:ci`. Never the host layer — those roles restart sshd/tailscaled and would kill the runner's own session.                    |
+| `deploy-platform.yaml` | push to main touching `ansible/**`, `kubernetes/{services,cluster,charts/platform-service}/**`; or manual   | Runs `platform.yml` only, over Tailscale, from a runner joined as `tag:ci`. Never the host layer — those roles restart sshd/tailscaled and would kill the runner's own session.                    |
 | `publish-chart.yaml`   | push to main touching `kubernetes/charts/app/**` or `scripts/publish-app-chart.sh`; or manual                                        | Packages and pushes the app chart. Refuses to overwrite a published version (it is consumed unversioned); a no-op when the version already exists.                                                 |
 | `smoke.yaml`           | after `deploy-platform.yaml` completes; weekly schedule; or manual                                  | Runs `scripts/smoke.sh --public --private --certs` against the live cluster — the only workflow that checks the deployed state rather than the tree.                                               |
 

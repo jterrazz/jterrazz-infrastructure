@@ -57,8 +57,12 @@ templates:
   # PV/PVCs for a service, from one values file. Always installed BEFORE the
   # upstream chart that mounts the volume — `helm --wait` otherwise blocks on a
   # pod that cannot schedule for want of a PVC.
-  service:
-    chart: ./charts/service
+  #
+  # THE `-platform` SUFFIX IS FROZEN: the chart is `platform-service`, but a
+  # renamed RELEASE is a new release and orphans the hostPath PV the old one
+  # bound. Never rename these to match the chart.
+  platform-service:
+    chart: ./charts/platform-service
     # 2m is enough for PV/PVC binding and a Certificate; there is no pod here.
     timeout: 120
     needs:
@@ -100,28 +104,28 @@ releases:
   - name: grafana-platform
     namespace: platform-telemetry
     inherit:
-      - template: service
+      - template: platform-service
     values:
       - services/grafana/service.yaml
 
   - name: victoria-metrics-platform
     namespace: platform-telemetry
     inherit:
-      - template: service
+      - template: platform-service
     values:
       - services/victoria-metrics/service.yaml
 
   - name: victoria-logs-platform
     namespace: platform-telemetry
     inherit:
-      - template: service
+      - template: platform-service
     values:
       - services/victoria-logs/service.yaml
 
   - name: victoria-traces-platform
     namespace: platform-telemetry
     inherit:
-      - template: service
+      - template: platform-service
     values:
       - services/victoria-traces/service.yaml
 
@@ -203,7 +207,7 @@ releases:
   - name: librechat-platform
     namespace: platform-ai
     inherit:
-      - template: service
+      - template: platform-service
     values:
       - services/librechat/service.yaml
 
@@ -229,7 +233,7 @@ releases:
   - name: openpanel-platform
     namespace: platform-analytics
     inherit:
-      - template: service
+      - template: platform-service
     values:
       - services/openpanel/service.yaml
 
@@ -239,6 +243,6 @@ releases:
   - name: registry-platform
     namespace: platform-registry
     inherit:
-      - template: service
+      - template: platform-service
     values:
       - services/registry/service.yaml

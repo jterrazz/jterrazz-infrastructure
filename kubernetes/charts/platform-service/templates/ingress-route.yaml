@@ -9,7 +9,7 @@ ignoring it would silently apply the `private` DEFAULT to a values file that
 meant `private: false`, i.e. change network exposure by omission.
 */ -}}
 {{- if hasKey .Values "private" }}
-{{- fail "`private` was replaced by `access: private|cluster-internal|public` in service chart 2.1 — remove it from this values file" }}
+{{- fail "`private` was replaced by `access: private|cluster-internal|public` — remove it from this values file" }}
 {{- end }}
 {{- $access := .Values.access | default "private" -}}
 {{- $middleware := "" -}}
@@ -24,9 +24,9 @@ meant `private: false`, i.e. change network exposure by omission.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: {{ include "service.name" . }}
+  name: {{ include "platform-service.name" . }}
   labels:
-    {{- include "service.labels" . | nindent 4 }}
+    {{- include "platform-service.labels" . | nindent 4 }}
 spec:
   entryPoints:
     - websecure
@@ -37,7 +37,7 @@ spec:
          multi-value matchers. The v2 form is accepted by the CRD schema and
          then fails to build the router at runtime, so the only symptom is a
          404 on every name — no error on apply, nothing in `kubectl get`. */}}
-    - match: {{ range $i, $h := (concat (list (include "service.host" .)) (.Values.aliases | default list)) }}{{ if $i }} || {{ end }}Host(`{{ $h }}`){{ end }}
+    - match: {{ range $i, $h := (concat (list (include "platform-service.host" .)) (.Values.aliases | default list)) }}{{ if $i }} || {{ end }}Host(`{{ $h }}`){{ end }}
       kind: Rule
       {{- if $middleware }}
       middlewares:
@@ -45,8 +45,8 @@ spec:
           namespace: platform-networking
       {{- end }}
       services:
-        - name: {{ include "service.name" . }}
+        - name: {{ include "platform-service.name" . }}
           port: {{ .Values.port }}
   tls:
-    secretName: {{ include "service.name" . }}-tls
+    secretName: {{ include "platform-service.name" . }}-tls
 {{- end }}

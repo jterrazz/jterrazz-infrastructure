@@ -2,16 +2,16 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: {{ include "service.name" . }}-tls
+  name: {{ include "platform-service.name" . }}-tls
   labels:
-    {{- include "service.labels" . | nindent 4 }}
+    {{- include "platform-service.labels" . | nindent 4 }}
 spec:
-  secretName: {{ include "service.name" . }}-tls
+  secretName: {{ include "platform-service.name" . }}-tls
   issuerRef:
     name: letsencrypt-production
     kind: ClusterIssuer
   dnsNames:
-    - {{ include "service.host" . }}
+    - {{ include "platform-service.host" . }}
     {{- range .Values.aliases | default list }}
     - {{ . }}
     {{- end }}

@@ -324,9 +324,9 @@ of [openpanel](../kubernetes/services/openpanel/README.md#backup--restore) and
 1. Namespace: add it to `kubernetes/cluster/namespaces.yaml` if it doesn't
    already have one — never `kubectl create ns`. Give it a NetworkPolicy file
    under `kubernetes/cluster/network-policies/`.
-2. Values: add `kubernetes/services/<svc>/{values.yaml,service.yaml}` (upstream
-   chart values + service-chart values), following an existing service as a
-   template.
+2. Values: add `kubernetes/services/<svc>/{values.yaml,service.yaml}` —
+   values for the upstream chart and for the platform-service chart,
+   following an existing service as a template.
 3. Release: add ONE block to `kubernetes/helmfile.yaml.gotmpl` — name,
    namespace, chart, pinned `version:` and `values:`. Its `<svc>-platform`
    sibling is `inherit: [{template: service}]` and needs no version. That block

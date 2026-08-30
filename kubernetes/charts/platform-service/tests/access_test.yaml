@@ -70,14 +70,14 @@ tests:
       private: false
     asserts:
       - failedTemplate:
-          errorMessage: "`private` was replaced by `access: private|cluster-internal|public` in service chart 2.1 — remove it from this values file"
+          errorMessage: "`private` was replaced by `access: private|cluster-internal|public` — remove it from this values file"
 
   - it: "hard-fails on `private: true` just the same"
     set:
       private: true
     asserts:
       - failedTemplate:
-          errorMessage: "`private` was replaced by `access: private|cluster-internal|public` in service chart 2.1 — remove it from this values file"
+          errorMessage: "`private` was replaced by `access: private|cluster-internal|public` — remove it from this values file"
 
   - it: "ORs the canonical host with every alias — never the v2 Host(a, b)"
     # Traefik v3 dropped multi-value matchers. `Host(a, b)` passes the CRD

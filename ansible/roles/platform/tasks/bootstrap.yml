@@ -126,7 +126,7 @@
     wait_secret_name: openpanel-secrets
     wait_secret_namespace: platform-analytics
 
-- name: Deploy the service-chart storage, certificates and ingress
+- name: Deploy the platform-service chart storage, certificates and ingress
   ansible.builtin.include_tasks: helmfile-apply.yml
   vars:
     helmfile_tier: platform

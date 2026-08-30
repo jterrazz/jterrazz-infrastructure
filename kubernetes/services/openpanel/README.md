@@ -84,7 +84,7 @@ survives pod restarts, `kubectl delete`, helm/redeploys and `pulumi destroy`.
 One directory per app (repo convention): the three datastores nest under
 `openpanel/` even though each has its own PV/PVC.
 
-All three PV/PVC pairs come from the **service chart**, declared as the
+All three PV/PVC pairs come from the **platform-service chart**, declared as the
 `storage` map in `service.yaml`. They used to be hand-written blocks at the
 top of `postgres.yaml` / `redis.yaml` / `clickhouse.yaml`; names, sizes and
 hostPaths are unchanged by the move. `service.yaml` sets no `host` — OpenPanel

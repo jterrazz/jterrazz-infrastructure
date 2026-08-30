@@ -17,7 +17,7 @@ DATA-DESTROYING IF CHANGED. Object names and hostPath paths address LIVE data:
 hostPath.type is an IMMUTABLE PV field, so the unconditional
 DirectoryOrCreate below only applies to freshly created PVs.
 */ -}}
-{{- $name := include "service.name" . -}}
+{{- $name := include "platform-service.name" . -}}
 {{- /*
 nodeAffinity pins each hostPath PV to the node holding the data. Emitted only
 when a node name is supplied — an empty infrastructure.nodeName renders
@@ -35,7 +35,7 @@ kind: PersistentVolume
 metadata:
   name: {{ $name }}-{{ $key }}
   labels:
-    {{- include "service.labels" $ | nindent 4 }}
+    {{- include "platform-service.labels" $ | nindent 4 }}
     app.kubernetes.io/component: storage
 spec:
   capacity:
@@ -70,7 +70,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: {{ $claimName }}
   labels:
-    {{- include "service.labels" $ | nindent 4 }}
+    {{- include "platform-service.labels" $ | nindent 4 }}
     app.kubernetes.io/component: storage
 spec:
   accessModes:

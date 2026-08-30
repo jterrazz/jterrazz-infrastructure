@@ -1,7 +1,7 @@
 apiVersion: v2
-name: service
+name: platform-service
 description: Shared chart for platform service ingress, certificates, and storage
 type: application
 # Not published to any registry and has no out-of-repo consumers, so this
 # version is bookkeeping only — nothing pulls the chart by version.
-version: 2.5.0
+version: 2.6.0

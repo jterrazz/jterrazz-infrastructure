@@ -1,12 +1,12 @@
-# CI fixture for the service chart.
+# CI fixture for the platform-service chart.
 #
 # Purpose: make `helm template`/`helm lint` render REAL objects. Every
 # template is gated (`if .Values.host`, `range .Values.storage`), so linting
 # with default values renders ZERO objects. This file is the contract the CI
 # kubeconform step renders against.
 #
-#   helm template service kubernetes/charts/service \
-#     -f kubernetes/charts/service/ci/test-values.yaml
+#   helm template ci-test kubernetes/charts/platform-service \
+#     -f kubernetes/charts/platform-service/ci/test-values.yaml
 #
 # Exercises the multi-volume storage map (the librechat shape) plus the two
 # things chart 2.1 added — `access` and `storage.<key>.claimName` — and the

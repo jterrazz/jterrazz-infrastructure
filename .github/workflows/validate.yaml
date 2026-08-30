@@ -196,7 +196,7 @@ jobs:
         # templates.
         run: |
           set -euo pipefail
-          for chart in app service; do
+          for chart in app platform-service; do
             fixture="kubernetes/charts/$chart/ci/test-values.yaml"
             echo "== $chart chart =="
             helm lint "kubernetes/charts/$chart" -f "$fixture"
@@ -230,7 +230,7 @@ jobs:
         # Both charts at once so a failure in either fails the job. `--strict`
         # rejects unknown keys in a test file, so a typo'd assertion name is an
         # error rather than an assertion that silently never runs.
-        run: helm unittest --strict kubernetes/charts/app kubernetes/charts/service
+        run: helm unittest --strict kubernetes/charts/app kubernetes/charts/platform-service
 
       # kubernetes/helmfile.yaml.gotmpl is the ONLY declaration of every
       # platform release, and roles/platform applies it verbatim. Rendering it
@@ -263,9 +263,9 @@ jobs:
         run: helmfile --file kubernetes/helmfile.yaml.gotmpl template > /dev/null
 
       - name: Validate raw service manifests
-        # kubernetes/services/** mixes Helm values files (values.yaml for the
-        # upstream chart, service.yaml for the service chart) with actual
-        # hand-written K8s objects (openpanel's stack, LibreChat's
+        # kubernetes/services/** mixes Helm values files (values.yaml for
+        # the upstream chart, service.yaml for the platform-service chart)
+        # with actual hand-written K8s objects (openpanel's stack, LibreChat's
         # mongodb/secret/netpol, cloudflared's Deployment, cert-manager
         # issuers, the registry Deployment, ...). Rather than maintain an
         # explicit file list that goes stale the moment someone adds a file,

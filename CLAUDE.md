@@ -99,7 +99,10 @@ Repo-specific, each one paid for at least once.
 - **Immutable fields mean delete-and-recreate**: Deployment selectors, PV
   `hostPath.type`, PVC `spec.selector`. Changing a `pathSuffix` or a PV name in
   a `service.yaml` moves live data — the current paths are byte-identical to
-  what the pre-chart manifests produced, on purpose.
+  what the pre-chart manifests produced, on purpose. **The Helm release names
+  `<x>-platform` are frozen** for the same class of reason: the chart behind
+  them is `platform-service`, but a renamed release is a NEW release, and the
+  old one keeps the hostPath PV it bound.
 - **Never chain `private-access` and `cluster-internal-access`.** Traefik ANDs
   chained ipAllowLists, so chaining allows strictly *less*, not more. The
   second is a strict superset of the first; a route picks one.

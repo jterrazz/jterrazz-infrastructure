@@ -24,7 +24,7 @@ on:
       - 'ansible/**'
       - 'kubernetes/services/**'
       - 'kubernetes/cluster/**'
-      - 'kubernetes/charts/service/**'
+      - 'kubernetes/charts/platform-service/**'
       # The one declaration of every platform Helm release.
       - 'kubernetes/helmfile.yaml.gotmpl'
       # The job runs this to build its extra-vars file.

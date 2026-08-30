@@ -126,8 +126,8 @@ check: ## Run the checks CI runs (shellcheck, python, sync assertions, tsc, ansi
 	ansible-lint -c ansible/.ansible-lint ansible/
 	@echo "✓ ansible-lint clean"
 	@echo ""
-	@echo "== helm lint (app, service) =="
-	@for chart in app service; do \
+	@echo "== helm lint (app, platform-service) =="
+	@for chart in app platform-service; do \
 		fixture="kubernetes/charts/$$chart/ci/test-values.yaml"; \
 		if [ ! -f "$$fixture" ]; then \
 			echo "✗ $$fixture missing — the fixture IS the validation contract for this chart"; \
@@ -137,14 +137,14 @@ check: ## Run the checks CI runs (shellcheck, python, sync assertions, tsc, ansi
 	done
 	@echo "✓ helm lint clean"
 	@echo ""
-	@echo "== helm unittest (app, service) =="
+	@echo "== helm unittest (app, platform-service) =="
 	@# helm lint + kubeconform only prove the rendered YAML is well-formed and
 	@# schema-valid. These assert what the templates COMPUTED: the NODE_OPTIONS
 	@# floor, the Mi/Gi parser, the dockerconfigjson escaping, which ipAllowList
 	@# an `access:` value selects. The plugin is a soft skip (like actionlint)
 	@# because CI installs and runs it unconditionally.
 	@if helm plugin list 2>/dev/null | awk '{print $$1}' | grep -qx unittest; then \
-		helm unittest --strict kubernetes/charts/app kubernetes/charts/service || exit 1; \
+		helm unittest --strict kubernetes/charts/app kubernetes/charts/platform-service || exit 1; \
 	else \
 		echo "⚠ helm-unittest not installed — skipped. Install with:"; \
 		echo "    helm plugin install https://github.com/helm-unittest/helm-unittest --version v1.1.2"; \
