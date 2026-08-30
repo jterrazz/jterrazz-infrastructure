@@ -26,6 +26,15 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "app.name" . }}
+  {{- /* The one place the cluster records WHICH REPO builds this workload.
+         scripts/trigger-app-deploys.sh reads it off every app Deployment
+         instead of holding a list; an app whose CI predates
+         `--set meta.repository` stamps nothing and is reported as missing,
+         rather than silently dropping out of the fleet rebuild. */}}
+  {{- if .Values.meta.repository }}
+  annotations:
+    app.jterrazz.com/repository: {{ .Values.meta.repository | quote }}
+  {{- end }}
   labels:
     {{- include "app.labels" . | nindent 4 }}
 spec:

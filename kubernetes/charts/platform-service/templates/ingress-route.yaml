@@ -1,6 +1,6 @@
 {{- /*
-Access, aliases and the match expression are this chart's; the IngressRoute
-itself is common.ingressRoute (kubernetes/charts/common).
+Access, aliases, the match expression and the smoke contract are this chart's;
+the IngressRoute itself is common.ingressRoute (kubernetes/charts/common).
 
 A leftover boolean `private:` key fails the render rather than being ignored:
 ignoring it would silently apply the `private` DEFAULT to a values file that
@@ -22,6 +22,7 @@ meant `private: false`, i.e. change network exposure by omission.
 {{- include "common.ingressRoute" (dict
       "name" (include "platform-service.name" .)
       "labels" (include "platform-service.labels" .)
+      "annotations" (include "common.smokeAnnotations" .Values.smoke)
       "match" $match
       "middlewares" $middlewares
       "serviceName" (include "platform-service.name" .)

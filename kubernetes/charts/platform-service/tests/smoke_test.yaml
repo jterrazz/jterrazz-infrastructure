@@ -1,0 +1,45 @@
+suite: the smoke contract stamped on the IngressRoute
+#
+# scripts/smoke.sh holds no table of hostnames or status codes: it lists every
+# IngressRoute in the cluster and reads these annotations off each one. So the
+# annotations ARE the check — a wrong value here is a probe that passes while
+# the service is down, and a missing one is a surface that silently falls back
+# to the weakest possible claim.
+templates:
+  - templates/ingress-route.yaml
+tests:
+  - it: stamps the values file's own path and codes
+    values:
+      - ../ci/test-values.yaml
+    asserts:
+      - equal:
+          path: metadata.annotations
+          value:
+            smoke.jterrazz.com/path: /v2/
+            smoke.jterrazz.com/expect: "401"
+
+  - it: "falls back to `/` and 200 when the service declares nothing"
+    # values.yaml owns the defaults, so a service.yaml with no `smoke:` block
+    # still ships a contract rather than an unannotated route.
+    set:
+      name: probe
+      host: probe.jterrazz.com
+    asserts:
+      - equal:
+          path: metadata.annotations
+          value:
+            smoke.jterrazz.com/path: /
+            smoke.jterrazz.com/expect: "200"
+
+  - it: quotes a numeric expect, so the annotation is a string
+    # Kubernetes annotations are string-valued; an unquoted 401 would fail the
+    # apply with "cannot unmarshal number into Go value of type string".
+    set:
+      name: probe
+      host: probe.jterrazz.com
+      smoke:
+        expect: 401
+    asserts:
+      - equal:
+          path: metadata.annotations["smoke.jterrazz.com/expect"]
+          value: "401"

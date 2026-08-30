@@ -28,6 +28,13 @@ aliases:
 # check the other two branches.
 access: cluster-internal
 
+# Both halves overridden away from the values.yaml defaults (`/`, 200) — the
+# registry shape, and the only way to tell a stamped contract from an inherited
+# one in the snapshot.
+smoke:
+  path: /v2/
+  expect: "401"
+
 # Named volumes. The PV is always <name>-<key>; hostPath is
 # /var/lib/k8s-data/<name>[/<pathSuffix>].
 storage:

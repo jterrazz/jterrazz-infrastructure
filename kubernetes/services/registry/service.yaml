@@ -10,6 +10,13 @@ port: 5000
 # tailnet IP, so private-access would reject the cluster's own image pulls.
 access: cluster-internal
 
+# The registry's own API root, and 401 is the CORRECT answer: /v2/ demands a
+# bearer token and containerd relies on that challenge to authenticate. A 200
+# would mean the registry became anonymous-readable.
+smoke:
+  path: /v2/
+  expect: "401"
+
 storage:
   # Load-bearing on OrbStack: without an explicit `manual` hostPath volume the
   # PVC binds to local-path under /var/lib/rancher/k3s/storage/, which a

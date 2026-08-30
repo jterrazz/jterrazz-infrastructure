@@ -63,6 +63,8 @@ matches the recorded render of the CI fixture:
     apiVersion: apps/v1
     kind: Deployment
     metadata:
+      annotations:
+        app.jterrazz.com/repository: jterrazz/ci-test-app
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
@@ -302,6 +304,24 @@ matches the recorded render of the CI fixture:
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
         environment: prod
+      name: ci-test-app-ci-test-app-probe-jterrazz-com-tls
+    spec:
+      dnsNames:
+        - ci-test-app-probe.jterrazz.com
+      issuerRef:
+        kind: ClusterIssuer
+        name: letsencrypt-production
+      secretName: ci-test-app-ci-test-app-probe-jterrazz-com-tls
+  11: |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      labels:
+        app: ci-test-app
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: ci-test-app
+        environment: prod
       name: ci-test-app-ci-test-app-jterrazz-com-tls
     spec:
       dnsNames:
@@ -310,7 +330,7 @@ matches the recorded render of the CI fixture:
         kind: ClusterIssuer
         name: letsencrypt-production
       secretName: ci-test-app-ci-test-app-jterrazz-com-tls
-  11: |
+  12: |
     apiVersion: traefik.io/v1alpha1
     kind: Middleware
     metadata:
@@ -325,10 +345,13 @@ matches the recorded render of the CI fixture:
       stripPrefix:
         prefixes:
           - /api
-  12: |
+  13: |
     apiVersion: traefik.io/v1alpha1
     kind: IngressRoute
     metadata:
+      annotations:
+        smoke.jterrazz.com/expect: "200"
+        smoke.jterrazz.com/path: /api/health
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
@@ -349,10 +372,13 @@ matches the recorded render of the CI fixture:
               port: 80
       tls:
         secretName: ci-test-app-ci-test-app-jterrazz-com-tls
-  13: |
+  14: |
     apiVersion: traefik.io/v1alpha1
     kind: IngressRoute
     metadata:
+      annotations:
+        smoke.jterrazz.com/expect: "200"
+        smoke.jterrazz.com/path: /health
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
@@ -374,10 +400,12 @@ matches the recorded render of the CI fixture:
               port: 80
       tls:
         secretName: ci-test-app-ci-test-app-internal-jterrazz-com-tls
-  14: |
+  15: |
     apiVersion: traefik.io/v1alpha1
     kind: IngressRoute
     metadata:
+      annotations:
+        smoke.jterrazz.com/probe: "false"
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
@@ -396,7 +424,7 @@ matches the recorded render of the CI fixture:
               port: 80
       tls:
         secretName: ci-test-app-ci-test-app-mcp-jterrazz-com-tls
-  15: |
+  16: |
     apiVersion: traefik.io/v1alpha1
     kind: Middleware
     metadata:
@@ -412,10 +440,14 @@ matches the recorded render of the CI fixture:
         permanent: true
         regex: ^https?://ci-test-app-old\.jterrazz\.com/(.*)
         replacement: https://ci-test-app.jterrazz.com/${1}
-  16: |
+  17: |
     apiVersion: traefik.io/v1alpha1
     kind: IngressRoute
     metadata:
+      annotations:
+        smoke.jterrazz.com/expect: "301"
+        smoke.jterrazz.com/location: https://ci-test-app.jterrazz.com/
+        smoke.jterrazz.com/path: /
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
@@ -436,7 +468,7 @@ matches the recorded render of the CI fixture:
               port: 80
       tls:
         secretName: ci-test-app-ci-test-app-old-jterrazz-com-tls
-  17: |
+  18: |
     apiVersion: traefik.io/v1alpha1
     kind: Middleware
     metadata:
@@ -452,10 +484,14 @@ matches the recorded render of the CI fixture:
         permanent: true
         regex: ^https?://ci-test-app-legacy\.jterrazz\.com/(.*)
         replacement: https://ci-test-app.jterrazz.com/moved
-  18: |
+  19: |
     apiVersion: traefik.io/v1alpha1
     kind: IngressRoute
     metadata:
+      annotations:
+        smoke.jterrazz.com/expect: "301"
+        smoke.jterrazz.com/location: https://ci-test-app.jterrazz.com/moved
+        smoke.jterrazz.com/path: /
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
@@ -476,7 +512,35 @@ matches the recorded render of the CI fixture:
               port: 80
       tls:
         secretName: ci-test-app-ci-test-app-legacy-jterrazz-com-tls
-  19: |
+  20: |
+    apiVersion: traefik.io/v1alpha1
+    kind: IngressRoute
+    metadata:
+      annotations:
+        smoke.jterrazz.com/expect: 204,200
+        smoke.jterrazz.com/path: /ready
+      labels:
+        app: ci-test-app
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: ci-test-app
+        environment: prod
+      name: ci-test-app-5
+    spec:
+      entryPoints:
+        - websecure
+      routes:
+        - kind: Rule
+          match: Host(`ci-test-app-probe.jterrazz.com`)
+          middlewares:
+            - name: private-access
+              namespace: platform-networking
+          services:
+            - name: ci-test-app
+              port: 80
+      tls:
+        secretName: ci-test-app-ci-test-app-probe-jterrazz-com-tls
+  21: |
     apiVersion: networking.k8s.io/v1
     kind: NetworkPolicy
     metadata:
@@ -522,6 +586,12 @@ matches the recorded render of the CI fixture:
                   kubernetes.io/metadata.name: kube-system
           ports:
             - port: 3000
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: platform-ai
+          ports:
+            - port: 3000
       podSelector:
         matchLabels:
           app: ci-test-app
@@ -529,7 +599,7 @@ matches the recorded render of the CI fixture:
       policyTypes:
         - Ingress
         - Egress
-  20: |
+  22: |
     apiVersion: v1
     kind: Service
     metadata:
@@ -547,7 +617,7 @@ matches the recorded render of the CI fixture:
       selector:
         app: ci-test-app
         environment: prod
-  21: |
+  23: |
     apiVersion: v1
     kind: PersistentVolume
     metadata:
@@ -568,7 +638,7 @@ matches the recorded render of the CI fixture:
         type: DirectoryOrCreate
       persistentVolumeReclaimPolicy: Retain
       storageClassName: manual
-  22: |
+  24: |
     apiVersion: v1
     kind: PersistentVolumeClaim
     metadata:

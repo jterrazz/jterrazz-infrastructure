@@ -20,11 +20,12 @@ Nothing is vendored: `charts/` and `Chart.lock` are gitignored.
 | `common.volume` | a hostPath `PersistentVolume` + its `PersistentVolumeClaim` | the single `spec.storage` | one pair per `storage.<key>` |
 | `common.networkPolicy` | one `NetworkPolicy` | always, from the platformServices catalogue | from the `network:` block |
 | `common.infisicalSecret` | an `InfisicalSecret` | when `spec.secrets.path` is set | — |
+| `common.smokeAnnotations` | the `smoke.jterrazz.com/*` annotations on an `IngressRoute` | derived per ingress entry, `smoke:` overrides it | from the `smoke:` block |
 
 Each template's own header is the reference for its inputs and for the traps it
 exists to absorb — the NetworkPolicy peer vocabulary in `_network-policy.tpl`,
 the data-safety rules in `_storage.tpl`, the never-chain-ipAllowLists rule in
-`_ingress.tpl`.
+`_ingress.tpl`, the smoke annotation contract in `_smoke.tpl`.
 
 ## Two rules for anything added here
 

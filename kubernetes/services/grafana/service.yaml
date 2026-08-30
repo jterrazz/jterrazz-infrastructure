@@ -4,6 +4,12 @@ host: grafana.internal.jterrazz.com
 # Tailnet-only. Grafana's datasources reach every telemetry backend in the
 # cluster; there is no reason for it to answer the public internet.
 access: private
+
+# Grafana bounces an unauthenticated browser to /login. 200 is also accepted:
+# it is what an anonymous-allowed instance, or a future auth change, would
+# serve. Anything else means Grafana is down.
+smoke:
+  expect: "302,200"
 storage:
   # grafana.db — users, API keys, starred dashboards, alert state. Dashboards
   # themselves are provisioned from ConfigMaps and are not stored here.

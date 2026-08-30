@@ -48,12 +48,18 @@ Input dict:
   middlewares  list of { name, namespace? }, in attachment order
   serviceName  / servicePort  the backend
   tlsSecret    the Certificate's secret
+  annotations  rendered annotation lines (a STRING), or "" — the smoke contract
+               (common.smokeAnnotations) is the only thing that writes them
 */}}
 {{- define "common.ingressRoute" -}}
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
   name: {{ .name }}
+  {{- if .annotations }}
+  annotations:
+    {{- .annotations | nindent 4 }}
+  {{- end }}
   labels:
     {{- .labels | nindent 4 }}
 spec:

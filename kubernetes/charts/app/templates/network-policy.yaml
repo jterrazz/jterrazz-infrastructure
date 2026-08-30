@@ -7,7 +7,9 @@ Ingress: Traefik on the app port — every IngressRoute this chart renders
 terminates there, so without it the app is unreachable. Plus, if this app is
 itself a platformServices catalog target carrying a clientLabel, any pod in any
 namespace stamped with that label; consumers opt in via spec.platformServices,
-so a new consumer needs ZERO edit here.
+so a new consumer needs ZERO edit here. Plus `spec.network.exposeTo`, for the
+client that CANNOT opt in that way because a third-party chart renders its pods
+and cannot stamp the label.
 
 Egress: DNS, the public internet minus RFC1918, and one hole per opted-in
 platform service — on the POD ports from the catalog, never the Service port.
@@ -23,6 +25,12 @@ platform service — on the POD ports from the catalog, never the Service port.
 {{- if $selfEntry.clientLabel -}}
 {{- $ingress = append $ingress (dict "from" (printf "any-namespace-pods:%s=true" $selfEntry.clientLabel) "ports" (list $spec.port)) -}}
 {{- end -}}
+{{- end -}}
+{{- /* Declared clients, on the app's own pod port. Unknown peers hard-fail in
+       common.networkPolicy.rule, so a typo can never render a policy that
+       silently admits nothing. */ -}}
+{{- range $peer := (($spec.network).exposeTo | default list) -}}
+{{- $ingress = append $ingress (dict "from" $peer "ports" (list $spec.port)) -}}
 {{- end -}}
 {{- /* A pod resolves before it can know which namespace answered, so DNS is
        namespace-wide. The bare 53 is TCP — the Kubernetes default, left

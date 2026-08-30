@@ -9,6 +9,16 @@
 metadata:
   name: ""
 
+# Facts about the app REPO, not the workload — set by CI, never by
+# application.yaml. Empty means "CI did not pass it", and the chart stamps
+# nothing rather than guessing.
+meta:
+  # Set by app CI: --set meta.repository=${{ github.repository }}, i.e.
+  # `<owner>/<name>`. Stamped as the `app.jterrazz.com/repository` annotation on
+  # the Deployment, which is the ONLY place scripts/trigger-app-deploys.sh
+  # learns that this app exists and which repo rebuilds it.
+  repository: ""
+
 spec:
   # Set by app CI: --set spec.image=registry.internal.jterrazz.com/<app>:<tag>.
   # Empty falls back to <registry>/<app>:latest (_helpers.tpl app.image).
@@ -33,8 +43,15 @@ spec:
   secrets: {}
   # Infisical env slug; empty means "the deploy environment's own name".
   secretsEnv: ""
-  # List of { host, path?, public, stripPrefix?, redirectTo?, preservePath? }.
+  # List of { host, path?, public, stripPrefix?, redirectTo?, preservePath?,
+  # smoke? }.
   ingress: []
+  # Ingress this app grants beyond Traefik and the platformServices catalogue:
+  # `exposeTo` is a list of common.networkPolicy peers, each opened on
+  # spec.port. For a client that cannot stamp the catalogue's clientLabel
+  # because a third-party chart renders its pods.
+  network:
+    exposeTo: []
   # Opt-in in-cluster platform services, resolved against the catalog in
   # templates/_helpers.tpl (app.platformCatalog). Valid: otel-collector,
   # gateway-intelligence. Unknown names hard-fail the render.

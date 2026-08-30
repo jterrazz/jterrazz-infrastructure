@@ -2,6 +2,10 @@
 {{- $appName := include "app.name" . -}}
 {{- $labels := include "app.labels" . -}}
 {{- $ingressList := fromYamlArray (include "app.ingressList" .) -}}
+{{- /* The app already declares where it answers "I am healthy" — that is what
+       makes the smoke contract below need no app-repo edit. */ -}}
+{{- $healthPath := (fromYaml (include "app.merged" .)).health.path | default "/" -}}
+{{- if not (hasPrefix "/" $healthPath) }}{{ $healthPath = printf "/%s" $healthPath }}{{ end -}}
 
 {{- /* One Certificate per unique host — multiple ingress entries on the
        same host share one TLS secret. */ -}}
@@ -84,12 +88,45 @@
 {{- if and $emitStripPrefix (not $isRedirect) }}
 {{- $middlewares = append $middlewares (dict "name" (printf "%s-strip-prefix" $routeName)) }}
 {{- end }}
+{{- /* THE SMOKE CONTRACT (kubernetes/charts/common/templates/_smoke.tpl).
+       Derived, so an app repo needs no edit to be probed:
+
+         redirect        `/` must answer with the middleware's 301, AND land on
+                         the replacement the middleware was built from — a 301
+                         to the wrong host is still a 301.
+         stripPrefix     the route's prefix + the app's own health path, which
+                         is what an outside caller has to ask for to reach it.
+         literal prefix  NOT probed. With stripPrefix false the app serves its
+                         own routing under the prefix, and nothing here knows
+                         which URL below it answers — a guessed one would fail
+                         for a route that is perfectly healthy. `smoke:` on the
+                         entry is how such a route opts back in.
+
+       `smoke: false` opts out; `smoke: { path, expect }` overrides. */}}
+{{- $smoke := dict "probe" true "path" (printf "%s%s" (ternary $path "" $hasPath) $healthPath) "expect" "200" }}
+{{- if $isRedirect }}
+{{- $_ := set $smoke "path" "/" }}
+{{- $_ := set $smoke "expect" "301" }}
+{{- $_ := set $smoke "location" (ternary (printf "%s/" $redirectTo) $redirectTo $preservePath) }}
+{{- else if and $hasPath (not $stripPrefix) }}
+{{- $_ := set $smoke "probe" false }}
+{{- end }}
+{{- if hasKey $entry "smoke" }}
+{{- if kindIs "bool" $entry.smoke }}
+{{- $_ := set $smoke "probe" $entry.smoke }}
+{{- else }}
+{{- $_ := set $smoke "probe" true }}
+{{- if $entry.smoke.path }}{{ $_ := set $smoke "path" $entry.smoke.path }}{{ end }}
+{{- if $entry.smoke.expect }}{{ $_ := set $smoke "expect" $entry.smoke.expect }}{{ end }}
+{{- end }}
+{{- end }}
 {{- /* A redirect still names a service: Traefik requires one on every route,
        and the redirect middleware answers before it is ever dialled. */}}
 ---
 {{ include "common.ingressRoute" (dict
      "name" $routeName
      "labels" $labels
+     "annotations" (include "common.smokeAnnotations" $smoke)
      "match" (printf "Host(`%s`)%s" $entry.host (ternary (printf " && PathPrefix(`%s`)" $path) "" $hasPath))
      "middlewares" $middlewares
      "serviceName" $appName

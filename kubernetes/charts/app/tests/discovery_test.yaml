@@ -1,0 +1,74 @@
+suite: what the cluster records about the app repo and its clients
+#
+# Two stamps this chart makes so that nothing outside the cluster has to keep a
+# list: the repository annotation scripts/trigger-app-deploys.sh rebuilds the
+# fleet from, and the `exposeTo` ingress rule that lets an app declare its own
+# clients instead of a hand-written NetworkPolicy in cluster/.
+tests:
+  - it: annotates the Deployment with the repo CI passed
+    templates:
+      - templates/deployment.yaml
+    values:
+      - ../ci/test-values.yaml
+    asserts:
+      - equal:
+          path: metadata.annotations["app.jterrazz.com/repository"]
+          value: jterrazz/ci-test-app
+
+  - it: stamps nothing when CI passed no repository
+    # An app whose CI predates `--set meta.repository` must be REPORTED as
+    # missing by the discovery script, not silently given a wrong value.
+    templates:
+      - templates/deployment.yaml
+    values:
+      - ../ci/test-values.yaml
+    set:
+      meta.repository: ""
+    asserts:
+      - notExists:
+          path: metadata.annotations["app.jterrazz.com/repository"]
+
+  - it: opens the app port to every peer in spec.network.exposeTo
+    templates:
+      - templates/network-policy.yaml
+    set:
+      metadata.name: api
+      environment: prod
+      spec:
+        image: r/api:1
+        port: 8317
+        network:
+          exposeTo:
+            - namespace:platform-ai
+      environments:
+        prod: {}
+    asserts:
+      # [0] is the unconditional Traefik rule; the declared peers follow it.
+      - equal:
+          path: spec.ingress[1]
+          value:
+            from:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: platform-ai
+            ports:
+              - port: 8317
+
+  - it: hard-fails an exposeTo peer outside the vocabulary
+    # A typo'd peer would otherwise render a policy that admits nothing, and a
+    # NetworkPolicy that grants nothing fails silently at runtime.
+    templates:
+      - templates/network-policy.yaml
+    set:
+      metadata.name: api
+      environment: prod
+      spec:
+        image: r/api:1
+        network:
+          exposeTo:
+            - namesapce:platform-ai
+      environments:
+        prod: {}
+    asserts:
+      - failedTemplate:
+          errorMessage: 'network: unknown peer "namesapce:platform-ai" (valid: traefik, any-namespace, internet, anywhere, namespace:<ns>, any-namespace-pods:<key>=<value>)'

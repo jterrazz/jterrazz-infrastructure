@@ -1,0 +1,157 @@
+suite: the smoke contract stamped on every IngressRoute
+#
+# scripts/smoke.sh holds no table of hostnames or status codes: it lists every
+# IngressRoute in the cluster and reads these annotations off each one. The
+# defaults below are the whole point — an app repo gets probed correctly with
+# NO edit, because the two facts needed (where the route lives, where the app
+# says it is healthy) are already in its application.yaml.
+templates:
+  - templates/ingress.yaml
+tests:
+  - it: joins the route prefix with the health path, because stripPrefix hides it
+    # /api is stripped before the app, so the app's own /health is reachable
+    # from outside at /api/health and nowhere else. Probing /health would 404
+    # on a perfectly healthy app.
+    set:
+      metadata.name: api
+      environment: prod
+      spec:
+        image: r/api:1
+        health: { path: /health }
+      environments:
+        prod:
+          ingress:
+            - { host: api.example.com, path: /api, public: true }
+    asserts:
+      - equal:
+          path: metadata.annotations
+          value:
+            smoke.jterrazz.com/path: /api/health
+            smoke.jterrazz.com/expect: "200"
+        documentSelector:
+          path: metadata.name
+          value: api-0
+
+  - it: probes the health path alone when the route is mounted at the root
+    set:
+      metadata.name: api
+      environment: prod
+      spec:
+        image: r/api:1
+        health: { path: /v1/models }
+      environments:
+        prod:
+          ingress:
+            - { host: api.example.com, public: true }
+    asserts:
+      - equal:
+          path: metadata.annotations["smoke.jterrazz.com/path"]
+          value: /v1/models
+        documentIndex: 1
+
+  - it: asserts the redirect TARGET, not just the 301
+    # A 301 to the wrong host is still a 301. The Location asserted here is
+    # derived from the same replacement the Middleware is built from, so the
+    # two can never disagree.
+    set:
+      metadata.name: web
+      environment: prod
+      spec: { image: "r/web:1", health: { path: / } }
+      environments:
+        prod:
+          ingress:
+            - { host: old.example.com, public: true, redirectTo: "https://new.example.com" }
+    asserts:
+      - equal:
+          path: metadata.annotations
+          value:
+            smoke.jterrazz.com/path: /
+            smoke.jterrazz.com/expect: "301"
+            smoke.jterrazz.com/location: https://new.example.com/
+        documentIndex: 2
+
+  - it: drops the trailing slash from the Location when preservePath is false
+    set:
+      metadata.name: web
+      environment: prod
+      spec: { image: "r/web:1", health: { path: / } }
+      environments:
+        prod:
+          ingress:
+            - { host: old.example.com, public: true, redirectTo: "https://new.example.com/here", preservePath: false }
+    asserts:
+      - equal:
+          path: metadata.annotations["smoke.jterrazz.com/location"]
+          value: https://new.example.com/here
+        documentIndex: 2
+
+  - it: opts a literal-prefix route out rather than guessing a URL under it
+    # With stripPrefix false the app routes everything under /mcp itself.
+    # Nothing here knows which URL below it answers, and a guess would fail on
+    # a healthy route — which is worse than not probing.
+    set:
+      metadata.name: api
+      environment: prod
+      spec: { image: "r/api:1", health: { path: / } }
+      environments:
+        prod:
+          ingress:
+            - { host: api.example.com, path: /mcp, public: true, stripPrefix: false }
+    asserts:
+      - equal:
+          path: metadata.annotations
+          value:
+            smoke.jterrazz.com/probe: "false"
+        documentIndex: 1
+
+  - it: "`smoke: false` opts any route out"
+    set:
+      metadata.name: api
+      environment: prod
+      spec: { image: "r/api:1", health: { path: / } }
+      environments:
+        prod:
+          ingress:
+            - { host: api.example.com, public: true, smoke: false }
+    asserts:
+      - equal:
+          path: metadata.annotations["smoke.jterrazz.com/probe"]
+          value: "false"
+        documentIndex: 1
+      - notExists:
+          path: metadata.annotations["smoke.jterrazz.com/path"]
+        documentIndex: 1
+
+  - it: "`smoke: { path, expect }` overrides the derived contract"
+    values:
+      - ../ci/test-values.yaml
+    asserts:
+      - equal:
+          path: metadata.annotations
+          value:
+            smoke.jterrazz.com/path: /ready
+            smoke.jterrazz.com/expect: "204,200"
+        documentSelector:
+          path: metadata.name
+          value: ci-test-app-5
+
+  - it: an explicit smoke block puts an opted-out route back in the probe set
+    set:
+      metadata.name: api
+      environment: prod
+      spec: { image: "r/api:1", health: { path: / } }
+      environments:
+        prod:
+          ingress:
+            - host: api.example.com
+              path: /mcp
+              public: true
+              stripPrefix: false
+              smoke: { path: /mcp/ping, expect: "200" }
+    asserts:
+      - equal:
+          path: metadata.annotations
+          value:
+            smoke.jterrazz.com/path: /mcp/ping
+            smoke.jterrazz.com/expect: "200"
+        documentIndex: 1

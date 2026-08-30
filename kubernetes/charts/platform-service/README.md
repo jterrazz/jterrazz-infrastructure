@@ -26,6 +26,28 @@ All five come from `kubernetes/charts/common`, the library chart this one and
 rule, the PV/PVC data-safety constraints and the NetworkPolicy peer vocabulary
 actually live.
 
+## `smoke:` — what the route must answer
+
+`scripts/smoke.sh` holds no table of hostnames or status codes. It lists every
+IngressRoute in the cluster and probes what these two annotations say:
+
+```yaml
+smoke:
+  path: /v2/       # default `/`
+  expect: "401"    # default "200"; comma-separated for several acceptable codes
+```
+
+The default (`/` -> 200) is the weakest useful claim, so most services need no
+block at all. Override it where the service genuinely answers something else to
+an unauthenticated caller — Grafana bounces to `/login` (302), the registry
+challenges for a token (401) — and keep the list as narrow as the service
+allows. `000` and any 5xx must never be in it; a probe that accepts them is a
+probe that cannot fail.
+
+The annotation contract itself, including the two things only the app chart and
+hand-written manifests emit (`location`, `method`), is
+`kubernetes/charts/common/templates/_smoke.tpl`.
+
 ## `network:` — the per-service policy
 
 NetworkPolicies **union**, so a namespace's rules are split by ownership rather

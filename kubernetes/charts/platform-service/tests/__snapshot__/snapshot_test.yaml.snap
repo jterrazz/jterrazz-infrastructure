@@ -20,6 +20,9 @@ matches the recorded render of the CI fixture:
     apiVersion: traefik.io/v1alpha1
     kind: IngressRoute
     metadata:
+      annotations:
+        smoke.jterrazz.com/expect: "401"
+        smoke.jterrazz.com/path: /v2/
       labels:
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service

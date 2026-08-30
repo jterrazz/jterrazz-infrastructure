@@ -28,6 +28,23 @@ aliases: []
 # (templates/ingress-route.yaml).
 access: private
 
+# What scripts/smoke.sh must get back from `host` for this service to count as
+# serving. Stamped on the IngressRoute as smoke.jterrazz.com/{path,expect}, so
+# smoke discovers it instead of holding a second copy of this table — the
+# annotation contract is kubernetes/charts/common/templates/_smoke.tpl.
+#
+# The default is the weakest useful claim: the root answers 200. Override it
+# where the service genuinely answers something else to an unauthenticated
+# caller — a redirect to its login page, an auth challenge — and keep the list
+# as narrow as the service allows. A 502/503/000 must never be in it.
+#
+#   smoke:
+#     path: /v2/
+#     expect: "401"
+smoke:
+  path: /
+  expect: "200"
+
 # Named volumes: <key> -> { size, pathSuffix?, claimName?, nodeLocalPath? }.
 # Names and paths address live data — see templates/storage.yaml before
 # changing any of them.

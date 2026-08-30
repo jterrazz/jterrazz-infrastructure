@@ -52,6 +52,14 @@ kind: IngressRoute
 metadata:
   name: openpanel-private
   namespace: platform-analytics
+  annotations:
+    # The smoke contract scripts/smoke.sh discovers its checks from — the two
+    # charts stamp these, a hand-written route writes them itself. The
+    # dashboard SSRs and bounces an unauthenticated visitor to /login or
+    # /onboarding, so 307 is the normal answer and 200 the already-rendered
+    # one. Contract: kubernetes/charts/common/templates/_smoke.tpl.
+    smoke.jterrazz.com/path: "/"
+    smoke.jterrazz.com/expect: "307,200"
 spec:
   entryPoints:
     - websecure
@@ -88,6 +96,17 @@ kind: IngressRoute
 metadata:
   name: openpanel-ingest
   namespace: platform-analytics
+  annotations:
+    # POST-only by design: only /api/track is routed on this host, and a GET is
+    # NOT a valid probe — it answers 404 whether op-api is healthy or not. The
+    # probe POSTs an empty JSON object, which reaches op-api and is rejected for
+    # want of a client id: 401 proves the route is wired end to end AND that
+    # ingest is not anonymous. (A body-less POST answers 400 and a non-JSON one
+    # 415 — both prove liveness, only 401 also asserts the auth check runs.)
+    # This is the ONE route with a method: no chart emits that annotation.
+    smoke.jterrazz.com/method: POST
+    smoke.jterrazz.com/path: /api/track
+    smoke.jterrazz.com/expect: "401"
 spec:
   entryPoints:
     - websecure

@@ -11,12 +11,20 @@ helm upgrade --install <env>-<app> oci://registry.internal.jterrazz.com/charts/a
   -f .infrastructure/application.yaml \
   --set environment=<env> \
   --set spec.image=registry.internal.jterrazz.com/<app>:<tag> \
+  --set meta.repository=<owner>/<repo> \
   --set registry.username=… --set registry.password=…
 ```
 
 (The exact invocation lives in `jterrazz-actions/actions/docker-deploy`; the
-four `--set` values above are the contract this chart expects from CI —
+five `--set` values above are the contract this chart expects from CI —
 everything else comes from `application.yaml`.)
+
+`meta.repository` is `${{ github.repository }}`, stamped on the Deployment as
+the `app.jterrazz.com/repository` annotation. It is how the infrastructure
+repo's `make redeploy-apps` finds the fleet: it reads the annotation off every
+app Deployment instead of holding a list of repos that goes stale. An app whose
+CI has not run since the action gained that flag stamps nothing and is
+**reported as missing**, never silently skipped.
 
 So `application.yaml` **is** a Helm values file; the `apiVersion`/`kind`
 header at the top is decorative (Helm ignores unknown top-level keys) and
@@ -146,7 +154,7 @@ and readiness failure thresholds — is left at the Kubernetes default.
 
 ### `spec.ingress` — a list, always
 
-Each entry is `{ host, path?, public, stripPrefix?, redirectTo?, preservePath? }`.
+Each entry is `{ host, path?, public, stripPrefix?, redirectTo?, preservePath?, smoke? }`.
 
 ```yaml
 ingress:
@@ -196,6 +204,46 @@ ingress:
   Trust dashboard, and a new zone must be added to cert-manager's
   `issuers.yaml`. Private `*.internal.jterrazz.com` names resolve through a
   Pulumi-managed wildcard CNAME and need no DNS work.
+
+#### `smoke:` — what the probe should get back
+
+`scripts/smoke.sh` in the infrastructure repo lists every IngressRoute in the
+cluster and probes what these annotations say. **You almost never write this
+block**: the chart already knows where the route lives and where the app says
+it is healthy, so it derives the contract per entry.
+
+| Entry | Probes | Expects |
+| --- | --- | --- |
+| `path: /` (or no path) | `spec.health.path` | `200` |
+| `path: /api` (stripPrefix on, the default) | `/api` + `spec.health.path` | `200` |
+| `path: /mcp` with `stripPrefix: false` | **nothing** — opted out | — |
+| `redirectTo: …` | `/` | `301`, **and** the `Location` the middleware sends |
+
+The `stripPrefix: false` case opts out because the app routes everything under
+that prefix itself: nothing here can know which URL below it answers, and a
+guessed one would fail on a perfectly healthy route. Every skipped and every
+unannotated route is printed by `smoke.sh`, so a gap is visible rather than
+silent.
+
+Override only when the derived answer is wrong:
+
+```yaml
+ingress:
+  - host: my-app.jterrazz.com          # derived: GET /health -> 200
+    public: true
+  - host: my-app.jterrazz.com
+    path: /mcp
+    public: true
+    stripPrefix: false
+    smoke: { path: /mcp/ping, expect: "200" }   # opts a literal-prefix route back in
+  - host: legacy.jterrazz.com
+    public: false
+    smoke: false                                # never probed
+```
+
+`expect` is a comma-separated list of accepted codes; keep it as narrow as the
+surface genuinely allows, and never put `000` or a 5xx in it — the entire value
+of the probe is that a dead service cannot read as "fine".
 
 ### `spec.secrets` and `secretsEnv`
 
@@ -351,6 +399,28 @@ it exists to absorb (ports are POD ports; hostNetwork clients are not pods) —
 comes from `kubernetes/charts/common`. A platform service declares the same
 shapes by hand in its `network:` block; the app chart derives them from the
 catalog instead, which is why there is nothing here to configure.
+
+### `spec.network.exposeTo`
+
+```yaml
+spec:
+  network:
+    exposeTo: [namespace:platform-ai]
+```
+
+Extra clients allowed to reach this app on `spec.port`, appended to the ingress
+rules the chart already writes (Traefik, plus the `platformServices` client
+label if this app is a catalog target). Each entry is a
+`kubernetes/charts/common` NetworkPolicy peer — `namespace:<ns>`,
+`any-namespace-pods:<key>=<value>`, `traefik`, `any-namespace`, `internet`,
+`anywhere`; an unknown one **hard-fails the render** with the valid list.
+
+Reach for it only when the client **cannot** opt in through
+`platformServices`, which is the mechanism that needs no edit here at all: a
+third-party chart renders its pods and cannot stamp the catalog's client label.
+That is exactly LibreChat, and `gateway-intelligence` declaring
+`exposeTo: [namespace:platform-ai]` is what replaced a hand-written
+NetworkPolicy in the infrastructure repo's `cluster/network-policies/`.
 
 ### `spec.securityContext` / `spec.runAsRoot`
 
