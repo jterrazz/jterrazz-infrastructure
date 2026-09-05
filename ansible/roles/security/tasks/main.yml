@@ -33,10 +33,19 @@
   notify: restart sshd
 
 # UFW Firewall Configuration
-- name: Reset UFW to defaults
+- name: Check UFW status
+  ansible.builtin.command: ufw status verbose
+  register: ufw_status_check
+  changed_when: false
+  failed_when: false
+  when: security_ufw_enabled
+
+- name: Reset UFW to defaults (only if misconfigured)
   ufw:  # noqa syntax-check[unknown-module]
     state: reset
-  when: security_ufw_enabled
+  when: 
+    - security_ufw_enabled
+    - "'Status: active' not in ufw_status_check.stdout or 'Default: deny (incoming), allow (outgoing)' not in ufw_status_check.stdout"
 
 - name: Configure UFW defaults
   ufw:
@@ -48,20 +57,32 @@
     - { direction: 'routed', policy: '{{ security_ufw_default_forward }}' }
   when: security_ufw_enabled
 
-- name: Configure UFW rules
+- name: Get current UFW numbered rules
+  ansible.builtin.command: ufw status numbered
+  register: ufw_numbered_status
+  changed_when: false
+  failed_when: false
+  when: security_ufw_enabled
+
+- name: Configure UFW rules (idempotent)
   ufw:
     rule: "{{ item.rule }}"
     port: "{{ item.port }}"
     proto: "{{ item.proto | default('tcp') }}"
     comment: "{{ item.comment | default('') }}"
   loop: "{{ security_ufw_rules }}"
-  when: security_ufw_enabled
+  when: 
+    - security_ufw_enabled
+    - ufw_numbered_status.stdout is defined
+    - "(item.port + '/' + (item.proto | default('tcp'))) not in ufw_numbered_status.stdout or item.rule.upper() + ' IN' not in ufw_numbered_status.stdout"
 
-- name: Enable UFW
+- name: Enable UFW (only if not active)
   ufw:
     state: enabled
     policy: deny
-  when: security_ufw_enabled
+  when: 
+    - security_ufw_enabled
+    - "'Status: active' not in ufw_status_check.stdout"
 
 # fail2ban Configuration
 - name: Configure fail2ban jail.local
@@ -140,7 +161,18 @@
     enabled: yes
     state: started
 
-- name: Configure basic audit rules
+- name: Check if audit rules exist and are current
+  ansible.builtin.stat:
+    path: /etc/audit/rules.d/audit.rules
+  register: audit_rules_file
+
+- name: Read existing audit rules
+  ansible.builtin.slurp:
+    src: /etc/audit/rules.d/audit.rules
+  register: existing_audit_rules
+  when: audit_rules_file.stat.exists
+
+- name: Configure basic audit rules (only if changed)
   copy:
     content: |
       # Basic audit rules for security monitoring
@@ -155,6 +187,10 @@
     dest: /etc/audit/rules.d/audit.rules
     mode: '0640'
   notify: restart auditd
+  when: >
+    not audit_rules_file.stat.exists or 
+    (existing_audit_rules.content | b64decode | hash('sha256')) != 
+    ('# Basic audit rules for security monitoring\n-w /etc/passwd -p wa -k identity\n-w /etc/group -p wa -k identity\n-w /etc/shadow -p wa -k identity\n-w /etc/sudoers -p wa -k identity\n-w /etc/ssh/sshd_config -p wa -k sshd\n-w /etc/fail2ban/ -p wa -k fail2ban\n-a always,exit -F arch=b64 -S adjtimex -S settimeofday -k time-change\n-a always,exit -F arch=b32 -S adjtimex -S settimeofday -S stime -k time-change\n' | hash('sha256'))
 
 # Security Status and Monitoring
 - name: Create security status script
@@ -192,13 +228,19 @@
     dest: /usr/local/bin/security-status
     mode: '0755'
 
-- name: Create security update check cron job
+- name: Check if security status cron job exists
+  ansible.builtin.shell: "crontab -l | grep -c 'security-status' || true"
+  register: security_cron_exists
+  changed_when: false
+
+- name: Create security update check cron job (only if not exists)
   cron:
     name: "Security status check"
     minute: "0"
     hour: "6"
     job: "/usr/local/bin/security-status > /var/log/security-status.log 2>&1"
     user: root
+  when: security_cron_exists.stdout | int == 0
 
 # Final security verification
 - name: Display security setup summary
