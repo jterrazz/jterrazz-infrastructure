@@ -7,11 +7,11 @@
 # `token` needs a whole separate JWT-issuing server for a single-user registry.
 # ONE account (`deploy`), bcrypt-hashed; the hash is in Secret `registry-auth`
 # key `htpasswd`, bootstrapped by ansible/roles/platform/tasks/bootstrap.yml
-# because a password hash must never be committed. Consequence: CI pushes and
-# containerd's node-level pulls share one credential, so rotating means
-# re-running that task AND updating DOCKER_REGISTRY_PASSWORD in Infisical. The
-# other half of the story is `network:` below — nothing but Traefik reaches
-# :5000 at all.
+# because a password hash must never be committed. Consequence: CI's pushes and
+# every namespace's synced pull secret share one credential, which is why
+# rotating it is an overlap of two accounts and not a swap — docs/RUNBOOK.md,
+# § Rotating the registry password. The other half of the story is `network:`
+# below — nothing but Traefik reaches :5000 at all.
 metadata:
   name: registry
 
