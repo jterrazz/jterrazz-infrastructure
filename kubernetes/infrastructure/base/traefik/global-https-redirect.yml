@@ -12,7 +12,7 @@ spec:
   entryPoints:
     - web
   routes:
-    - match: "HostRegexp(`{host:.+}`)"
+    - match: "Host(`app.local`) || Host(`portainer.local`) || Host(`argocd.local`)"
       kind: Rule
       middlewares:
         - name: https-redirect

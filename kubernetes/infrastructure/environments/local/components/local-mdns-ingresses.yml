@@ -29,11 +29,10 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: argocd-local-ingress
-  namespace: argocd
+  namespace: default
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
-    traefik.ingress.kubernetes.io/router.middlewares: default-https-redirect@kubernetescrd
 spec:
   tls:
     - hosts:
