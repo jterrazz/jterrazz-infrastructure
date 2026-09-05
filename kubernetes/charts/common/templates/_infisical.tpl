@@ -11,7 +11,18 @@ field always did: the managed Secret outlives the CR rather than being
 garbage-collected with it.
 
 Input dict: name, labels (rendered lines), envSlug, secretsPath, secretName,
-secretNamespace.
+secretNamespace, and two optional ones:
+
+  secretType  the Kubernetes Secret type, `Opaque` unless given. The operator
+              copies it straight into the managed Secret's `type:`, which is
+              the only way a synced Secret can be the dockerconfigjson an
+              imagePullSecret accepts.
+  template    the operator's own transform, `{ data: { key: <template> } }`.
+              Those templates are rendered by the OPERATOR (text/template with
+              sprig in scope), never by Helm, and they REPLACE the default
+              key-per-secret projection — `includeAllSecrets` would put the raw
+              values back beside them, so a caller that names a template wants
+              only what it named.
 */}}
 {{- define "common.infisicalSecret" -}}
 apiVersion: secrets.infisical.com/v1alpha1
@@ -34,5 +45,9 @@ spec:
   managedKubeSecretReferences:
     - secretName: {{ .secretName }}
       secretNamespace: {{ .secretNamespace }}
-      secretType: Opaque
+      secretType: {{ .secretType | default "Opaque" }}
+      {{- with .template }}
+      template:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 {{- end -}}

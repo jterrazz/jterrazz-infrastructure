@@ -242,17 +242,3 @@ environments:
       - host: ci-test-app-staging.jterrazz.com
         path: /
         public: false
-
-# Registry credentials — present so the dockerconfigjson Secret renders.
-#
-# The password keeps a double quote and a backslash, because those two
-# characters are the entire point: they are the exact input that broke the old
-# raw-string-interpolation template, so this fixture regression-tests the
-# dict|toJson rewrite. Everything else about the value is deliberately
-# self-describing and low-entropy — a fixture that LOOKS like a credential
-# trips secret scanners (here and in the base64 the template derives from it),
-# and a repo where the scanner cries wolf is a repo where nobody reads it.
-registry:
-  server: registry.internal.jterrazz.com
-  username: ci-test
-  password: 'not-a-secret"quote\backslash-fixture'

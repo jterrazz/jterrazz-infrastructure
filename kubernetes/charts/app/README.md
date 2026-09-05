@@ -11,13 +11,14 @@ helm upgrade --install <env>-<app> oci://registry.internal.jterrazz.com/charts/a
   -f .infrastructure/application.yaml \
   --set environment=<env> \
   --set spec.image=registry.internal.jterrazz.com/<app>:<tag> \
-  --set meta.repository=<owner>/<repo> \
-  --set registry.username=… --set registry.password=…
+  --set meta.repository=<owner>/<repo>
 ```
 
 (The exact invocation lives in `jterrazz-actions/actions/docker-deploy`; the
-five `--set` values above are the contract this chart expects from CI —
-everything else comes from `application.yaml`.)
+three `--set` values above are the contract this chart expects from CI —
+everything else comes from `application.yaml`. No credential is among them: the
+registry pull secret is synced from Infisical, see
+[`spec.image`](#specimage--and-what-the-registry-decides).)
 
 `meta.repository` is `${{ github.repository }}`, stamped on the Deployment as
 the `app.jterrazz.com/repository` annotation. It is how the infrastructure
@@ -536,7 +537,13 @@ registry decides two more things, with no knob for either:
 * the `registry-credentials` `imagePullSecret` is attached only then — the
   credential authenticates that registry alone, and naming a Secret that is not
   in the namespace earns a `FailedToRetrieveImagePullSecret` warning on every
-  pod start;
+  pod start. That Secret is not built from values: the chart renders a second
+  `InfisicalSecret` (`<app>-registry-infisical`) and the operator syncs
+  `DOCKER_REGISTRY_USERNAME` / `DOCKER_REGISTRY_PASSWORD` from
+  `/jterrazz-actions` — the same path CI reads its own `docker login` from —
+  into a `kubernetes.io/dockerconfigjson`. The password is never a chart value,
+  so it never lands in a release Secret or on a runner's argv, and rotating it
+  needs no app deploy at all (`docs/RUNBOOK.md`, § Rotating credentials);
 * `imagePullPolicy: Always` is set only then — our tags (`main`, `next`) are
   mutable, so `IfNotPresent` would keep serving whatever the node cached first.
   A third-party image keeps Kubernetes' default, which is what its pinned tag
@@ -573,12 +580,12 @@ For a declared environment, namespace `<environment>-<app>`:
 | Deployment                | `<app>`                       | always                          |
 | Service (ClusterIP `servicePort`) | `<app>`               | always                          |
 | NetworkPolicy             | `<app>`                       | always                          |
-| Secret (dockerconfigjson) | `registry-credentials`        | registry username + password set |
 | Certificate               | `<app>-<host-slug>-tls`       | per unique ingress host that does not name a `tlsSecret` |
 | IngressRoute              | `<app>-<idx>`                 | per ingress entry               |
 | Middleware (stripPrefix)  | `<app>-<idx>-strip-prefix`    | entry has a non-`/` path, `stripPrefix` is not false, and it is not a redirect |
 | Middleware (redirectRegex) | `<app>-<idx>-redirect`       | entry sets `redirectTo`          |
 | InfisicalSecret           | `<app>-infisical`             | `spec.secrets.path` set         |
+| InfisicalSecret           | `<app>-registry-infisical`    | `spec.image` is on our registry — it syncs the `registry-credentials` dockerconfigjson |
 | ConfigMap                 | `<app>-config`                | `spec.configFiles` set          |
 | ConfigMap                 | `<app>-dashboard-<name>`      | `spec.dashboards` set **and** env is prod |
 | ConfigMap                 | `<app>-alerts`                | `spec.alerts` set **and** env is prod |
