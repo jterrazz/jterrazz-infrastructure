@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 Delta-only notes for agents: what the tree does **not** tell you. Architecture
-is in [README.md](README.md), operations in [docs/RUNBOOK.md](docs/RUNBOOK.md),
+is in [README.md](README.md), operations in [docs/09-runbook.md](docs/09-runbook.md),
 the `application.yaml` schema in
 [kubernetes/charts/app/README.md](kubernetes/charts/app/README.md).
 
@@ -11,7 +11,7 @@ One cluster: k3s on an OrbStack VM (`jterrazz-infrastructure`, Debian 13
 trixie, arm64) on the dev Mac. The VM is created by `scripts/deploy.sh`
 (`vm_up`, one `orbctl create`); Ansible inventory `inventories/laptop.yml`.
 There is no provisioning state anywhere — the VM's existence *is* the state,
-probed with `orbctl info`. Hetzner is a recipe in `docs/hetzner.md` and git
+probed with `orbctl info`. Hetzner is a recipe in `docs/10-hetzner.md` and git
 history, **not** a live mode — do not reintroduce a `target` / `manageDns` /
 `deployment_target` branch anywhere.
 
@@ -114,7 +114,7 @@ Repo-specific, each one paid for at least once.
 - **Tailscale identity collision.** A VM destroyed without `tailscale logout`
   leaves its device behind; the replacement joins as `<hostname>-2` and MagicDNS
   stops resolving the canonical name, which breaks every private hostname. Fix
-  in `docs/RUNBOOK.md`.
+  in `docs/09-runbook.md`.
 - **cert-manager loses its API connection after any k3s churn** — restart
   cert-manager, its webhook and cainjector together. This is the single most
   common cause of a stuck Certificate.
@@ -226,7 +226,7 @@ Repo-specific, each one paid for at least once.
   chain. *Public* = the Cloudflare Zero Trust tunnel owns the record; add a
   Public Hostname in its UI, nothing lands in this repo. *The machine* = two
   records made BY HAND in the Cloudflare dashboard and written down in
-  `docs/RUNBOOK.md` (§ DNS records): the `*.internal` wildcard, and
+  `docs/09-runbook.md` (§ DNS records): the `*.internal` wildcard, and
   `analytics` — which is the exception to "the tunnel owns every public
   record", because its *route* is a Public Hostname but its *record* is
   manual, so deleting it falls back to nothing. Both are set once and survive
@@ -332,7 +332,7 @@ owns the chart they render through. Working on an app repo:
   [kubernetes/charts/app/README.md](kubernetes/charts/app/README.md).
 - A repo deploying for the first time needs `INFISICAL_CLIENT_ID` /
   `INFISICAL_CLIENT_SECRET` set on it — see
-  [docs/RUNBOOK.md](docs/RUNBOOK.md#github-secrets-every-app-repo).
+  [docs/09-runbook.md](docs/09-runbook.md#github-secrets-every-app-repo).
 - Every app repo must expose `make build`, `make lint`, `make test` — the
   universal CI interface, regardless of toolchain.
 - `tag:` is mandatory on every environment. Without it the workflow takes a

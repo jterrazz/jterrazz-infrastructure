@@ -1,7 +1,8 @@
 # Runbook
 
 The 2am document: where the secrets are, what to run when something is down,
-and how to rebuild from nothing. Design lives in [../README.md](../README.md).
+and how to rebuild from nothing. Design lives in
+[01-architecture.md](01-architecture.md).
 
 ## Reaching the cluster
 

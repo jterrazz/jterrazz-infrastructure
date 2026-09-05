@@ -5,7 +5,7 @@
 **One machine.** A single OrbStack VM (`jterrazz-infrastructure`, Debian 13
 trixie, arm64) on the dev Mac, running single-node k3s. There is no second
 target: the Hetzner VPS this repo used to also support was removed. The
-resurrection recipe is [docs/hetzner.md](docs/hetzner.md); the implementation
+resurrection recipe is [docs/10-hetzner.md](docs/10-hetzner.md); the implementation
 is intact in git history.
 
 **Two tools, one script.** `scripts/deploy.sh` creates the VM (one `orbctl
@@ -16,7 +16,7 @@ file — is declared once, in `kubernetes/helmfile.yaml.gotmpl`. There is no
 GitOps controller: a deploy is `helmfile apply`, run on the node from CI or
 from the laptop. The two Cloudflare DNS records that point at the machine are
 made by hand, once, and written down in
-[docs/RUNBOOK.md](docs/RUNBOOK.md#dns-records-set-once-survive-everything) —
+[docs/09-runbook.md](docs/09-runbook.md#dns-records-set-once-survive-everything) —
 they never change, because the VM keeps its hostname across every repave.
 
 **Two ways in, neither an open port.** Public traffic arrives through an
@@ -158,11 +158,11 @@ branch CI does not check.
 
 | Question                                   | File                                                             |
 | ------------------------------------------ | ---------------------------------------------------------------- |
-| It's 2am and something is broken           | [docs/RUNBOOK.md](docs/RUNBOOK.md)                                |
+| It's 2am and something is broken           | [docs/09-runbook.md](docs/09-runbook.md)                                |
 | How do I deploy / configure an app?        | [kubernetes/charts/app/README.md](kubernetes/charts/app/README.md) |
 | What do the two charts share?              | [kubernetes/charts/common/README.md](kubernetes/charts/common/README.md) |
-| How do I add a new platform service / app? | [docs/RUNBOOK.md](docs/RUNBOOK.md#add-a-new-platform-service)     |
+| How do I add a new platform service / app? | [docs/09-runbook.md](docs/09-runbook.md#add-a-new-platform-service)     |
 | What does an agent need to know?           | [CLAUDE.md](CLAUDE.md)                                            |
 | How is public traffic wired?               | [kubernetes/services/cloudflared/README.md](kubernetes/services/cloudflared/README.md) |
 | LibreChat / OpenPanel specifics            | [librechat](kubernetes/services/librechat/README.md) · [openpanel](kubernetes/services/openpanel/README.md) |
-| How do I bring Hetzner back?               | [docs/hetzner.md](docs/hetzner.md)                                |
+| How do I bring Hetzner back?               | [docs/10-hetzner.md](docs/10-hetzner.md)                                |

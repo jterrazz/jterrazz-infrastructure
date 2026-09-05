@@ -140,7 +140,7 @@ main() {
     if [ "$consistent" -eq 1 ]; then
         section "Restarting the cluster"
         orb -m "$MACHINE" -u root systemctl start k3s
-        success "k3s restarted — cert-manager may need the restart from docs/RUNBOOK.md"
+        success "k3s restarted — cert-manager may need the restart from docs/09-runbook.md"
     fi
 
     section "Restore"

@@ -24,7 +24,7 @@
 #
 # That file is a snapshot of a live cluster, not a list somebody maintains — it
 # cannot be stale, because it is written minutes before it is used. The repave
-# procedure in docs/RUNBOOK.md has both steps in order.
+# procedure in docs/09-runbook.md has both steps in order.
 #
 # Usage:
 #   ./scripts/trigger-app-deploys.sh              # needs an authenticated `gh`

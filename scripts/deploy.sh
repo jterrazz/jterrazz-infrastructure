@@ -31,7 +31,7 @@ INVENTORY="$PROJECT_DIR/ansible/inventories/laptop.yml"
 if [ ! -f "$PROJECT_DIR/.env" ]; then
     error "Missing $PROJECT_DIR/.env"
     error "It must define INFISICAL_CLIENT_ID and INFISICAL_CLIENT_SECRET."
-    error "See 'Local .env' in docs/RUNBOOK.md; the file is gitignored on purpose."
+    error "See 'Local .env' in docs/09-runbook.md; the file is gitignored on purpose."
     exit 1
 fi
 set -a
