@@ -16,16 +16,8 @@ suite: full fixture render (snapshot)
 # should actually look at. Never regenerate without reading it.
 #
 # ---------------------------------------------------------------------------
-# The template list is explicit, and it is EVERY template except
-# registry-secret.yaml. ADD A NEW TEMPLATE HERE when you add one to the chart,
-# or it renders unwatched.
-#
-# registry-secret.yaml is left out on purpose: its only output is a base64
-# dockerconfigjson, which is both unreviewable in a snapshot diff and the exact
-# shape every secret scanner flags (a long base64 blob beside the word `auth`),
-# even though the credentials in it are the CI fixture's. It is the most
-# thoroughly asserted template in the chart — registry_secret_test.yaml decodes
-# the payload and matches the whole document — so nothing is unwatched here.
+# The template list is explicit, and it is EVERY template the chart has. ADD A
+# NEW TEMPLATE HERE when you add one, or it renders unwatched.
 # ---------------------------------------------------------------------------
 templates:
   - templates/alert-configmap.yaml

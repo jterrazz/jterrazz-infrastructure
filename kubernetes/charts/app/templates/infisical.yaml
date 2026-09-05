@@ -1,7 +1,7 @@
 {{- if eq (include "app.envExists" .) "true" -}}
-{{- $secrets := (fromYaml (include "app.merged" .)).secrets -}}
-{{- if $secrets.path -}}
 {{- $appName := include "app.name" . -}}
+{{- $secrets := (fromYaml (include "app.merged" .)).secrets -}}
+{{- if $secrets.path }}
 ---
 {{ include "common.infisicalSecret" (dict
      "name" (printf "%s-infisical" $appName)
@@ -10,5 +10,36 @@
      "secretsPath" $secrets.path
      "secretName" (include "app.secretsName" .)
      "secretNamespace" .Release.Namespace) }}
+{{- end }}
+{{- if eq (include "app.privateImage" .) "true" }}
+{{- /*
+The pull credential for OUR registry, synced by the operator like every other
+secret — it is never a chart value, so it never reaches a Helm release Secret,
+`helm get values -a`, or a runner's argv. Path and env are CI's own
+(`jterrazz-actions/actions/infra-connect` reads its `docker login` from exactly
+there), so the cluster and CI share ONE stored copy. `registry-credentials` is
+the literal name deployment.yaml's `imagePullSecrets` uses: a contract between
+two templates, not a derived string.
+
+The backticked string is the OPERATOR's template, not Helm's — Helm passes it
+through untouched and the operator renders it (text/template + sprig) against
+the secrets at that path. It builds the docker config with dict|toJson rather
+than by interpolating the credential into a hand-written JSON string: a
+password containing a double quote or a backslash would otherwise yield invalid
+JSON, and the failure surfaces much later as an unhelpful image-pull auth
+error. `auth` (base64 of user:password) is included because containerd reads
+that field in preference to the username/password pair.
+*/}}
+{{- $dockerconfig := printf `{{ dict "auths" (dict %q (dict "username" .DOCKER_REGISTRY_USERNAME.Value "password" .DOCKER_REGISTRY_PASSWORD.Value "auth" (list .DOCKER_REGISTRY_USERNAME.Value .DOCKER_REGISTRY_PASSWORD.Value | join ":" | b64enc))) | toJson }}` .Values.registry.server }}
+---
+{{ include "common.infisicalSecret" (dict
+     "name" (printf "%s-registry-infisical" $appName)
+     "labels" (include "app.labels" .)
+     "envSlug" "prod"
+     "secretsPath" "/jterrazz-actions"
+     "secretName" "registry-credentials"
+     "secretNamespace" .Release.Namespace
+     "secretType" "kubernetes.io/dockerconfigjson"
+     "template" (dict "data" (dict ".dockerconfigjson" $dockerconfig))) }}
 {{- end }}
 {{- end }}

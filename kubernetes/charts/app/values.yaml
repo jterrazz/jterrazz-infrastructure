@@ -101,8 +101,10 @@ environments: {}
 # Set by app CI during helm upgrade --install
 environment: ""
 
-# CI passes username + password via --set; `server` is a chart default.
+# Our own registry, and NO credential: the pull secret is synced from Infisical
+# by the operator (templates/infisical.yaml), never passed in as a value. The
+# hostname decides two things — which images get the pull secret and
+# `imagePullPolicy: Always` (app.privateImage), and which server the synced
+# dockerconfigjson authenticates.
 registry:
   server: registry.internal.jterrazz.com
-  username: ""
-  password: ""
