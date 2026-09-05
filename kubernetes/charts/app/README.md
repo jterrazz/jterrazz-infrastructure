@@ -543,7 +543,8 @@ registry decides two more things, with no knob for either:
   `/jterrazz-actions` — the same path CI reads its own `docker login` from —
   into a `kubernetes.io/dockerconfigjson`. The password is never a chart value,
   so it never lands in a release Secret or on a runner's argv, and rotating it
-  needs no app deploy at all (`docs/RUNBOOK.md`, § Rotating credentials);
+  needs no app deploy at all (`docs/RUNBOOK.md`, § Rotating the registry
+  password);
 * `imagePullPolicy: Always` is set only then — our tags (`main`, `next`) are
   mutable, so `IfNotPresent` would keep serving whatever the node cached first.
   A third-party image keeps Kubernetes' default, which is what its pinned tag
