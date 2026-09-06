@@ -15,12 +15,14 @@
       - cloudflare_tunnel_token is defined and cloudflare_tunnel_token | length > 0
       - infisical_client_id is defined and infisical_client_id | length > 0
       - infisical_client_secret is defined and infisical_client_secret | length > 0
+      - registry_username is defined and registry_username | length > 0
       - registry_password is defined and registry_password | length > 0
       - grafana_admin_password is defined and grafana_admin_password | length > 0
     fail_msg: >
       Missing required secrets. Ensure cloudflare_api_token, cloudflare_tunnel_token,
-      infisical_client_id, infisical_client_secret, registry_password and
-      grafana_admin_password are passed as extra vars. They come from Infisical
+      infisical_client_id, infisical_client_secret, registry_username,
+      registry_password and grafana_admin_password are passed as extra vars.
+      They come from Infisical
       /jterrazz-infrastructure (plus the grafana/ subfolder) — see
       scripts/infisical-vars.py.
     quiet: true

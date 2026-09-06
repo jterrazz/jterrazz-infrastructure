@@ -34,6 +34,7 @@ on the host.
 | ---------------------------------- | ------------------------------- | ------------------------------- | ------------- |
 | `/jterrazz-infrastructure`         | `CLOUDFLARE_API_TOKEN`          | `cloudflare_api_token`          | site+platform |
 |                                    | `CLOUDFLARE_TUNNEL_TOKEN`       | `cloudflare_tunnel_token`       | site+platform |
+|                                    | `DOCKER_REGISTRY_USERNAME`      | `registry_username`             | site+platform |
 |                                    | `DOCKER_REGISTRY_PASSWORD`      | `registry_password`             | site+platform |
 |                                    | `TAILSCALE_OAUTH_CLIENT_ID`     | `tailscale_oauth_client_id`     | site only     |
 |                                    | `TAILSCALE_OAUTH_CLIENT_SECRET` | `tailscale_oauth_client_secret` | site only     |
@@ -65,9 +66,12 @@ The deploy script never sees these:
 | `/jterrazz-actions`                        | `registry-credentials`        | `.dockerconfigjson` — the pull credential, assembled by the operator's own template from `DOCKER_REGISTRY_USERNAME` + `DOCKER_REGISTRY_PASSWORD`. One per app namespace whose image is on our registry; `charts/app` renders the CR beside the app's own |
 | `/<app>/…`                                 | `<app>-secrets`               | whatever the app's `spec.secrets.env` lists                      |
 
-There is no `/jterrazz-infrastructure/registry` folder: the registry's password
-is `DOCKER_REGISTRY_PASSWORD` at the root path, bcrypt-hashed into the
-`registry-auth` Secret by `roles/platform/tasks/bootstrap.yml`.
+There is no `/jterrazz-infrastructure/registry` folder: the registry's account
+is `DOCKER_REGISTRY_USERNAME` + `DOCKER_REGISTRY_PASSWORD` at the root path,
+turned into the one `<user>:<bcrypt>` line of the `registry-auth` Secret by
+`roles/platform/tasks/bootstrap.yml`. **Both halves are read, neither is
+hardcoded** — that is what lets a rotation move the fleet onto a second
+account and back.
 
 ### `/jterrazz-actions` — app CI
 

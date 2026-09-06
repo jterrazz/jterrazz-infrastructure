@@ -48,6 +48,12 @@ GRAFANA_PATH = "/jterrazz-infrastructure/grafana"
 COMMON_VARS = {
     "cloudflare_api_token": (ROOT_PATH, "CLOUDFLARE_API_TOKEN"),
     "cloudflare_tunnel_token": (ROOT_PATH, "CLOUDFLARE_TUNNEL_TOKEN"),
+    # The registry ACCOUNT, both halves. The name is fetched rather than
+    # hardcoded because a password rotation overlaps two accounts
+    # (`deploy` / `deploy-next`) and the htpasswd line Ansible generates has to
+    # follow the one CI and the kubelet authenticate with — see § Rotating the
+    # registry password in docs/09-runbook.md.
+    "registry_username": (ROOT_PATH, "DOCKER_REGISTRY_USERNAME"),
     "registry_password": (ROOT_PATH, "DOCKER_REGISTRY_PASSWORD"),
     "grafana_admin_password": (GRAFANA_PATH, "ADMIN_PASSWORD"),
 }
