@@ -14,6 +14,9 @@
     -n platform-registry --timeout=180s
   changed_when: false
 
+# Same account as the htpasswd line bootstrap.yml generates, from the same
+# Infisical key: during a rotation's overlap the name is `deploy-next`, and a
+# literal here would log in as an account the registry no longer holds.
 - name: Login to the OCI registry for Helm
   ansible.builtin.command:
     argv:
@@ -22,7 +25,7 @@
       - login
       - registry.internal.jterrazz.com
       - --username
-      - deploy
+      - "{{ registry_username }}"
       - --password-stdin
     stdin: "{{ registry_password }}"
   no_log: true

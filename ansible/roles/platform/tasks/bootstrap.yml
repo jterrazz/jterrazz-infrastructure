@@ -54,15 +54,23 @@
     update_cache: true
 
 # stdin (`-i`) with the value from the task environment, NEVER
-# `htpasswd -nbB deploy <password>`: an argument is visible to any user on the
+# `htpasswd -nbB <user> <password>`: an argument is visible to any user on the
 # box via `ps` for as long as the command runs.
+#
+# The account NAME comes from Infisical too (`DOCKER_REGISTRY_USERNAME` at
+# /jterrazz-infrastructure), never a literal: this line is the server side of
+# the credential CI and the kubelet present, and a password rotation overlaps
+# two accounts (`deploy` / `deploy-next`). Hardcoding the name here would
+# regenerate a line for an account nobody authenticates as — which is exactly
+# how the 2026-09-06 rotation put the fleet in ImagePullBackOff.
 - name: Generate the htpasswd hash for the registry
   ansible.builtin.shell:
     cmd: |
       set -o pipefail
-      printf '%s' "$REGISTRY_PASSWORD" | htpasswd -niB deploy
+      printf '%s' "$REGISTRY_PASSWORD" | htpasswd -niB "$REGISTRY_USERNAME"
     executable: /bin/bash
   environment:
+    REGISTRY_USERNAME: "{{ registry_username }}"
     REGISTRY_PASSWORD: "{{ registry_password }}"
   register: htpasswd_result
   changed_when: false
