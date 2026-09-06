@@ -84,6 +84,8 @@ private_hostnames:
   # An app-chart route (prod-signews-api), not a platform service — this list
   # is about who answers the name, not about which repo declares it.
   - signews.internal.jterrazz.com
+  # The OS dashboard (prod-os), an app-chart route like the one above.
+  - os.internal.jterrazz.com
 
 # Same as above, but mapped to Traefik's ClusterIP rather than the node's
 # tailnet IP — for a pod that fetches its own PUBLIC URL from inside the
