@@ -11,19 +11,27 @@ Ansible configures it, Helmfile deploys onto it — every platform release decla
 once in `kubernetes/helmfile.yaml.gotmpl`. Public traffic enters through a Cloudflare
 tunnel; private services are tailnet-only. Apps live in their own repos and
 deploy themselves through the shared `app` chart published here. Hetzner is a
-recipe in `docs/hetzner.md`, not a live mode.
+recipe in `docs/10-hetzner.md`, not a live mode.
 
 ## Where things are documented
 
+The map of the corpus is `docs/README.md`; every chapter is numbered.
+
 | Need                                          | Read                                   |
 | --------------------------------------------- | --------------------------------------- |
-| How it fits together, layout, CI              | `README.md`                             |
-| Secrets, troubleshooting, repave, restore     | `docs/RUNBOOK.md`                       |
-| Non-inferable gotchas + hand-synced pairs     | `CLAUDE.md`                             |
+| How it fits together, the layers, the layout  | `docs/01-architecture.md`               |
+| Deploying an app: what the contract is        | `docs/02-deploy-contract.md`            |
+| What CI runs                                  | `docs/03-ci.md`                         |
+| Conventions the tree does not state, DNS owners | `docs/04-conventions.md`              |
+| Editing a values file, manifest or template   | `docs/05-config-discipline.md`          |
+| Facts written down twice, and their checkers  | `docs/06-hand-synced-pairs.md`          |
+| Non-inferable behaviour                       | `docs/07-gotchas.md`                    |
+| What runs on the cluster                      | `docs/08-platform-services.md`          |
+| Secrets, troubleshooting, repave, restore     | `docs/09-runbook.md`                    |
 | `application.yaml` schema (deploying an app)  | `kubernetes/charts/app/README.md`       |
 | Per-service detail (cloudflared, librechat, openpanel) | `kubernetes/services/<svc>/README.md` |
 | Every other service                           | its release block in `kubernetes/helmfile.yaml.gotmpl` + comments in its `values.yaml` / `service.yaml` |
-| Bringing the Hetzner target back              | `docs/hetzner.md`                       |
+| Bringing the Hetzner target back              | `docs/10-hetzner.md`                    |
 
 ## Commands
 
