@@ -240,6 +240,35 @@ matches the recorded render of the CI fixture:
           secretNamespace: NAMESPACE
           secretType: Opaque
   6: |
+    apiVersion: secrets.infisical.com/v1alpha1
+    kind: InfisicalSecret
+    metadata:
+      labels:
+        app: ci-test-app
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: ci-test-app
+        environment: prod
+      name: ci-test-app-registry-infisical
+    spec:
+      authentication:
+        universalAuth:
+          credentialsRef:
+            secretName: infisical-credentials
+            secretNamespace: platform-secrets
+          secretsScope:
+            envSlug: prod
+            projectSlug: jterrazz
+            secretsPath: /jterrazz-actions
+      hostAPI: https://eu.infisical.com
+      managedKubeSecretReferences:
+        - secretName: registry-credentials
+          secretNamespace: NAMESPACE
+          secretType: kubernetes.io/dockerconfigjson
+          template:
+            data:
+              .dockerconfigjson: '{{ dict "auths" (dict "registry.internal.jterrazz.com" (dict "username" .DOCKER_REGISTRY_USERNAME.Value "password" .DOCKER_REGISTRY_PASSWORD.Value "auth" (list .DOCKER_REGISTRY_USERNAME.Value .DOCKER_REGISTRY_PASSWORD.Value | join ":" | b64enc))) | toJson }}'
+  7: |
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
@@ -257,7 +286,7 @@ matches the recorded render of the CI fixture:
         kind: ClusterIssuer
         name: letsencrypt-production
       secretName: ci-test-app-ci-test-app-internal-jterrazz-com-tls
-  7: |
+  8: |
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
@@ -275,7 +304,7 @@ matches the recorded render of the CI fixture:
         kind: ClusterIssuer
         name: letsencrypt-production
       secretName: ci-test-app-ci-test-app-legacy-jterrazz-com-tls
-  8: |
+  9: |
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
@@ -293,7 +322,7 @@ matches the recorded render of the CI fixture:
         kind: ClusterIssuer
         name: letsencrypt-production
       secretName: ci-test-app-ci-test-app-mcp-jterrazz-com-tls
-  9: |
+  10: |
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
@@ -311,7 +340,7 @@ matches the recorded render of the CI fixture:
         kind: ClusterIssuer
         name: letsencrypt-production
       secretName: ci-test-app-ci-test-app-old-jterrazz-com-tls
-  10: |
+  11: |
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
@@ -329,7 +358,7 @@ matches the recorded render of the CI fixture:
         kind: ClusterIssuer
         name: letsencrypt-production
       secretName: ci-test-app-ci-test-app-probe-jterrazz-com-tls
-  11: |
+  12: |
     apiVersion: cert-manager.io/v1
     kind: Certificate
     metadata:
@@ -347,7 +376,7 @@ matches the recorded render of the CI fixture:
         kind: ClusterIssuer
         name: letsencrypt-production
       secretName: ci-test-app-ci-test-app-jterrazz-com-tls
-  12: |
+  13: |
     apiVersion: traefik.io/v1alpha1
     kind: Middleware
     metadata:
@@ -362,7 +391,7 @@ matches the recorded render of the CI fixture:
       stripPrefix:
         prefixes:
           - /api
-  13: |
+  14: |
     apiVersion: traefik.io/v1alpha1
     kind: IngressRoute
     metadata:
@@ -389,7 +418,7 @@ matches the recorded render of the CI fixture:
               port: 80
       tls:
         secretName: ci-test-app-ci-test-app-jterrazz-com-tls
-  14: |
+  15: |
     apiVersion: traefik.io/v1alpha1
     kind: IngressRoute
     metadata:
@@ -417,7 +446,7 @@ matches the recorded render of the CI fixture:
               port: 80
       tls:
         secretName: ci-test-app-ci-test-app-internal-jterrazz-com-tls
-  15: |
+  16: |
     apiVersion: traefik.io/v1alpha1
     kind: IngressRoute
     metadata:
@@ -441,7 +470,7 @@ matches the recorded render of the CI fixture:
               port: 80
       tls:
         secretName: ci-test-app-ci-test-app-mcp-jterrazz-com-tls
-  16: |
+  17: |
     apiVersion: traefik.io/v1alpha1
     kind: Middleware
     metadata:
@@ -457,7 +486,7 @@ matches the recorded render of the CI fixture:
         permanent: true
         regex: ^https?://ci-test-app-old\.jterrazz\.com/(.*)
         replacement: https://ci-test-app.jterrazz.com/${1}
-  17: |
+  18: |
     apiVersion: traefik.io/v1alpha1
     kind: IngressRoute
     metadata:
@@ -485,7 +514,7 @@ matches the recorded render of the CI fixture:
               port: 80
       tls:
         secretName: ci-test-app-ci-test-app-old-jterrazz-com-tls
-  18: |
+  19: |
     apiVersion: traefik.io/v1alpha1
     kind: Middleware
     metadata:
@@ -501,7 +530,7 @@ matches the recorded render of the CI fixture:
         permanent: true
         regex: ^https?://ci-test-app-legacy\.jterrazz\.com/(.*)
         replacement: https://ci-test-app.jterrazz.com/moved
-  19: |
+  20: |
     apiVersion: traefik.io/v1alpha1
     kind: IngressRoute
     metadata:
@@ -529,7 +558,7 @@ matches the recorded render of the CI fixture:
               port: 80
       tls:
         secretName: ci-test-app-ci-test-app-legacy-jterrazz-com-tls
-  20: |
+  21: |
     apiVersion: traefik.io/v1alpha1
     kind: IngressRoute
     metadata:
@@ -557,7 +586,7 @@ matches the recorded render of the CI fixture:
               port: 80
       tls:
         secretName: ci-test-app-ci-test-app-probe-jterrazz-com-tls
-  21: |
+  22: |
     apiVersion: traefik.io/v1alpha1
     kind: Middleware
     metadata:
@@ -572,7 +601,7 @@ matches the recorded render of the CI fixture:
       stripPrefix:
         prefixes:
           - /api
-  22: |
+  23: |
     apiVersion: traefik.io/v1alpha1
     kind: IngressRoute
     metadata:
@@ -602,7 +631,7 @@ matches the recorded render of the CI fixture:
               port: 80
       tls:
         secretName: ci-test-shared-tls
-  23: |
+  24: |
     apiVersion: networking.k8s.io/v1
     kind: NetworkPolicy
     metadata:
@@ -667,7 +696,7 @@ matches the recorded render of the CI fixture:
       policyTypes:
         - Ingress
         - Egress
-  24: |
+  25: |
     apiVersion: v1
     kind: Service
     metadata:
@@ -685,7 +714,7 @@ matches the recorded render of the CI fixture:
       selector:
         app: ci-test-app
         environment: prod
-  25: |
+  26: |
     apiVersion: v1
     kind: PersistentVolume
     metadata:
@@ -706,7 +735,7 @@ matches the recorded render of the CI fixture:
         type: DirectoryOrCreate
       persistentVolumeReclaimPolicy: Retain
       storageClassName: manual
-  26: |
+  27: |
     apiVersion: v1
     kind: PersistentVolumeClaim
     metadata:
