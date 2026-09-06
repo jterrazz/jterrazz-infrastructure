@@ -524,11 +524,20 @@ them through the environment.
      -o jsonpath='{.data.htpasswd}' | base64 -d | cut -d: -f1   # exactly one, the new one
    ```
 
-**Run step 5 from the workstation, never from `deploy-platform.yaml`.** That
-workflow's own `infra-connect` logs in to the registry with the CI credential
-before it can do anything, so a run started mid-rotation authenticates with
-whichever half is stale and dies at its first step — the same loop as taking the
-`registry` release down. The Mac path needs only `.env` and `orb`.
+**Step 5 is `deploy-platform.yaml`; the Mac is the fallback.** That workflow's
+own `infra-connect` logs in to the registry before it can do anything, which is
+the whole reason the rotation overlaps: while both accounts are live on the
+server, the run authenticates with either half and is safe — that is how the
+2026-09-06 rotation was finished. What is unsafe is starting it *outside* the
+overlap, before step 1 or after the old line is gone but a path still holds the
+old value: it then dies at its first step, the same loop as taking the
+`registry` release down. So the order matters, not the machine.
+
+`make deploy-platform` from the Mac needs only `.env` and `orb`, and it is the
+way in when the workflow cannot run at all — but on this workstation it
+currently fails at fact-gathering
+([07-gotchas.md](07-gotchas.md#the-vm), open since 2026-09-06). Check that
+before you rely on it mid-rotation.
 
 **The old value outlives the rotation in Helm history.** Every release deployed
 before app chart 2.12.0 stored it in its revision Secret, and Helm keeps the
@@ -597,7 +606,8 @@ Deployment is the last resort, for something no chart can express; cloudflared
    the deploy, which is a real outage for that workload. Never do that to
    `registry`: the deploy workflow's own setup logs into it, so the run that
    would recreate it cannot start (`make deploy-platform` from the Mac is the
-   way out).
+   way out — and it is itself broken right now,
+   [07-gotchas.md](07-gotchas.md#the-vm)).
 
 ## Add a new app
 

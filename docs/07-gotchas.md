@@ -17,6 +17,13 @@ once.
   `/mnt/machines` makes file modes irrelevant, so `0600` on the kubeconfig is
   defence in depth, not a fix. The controls that work are the nftables guard in
   `roles/security` and creating dev machines with `--isolated`.
+- **`make deploy-platform` from the Mac dies at fact-gathering — OPEN, 2026-09-06.**
+  `ansible.legacy.setup` over the `orb` connection returns an empty
+  `module_stdout` and the play fails with `Module result deserialization
+  failed: No start of json char found`. The same playbook is green from
+  `deploy-platform.yaml` (which reaches the VM over SSH on the tailnet), so the
+  suspect is the local `orb` connection, not the play. Not fixed, not
+  worked around: the workflow is the way in until it is.
 - **`chmod` cannot protect `/var/lib/k8s-data`.** Pods write through virtiofs
   as uids 70/101/472/999/1000; dropping world-execute breaks Postgres,
   ClickHouse, Mongo, Grafana and signews-api at once. Encrypt what leaves the
