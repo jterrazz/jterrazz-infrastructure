@@ -405,36 +405,56 @@ whichever side has not caught up yet, and one of those sides is the pipeline
 that would fix it. So the two accounts overlap: add the new one, move
 everything onto it, remove the old one.
 
+An account is a NAME and a password, and both move. The name **alternates**:
+`deploy` → `deploy-next` this time, `deploy-next` → `deploy` the next. Nothing
+hardcodes it — `bootstrap.yml` hashes `DOCKER_REGISTRY_USERNAME` from
+`/jterrazz-infrastructure` into the htpasswd line, the same key CI and the
+kubelet authenticate with from `/jterrazz-actions` — which is what makes the
+overlap below work as written. Before this was true, step 5 regenerated a line
+for `deploy` while everything else spoke as `deploy-next`, and the fleet went
+ImagePullBackOff (2026-09-06).
+
 Nothing below ever prints a value — read them from the Infisical UI and pass
 them through the environment.
 
 1. **Add a second account to the registry.** `bootstrap.yml` generates exactly
-   one htpasswd line (`deploy`), so this one is by hand, and it lasts only until
-   the next `make deploy` / `make deploy-platform` regenerates the Secret —
-   which is step 5.
+   one htpasswd line, so the second one is by hand, and it lasts only until the
+   next `make deploy` / `make deploy-platform` regenerates the Secret — which is
+   step 5. Which name is live is the server's own answer, and reading it prints
+   no hash:
+
+   ```bash
+   kubectl get secret registry-auth -n platform-registry \
+     -o jsonpath='{.data.htpasswd}' | base64 -d | cut -d: -f1
+   ```
+
+   The new name is the other one. Append its line to what is already there:
 
    ```bash
    kubectl get secret registry-auth -n platform-registry \
      -o jsonpath='{.data.htpasswd}' | base64 -d > /tmp/htpasswd
-   # stdin, never `htpasswd -nbB deploy-next <password>`: an argument is in
+   # stdin, never `htpasswd -nbB <user> <password>`: an argument is in
    # `ps` for as long as the command runs, and in your shell history forever.
-   printf '%s' "$NEW_REGISTRY_PASSWORD" | htpasswd -niB deploy-next >> /tmp/htpasswd
+   printf '%s' "$NEW_REGISTRY_PASSWORD" \
+     | htpasswd -niB "$NEW_REGISTRY_USERNAME" >> /tmp/htpasswd
    kubectl create secret generic registry-auth -n platform-registry \
      --from-file=htpasswd=/tmp/htpasswd --dry-run=client -o yaml | kubectl apply -f -
    rm -f /tmp/htpasswd
    kubectl rollout restart deploy/registry -n platform-registry   # the file is a mount
    ```
 
-2. **Store the new pair at BOTH paths** in the Infisical UI —
-   `/jterrazz-infrastructure` (`DOCKER_REGISTRY_PASSWORD`, which Ansible reads
-   as `registry_password`) and `/jterrazz-actions` (the pair CI and the cluster
-   read). `DOCKER_REGISTRY_USERNAME` becomes `deploy-next`. They are one
-   hand-synced pair; a value at one path only is a half-rotation that passes
-   every check here. Generate the value **without whitespace**:
+2. **Store the new pair at BOTH paths** in the Infisical UI — four values, one
+   account. `/jterrazz-infrastructure` holds `DOCKER_REGISTRY_USERNAME` +
+   `DOCKER_REGISTRY_PASSWORD`, which Ansible reads as `registry_username` /
+   `registry_password` and hashes into the server's htpasswd;
+   `/jterrazz-actions` holds the same two keys, which CI and the cluster
+   authenticate with. They are one hand-synced pair, name included; a value
+   moved at one path only is a half-rotation that passes every check here.
+   Generate the password **without whitespace**:
    `jterrazz-actions/actions/docker-cleanup` authenticates curl from a netrc
    file it writes one line at a time, and that format cannot carry a space.
 
-3. **Pull the new value into the cluster**, or wait out the resync:
+3. **Pull the new values into the cluster**, or wait out the resync:
 
    ```bash
    kubectl delete pod -n platform-secrets -l control-plane=controller-manager
@@ -455,13 +475,22 @@ them through the environment.
    A namespace missing from that list is an app that has not deployed since app
    chart 2.12.0: deploy it (its CR is what creates the Secret) before step 5.
 
-5. **Drop the old account.** With the new value already at
-   `/jterrazz-infrastructure`, `bootstrap.yml` regenerates a single-line
-   `registry-auth` for it:
+5. **Drop the old account.** With both new halves already at
+   `/jterrazz-infrastructure`, the platform play regenerates a single-line
+   `registry-auth` for the new account — hand-added line and old account gone
+   in one pass:
 
    ```bash
-   make deploy-platform          # from the Mac — see below
+   gh workflow run deploy-platform.yaml -R jterrazz/jterrazz-infrastructure
+   # or, as a fallback: make deploy-platform   # from the Mac — see below
    kubectl rollout restart deploy/registry -n platform-registry
+   ```
+
+   Then confirm the server now answers to the new name alone:
+
+   ```bash
+   kubectl get secret registry-auth -n platform-registry \
+     -o jsonpath='{.data.htpasswd}' | base64 -d | cut -d: -f1   # exactly one, the new one
    ```
 
 **Run step 5 from the workstation, never from `deploy-platform.yaml`.** That
