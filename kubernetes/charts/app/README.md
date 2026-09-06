@@ -615,6 +615,40 @@ Two rules follow from apps pulling the chart **unversioned**:
    because until it exists in the registry no app can deploy at all. It carries
    the same guard: already-published is a skip, not a failure.)
 
+## Upgrading from 2.11
+
+**The first upgrade onto 2.12.0 deletes the pull secret it depends on.** 2.11
+rendered `Secret registry-credentials` from a chart value; 2.12.0 renders an
+`InfisicalSecret` instead and lets the operator write that Secret. The old
+revision's manifest therefore OWNS a Secret the new one does not render, and
+`helm upgrade` prunes it — including the copy the operator had already synced,
+because Helm matches on name, not on who wrote it.
+
+The rest follows on its own:
+
+- the new pod names an `imagePullSecret` that no longer exists →
+  `ImagePullBackOff`;
+- `--wait --timeout 5m` expires while kubelet backs off between pull attempts;
+- `--atomic` rolls back — and the rollback fails too, with `no Secret with the
+  name "registry-credentials" found`;
+- the operator does not repair it: the Infisical value has not changed, so it
+  matches its cached ETag and skips reconciliation entirely (the infrastructure
+  runbook's
+  [deleted managed Secret](../../../docs/09-runbook.md#a-deleted-managed-secret-does-not-come-back)).
+
+Every release in this estate has already crossed that boundary, so it is
+history here — but any other consumer of this chart meets it once per release.
+Two ways through, both with `--timeout` set well above the default (the pull
+backoff, not the pod, is what runs out the clock):
+
+- **Pre-create** the release's registry `InfisicalSecret` with the adoption
+  metadata Helm demands — annotations `meta.helm.sh/release-name` and
+  `meta.helm.sh/release-namespace`, label `app.kubernetes.io/managed-by: Helm`
+  — so the upgrade adopts the object instead of racing it.
+- **Recreate** that CR a few seconds after the upgrade starts, which is what
+  was done here: the operator writes the Secret back while Helm is still
+  waiting on the pod, and the pull succeeds before the timeout.
+
 ## Working on the chart
 
 ```bash
