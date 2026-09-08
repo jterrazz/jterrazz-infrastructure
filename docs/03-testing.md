@@ -20,14 +20,18 @@ Each check answers for one thing:
 | `helm lint` on `common` alone, then `app` and `platform-service` against their `ci/test-values.yaml` | the charts render, and render something — see [the fixtures](#the-fixtures-are-the-validation-contract) |
 | `helm unittest --strict app platform-service`                    | what the templates COMPUTED, not merely that the YAML is well-formed                            |
 | `actionlint`                                                     | the workflow files themselves                                                                    |
+| `make docs`                                                      | this corpus still opens on the estate's spine — the map bijective, the chapters contiguous, the four fixed names in place |
 
 `--strict` on helm-unittest matters: it rejects an unknown key in a test file,
 so a typo'd assertion name is an error rather than an assertion that silently
 never runs.
 
-Two of these are soft skips locally — `actionlint` and the helm-unittest plugin
-— because CI installs and runs both unconditionally, so a laptop without them is
-not a gap in the gate. Everything else hard-fails, which is what stops
+Three of these are soft skips locally — `actionlint`, the helm-unittest plugin
+and `make docs`, which needs node — because CI runs all three unconditionally,
+so a laptop without them is not a gap in the gate. `make docs` runs the manual
+gate of `@jterrazz/typescript`, pinned in the `Makefile`; the rule ids and the
+sentence each one prints belong to that engine and are not copied here.
+Everything else hard-fails, which is what stops
 `make check` from printing all green on a machine where it checked nothing.
 
 ### What only CI runs

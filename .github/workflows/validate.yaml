@@ -53,6 +53,19 @@ jobs:
       - name: Cross-file sync assertions
         run: python3 scripts/assert-sync.py
 
+  docs:
+    name: Validate Docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The manual gate. `make docs` is the one place the command and its pin
+      # are written, so this and a laptop run the same check — locally it is a
+      # soft skip (like actionlint and helm-unittest) and this job is what makes
+      # that safe. ubuntu-latest ships node, so there is nothing to set up.
+      - name: Docs layout
+        run: make docs
+
   ansible:
     name: Validate Ansible
     runs-on: ubuntu-latest
