@@ -3,7 +3,7 @@
 # both always on (no receiver flag to enable):
 #   * OTLP/HTTP  /insert/opentelemetry/v1/logs  — what the OTel collector uses
 # Query language is LogsQL, not LogQL: stream filters look the same
-# (`{k8s.namespace.name="x"}`), the pipe operators do not — see docs/09-runbook.md.
+# (`{k8s.namespace.name="x"}`), the pipe operators do not — see docs/04-operating.md.
 
 server:
   # Without this the objects are named <release>-victoria-logs-single-server.

@@ -12,7 +12,7 @@
 #
 # WORTH SCHEDULING SEPARATELY: PostgreSQL 14 goes EOL 2026-11-12. Before then
 # this needs either an OpenPanel release that pins a newer major, or a
-# deliberate accept-the-risk migration (procedure in docs/09-runbook.md).
+# deliberate accept-the-risk migration (procedure in docs/04-operating.md).
 metadata:
   name: op-postgres
 

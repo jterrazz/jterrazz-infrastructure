@@ -61,7 +61,7 @@ For each:
 
 Adding the rule auto-creates the CNAME. Exception: `analytics.jterrazz.com`
 (OpenPanel ingest) already has a hand-made CNAME (see "DNS records" in
-[docs/09-runbook.md](../../../docs/09-runbook.md)), so there only the routing rule is
+[docs/04-operating.md](../../../docs/04-operating.md)), so there only the routing rule is
 added in the dashboard.
 
 ## Deploy

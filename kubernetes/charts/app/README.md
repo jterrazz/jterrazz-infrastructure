@@ -543,7 +543,7 @@ registry decides two more things, with no knob for either:
   `/jterrazz-actions` — the same path CI reads its own `docker login` from —
   into a `kubernetes.io/dockerconfigjson`. The password is never a chart value,
   so it never lands in a release Secret or on a runner's argv, and rotating it
-  needs no app deploy at all (`docs/09-runbook.md`, § Rotating the registry
+  needs no app deploy at all (`docs/04-operating.md`, § Rotating the registry
   password);
 * `imagePullPolicy: Always` is set only then — our tags (`main`, `next`) are
   mutable, so `IfNotPresent` would keep serving whatever the node cached first.
@@ -634,7 +634,7 @@ The rest follows on its own:
 - the operator does not repair it: the Infisical value has not changed, so it
   matches its cached ETag and skips reconciliation entirely (the infrastructure
   runbook's
-  [deleted managed Secret](../../../docs/09-runbook.md#a-deleted-managed-secret-does-not-come-back)).
+  [deleted managed Secret](../../../docs/04-operating.md#a-deleted-managed-secret-does-not-come-back)).
 
 Every release in this estate has already crossed that boundary, so it is
 history here — but any other consumer of this chart meets it once per release.
