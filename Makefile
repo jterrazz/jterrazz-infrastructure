@@ -180,8 +180,15 @@ check: ## Run the checks CI runs (shellcheck, python, sync assertions, ansible-l
 # Pinned, and run through npx because there is no npm project in this repo to
 # install it into: an unpinned `@latest` would roll onto a release with new
 # rules the day it published, turning a green tree red with no commit.
+#
+# `--package` + the bin name, never the short `npx @jterrazz/typescript@9.2.0`
+# form. The short form makes npm infer the command from the package name, and
+# the name it infers — `typescript` — is also the name of one of the package's
+# own dependencies; resolving it against the ephemeral tree died on the GitHub
+# runner with `Cannot read properties of null (reading 'edgesOut')` while
+# passing on a laptop. Naming both halves leaves npm nothing to infer.
 docs: ## Check docs/ against the estate's manual spine
-	npx --yes @jterrazz/typescript@9.2.0 docs-layout .
+	npx --yes --package=@jterrazz/typescript@9.2.0 -- typescript docs-layout .
 
 # `lint` is the name in every app repo's universal CI interface (make build /
 # lint / test); `check` is what this target actually is.
