@@ -9,7 +9,7 @@
 # key `htpasswd`, bootstrapped by ansible/roles/platform/tasks/bootstrap.yml
 # because a password hash must never be committed. Consequence: CI's pushes and
 # every namespace's synced pull secret share one credential, which is why
-# rotating it is an overlap of two accounts and not a swap — docs/09-runbook.md,
+# rotating it is an overlap of two accounts and not a swap — docs/04-operating.md,
 # § Rotating the registry password. The other half of the story is `network:`
 # below — nothing but Traefik reaches :5000 at all.
 metadata:

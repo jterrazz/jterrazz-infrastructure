@@ -28,5 +28,5 @@ missing secret hard-fails the run; there are no fallback defaults.
 
 [docs/README.md](docs/README.md) is the map of the corpus. Start at
 [docs/01-architecture.md](docs/01-architecture.md) to understand the system,
-[docs/02-deploy-contract.md](docs/02-deploy-contract.md) to deploy an app, and
-[docs/09-runbook.md](docs/09-runbook.md) when something is broken.
+[docs/05-deploy-contract.md](docs/05-deploy-contract.md) to deploy an app, and
+[docs/04-operating.md](docs/04-operating.md) when something is broken.

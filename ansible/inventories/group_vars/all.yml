@@ -65,7 +65,7 @@ k3s_node_ip: "{{ ansible_default_ipv4.address }}"
 #
 # NOT paired with anything on the public-DNS side: every name here is
 # `<svc>.internal.jterrazz.com`, covered by the single `*.internal` wildcard
-# CNAME — a hand-made record, documented in docs/09-runbook.md. Adding a private
+# CNAME — a hand-made record, documented in docs/04-operating.md. Adding a private
 # service means adding ONE line here and nothing else, anywhere.
 #
 # An explicit list rather than a wildcard because CoreDNS's `hosts` plugin

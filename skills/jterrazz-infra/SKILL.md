@@ -11,7 +11,7 @@ Ansible configures it, Helmfile deploys onto it — every platform release decla
 once in `kubernetes/helmfile.yaml.gotmpl`. Public traffic enters through a Cloudflare
 tunnel; private services are tailnet-only. Apps live in their own repos and
 deploy themselves through the shared `app` chart published here. Hetzner is a
-recipe in `docs/10-hetzner.md`, not a live mode.
+recipe in `docs/09-hetzner.md`, not a live mode.
 
 ## Where things are documented
 
@@ -20,18 +20,18 @@ The map of the corpus is `docs/README.md`; every chapter is numbered.
 | Need                                          | Read                                   |
 | --------------------------------------------- | --------------------------------------- |
 | How it fits together, the layers, the layout  | `docs/01-architecture.md`               |
-| Deploying an app: what the contract is        | `docs/02-deploy-contract.md`            |
-| What CI runs                                  | `docs/03-ci.md`                         |
-| Conventions the tree does not state, DNS owners | `docs/04-conventions.md`              |
-| Editing a values file, manifest or template   | `docs/05-config-discipline.md`          |
-| Facts written down twice, and their checkers  | `docs/06-hand-synced-pairs.md`          |
-| Non-inferable behaviour                       | `docs/07-gotchas.md`                    |
+| Editing a values file, manifest, template or role, and the conventions the tree does not state | `docs/02-developing.md` |
+| What proves a change, and what a deploy proves | `docs/03-testing.md`                   |
+| Secrets, troubleshooting, repave, restore     | `docs/04-operating.md`                  |
+| Deploying an app: what the contract is        | `docs/05-deploy-contract.md`            |
+| What CI runs, and what a merge triggers       | `docs/06-ci.md`                         |
+| Facts written down twice, and their checkers  | `docs/07-hand-synced-pairs.md`          |
 | What runs on the cluster                      | `docs/08-platform-services.md`          |
-| Secrets, troubleshooting, repave, restore     | `docs/09-runbook.md`                    |
+| Bringing the Hetzner target back              | `docs/09-hetzner.md`                    |
+| Why a choice was made                         | `docs/decisions/`                       |
 | `application.yaml` schema (deploying an app)  | `kubernetes/charts/app/README.md`       |
 | Per-service detail (cloudflared, librechat, openpanel) | `kubernetes/services/<svc>/README.md` |
 | Every other service                           | its release block in `kubernetes/helmfile.yaml.gotmpl` + comments in its `values.yaml` / `service.yaml` |
-| Bringing the Hetzner target back              | `docs/10-hetzner.md`                    |
 
 ## Commands
 

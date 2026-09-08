@@ -1,7 +1,7 @@
 # Architecture
 
 One machine, four layers, three charts. This chapter is the shape of the
-system; what to type when it breaks is [09-runbook.md](09-runbook.md).
+system; what to type when it breaks is [04-operating.md](04-operating.md).
 
 ## The machine
 
@@ -17,7 +17,7 @@ release, with its name, namespace, chart, pinned version and values file, is
 declared once in `kubernetes/helmfile.yaml.gotmpl`.
 
 There is no second target. The Hetzner VPS this repo also supported was
-removed; the resurrection recipe is [10-hetzner.md](10-hetzner.md) and the
+removed; the resurrection recipe is [09-hetzner.md](09-hetzner.md) and the
 implementation is intact in git history. Do not reintroduce a `target`,
 `manageDns` or `deployment_target` branch anywhere.
 
@@ -43,10 +43,10 @@ chart that consumes it:
   `mongodb.yaml`, or `app.yaml` when the service is a single workload).
 
 The one exception is `cloudflared/deployment.yaml`, a raw Deployment on
-purpose — [04-conventions.md](04-conventions.md) says why.
+purpose — [02-developing.md](02-developing.md) says why.
 
 This repo owns the app chart, not the apps. What an app repo signs up to is
-[02-deploy-contract.md](02-deploy-contract.md).
+[05-deploy-contract.md](05-deploy-contract.md).
 
 ## The three charts
 

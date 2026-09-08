@@ -9,7 +9,7 @@ cost a `deployment_target` branch in every role plus an inventory nobody ran.
 pay for a language, a lockfile, a CI job, a state backend and a token: today
 `scripts/deploy.sh` runs the single `orbctl create` (`vm_up` / `vm_destroy`) and
 the records are hand-made facts written down in
-[09-runbook.md](09-runbook.md#dns-records-set-once-survive-everything). The last commit
+[04-operating.md](04-operating.md#dns-records-set-once-survive-everything). The last commit
 that still contained a `pulumi/` directory is **`487f370`**, so every file named
 below is readable with `git show 487f370:pulumi/src/dns.ts` and friends — the
 tree is in history, not in the working copy.
@@ -55,7 +55,7 @@ pulumi up
 
 **DNS**: without Pulumi this is a one-record edit — repoint the `*.internal`
 CNAME at the new host's tailnet name in the Cloudflare dashboard
-([09-runbook.md](09-runbook.md#dns-records-set-once-survive-everything)) and there is
+([04-operating.md](04-operating.md#dns-records-set-once-survive-everything)) and there is
 nothing to guard. If you DO restore `pulumi/`, restore the `manageDns` guard
 with it — only ONE stack may have `jterrazz-infrastructure:manageDns: "true"` at
 a time, or whichever ran `pulumi up` last silently owns every private CNAME.

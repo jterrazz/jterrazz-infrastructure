@@ -52,7 +52,7 @@ COMMON_VARS = {
     # hardcoded because a password rotation overlaps two accounts
     # (`deploy` / `deploy-next`) and the htpasswd line Ansible generates has to
     # follow the one CI and the kubelet authenticate with — see § Rotating the
-    # registry password in docs/09-runbook.md.
+    # registry password in docs/04-operating.md.
     "registry_username": (ROOT_PATH, "DOCKER_REGISTRY_USERNAME"),
     "registry_password": (ROOT_PATH, "DOCKER_REGISTRY_PASSWORD"),
     "grafana_admin_password": (GRAFANA_PATH, "ADMIN_PASSWORD"),

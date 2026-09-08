@@ -16,7 +16,7 @@ here; the workflows that execute the contract are
   whatever the toolchain.
 - **Two GitHub secrets**, `INFISICAL_CLIENT_ID` and `INFISICAL_CLIENT_SECRET`,
   set on the repo before its first deploy — see
-  [09-runbook.md](09-runbook.md#github-secrets-every-app-repo).
+  [04-operating.md](04-operating.md#github-secrets-every-app-repo).
 
 ## What the app repo gets
 
@@ -26,7 +26,7 @@ here; the workflows that execute the contract are
 - **The chart, pulled unversioned** from
   `oci://registry.internal.jterrazz.com/charts/app`. An app never pins a chart
   version, which is why a template edit must bump `version:` in
-  `charts/app/Chart.yaml` — see [06-hand-synced-pairs.md](06-hand-synced-pairs.md).
+  `charts/app/Chart.yaml` — see [07-hand-synced-pairs.md](07-hand-synced-pairs.md).
 - **Discovery instead of registration.** Smoke probes and redeploys read the
   live cluster: `scripts/smoke.sh` probes what each IngressRoute's
   `smoke.jterrazz.com/*` annotations say, and `scripts/trigger-app-deploys.sh`

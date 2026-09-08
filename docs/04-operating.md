@@ -1,8 +1,9 @@
-# Runbook
+# Operating
 
 The 2am document: where the secrets are, what to run when something is down,
 and how to rebuild from nothing. Design lives in
-[01-architecture.md](01-architecture.md).
+[01-architecture.md](01-architecture.md); the rules a change to the tree
+follows are [02-developing.md](02-developing.md).
 
 ## Reaching the cluster
 
@@ -150,7 +151,8 @@ hole, and each names the check that proves it still holds.
 
 **OrbStack machines are not isolated from each other by default.** Every one
 mounts every other's rootfs at `/mnt/machines/<name>/` and reads it **as
-root** — so file permissions are irrelevant there, `0600` included. A plain
+root** — so file permissions are irrelevant there, `0600` included, and the
+mode on `kubeconfig.yaml` is defence in depth rather than a fix. A plain
 `orb create` machine can read this cluster's data directory and its
 kubeconfig. Create dev machines with `--isolated` (no `/mnt/machines` at all)
 and add `--isolate-network` for the host. Note that `--isolate-network` does
@@ -181,7 +183,8 @@ make diff
 ./scripts/trigger-app-deploys.sh --dry-run     # which repos would be rebuilt
 ./scripts/helmfile.sh diff -l name=grafana     # one release
 
-# cert-manager after any k3s churn (webhook + cainjector lose the API)
+# cert-manager after any k3s churn (webhook + cainjector lose the API — the
+# single most common cause of a stuck Certificate; restart all three together)
 kubectl rollout restart -n platform-networking \
   deploy/cert-manager deploy/cert-manager-webhook deploy/cert-manager-cainjector
 
@@ -233,6 +236,53 @@ A node that comes back **logged out** after a reboot self-heals through
 `tailscale-autoauth.service` (installed by the `tailscale` role). If it did
 not, check that unit's journal first — the failure chain is registry NXDOMAIN
 → ImagePullBackOff on every app pod → Cloudflare 503 on every public hostname.
+
+### DNS on the VM
+
+**OrbStack DHCP hands out a bogus resolver** (`0.250.250.200`) that silently
+drops queries, and it takes two fixes, not one. `upstream.conf` sets the global
+resolver; `UseDNS=false` removes the per-link one. The `resolved` role writes
+both: `/etc/systemd/resolved.conf.d/upstream.conf` (`DNS=1.1.1.1 9.9.9.9`) and
+a systemd-networkd drop-in at
+`/etc/systemd/network/eth0.network.d/10-no-dhcp-dns.conf`.
+
+Do not diagnose this by looking for a missing `upstream.conf`. That was the old
+note here and it is wrong: `upstream.conf` was present the whole time the bogus
+resolver was still in use, because a global `DNS=` cannot displace a
+DHCP-supplied link server. The real check is the uplink file, which is the one
+kubelet pins and therefore the one CoreDNS forwards to:
+
+```bash
+orb -m jterrazz-infrastructure -u root cat /run/systemd/resolve/resolv.conf
+# want exactly: nameserver 1.1.1.1 / nameserver 9.9.9.9 — no third line
+orb -m jterrazz-infrastructure -u root resolvectl status eth0
+# want: "DNS Servers:" absent under Link N (eth0)
+```
+
+`/etc/resolv.conf` is useless for this: it is symlinked to `stub-resolv.conf`
+and always shows a single `nameserver 127.0.0.53`. `networkctl status eth0 |
+grep 'Network File'` names the file the drop-in must sit beside — the role
+derives it rather than hardcoding `eth0.network`. Which file kubelet is pinned
+to, and why, is [02-developing.md](02-developing.md#the-vm-is-built-one-way).
+
+### Objects that need a gesture before they move
+
+- **Use fully-qualified CRD names** with kubectl: `certificate.cert-manager.io`,
+  `ingressroute.traefik.io`.
+- **Remove finalizers before deleting an `Application` object** when tearing
+  down a controller that manages resources through it, or the cascade takes the
+  managed resources with it. Learned dismantling ArgoCD, which is long gone from
+  this tree — the lesson is kept because nothing here can teach it again.
+
+### `make deploy-platform` from the Mac dies at fact-gathering
+
+**OPEN since 2026-09-06.** `ansible.legacy.setup` over the `orb` connection
+returns an empty `module_stdout` and the play fails with `Module result
+deserialization failed: No start of json char found`. The same playbook is green
+from `deploy-platform.yaml` (which reaches the VM over SSH on the tailnet), so
+the suspect is the local `orb` connection, not the play. Not fixed, not worked
+around: the workflow is the way in until it is. Every procedure below that names
+the Mac as a fallback is subject to this.
 
 ## DNS records (set once, survive everything)
 
@@ -536,8 +586,8 @@ old value: it then dies at its first step, the same loop as taking the
 `make deploy-platform` from the Mac needs only `.env` and `orb`, and it is the
 way in when the workflow cannot run at all — but on this workstation it
 currently fails at fact-gathering
-([07-gotchas.md](07-gotchas.md#the-vm), open since 2026-09-06). Check that
-before you rely on it mid-rotation.
+([above](#make-deploy-platform-from-the-mac-dies-at-fact-gathering), open since
+2026-09-06). Check that before you rely on it mid-rotation.
 
 **The old value outlives the rotation in Helm history.** Every release deployed
 before app chart 2.12.0 stored it in its revision Secret, and Helm keeps the
@@ -578,7 +628,8 @@ Deployment is the last resort, for something no chart can express; cloudflared
    `service.yaml`, and add the private hostname to `private_hostnames` in
    group_vars — CoreDNS needs the name before the route exists, and `smoke.sh`
    fails if the list and the live routes disagree either way. A public service
-   needs a new zone — see "New public zone" in `CLAUDE.md`.
+   needs a new zone — the three steps are in
+   [02-developing.md](02-developing.md#dns-has-exactly-three-owners-and-none-of-them-is-this-repos-code).
    Smoke: **nothing**, unless the default (`GET /` -> 200) is wrong for this
    service, in which case add `smoke: { path, expect }` to the same
    `service.yaml`. The chart stamps it on the route and `scripts/smoke.sh`
@@ -607,7 +658,7 @@ Deployment is the last resort, for something no chart can express; cloudflared
    `registry`: the deploy workflow's own setup logs into it, so the run that
    would recreate it cannot start (`make deploy-platform` from the Mac is the
    way out — and it is itself broken right now,
-   [07-gotchas.md](07-gotchas.md#the-vm)).
+   [above](#make-deploy-platform-from-the-mac-dies-at-fact-gathering)).
 
 ## Add a new app
 
