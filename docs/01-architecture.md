@@ -90,7 +90,7 @@ Nothing listens on a public address.
 │                                 ▼                                     │
 │   ┌─────────────────── k3s · SQLite datastore ─────────────────────┐  │
 │   │  Traefik ──► IngressRoutes                                     │  │
-│   │     ├─ public   spwn.sh · sig.news · clawrr.com · analytics    │  │
+│   │     ├─ public   spwn.sh · sig.news · analytics                 │  │
 │   │     └─ private  grafana · chat · registry · openpanel · gateway│  │
 │   │                                                                │  │
 │   │  cert-manager · Infisical operator · private Docker registry   │  │
