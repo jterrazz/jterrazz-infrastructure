@@ -38,7 +38,7 @@ spec:
     # site posts here directly); the rest are pre-authorised and cost nothing.
     # There is no shared SDK — each site integrates OpenPanel's browser snippet
     # itself, so adding a sender means adding its apex (and www./sub) here.
-    API_CORS_ORIGINS: "https://openpanel.internal.jterrazz.com,https://jterrazz.com,https://www.jterrazz.com,https://spwn.sh,https://sig.news,https://clawssify.com"
+    API_CORS_ORIGINS: "https://openpanel.internal.jterrazz.com,https://jterrazz.com,https://www.jterrazz.com,https://spwn.sh,https://sig.news"
 
   # Infisical /jterrazz-infrastructure/openpanel, env prod. Each release syncs
   # its own copy of the folder and projects only the keys it names — the

@@ -48,8 +48,7 @@ The tunnel routes **per hostname, not by wildcard** — every public hostname
 gets its own Public Hostname rule (apex zones AND subdomains). In the tunnel
 detail page, "Public Hostname" tab → Add one for each:
 
-- apex zones: `jterrazz.com`, `clawssify.com`, `sig.news`,
-  `spwn.sh` (Subdomain: empty)
+- apex zones: `jterrazz.com`, `sig.news`, `spwn.sh` (Subdomain: empty)
 - subdomains: e.g. `signews.jterrazz.com`, `analytics.jterrazz.com`
   (Subdomain: the label, e.g. `signews` / `analytics`)
 

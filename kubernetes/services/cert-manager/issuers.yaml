@@ -21,7 +21,6 @@ spec:
         selector:
           dnsZones:
             - jterrazz.com
-            - clawssify.com
             - sig.news
             - spwn.sh
 ---
@@ -45,6 +44,5 @@ spec:
         selector:
           dnsZones:
             - jterrazz.com
-            - clawssify.com
             - sig.news
             - spwn.sh
