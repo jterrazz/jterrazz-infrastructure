@@ -38,7 +38,7 @@ server:
 
   # 60s, against the 5s default. Each flush writes a new part directory, and on
   # this target a flush is charged per fsync rather than per byte — see the
-  # ~135KB-per-fsync gotcha in CLAUDE.md. What 60s risks is data still in RAM on
+  # ~135KB-per-fsync tax in docs/02-developing.md. What 60s risks is data still in RAM on
   # an UNCLEAN exit (OOM kill, SIGKILL, hard reset); a graceful stop flushes.
   # Upstream documents the flag for this exact trade. victoria-logs matches;
   # victoria-traces runs 300s, for the reason stated there.

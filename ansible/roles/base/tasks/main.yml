@@ -102,6 +102,46 @@
         state: link
         force: true
 
+# OrbStack answers every virtio-blk FLUSH with a macOS F_FULLFSYNC on its disk
+# image, so each guest fsync() on the VM disk (k3s' kine SQLite, containerd,
+# /var/log/pods) costs ~330KB of Mac SSD writes. "write through" tells the
+# block layer the device has no volatile cache and it stops sending FLUSHes;
+# the data still lands in the Mac's page cache, so only a macOS crash or hard
+# power-off can lose the last seconds — the same contract a native macOS
+# fsync() gives. Applies to /dev/vd* only: virtiofs mounts (/var/lib/k8s-data)
+# are untouched, their fsyncs stay durable. See docs/02-developing.md § The fsync tax.
+# Runtime-only sysfs attribute, hence a unit that re-applies it at every boot.
+- name: Install the virtio-blk no-flush unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/virtio-blk-write-through.service
+    mode: "0644"
+    content: |
+      # Managed by Ansible (roles/base).
+      [Unit]
+      Description=Stop sending FLUSH to virtio-blk disks (each one is an F_FULLFSYNC on the Mac)
+      DefaultDependencies=no
+      After=local-fs.target
+      Before=k3s.service
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/bin/sh -c 'for f in /sys/block/vd*/queue/write_cache; do echo "write through" > "$f"; done'
+      ExecStop=/bin/sh -c 'for f in /sys/block/vd*/queue/write_cache; do echo "write back" > "$f"; done'
+
+      [Install]
+      WantedBy=multi-user.target
+  register: virtio_blk_unit
+  tags: [base, storage]
+
+- name: Enable the virtio-blk no-flush unit
+  ansible.builtin.systemd_service:
+    name: virtio-blk-write-through.service
+    enabled: true
+    state: "{{ 'restarted' if virtio_blk_unit.changed else 'started' }}"
+    daemon_reload: true
+  tags: [base, storage]
+
 - name: Set timezone
   community.general.timezone:
     name: "{{ timezone | default('UTC') }}"

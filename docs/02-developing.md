@@ -164,22 +164,37 @@ mechanically when editing any values file, manifest or template in this repo.
 
 ## The fsync tax
 
-**Every guest `fsync` costs about 135KB of Mac SSD writes, whatever it
-commits.** OrbStack honours a guest `fsync()` with a real durable barrier,
-macOS `F_FULLFSYNC`, which forces an APFS journal commit. macOS' own `fsync()`
-does not: it only pushes to the drive cache. Measured, 2000 × 4KB files
-created, fsynced and deleted: 7MB natively, 7MB from the VM with no fsync,
-271MB from the VM with fsync, 281MB natively with `F_FULLFSYNC`. So the tax is
-per-fsync, not per-byte and not virtiofs bandwidth — sequential writes run 1:1 —
-and moving data into the VM's own disk image makes it worse (598MB), because
-the guest filesystem's journal adds its own barriers on top.
+**Every guest `fsync` is a macOS `F_FULLFSYNC` on the Mac SSD, and there are
+two paths with different levers.** OrbStack honours a guest `fsync()` with a
+real durable barrier, an APFS journal commit, about 135KB of SSD writes each,
+whatever it commits; macOS' own `fsync()` does not, it only pushes to the drive
+cache. So the tax is per-fsync, not per-byte — sequential writes run 1:1 — and
+every storage-side tuning in this tree is about issuing fewer fsyncs, never
+fewer bytes. Upstream tracks the symptom in orbstack/orbstack#1332, open and
+undiagnosed; there is no OrbStack setting for it.
 
-This is why the storage-side tuning in this tree is all about issuing fewer
-fsyncs, never about writing fewer bytes: `inmemoryDataFlushInterval` on the
-three Victoria stores, `--appendfsync no` on OpenPanel's Redis. A store that
-writes 15MB/day can cost tens of GB/day of SSD if it fsyncs on a 5s timer.
-Upstream tracks the symptom in orbstack/orbstack#1332, open and undiagnosed;
-there is no OrbStack setting for it, so the workload is the only lever.
+- **virtiofs** — `/var/lib/k8s-data`, a symlink into the Mac home, so every PV.
+  The fsync is a FUSE request the guest cannot suppress, and the workload is
+  the only lever: `inmemoryDataFlushInterval` on the three Victoria stores,
+  `--appendfsync no` on OpenPanel's Redis. A store that writes 15MB/day can
+  cost tens of GB/day of SSD if it fsyncs on a 5s timer. `findmnt` on the
+  symlink prints nothing; `readlink -f` first.
+- **The VM disk** — `/dev/vdb`, btrfs: k3s' kine SQLite, containerd,
+  `/var/log/pods`. The fsync is a virtio-blk FLUSH, and
+  `queue/write_cache=write through` makes the block layer stop sending them
+  (300 fsyncs: 99MB → 0MB). `roles/base` installs
+  `virtio-blk-write-through.service` for that, re-applied at every boot
+  because the attribute is runtime-only. Two things to know: OrbStack runs ONE
+  Linux VM and every "machine" plus Docker is a container in it on the same
+  `vdb`, so the setting is OrbStack-wide; and the writes still land in the
+  Mac's page cache, so only a macOS panic or hard power-off can lose the last
+  seconds — the contract a native macOS `fsync()` gives every Mac app. It does
+  nothing for virtiofs (verified), so it is not a reason to skip the workload
+  tuning above.
+
+Moving `k8s-data` onto `vdb` would make its fsyncs free too, but the Mac dir
+is what lets the data survive `make destroy`; that trade is a decision, not a
+tuning.
 
 ## DNS has exactly three owners, and none of them is this repo's code
 
