@@ -2,19 +2,16 @@ persistence:
   enabled: true
   existingClaim: grafana-data
 
-# Grafana's default is `wal = false`: SQLite in rollback-journal mode, where
-# readers and the writer block each other — the fuel for the lock-contention
-# spiral described under the CPU limit below.
-#
-# THIS KNOB ALONE DOES NOTHING on this image: Grafana 13 ships the CGO-free
-# modernc.org/sqlite driver, which silently ignores it and stays in rollback
-# mode (grafana/grafana#127893). WAL is instead a persistent property of the
-# db FILE, flipped offline — the driver honours it from then on:
+# Grafana's default is `wal = false`, and the knob is inert on this image
+# anyway: the CGO-free modernc.org/sqlite driver silently ignores it
+# (grafana/grafana#127893). WAL is instead a persistent property of the db
+# FILE, flipped offline — the driver honours it from then on:
 #   kubectl scale deploy grafana -n platform-telemetry --replicas=0
 #   sqlite3 /var/lib/grafana-node-local/grafana.db "PRAGMA journal_mode=WAL;"
 #   kubectl scale deploy grafana -n platform-telemetry --replicas=1
-# A FRESH grafana.db (recovery below, or a repave) starts in rollback mode
-# again — re-run the pragma. The knob stays for the day upstream honours it.
+# A FRESH grafana.db (a repave) starts in rollback mode — re-run the pragma.
+# WAL here is hygiene (fewer fsyncs, readers don't block the writer), NOT the
+# fix for the CPU spiral — that was the memory limit, see resources below.
 grafana.ini:
   database:
     wal: true
@@ -22,29 +19,22 @@ grafana.ini:
 resources:
   requests:
     cpu: 50m
-    memory: 160Mi
+    memory: 256Mi
   limits:
-    # CPU limit is spin containment, not sizing: Grafana 13's unified-storage
-    # enters a lock-contention spiral on grafana.db and eats every core it is
-    # given until restarted. Capped so a recurrence degrades Grafana instead
-    # of starving the node — it has already contained one.
-    #
-    # VIRTIOFS IS NOT THE CAUSE, though the first two occurrences (2026-07-26)
-    # made it look that way. It recurred on node-local btrfs with the
-    # nodeLocalPath fix in place, pegged at exactly the 1500m cap with
-    # /api/health 503ing and kubelet SIGKILLing it on liveness. The trigger is
-    # CPU starvation: lose the race once and the SQLite transactions behind
-    # dashboard.grafana.app never get their lock back —
-    #   resource-server ... error="begin: context deadline exceeded"
-    # while Grafana times out calling its own apiserver on 127.0.0.1:3000.
-    # WAL (see the grafana.ini note above) is the durable-fix attempt; this
-    # cap stays as containment in case it recurs anyway.
-    # RECOVERY: scale to 0, move grafana.db aside, scale to 1, then re-run the
-    # WAL pragma from the note above — a fresh db starts in rollback mode. The
-    # volume is safe to lose (see service.yaml) — everything is provisioned
-    # from git.
+    # Spin containment: with the cap, a repeat of the reclaim storm below
+    # degrades only Grafana instead of starving the node.
     cpu: 1500m
-    memory: 384Mi
+    # 768Mi because 384Mi caused the recurring "Grafana spiral" (pegged at the
+    # CPU cap, /api/health 503, SQLite "context deadline exceeded", diagnosed
+    # 2026-07 as a lock bug — it never was one). Grafana 13's unified storage
+    # holds ~320Mi anon, which left the grafana.db + bleve-index FILE pages
+    # ~60Mi of the same cgroup budget; every periodic index rebuild pinned
+    # memory.max and the kernel's direct reclaim burned the whole CPU quota as
+    # system time (measured in the spiral: 98% of usage_usec in system, 549M
+    # file refaults, 12.8M memory.max hits — while the Go process itself used
+    # 5% of one core per pprof). Shrink this back below ~512Mi and the
+    # thrashing returns.
+    memory: 768Mi
 
 # 3, not the chart's 10: ten ReplicaSets per Deployment is ten objects in a
 # SQLite-backed apiserver for a rollback nobody performs. One step back suffices.
