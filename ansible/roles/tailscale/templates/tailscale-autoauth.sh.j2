@@ -32,5 +32,12 @@ args=(
     # default: MagicDNS is what resolves the *.ts.net targets every
     # <svc>.internal.jterrazz.com CNAME points at.
     --accept-dns=true
+    # NOT the default (true). tailscaled 1.102 masquerades EVERY packet it
+    # forwards off tailscale0 — including a tailnet client's SYN that klipper-lb's
+    # hostPort DNATs to the svclb pod — so the pod sees 10.42.0.1 instead of a
+    # 100.64.0.0/10 address and its loadBalancerSourceRanges filter drops it:
+    # every private hostname (registry, grafana, ...) dead for the tailnet and
+    # for CI, while the node itself still answers. 1.98 left the source alone.
+    --snat-subnet-routes=false
 )
 tailscale up "${args[@]}"
