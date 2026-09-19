@@ -153,7 +153,7 @@ config:
     # shape and would yield no metadata at all — which then breaks the
     # k8sattributes pod_association below, which keys on k8s.pod.uid.
     # https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/pkg/stanza/docs/operators/container.md
-    filelog:
+    file_log:
       include: [/var/log/pods/*/*/*.log]
       # No feedback loop: the collector's own stdout would otherwise be tailed,
       # shipped, and logged about. Path shape is
@@ -192,13 +192,13 @@ config:
     # container operator already puts namespace/pod/container/uid on the
     # resource from the file path; this adds what only the API server knows —
     # the node, the owning Deployment, and the `app` pod label.
-    # `k8s_attributes` and `otlp_http` are the canonical spellings (the
-    # collector logs a deprecation warning at startup for `k8sattributes` /
-    # `otlphttp`, and the chart's auto-rewrite of the former goes away
-    # upstream). Do NOT rename the others by analogy: `prometheusremotewrite`
-    # and `filelog` are canonical, and a `prometheus_remote_write` / `file_log`
-    # spelling fails config load outright. Needs Collector >= 0.146.0 (chart
-    # 0.173.1 ships 0.160.0).
+    # `k8s_attributes`, `otlp_http`, `prometheus_remote_write` and `file_log`
+    # are the canonical spellings at Collector 0.160 (chart 0.173.1): each of
+    # the old names — `k8sattributes`, `otlphttp`, `prometheusremotewrite`,
+    # `filelog` — still loads as a deprecated alias that logs a warning at
+    # startup, and the chart's auto-rewrite of the old names goes away
+    # upstream. The underscore spellings need Collector >= 0.149.0; on an
+    # older image they fail config load outright.
     k8s_attributes:
       # Deployment mode, so no node filter: this collector watches every pod in
       # the cluster. A daemonset would add filter.node_from_env_var.
@@ -295,7 +295,7 @@ config:
         # else (uid, node, deployment, file path) is still ingested and
         # queryable, just as a regular field.
         VL-Stream-Fields: "k8s.namespace.name,k8s.pod.name,k8s.container.name,app"
-    prometheusremotewrite:
+    prometheus_remote_write:
       # VictoriaMetrics accepts Prometheus remote-write v1 on /api/v1/write with
       # no receiver flag to turn on (Prometheus needed
       # --web.enable-remote-write-receiver). Kept as remote-write rather than
@@ -345,10 +345,10 @@ config:
       # pod_association keys on a uid only the filelog path carries) and the
       # stream-field policy differs.
       logs/pods:
-        receivers: [filelog]
+        receivers: [file_log]
         processors: [k8s_attributes, batch]
         exporters: [otlp_http/victoria-logs-pods]
       metrics:
         receivers: [otlp]
         processors: [batch]
-        exporters: [prometheusremotewrite]
+        exporters: [prometheus_remote_write]
