@@ -51,7 +51,7 @@ helm_diff_version: "v3.15.13"
 # skip it:
 #   kubectl -n kube-system get svc traefik \
 #     -o jsonpath='{.spec.loadBalancerSourceRanges}'   # must be non-empty
-k3s_version: "v1.36.2+k3s1"
+k3s_version: "v1.37.0+k3s1"
 # k3s' own default data-dir, repeated here only because tasks/main.yml and the
 # apiserver's audit-log-path need the path as a value.
 k3s_data_dir: "/var/lib/rancher/k3s"

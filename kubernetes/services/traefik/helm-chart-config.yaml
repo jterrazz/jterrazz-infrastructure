@@ -25,10 +25,12 @@ spec:
     # does nothing. Setting the range at the Service level makes klipper-lb
     # itself reject public traffic.
     #
-    # Traefik chart v40 schema (k3s >= 1.36 bundles v40; v38 used flat
+    # Traefik chart v41 schema (k3s 1.37 bundles v41; 1.36 bundled v40, whose
+    # only difference from v41 is the `logs.general`/`logs.access` rename to
+    # `log`/`accessLog` — nothing here sets either; v38 used flat
     # `service.type`/`service.loadBalancerSourceRanges` and
     # `ports.web.redirectTo`). The `service.spec.*` nesting is load-bearing:
-    # the v40 template renders ONLY `.service.spec`, and `service:` has no
+    # the template renders ONLY `.service.spec`, and `service:` has no
     # additionalProperties guard — a flat key is silently ignored, which for
     # loadBalancerSourceRanges means host ports 80/443 quietly open to any
     # source. Post-deploy gate:
