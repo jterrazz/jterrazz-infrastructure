@@ -33,6 +33,11 @@ spec:
     CLICKHOUSE_URL: "http://op-clickhouse:8123/openpanel"
     DASHBOARD_URL: "https://openpanel.internal.jterrazz.com"
     API_URL: "https://openpanel.internal.jterrazz.com/api"
+    # Dashboard SSR only (2.3.0 honours it; upstream added it 2026-07-01): the
+    # in-cluster Service, so a server-side fetch never has to leave the pod
+    # network and hairpin through Traefik. The browser keeps API_URL. This is
+    # step one of the retirement described at the top of this file.
+    API_URL_SSR: "http://op-api:3000"
     # Browser origins allowed to POST events to /api/track on the public host.
     # jterrazz.com + www.jterrazz.com are LIVE senders (the externally-hosted
     # site posts here directly); the rest are pre-authorised and cost nothing.

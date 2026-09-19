@@ -91,7 +91,11 @@ spec:
       smoke:
         method: POST
         path: /api/track
-        expect: "401"
+        # 400, not 401: since 2.3.0 the API validates the smoke probe's empty
+        # `{}` body before it looks at the client headers, so an unauthenticated
+        # empty POST is a schema error. A well-formed body with no client id is
+        # still 401. Either code proves the public route reaches op-api.
+        expect: "400"
 
   network:
     exposeTo:
