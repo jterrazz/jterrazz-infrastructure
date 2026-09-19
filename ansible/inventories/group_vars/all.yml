@@ -86,12 +86,15 @@ private_hostnames:
   - signews.internal.jterrazz.com
   # The OS dashboard (prod-os), an app-chart route like the one above.
   - os.internal.jterrazz.com
+  # Was in private_hostnames_via_traefik until 2026-09-19: OpenPanel 2.3.0's
+  # dashboard honours API_URL_SSR, so nothing in the cluster fetches this host
+  # any more (kubernetes/services/openpanel/config.yaml).
+  - openpanel.internal.jterrazz.com
 
 # Same as above, but mapped to Traefik's ClusterIP rather than the node's
 # tailnet IP — for a pod that fetches its own PUBLIC URL from inside the
 # cluster. A pod cannot hairpin to the node's ServiceLB; it times out.
-# openpanel is here because its dashboard image cannot split the SSR and the
-# browser URL — that rationale and the retirement order live in
-# kubernetes/services/openpanel/config.yaml.
-private_hostnames_via_traefik:
-  - openpanel.internal.jterrazz.com
+# Empty since 2026-09-19 (openpanel left once its dashboard could split the
+# SSR URL from the browser URL — kubernetes/services/openpanel/config.yaml
+# keeps the story). The mechanism stays for the next image that cannot.
+private_hostnames_via_traefik: []

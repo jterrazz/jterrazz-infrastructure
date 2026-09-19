@@ -29,7 +29,7 @@ spec:
     # host with `PathPrefix(/api)`, and Traefik ranks the more specific rule
     # first, so /api/* reaches the API and everything else lands here.
     - host: openpanel.internal.jterrazz.com
-      access: cluster-internal
+      access: private
       tlsSecret: openpanel-tls
       # The derived probe would be this host's /api/healthcheck, which the more
       # specific route sends to op-api — i.e. it would not test the dashboard
@@ -43,15 +43,13 @@ spec:
     exposeTo:
       - traefik
     egress:
+      # op-api (SSR, via API_URL_SSR in config.yaml) and the datastores. No
+      # Traefik egress any more: until 2026-09-19 the dashboard fetched its own
+      # public URL server-side and needed `to: traefik, ports: [8443, 8000]`
+      # (8443, not 443 — a NetworkPolicy is evaluated after kube-proxy's DNAT,
+      # so it sees Traefik's containerPort). Bring that rule back, and the
+      # host back into private_hostnames_via_traefik, only if a future image
+      # loses API_URL_SSR.
       - to: namespace:platform-analytics
-      # -> Traefik, for the SSR fetch of its own public URL, which
-      # coredns-custom maps to Traefik's ClusterIP. THE PORT IS 8443, NOT 443:
-      # a NetworkPolicy is evaluated AFTER kube-proxy's DNAT, so the
-      # destination it sees is Traefik's containerPort. Writing 443 denies the
-      # traffic while reading as if it allows it, and the pod sees
-      # ECONNREFUSED with nothing logged anywhere. 8000 is web/HTTP, kept for
-      # symmetry.
-      - to: traefik
-        ports: [8443, 8000]
       - to: internet
         ports: [443]

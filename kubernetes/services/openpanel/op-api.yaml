@@ -68,12 +68,12 @@ spec:
   # openpanel-platform (service.yaml), because op-dashboard answers on the
   # private host too and two releases cannot each own one hostname's cert.
   ingress:
-    # cluster-internal, NOT private: op-dashboard SSRs against
-    # openpanel.internal.jterrazz.com from inside its own pod, so Traefik sees a
-    # plain pod IP. Never chain the two — Traefik ANDs chained ipAllowLists.
+    # private (tailnet only) since 2026-09-19: op-dashboard's server-side
+    # fetches go to this Service directly (API_URL_SSR), so no pod IP has to
+    # reach this route any more. It was cluster-internal before that.
     - host: openpanel.internal.jterrazz.com
       path: /api
-      access: cluster-internal
+      access: private
       tlsSecret: openpanel-tls
     - host: analytics.jterrazz.com
       path: /api/track

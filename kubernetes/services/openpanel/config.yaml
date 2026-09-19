@@ -7,15 +7,15 @@
 # DASHBOARD_URL / API_URL are the PRIVATE host only — the public ingest host
 # analytics.jterrazz.com carries /api/track alone, configured per sending site.
 #
-# THE DASHBOARD SSRs AGAINST ITS OWN PUBLIC URL — image 2.2.1 has no separate
-# server-side URL — so that fetch rests on three things together: the host in
-# `private_hostnames_via_traefik` (group_vars/all.yml), the kube-system:8443
-# egress rule in op-dashboard.yaml, and `access: cluster-internal` on the
-# routes in op-api.yaml / op-dashboard.yaml. Remove one and /onboarding fails
-# with `[tRPC SSR Error] fetch failed`. RETIRE all three the day a dashboard
-# image newer than 2.2.1 honours `API_URL_SSR`: set it, verify SSR, then drop
-# the hostname from private_hostnames_via_traefik and re-tighten both routes to
-# `access: private`.
+# THE DASHBOARD SSRs THROUGH API_URL_SSR (below) since 2.3.0. Until 2.2.1 it
+# could only fetch its own public URL server-side, which rested on three
+# workarounds together — the host in `private_hostnames_via_traefik`
+# (group_vars/all.yml), a kube-system:8443 egress rule in op-dashboard.yaml,
+# and `access: cluster-internal` on the routes in op-api.yaml /
+# op-dashboard.yaml. All three were retired on 2026-09-19 after SSR was
+# verified on the new path (/onboarding 200, no `[tRPC SSR Error]`). If a
+# future image drops API_URL_SSR, /onboarding fails with `fetch failed` and
+# the three come back together, never one at a time.
 
 environment: prod
 
@@ -35,8 +35,7 @@ spec:
     API_URL: "https://openpanel.internal.jterrazz.com/api"
     # Dashboard SSR only (2.3.0 honours it; upstream added it 2026-07-01): the
     # in-cluster Service, so a server-side fetch never has to leave the pod
-    # network and hairpin through Traefik. The browser keeps API_URL. This is
-    # step one of the retirement described at the top of this file.
+    # network and hairpin through Traefik. The browser keeps API_URL.
     API_URL_SSR: "http://op-api:3000"
     # Browser origins allowed to POST events to /api/track on the public host.
     # jterrazz.com + www.jterrazz.com are LIVE senders (the externally-hosted
