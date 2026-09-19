@@ -44,7 +44,7 @@ integrates OpenPanel's browser snippet itself. Other origins listed in
 | op-worker     | `lindesvard/openpanel-worker:2.3.0`              |
 | op-dashboard  | `lindesvard/openpanel-dashboard:2.3.0`           |
 | ClickHouse    | `clickhouse/clickhouse-server:26.1.3.52`       |
-| PostgreSQL    | `postgres:14-alpine`                           |
+| PostgreSQL    | `postgres:17-alpine`                           |
 | Redis         | `redis:7.4.11-alpine`                          |
 | (init) chown  | `busybox:1.38` (digest-pinned in the app chart) |
 

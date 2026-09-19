@@ -703,15 +703,33 @@ evidence.
 | Component  | Held at        | Why                                                                                                                                                                                              |
 | ---------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | MongoDB    | `8.0`          | The line LibreChat pins (`mongo:8.0.20` in its compose at the v0.8.7 tag). SERVER-121912 used to block 8.0 on Linux kernel ≥ 6.19; 8.0.32 was measured to start on OrbStack's 7.0.14 kernel on 2026-09-19 and the data moved 7.0 → 8.0 the same day (FCV set to 8.0, irreversible). Not 8.2: outside the line LibreChat cites. |
-| PostgreSQL | `14-alpine`    | OpenPanel pins `postgres:14-alpine` in both compose files and documents no other version. Only Prisma (the ORM, not the app) reaches higher. **EOL 2026-11-12 — schedule this separately.**          |
+| PostgreSQL | `17-alpine`    | Above OpenPanel's own pin (`postgres:14-alpine`, which it documents nowhere else); Prisma 6 (the ORM) supports 9.6-18. Moved 14 → 17 on 2026-09-19 ahead of 14's 2026-11-12 EOL, by the dump/restore below. Not 18: its image moved the default data layout. `pgdata-pg14-2026-09-19` beside the live dir is the rollback. |
 | ClickHouse | `26.1.3.52`    | Exactly what OpenPanel's self-hosting compose pins at the 2.3.0 images (moved with them, 2026-09-19). Newer is uncited and 26.5/26.7 change event-ingest datetime parsing and reject the AggregatingMergeTree schema shape OpenPanel uses. |
 | Redis 8.x  | staying on 7.x | Neither OpenPanel nor BullMQ publishes a Redis 8 support statement.                                                                                                                                |
 
-#### If the PostgreSQL 14 → 17 migration is later approved
+#### The PostgreSQL major migration (14 → 17 was run this way on 2026-09-19)
 
-Not scheduled — recorded here so it is not re-derived under time pressure. DB is
-~26 MB. **Dump with the *newer* server's `pg_dumpall`**, which is what the
-PostgreSQL docs require across majors.
+Kept as the procedure for the next major. DB was ~26 MB, ~5 minutes of
+dashboard/ingest downtime end to end. **Dump with the *newer* server's
+`pg_dumpall`**, which is what the PostgreSQL docs require across majors.
+
+**Step 2 cannot be a throwaway pod.** The namespace's baseline egress policy
+allows DNS only, so a `kubectl run` pod gets `connection refused` from
+`op-postgres` even with the API's labels. Run the newer client as an ephemeral
+container *inside* the Postgres pod instead — it shares the network namespace,
+so `127.0.0.1:5432` needs no policy — and under `--profile=baseline`, because
+the default debug profile adds `SYS_PTRACE`, which PodSecurity rejects:
+
+```bash
+kubectl debug -q -i pod/<op-postgres-pod> -n platform-analytics --profile=baseline \
+  --image=postgres:17-alpine --env PGPASSWORD="$POSTGRES_PASSWORD" -- \
+  pg_dumpall -h 127.0.0.1 -U openpanel --quote-all-identifiers > openpanel-all-$(date +%F).sql
+```
+
+Check the dump before touching anything: it must end in `\unrestrict`, hold
+`CREATE DATABASE "openpanel"` and every `CREATE TABLE`. The `kubectl run`
+variant below is what the docs said first and it silently writes a 200-byte
+error instead of a dump.
 
 ```bash
 # 1. Stop the writers (NOT postgres itself — it must serve the dump). A scale
