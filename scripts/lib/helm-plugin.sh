@@ -1,7 +1,7 @@
 #!/bin/bash
 # Installing a Helm plugin at a pinned version, across Helm majors. Source it:
 #   source "$(dirname "${BASH_SOURCE[0]}")/lib/helm-plugin.sh"
-#   helm_plugin_install https://github.com/databus23/helm-diff v3.15.10
+#   helm_plugin_install https://github.com/databus23/helm-diff v3.15.13
 #
 # Sourced by scripts/helmfile.sh and by the `kubernetes` job of
 # .github/workflows/validate.yaml — the two places that install a plugin.

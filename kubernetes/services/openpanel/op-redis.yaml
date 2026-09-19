@@ -14,7 +14,7 @@ spec:
   # start under this exact uid (999:1000) and these args.
   # NOTE: 7.4's RDB/AOF are not readable by 7.2, so this is forward-only —
   # acceptable because this volume is a rebuildable queue, not a source of truth.
-  image: redis:7.4.9-alpine
+  image: redis:7.4.11-alpine
   port: 6379
   # `redis://op-redis:6379` is REDIS_URL in config.yaml.
   servicePort: 6379

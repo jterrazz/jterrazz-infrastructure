@@ -40,12 +40,12 @@ integrates OpenPanel's browser snippet itself. Other origins listed in
 
 | Component     | Image                                          |
 |---------------|------------------------------------------------|
-| op-api        | `lindesvard/openpanel-api:2.2.1`                 |
-| op-worker     | `lindesvard/openpanel-worker:2.2.1`              |
-| op-dashboard  | `lindesvard/openpanel-dashboard:2.2.1`           |
+| op-api        | `lindesvard/openpanel-api:2.3.0`                 |
+| op-worker     | `lindesvard/openpanel-worker:2.3.0`              |
+| op-dashboard  | `lindesvard/openpanel-dashboard:2.3.0`           |
 | ClickHouse    | `clickhouse/clickhouse-server:25.10.2.65`      |
 | PostgreSQL    | `postgres:14-alpine`                           |
-| Redis         | `redis:7.4.9-alpine`                           |
+| Redis         | `redis:7.4.11-alpine`                          |
 | (init) chown  | `busybox:1.38` (digest-pinned in the app chart) |
 
 The namespace itself is **not** declared here — it lives with every other
@@ -137,7 +137,7 @@ kubectl exec -n platform-analytics deploy/op-clickhouse -- clickhouse-client --q
 
 ### Upgrade OpenPanel
 
-Bump the `2.2.1` tag in `op-api.yaml`, `op-worker.yaml` and
+Bump the `2.3.0` tag in `op-api.yaml`, `op-worker.yaml` and
 `op-dashboard.yaml` (keep the three in lockstep), then push — or re-run the
 playbook. op-api runs any new migrations on boot — watch its logs
 for "Migrations finished" before trusting the new version. Bump ClickHouse /

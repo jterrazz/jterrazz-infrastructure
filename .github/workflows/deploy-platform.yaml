@@ -91,7 +91,7 @@ jobs:
           # KEEP IN SYNC with the pin in validate.yaml's `ansible` job: the
           # thing that lints a playbook and the thing that APPLIES it must be
           # the same interpreter.
-          pip install ansible-core==2.21.2
+          pip install ansible-core==2.21.4
           ansible-galaxy collection install -r requirements.yml
 
       # Materialise the deploy private key in a 0600 tempfile so ansible

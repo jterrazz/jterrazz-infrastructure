@@ -96,7 +96,7 @@ jobs:
       # the full `ansible` community package's bundled collections instead
       # of the explicit set in requirements.yml below).
       - name: Install Ansible
-        run: pip install ansible-core==2.21.2 ansible-lint==26.6.0
+        run: pip install ansible-core==2.21.4 ansible-lint==26.8.0
 
       - name: Install Ansible collections
         working-directory: ansible
@@ -131,7 +131,7 @@ jobs:
       #      that is exactly one file, secrets.infisical.com/InfisicalSecret:
       #      the catalog schema still marks the deprecated flat
       #      `resyncInterval` REQUIRED and rejects `syncConfig`, so a correct
-      #      manifest for secrets-operator 0.11.5 fails against it. Extracted
+      #      manifest for secrets-operator 0.11.9 fails against it. Extracted
       #      from the CRD the operator chart itself ships — see
       #      kubernetes/schemas/README.md for the regeneration command and the
       #      sync obligation.
@@ -157,7 +157,7 @@ jobs:
       - name: Setup Helm
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
-          version: v3.21.3
+          version: v3.22.0
 
       - name: Install kubeconform
         run: |
@@ -247,7 +247,7 @@ jobs:
       - name: Install helmfile
         run: |
           set -euo pipefail
-          HELMFILE_VERSION=v1.7.4
+          HELMFILE_VERSION=v1.8.0
           curl -sSL -o /tmp/helmfile.tar.gz \
             "https://github.com/helmfile/helmfile/releases/download/${HELMFILE_VERSION}/helmfile_${HELMFILE_VERSION#v}_linux_amd64.tar.gz"
           tar -xzf /tmp/helmfile.tar.gz -C /tmp helmfile

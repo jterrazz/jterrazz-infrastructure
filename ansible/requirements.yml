@@ -10,7 +10,7 @@
 # lookups — none of which this repo uses. The only two modules it consumes
 # (`timezone` in roles/base, `ufw` in roles/security) are untouched by 13.0.0
 # and appear nowhere in its Removed Features list. 13.x requires
-# ansible-core >= 2.18; CI installs 2.21.2.
+# ansible-core >= 2.18; CI installs 2.21.4.
 
 collections:
   - name: kubernetes.core

@@ -77,7 +77,8 @@ that `managedKubeSecretReferences` as a map and `syncConfig.resyncInterval` as a
 integer both fail.
 
 This is now the **whole** difference. A field-by-field diff of the vendored file
-against the catalog copy at operator 0.11.5 finds no other divergence: same
+against the catalog copy at operator 0.11.5 (and the regenerated file at 0.11.9
+is byte-identical) finds no other divergence: same
 properties (`syncConfig` included), same `required` lists, same types. Neither
 schema requires the deprecated flat `spec.resyncInterval`, and no manifest in
 this repo sets `syncConfig` at all — they use `managedKubeSecretReferences`.

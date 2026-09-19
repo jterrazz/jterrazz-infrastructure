@@ -59,7 +59,7 @@ readiness before mongod is serving.
 
 | Component      | Version                                                     |
 | -------------- | ----------------------------------------------------------- |
-| Helm chart     | `oci://ghcr.io/danny-avila/librechat-chart/librechat` **2.0.7** (pinned on the `librechat` release in `kubernetes/helmfile.yaml.gotmpl`) |
+| Helm chart     | `oci://ghcr.io/danny-avila/librechat-chart/librechat` **2.0.12** (pinned on the `librechat` release in `kubernetes/helmfile.yaml.gotmpl`) |
 | LibreChat app  | `registry.librechat.ai/danny-avila/librechat:v0.8.7`     |
 | MongoDB        | `mongo:7.0`                                                  |
 | (init) chown   | `busybox:1.38` (digest-pinned in the app chart's `deployment.yaml`) |
@@ -67,8 +67,10 @@ readiness before mongod is serving.
 The image tag is pinned **explicitly** rather than inherited from the chart's
 `appVersion`: an empty tag means "whatever appVersion this chart revision
 happens to carry", so the running image could change with no diff here.
-`v0.8.7` is chart 2.0.7's own `appVersion`, written out here so a chart bump
-cannot move the running image with no diff. Bump the two together.
+`v0.8.7` is the last stable LibreChat release; chart 2.0.12's own `appVersion`
+is `v0.8.8-rc3`, a release candidate, which is exactly why the tag is written
+out here — the chart moved and the running image did not. Bump the two
+together once 0.8.8 is final.
 
 MongoDB is pinned to the **7.0 minor**, not the floating `7`. A silent minor
 jump rewrites on-disk feature-compatibility metadata, and mongod refuses to

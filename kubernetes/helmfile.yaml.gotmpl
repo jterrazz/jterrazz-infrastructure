@@ -85,7 +85,7 @@ releases:
   - name: cert-manager
     namespace: platform-networking
     chart: jetstack/cert-manager
-    version: v1.21.0
+    version: v1.21.2
     labels:
       tier: bootstrap
     values:
@@ -94,7 +94,7 @@ releases:
   - name: infisical
     namespace: platform-secrets
     chart: infisical/secrets-operator
-    version: 0.11.5
+    version: 0.11.9
     labels:
       tier: bootstrap
     values:
@@ -133,7 +133,7 @@ releases:
   - name: victoria-metrics
     namespace: platform-telemetry
     chart: vm/victoria-metrics-single
-    version: 0.43.0
+    version: 0.46.0
     needs:
       - platform-telemetry/victoria-metrics-platform
     values:
@@ -153,7 +153,7 @@ releases:
   - name: victoria-traces
     namespace: platform-telemetry
     chart: vm/victoria-traces-single
-    version: 0.1.10
+    version: 0.1.11
     needs:
       - platform-telemetry/victoria-traces-platform
     values:
@@ -162,7 +162,7 @@ releases:
   - name: kube-state-metrics
     namespace: platform-telemetry
     chart: prometheus-community/kube-state-metrics
-    version: 8.0.0
+    version: 8.5.0
     values:
       - services/kube-state-metrics/values.yaml
 
@@ -171,7 +171,7 @@ releases:
   - name: node-exporter
     namespace: platform-telemetry
     chart: prometheus-community/prometheus-node-exporter
-    version: 4.56.1
+    version: 4.57.0
     values:
       - services/node-exporter/values.yaml
 
@@ -191,7 +191,7 @@ releases:
   - name: otel-collector
     namespace: platform-telemetry
     chart: open-telemetry/opentelemetry-collector
-    version: 0.165.0
+    version: 0.173.1
     needs:
       - platform-telemetry/otel-collector-platform
       - platform-telemetry/victoria-logs
@@ -205,7 +205,7 @@ releases:
   - name: grafana
     namespace: platform-telemetry
     chart: grafana-community/grafana
-    version: 12.8.0
+    version: 13.2.5
     needs:
       - platform-telemetry/grafana-platform
     values:
@@ -248,7 +248,7 @@ releases:
   - name: librechat
     namespace: platform-ai
     chart: librechat/librechat
-    version: 2.0.7
+    version: 2.0.12
     needs:
       - platform-ai/librechat-mongodb
     values:

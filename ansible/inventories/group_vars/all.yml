@@ -15,7 +15,7 @@ timezone: UTC
 # the default upgrade path, and rewrites the plugin ABI — this repo's toolchain
 # (helm-diff, helm-unittest + its committed snapshots, helmfile's helm shell-out)
 # is calibrated on v3.
-helm_version: "v3.21.3"
+helm_version: "v3.22.0"
 
 # The release layer. helmfile owns every `helm upgrade --install` this repo
 # performs; the releases themselves are declared in kubernetes/helmfile.yaml.gotmpl
@@ -24,12 +24,12 @@ helm_version: "v3.21.3"
 # KEEP IN SYNC with the helmfile version installed by the `kubernetes` job of
 # .github/workflows/validate.yaml — that job renders the same state file, and a
 # renderer that is not the applier proves nothing.
-helmfile_version: "v1.7.4"
+helmfile_version: "v1.8.0"
 
 # helm-diff is not optional tooling: `helmfile apply` is diff-then-sync, so
 # without the plugin there is no deploy at all. Pinned because it renders the
 # chart AND talks to the cluster.
-helm_diff_version: "v3.15.10"
+helm_diff_version: "v3.15.13"
 
 # SINGLE SOURCE OF TRUTH — deliberately NOT duplicated in roles/k3s/defaults
 # (which is why that file does not exist): a role default wins only when this

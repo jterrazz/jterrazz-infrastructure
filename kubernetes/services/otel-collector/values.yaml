@@ -198,7 +198,7 @@ config:
     # upstream). Do NOT rename the others by analogy: `prometheusremotewrite`
     # and `filelog` are canonical, and a `prometheus_remote_write` / `file_log`
     # spelling fails config load outright. Needs Collector >= 0.146.0 (chart
-    # 0.165.0 ships 0.156.0).
+    # 0.173.1 ships 0.160.0).
     k8s_attributes:
       # Deployment mode, so no node filter: this collector watches every pod in
       # the cluster. A daemonset would add filter.node_from_env_var.
