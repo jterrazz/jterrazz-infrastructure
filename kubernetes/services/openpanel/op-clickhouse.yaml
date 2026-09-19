@@ -17,12 +17,12 @@ metadata:
 environment: prod
 
 spec:
-  # ALREADY the newest OpenPanel-compatible version: their self-hosting compose
-  # pins exactly 25.10.2.65. Two upstream changes would bite this workload if
-  # bumped past it — 26.5 flips `date_time_input_format` to `best_effort`
-  # (changes event-ingest parsing), and 26.7 rejects the AggregatingMergeTree
-  # shape OpenPanel's materialized views use.
-  image: clickhouse/clickhouse-server:25.10.2.65
+  # EXACTLY what OpenPanel's self-hosting compose pins (26.1.3.52 at the 2.3.0
+  # images) — never newer. Two upstream changes would bite this workload past
+  # it — 26.5 flips `date_time_input_format` to `best_effort` (changes
+  # event-ingest parsing), and 26.7 rejects the AggregatingMergeTree shape
+  # OpenPanel's materialized views use. Follow their pin, not the release page.
+  image: clickhouse/clickhouse-server:26.1.3.52
   # The HTTP interface. `http://op-clickhouse:8123/openpanel` is CLICKHOUSE_URL
   # in config.yaml; the native protocol on 9000 is listened on but nothing here
   # dials it, so the Service no longer publishes it.
