@@ -170,6 +170,18 @@ curl -sk -H "Host: registry.internal.jterrazz.com" https://<tailnet-ip>/v2/   # 
 curl -sk -H "Host: grafana.internal.jterrazz.com" https://<tailnet-ip>/api/health  # 200
 ```
 
+**Run those from a peer, not from the node.** The node reaching its own
+tailnet address takes the OUTPUT path and never crosses `tailscale0`, so it
+stays green while every real peer is dropped. Seen 2026-09-19: tailscaled
+1.102 started masquerading forwarded tailnet traffic, klipper-lb then saw
+`10.42.0.1` instead of a `100.64.0.0/10` source and its
+`loadBalancerSourceRanges` filter dropped every SYN — the curls above passed
+on the node, CI failed at `docker login`, the laptop got nothing. The tell is
+`tcpdump -i any 'tcp port 443 and net 100.64.0.0/10'` on the node showing
+SYNs on `tailscale0` and nothing leaving `cni0` with a tailnet source. The
+fix is `--snat-subnet-routes=false` in the tailscale role's one copy of
+`tailscale up`; `iptables -t nat -L ts-postrouting` must list no MASQUERADE.
+
 ## Troubleshooting
 
 ```bash
