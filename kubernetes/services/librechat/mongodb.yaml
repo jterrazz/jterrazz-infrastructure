@@ -13,12 +13,13 @@ metadata:
 environment: prod
 
 spec:
-  # ONE-WAY DOOR: the 7.0 minor, never the floating `7`. A minor jump rewrites
+  # ONE-WAY DOOR: the 8.0 minor, never the floating `8`. A minor jump rewrites
   # on-disk feature-compatibility metadata and mongod then refuses to start
   # against files a newer release wrote; bump deliberately, setting
-  # featureCompatibilityVersion either side. 8.0 is the version LibreChat pins
-  # and it does not boot on the OrbStack kernel (SERVER-121912).
-  image: mongo:7.0
+  # featureCompatibilityVersion either side. 8.0 is the version LibreChat pins.
+  # It used to fail to boot on the OrbStack kernel (SERVER-121912); 8.0.32
+  # starts on kernel 7.0.14, measured 2026-09-19 before the 7.0 → 8.0 move.
+  image: mongo:8.0
   port: 27017
   # `mongodb://librechat-mongodb:27017/LibreChat` is in values.yaml's MONGO_URI,
   # so the Service has to answer on the real port rather than the chart's 80.

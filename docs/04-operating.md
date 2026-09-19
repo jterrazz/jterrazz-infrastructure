@@ -690,9 +690,9 @@ evidence.
 
 | Component  | Held at        | Why                                                                                                                                                                                              |
 | ---------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| MongoDB    | `7.0`          | LibreChat does support 8 (`mongo:8.0.20` in its compose at the v0.8.7 tag) but **8.0 will not boot on this host**: SERVER-121912 blocks MongoDB on Linux kernel ≥ 6.19 and this node runs OrbStack's 7.0.11 kernel. Measured: `mongo:8.0` exits 1, `mongo:7.0` and `mongo:8.2` start. 8.2 is outside the line LibreChat cites, and the FCV bump is irreversible. Retest when an 8.0.x carries the fix. |
+| MongoDB    | `8.0`          | The line LibreChat pins (`mongo:8.0.20` in its compose at the v0.8.7 tag). SERVER-121912 used to block 8.0 on Linux kernel ≥ 6.19; 8.0.32 was measured to start on OrbStack's 7.0.14 kernel on 2026-09-19 and the data moved 7.0 → 8.0 the same day (FCV set to 8.0, irreversible). Not 8.2: outside the line LibreChat cites. |
 | PostgreSQL | `14-alpine`    | OpenPanel pins `postgres:14-alpine` in both compose files and documents no other version. Only Prisma (the ORM, not the app) reaches higher. **EOL 2026-11-12 — schedule this separately.**          |
-| ClickHouse | `25.10.2.65`   | Already exactly what OpenPanel's self-hosting compose pins. Newer is uncited and 26.5/26.7 change event-ingest datetime parsing and reject the AggregatingMergeTree schema shape OpenPanel uses.     |
+| ClickHouse | `26.1.3.52`    | Exactly what OpenPanel's self-hosting compose pins at the 2.3.0 images (moved with them, 2026-09-19). Newer is uncited and 26.5/26.7 change event-ingest datetime parsing and reject the AggregatingMergeTree schema shape OpenPanel uses. |
 | Redis 8.x  | staying on 7.x | Neither OpenPanel nor BullMQ publishes a Redis 8 support statement.                                                                                                                                |
 
 #### If the PostgreSQL 14 → 17 migration is later approved

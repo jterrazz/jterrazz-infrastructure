@@ -5,7 +5,7 @@
 #
 # The two bundled datastore subcharts the chart enables by default — mongodb
 # and meilisearch — are disabled: they pull from the deprecated Bitnami repo.
-# A standalone mongo:7.0 (mongodb.yaml) on a `manual` hostPath PVC replaces
+# A standalone mongo:8.0 (mongodb.yaml) on a `manual` hostPath PVC replaces
 # them; that survives a repave, `local-path` does not. (redis is off in the
 # chart's own defaults.)
 

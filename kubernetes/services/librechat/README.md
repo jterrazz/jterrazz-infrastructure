@@ -20,7 +20,7 @@ readiness before mongod is serving.
                                                                          librechat (:3080)
                                                                             │        │
                           mongodb://librechat-mongodb:27017/LibreChat ◄─────┘        │
-                                  (standalone mongo:7.0, PVC librechat-data)         │
+                                  (standalone mongo:8.0, PVC librechat-data)         │
                                                                                      ▼
                               http://gateway-intelligence.prod-gateway-intelligence
                                      .svc.cluster.local  (Service :80 → pod :8317)
@@ -32,7 +32,7 @@ readiness before mongod is serving.
   chart default, so nothing sets it. The bundled MongoDB is a
   Bitnami subchart, deprecated upstream since 2025-09 and no longer pullable;
   it would also land on the default `local-path` StorageClass, which does not
-  survive a repave. We run our own `mongo:7.0` through the **app chart**
+  survive a repave. We run our own `mongo:8.0` through the **app chart**
   instead (`mongodb.yaml` is app-chart values, not a manifest) on a `manual`
   hostPath PVC that `librechat-platform` owns and this release only mounts
   (`storage.claimName`).
@@ -61,7 +61,7 @@ readiness before mongod is serving.
 | -------------- | ----------------------------------------------------------- |
 | Helm chart     | `oci://ghcr.io/danny-avila/librechat-chart/librechat` **2.0.12** (pinned on the `librechat` release in `kubernetes/helmfile.yaml.gotmpl`) |
 | LibreChat app  | `registry.librechat.ai/danny-avila/librechat:v0.8.7`     |
-| MongoDB        | `mongo:7.0`                                                  |
+| MongoDB        | `mongo:8.0`                                                  |
 | (init) chown   | `busybox:1.38` (digest-pinned in the app chart's `deployment.yaml`) |
 
 The image tag is pinned **explicitly** rather than inherited from the chart's
@@ -72,7 +72,7 @@ is `v0.8.8-rc3`, a release candidate, which is exactly why the tag is written
 out here — the chart moved and the running image did not. Bump the two
 together once 0.8.8 is final.
 
-MongoDB is pinned to the **7.0 minor**, not the floating `7`. A silent minor
+MongoDB is pinned to the **8.0 minor**, not the floating `8`. A silent minor
 jump rewrites on-disk feature-compatibility metadata, and mongod refuses to
 start against files written by a newer release — a one-way door for hostPath
 data. Bump deliberately, setting `featureCompatibilityVersion` around it.
