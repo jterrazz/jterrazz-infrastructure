@@ -63,12 +63,19 @@
       changed_when: true
       failed_when: false
 
-    # No `--verify=false`: that flag only exists on Helm 4, and helm_version is
-    # deliberately v3 (see group_vars/all.yml).
+    # Helm 4 verifies plugin signatures by default and helm-diff publishes none;
+    # Helm 3 has no --verify flag at all. Same test as scripts/lib/helm-plugin.sh,
+    # so this survives a helm bump in either direction.
     - name: Install the pinned helm-diff plugin
-      ansible.builtin.command: >-
-        helm plugin install https://github.com/databus23/helm-diff
-        --version {{ helm_diff_version }}
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          if helm plugin install --help 2>&1 | grep -q -- '--verify'; then
+            helm plugin install https://github.com/databus23/helm-diff --version {{ helm_diff_version }} --verify=false
+          else
+            helm plugin install https://github.com/databus23/helm-diff --version {{ helm_diff_version }}
+          fi
+        executable: /bin/bash
       changed_when: true
 
 - name: Get the installed helmfile version

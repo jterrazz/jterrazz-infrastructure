@@ -11,11 +11,14 @@ timezone: UTC
 # Three machines, one Helm: a chart packaged by one version and rendered by
 # another is a silent behaviour difference.
 #
-# DELIBERATELY v3, not v4: v4 changes CLI flags/output, makes server-side apply
-# the default upgrade path, and rewrites the plugin ABI — this repo's toolchain
-# (helm-diff, helm-unittest + its committed snapshots, helmfile's helm shell-out)
-# is calibrated on v3.
-helm_version: "v3.22.0"
+# v4 since 2026-09-19. What held it at v3 was checked before moving: helm-diff
+# 3.15.10+ and helmfile 1.4+ speak v4's flags, helm-unittest embeds its own
+# renderer so the committed snapshots do not move, server-side apply is only
+# the default for releases that were INSTALLED under it (existing releases
+# stay client-side), and the legacy cli/v1 plugin ABI still loads. The one
+# visible difference is `helm plugin install --verify`, handled in
+# roles/platform/tasks/helm-tooling.yml and scripts/lib/helm-plugin.sh.
+helm_version: "v4.3.0"
 
 # The release layer. helmfile owns every `helm upgrade --install` this repo
 # performs; the releases themselves are declared in kubernetes/helmfile.yaml.gotmpl
