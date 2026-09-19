@@ -198,6 +198,10 @@ for item in doc.get("items", []):
 gv = open(sys.argv[1], encoding="utf-8").read().splitlines()
 configured = set()
 for key in ("private_hostnames", "private_hostnames_via_traefik"):
+    # `key: []` is a list too — the via-Traefik one has been empty since
+    # 2026-09-19 — and it contributes nothing rather than failing the read.
+    if key + ": []" in gv:
+        continue
     if key + ":" not in gv:
         print("!cannot read the `%s:` list from %s" % (key, sys.argv[1]))
         continue
