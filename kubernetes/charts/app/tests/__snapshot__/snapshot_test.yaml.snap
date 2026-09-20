@@ -686,7 +686,7 @@ matches the recorded render of the CI fixture:
         - from:
             - namespaceSelector:
                 matchLabels:
-                  kubernetes.io/metadata.name: platform-ai
+                  kubernetes.io/metadata.name: platform-telemetry
           ports:
             - port: 3000
       podSelector:

@@ -83,7 +83,6 @@ private_hostnames:
   - registry.internal.jterrazz.com
   - grafana.internal.jterrazz.com
   - gateway-intelligence.internal.jterrazz.com
-  - chat.internal.jterrazz.com
   # An app-chart route (prod-signews-api), not a platform service — this list
   # is about who answers the name, not about which repo declares it.
   - signews.internal.jterrazz.com

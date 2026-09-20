@@ -61,7 +61,6 @@ The deploy script never sees these:
 | Path                                       | Becomes Secret                | Keys                                                            |
 | ------------------------------------------ | ----------------------------- | --------------------------------------------------------------- |
 | `/jterrazz-infrastructure`                 | `cloudflared-secrets`         | `CLOUDFLARE_TUNNEL_TOKEN`                                        |
-| `/jterrazz-infrastructure/librechat`       | `librechat-credentials-env`   | `CREDS_KEY`, `CREDS_IV`, `JWT_SECRET`, `JWT_REFRESH_SECRET`      |
 | `/jterrazz-infrastructure/openpanel`       | `op-{api,worker,dashboard,postgres}-secrets` | `POSTGRES_PASSWORD`, `COOKIE_SECRET`, `DATABASE_URL`, `DATABASE_URL_DIRECT` — one Secret per release that needs them, each projecting only the keys it names |
 | `/jterrazz-infrastructure/otel-collector`  | `otel-collector-secrets`      | `LANGFUSE_BASIC_AUTH`                                            |
 | `/jterrazz-actions`                        | `registry-credentials`        | `.dockerconfigjson` — the pull credential, assembled by the operator's own template from `DOCKER_REGISTRY_USERNAME` + `DOCKER_REGISTRY_PASSWORD`. One per app namespace whose image is on our registry; `charts/app` renders the CR beside the app's own |
@@ -427,25 +426,24 @@ data/
 ├── victoria-logs/              logs (90d)
 ├── victoria-traces/            traces (720h)
 ├── registry/                   Docker registry blobs
-├── librechat/                  mongo/ + uploads/
 ├── openpanel/                  postgres/ + clickhouse/ + redis/
-├── signews-api-{prod,next,staging}/, gateway-intelligence-prod/
-│                               per-app volumes from the app chart
-├── prometheus/  loki/  tempo/  ORPHANED — replaced by the three above
-├── n8n/                        ORPHANED — n8n was removed
-└── portainer/                  ORPHANED — Portainer was removed
+└── signews-api-{prod,next,staging}/, gateway-intelligence-prod/, os-prod/
+                                per-app volumes from the app chart
 ```
 
-The orphans have no workload and no PV any more: the services were deleted
-(namespaces, CNAMEs and manifests are gone), but the PVs were `Retain`, so any
-of them can be resurrected from git history plus that directory. The
-prometheus/loki/tempo trio is the ONLY copy of pre-migration metrics and logs —
-nothing reads it, and no Victoria component can. Keep it until the new stores
-have accumulated a window worth trusting, then delete it by hand.
+Every directory here is claimed by a live PV; the tree carried orphans for
+months and no longer does. `prometheus/`, `loki/` and `tempo/` (the
+pre-migration metrics and logs), `n8n/` and `portainer/` were deleted once the
+Victoria stores had a window worth trusting, and `librechat/` went with the
+service on 2026-09-21. `grafana/` was deleted the same day for a different
+reason: Grafana's volume moved to the node-local `/var/lib/grafana-node-local`
+(`services/grafana/service.yaml`), so the copy here had been stale since
+2026-07-26. Note the asymmetry with a repave: these directories are what
+survives one, so deleting a directory here is the deletion the `Retain` policy
+was protecting against.
 
-For consistent database dumps rather than a file copy, see the backup sections
-of [openpanel](../kubernetes/services/openpanel/README.md#backup--restore) and
-[librechat](../kubernetes/services/librechat/README.md).
+For consistent database dumps rather than a file copy, see the backup section
+of [openpanel](../kubernetes/services/openpanel/README.md#backup--restore).
 
 ## Rotating credentials
 
@@ -702,7 +700,6 @@ evidence.
 
 | Component  | Held at        | Why                                                                                                                                                                                              |
 | ---------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| MongoDB    | `8.0`          | The line LibreChat pins (`mongo:8.0.20` in its compose at the v0.8.7 tag). SERVER-121912 used to block 8.0 on Linux kernel ≥ 6.19; 8.0.32 was measured to start on OrbStack's 7.0.14 kernel on 2026-09-19 and the data moved 7.0 → 8.0 the same day (FCV set to 8.0, irreversible). Not 8.2: outside the line LibreChat cites. |
 | PostgreSQL | `17-alpine`    | Above OpenPanel's own pin (`postgres:14-alpine`, which it documents nowhere else); Prisma 6 (the ORM) supports 9.6-18. Moved 14 → 17 on 2026-09-19 ahead of 14's 2026-11-12 EOL, by the dump/restore below. Not 18: its image moved the default data layout. `pgdata-pg14-2026-09-19` beside the live dir is the rollback. |
 | ClickHouse | `26.1.3.52`    | Exactly what OpenPanel's self-hosting compose pins at the 2.3.0 images (moved with them, 2026-09-19). Newer is uncited and 26.5/26.7 change event-ingest datetime parsing and reject the AggregatingMergeTree schema shape OpenPanel uses. |
 | Redis 8.x  | staying on 7.x | Neither OpenPanel nor BullMQ publishes a Redis 8 support statement.                                                                                                                                |

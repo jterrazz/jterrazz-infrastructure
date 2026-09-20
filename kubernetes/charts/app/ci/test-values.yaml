@@ -86,7 +86,7 @@ spec:
   # egress rule on top of the derived DNS + internet.
   network:
     exposeTo:
-      - namespace:platform-ai
+      - namespace:platform-telemetry
     egress:
       - to: namespace:platform-analytics
         ports: [5432]

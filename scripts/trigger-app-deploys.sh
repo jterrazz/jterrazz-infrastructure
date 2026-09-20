@@ -76,7 +76,7 @@ done
 
 # Every app-chart Deployment in the cluster. `managed-by=Helm` plus the
 # existence of an `environment` label is what distinguishes them from the
-# upstream charts' workloads (grafana, cert-manager, librechat...), which carry
+# upstream charts' workloads (grafana, cert-manager, traefik...), which carry
 # no environment.
 app_deployments_json() {
     cluster_kubectl get deployment --all-namespaces \

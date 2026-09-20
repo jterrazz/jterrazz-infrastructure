@@ -499,7 +499,7 @@ shapes by hand in its `network:` block.
 ```yaml
 spec:
   network:
-    exposeTo: [namespace:platform-ai]
+    exposeTo: [namespace:platform-telemetry]
     egress:
       - to: namespace:platform-analytics
         ports: [5432]
@@ -517,16 +517,17 @@ are **pod** ports, never Service ports.
 Reach for `exposeTo` only when the client **cannot** opt in through
 `platformServices`, which is the mechanism that needs no edit here at all: a
 third-party chart renders its pods and cannot stamp the catalog's client label.
-That is exactly LibreChat, and `gateway-intelligence` declaring
-`exposeTo: [namespace:platform-ai]` is what replaced a hand-written
-NetworkPolicy in the infrastructure repo's `cluster/network-policies/`.
+Declaring the client's namespace on the TARGET is what replaces a hand-written
+NetworkPolicy in the infrastructure repo's `cluster/network-policies/` — a rule
+there would be granting access to an app that repo does not deploy. No
+in-cluster client needs this today; `platformServices` covers them all.
 
 **`isolated: true` drops the two DERIVED rules** — Traefik ingress on
 `spec.port` and egress to the whole internet — leaving DNS plus exactly what
 `exposeTo` and `egress` declare. No app sets it. It is what a datastore is: a
 workload whose entire security model is that nothing reaches it and it dials
 nothing, because it has no password of its own (`op-postgres`, `op-redis`,
-`op-clickhouse`, `librechat-mongodb`).
+`op-clickhouse`).
 
 ### `spec.image` — and what the registry decides
 

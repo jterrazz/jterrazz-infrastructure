@@ -39,17 +39,6 @@ metadata:
     app.kubernetes.io/component: secrets
 
 ---
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: platform-ai
-  labels:
-    pod-security.kubernetes.io/enforce: baseline
-    pod-security.kubernetes.io/audit: restricted
-    pod-security.kubernetes.io/warn: restricted
-    app.kubernetes.io/component: ai
-
----
 # Grafana / VictoriaMetrics / VictoriaLogs / VictoriaTraces /
 # kube-state-metrics / node-exporter / OTel Collector.
 apiVersion: v1

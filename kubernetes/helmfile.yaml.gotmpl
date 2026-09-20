@@ -35,12 +35,6 @@ repositories:
     url: https://prometheus-community.github.io/helm-charts
   - name: open-telemetry
     url: https://open-telemetry.github.io/opentelemetry-helm-charts
-  # OCI rather than a chart index. Declared as a repository (not an inline
-  # `oci://` chart ref) so Renovate's helmfile manager resolves it through the
-  # docker datasource.
-  - name: librechat
-    url: ghcr.io/danny-avila/librechat-chart
-    oci: true
 
 helmDefaults:
   wait: true
@@ -224,35 +218,6 @@ releases:
       - template: platform-service
     values:
       - services/cloudflared/service.yaml
-
-  # --- LibreChat ------------------------------------------------------------
-  - name: librechat-platform
-    namespace: platform-ai
-    inherit:
-      - template: platform-service
-    values:
-      - services/librechat/service.yaml
-
-  # The standalone MongoDB, in place of the chart's bundled Bitnami subchart.
-  # An app-chart release like any workload: it mounts the PVC its `-platform`
-  # sibling creates, and LibreChat will not pass readiness without it.
-  - name: librechat-mongodb
-    namespace: platform-ai
-    chart: ./charts/app
-    needs:
-      - platform-ai/librechat-platform
-    values:
-      - services/librechat/mongodb.yaml
-
-  # Bump together with the image tag pinned in librechat/values.yaml.
-  - name: librechat
-    namespace: platform-ai
-    chart: librechat/librechat
-    version: 2.0.12
-    needs:
-      - platform-ai/librechat-mongodb
-    values:
-      - services/librechat/values.yaml
 
   # --- OpenPanel ------------------------------------------------------------
   # No upstream chart: six app-chart releases, one values file each, plus the

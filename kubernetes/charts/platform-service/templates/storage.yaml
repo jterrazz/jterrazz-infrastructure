@@ -4,8 +4,8 @@ The named-volume map is this chart's; the PV/PVC pair is common.volume
 
   PV   <name>-<key>
   PVC  <name>-<key>, unless `claimName` overrides metadata.name
-  path /var/lib/k8s-data/<name>[/<pathSuffix>], e.g. librechat + `mongo` ->
-       /var/lib/k8s-data/librechat/mongo. Renaming a key moves the directory
+  path /var/lib/k8s-data/<name>[/<pathSuffix>], e.g. openpanel + `postgres` ->
+       /var/lib/k8s-data/openpanel/postgres. Renaming a key moves the directory
        and the pod comes up on an empty volume.
 
 `nodeLocalPath` opts a volume OUT of /var/lib/k8s-data, which on this target is

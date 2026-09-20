@@ -3,10 +3,10 @@ The one InfisicalSecret a platform service needs — the object itself is
 common.infisicalSecret (kubernetes/charts/common), which pins everything that
 belongs to the Infisical PROJECT rather than to this service.
 
-THE MANAGED SECRET'S NAME IS A CONTRACT, not a derived string: an upstream
-chart wires `envFrom` to a literal name it chose (librechat-credentials-env),
-or a values file reads one key out of it by name. So `secretName` is required
-and this chart invents none.
+THE MANAGED SECRET'S NAME IS A CONTRACT, not a derived string: a values file
+reads one key out of it by name (otel-collector-secrets), or an upstream chart
+wires `envFrom` to a literal name it chose. So `secretName` is required and this
+chart invents none.
 */ -}}
 {{- if .Values.secrets }}
 {{- $secrets := .Values.secrets }}

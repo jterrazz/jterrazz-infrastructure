@@ -2,8 +2,8 @@ suite: named-volume storage map, claimName override, nodeAffinity
 #
 # hostPath paths and PV names here are LIVE DATA references. The `data` key
 # reproduces the historical `<name>-data` object names byte-for-byte, which is
-# why librechat-data, registry-data, grafana-data, victoria-metrics-data and
-# the openpanel volumes all kept the names they were created with. Anything that
+# why registry-data, grafana-data, victoria-metrics-data and the openpanel
+# volumes all kept the names they were created with. Anything that
 # moves a path or a PV name in this chart moves (or orphans) real data on the
 # node's disk, so every one of them is pinned below.
 #

@@ -30,7 +30,7 @@ The map of the corpus is `docs/README.md`; every chapter is numbered.
 | Bringing the Hetzner target back              | `docs/09-hetzner.md`                    |
 | Why a choice was made                         | `docs/decisions/`                       |
 | `application.yaml` schema (deploying an app)  | `kubernetes/charts/app/README.md`       |
-| Per-service detail (cloudflared, librechat, openpanel) | `kubernetes/services/<svc>/README.md` |
+| Per-service detail (cloudflared, openpanel, grafana)  | `kubernetes/services/<svc>/README.md` |
 | Every other service                           | its release block in `kubernetes/helmfile.yaml.gotmpl` + comments in its `values.yaml` / `service.yaml` |
 
 ## Commands

@@ -39,7 +39,7 @@ tests:
         port: 8317
         network:
           exposeTo:
-            - namespace:platform-ai
+            - namespace:platform-telemetry
       environments:
         prod: {}
     asserts:
@@ -50,7 +50,7 @@ tests:
             from:
               - namespaceSelector:
                   matchLabels:
-                    kubernetes.io/metadata.name: platform-ai
+                    kubernetes.io/metadata.name: platform-telemetry
             ports:
               - port: 8317
 
@@ -66,9 +66,9 @@ tests:
         image: r/api:1
         network:
           exposeTo:
-            - namesapce:platform-ai
+            - namesapce:platform-telemetry
       environments:
         prod: {}
     asserts:
       - failedTemplate:
-          errorMessage: 'network: unknown peer "namesapce:platform-ai" (valid: traefik, any-namespace, internet, anywhere, namespace:<ns>, pods:<key>=<value>, any-namespace-pods:<key>=<value>)'
+          errorMessage: 'network: unknown peer "namesapce:platform-telemetry" (valid: traefik, any-namespace, internet, anywhere, namespace:<ns>, pods:<key>=<value>, any-namespace-pods:<key>=<value>)'

@@ -8,7 +8,7 @@
 #   helm template ci-test kubernetes/charts/platform-service \
 #     -f kubernetes/charts/platform-service/ci/test-values.yaml
 #
-# Exercises the multi-volume storage map (the librechat shape) plus the two
+# Exercises the multi-volume storage map (the openpanel shape) plus the two
 # things chart 2.1 added — `access` and `storage.<key>.claimName` — and the
 # populated-nodeName path that the app chart's fixture deliberately leaves
 # empty.

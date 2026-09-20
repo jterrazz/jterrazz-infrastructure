@@ -1,7 +1,7 @@
 name: Deploy Platform
 
 # Runs ansible-playbook against the OrbStack VM over Tailscale to apply
-# platform-layer changes (cert-manager, otel-collector, librechat, ...) and
+# platform-layer changes (cert-manager, otel-collector, openpanel, ...) and
 # any manifests under kubernetes/services or kubernetes/cluster.
 #
 # Creating the VM is deliberately NOT in scope here — it is `orbctl` on the dev

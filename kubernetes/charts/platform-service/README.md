@@ -32,16 +32,16 @@ actually live.
 
 ```yaml
 secrets:
-  path: /jterrazz-infrastructure/librechat   # Infisical secretsPath
-  secretName: librechat-credentials-env      # what the CONSUMER reads
-  env: prod                                  # Infisical env slug; the default
+  path: /jterrazz-infrastructure/otel-collector  # Infisical secretsPath
+  secretName: otel-collector-secrets             # what the CONSUMER reads
+  env: prod                                      # Infisical env slug; the default
 ```
 
 Renders `InfisicalSecret <name>-infisical`, which the operator syncs into
 `secretName` in the release's namespace. **`secretName` is required and is a
-contract, not a derived string**: the LibreChat chart wires `envFrom` to that
-literal name, the collector's `values.yaml` reads one key out of it by name, and
-cloudflared's Deployment names it in a `secretKeyRef`. Rename it and the
+contract, not a derived string**: the collector's `values.yaml` reads one key
+out of it by name, cloudflared's Deployment names it in a `secretKeyRef`, and an
+upstream chart may wire `envFrom` to a literal name it chose. Rename it and the
 credential simply never arrives — with no error anywhere.
 
 The managed Secret's `creationPolicy` is Infisical's default `Orphan`, so it

@@ -14,8 +14,7 @@
 # volumes live under /var/lib/rancher/k3s/storage/ and are wiped on a repave.
 #
 # On-disk layout: one directory per app; a multi-component app nests its
-# volumes under <app>/ (e.g. librechat/{mongo,uploads},
-# openpanel/{postgres,redis,clickhouse}).
+# volumes under <app>/ (e.g. openpanel/{postgres,redis,clickhouse}).
 
 apiVersion: storage.k8s.io/v1
 kind: StorageClass

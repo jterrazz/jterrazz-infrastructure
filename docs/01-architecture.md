@@ -71,8 +71,8 @@ lives beside it, in `kubernetes/charts/<chart>/README.md`.
 ## Two ways in, neither an open port
 
 Public traffic arrives through an outbound QUIC tunnel: Cloudflare edge →
-`cloudflared` pod → Traefik → app. Private traffic (Grafana, LibreChat, the
-registry, the API server) is tailnet-only: Traefik's LoadBalancer is pinned to
+`cloudflared` pod → Traefik → app. Private traffic (Grafana, the registry, the
+API server) is tailnet-only: Traefik's LoadBalancer is pinned to
 the Tailscale CGNAT range by `loadBalancerSourceRanges`, and UFW double-enforces.
 Nothing listens on a public address.
 
@@ -91,12 +91,12 @@ Nothing listens on a public address.
 │   ┌─────────────────── k3s · SQLite datastore ─────────────────────┐  │
 │   │  Traefik ──► IngressRoutes                                     │  │
 │   │     ├─ public   spwn.sh · sig.news · analytics                 │  │
-│   │     └─ private  grafana · chat · registry · openpanel · gateway│  │
+│   │     └─ private  grafana · registry · openpanel · gateway      │  │
 │   │                                                                │  │
 │   │  cert-manager · Infisical operator · private Docker registry   │  │
 │   │  VictoriaMetrics · VictoriaLogs · VictoriaTraces · Grafana     │  │
 │   │  kube-state-metrics · node-exporter · OTel Collector           │  │
-│   │  LibreChat (+ mongod) · OpenPanel (6 workloads)                │  │
+│   │  OpenPanel (6 workloads)                                       │  │
 │   └────────────────────────────────────────────────────────────────┘  │
 │                                                                       │
 │   /var/lib/k8s-data ──symlink──► /mnt/mac/…/.jterrazz-infrastructure  │

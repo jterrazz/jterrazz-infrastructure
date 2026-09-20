@@ -1,8 +1,8 @@
 suite: the datastore shape — everything an app never sets
 #
 # Chart 2.11 widened this chart from "a Node service behind Traefik" to "any
-# workload this cluster runs", so that the six OpenPanel components, LibreChat's
-# MongoDB and the registry stopped being hand-written manifests. Each assertion
+# workload this cluster runs", so that the six OpenPanel components and the
+# registry stopped being hand-written manifests. Each assertion
 # below is one of those workloads' requirements, and each is a branch an app
 # repo never reaches — which is exactly why they need pinning here: nothing in
 # the fleet would notice if one of them silently stopped rendering.

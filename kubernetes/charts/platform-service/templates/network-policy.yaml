@@ -8,8 +8,8 @@ namespace baseline in kubernetes/cluster/network-policies/ already grants —
 which is exactly how the hand-written per-service files it replaces behaved.
 
 `podSelector` is REQUIRED and cannot be derived: the workload these rules apply
-to is rendered by a DIFFERENT chart (the upstream Grafana/VictoriaMetrics/
-LibreChat chart), and its pod labels are that chart's, not ours.
+to is rendered by a DIFFERENT chart (the upstream Grafana or VictoriaMetrics
+chart), and its pod labels are that chart's, not ours.
 */ -}}
 {{- if .Values.network }}
 {{- $net := .Values.network }}

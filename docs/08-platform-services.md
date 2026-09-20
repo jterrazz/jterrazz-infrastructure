@@ -4,10 +4,6 @@ What runs on the cluster that is not an app. Each service with more than one
 moving part keeps its own README beside its values files, with versions, data
 paths, secrets and quirks.
 
-- **LibreChat** — private AI chat at `chat.internal.jterrazz.com`, namespace
-  `platform-ai`. Three releases: `librechat-platform`, `librechat-mongodb` (app
-  chart) and the upstream `librechat`.
-  [README](../kubernetes/services/librechat/README.md)
 - **OpenPanel** — product analytics; private dashboard at
   `openpanel.internal.jterrazz.com`, public ingest at
   `analytics.jterrazz.com/api/track`, namespace `platform-analytics`. Six
@@ -42,6 +38,9 @@ paths, secrets and quirks.
   `gateway-noauth` only because the OpenAI and Anthropic SDKs require a
   non-empty string. There is no gateway API key in Infisical.
 
-n8n and Portainer were removed. Their `/var/lib/k8s-data` directories are kept
-(PVs were `Retain`); everything else — namespace, CNAME, manifests — is gone.
-Do not resurrect them by accident when editing lists.
+n8n, Portainer and LibreChat were removed, and so was the `platform-ai`
+namespace LibreChat was the only tenant of. Everything went with them —
+manifests, CNAME entry, PVs and the data directories, which unlike the earlier
+two removals were deleted rather than kept. `gateway-intelligence` is
+unaffected: LibreChat was a client of it, not the other way round. Do not
+resurrect any of them by accident when editing lists.

@@ -53,8 +53,8 @@ mechanically when editing any values file, manifest or template in this repo.
 ## Storage and configuration
 
 - **One directory per app** under `/var/lib/k8s-data`. A multi-component app
-  nests its volumes (`librechat/{mongo,uploads}`,
-  `openpanel/{postgres,clickhouse,redis}`) through `storage.<key>.pathSuffix`.
+  nests its volumes (`openpanel/{postgres,clickhouse,redis}`) through
+  `storage.<key>.pathSuffix`.
 - **`ansible/inventories/group_vars/all.yml` is the config surface.** It sits
   next to the inventory files, which is the only place Ansible auto-loads it
   from here — a top-level `ansible/group_vars/` was adjacent to neither
@@ -116,7 +116,7 @@ mechanically when editing any values file, manifest or template in this repo.
   that needs them. Its `cloudflared-platform` release still carries the
   tunnel-token InfisicalSecret, so the manifest is a Deployment and nothing
   else. Everything that used to sit beside it — OpenPanel's six workloads,
-  LibreChat's MongoDB, the registry — now renders through `charts/app`, which is
+  the registry — now renders through `charts/app`, which is
   why that chart grew `command`/`args`, an exec/tcp probe, `storage.claimName`,
   `servicePort` and `network.isolated`. Reach for a new raw manifest only when
   the app chart genuinely cannot express the thing, and say why in this list
