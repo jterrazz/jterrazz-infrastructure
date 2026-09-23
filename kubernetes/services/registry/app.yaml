@@ -94,5 +94,114 @@ spec:
     exposeTo:
       - traefik
 
+  # GARBAGE COLLECTION. Every CI push moves `:latest` to a new manifest and
+  # leaves the old one behind, untagged but still holding its layers — a
+  # registry never deletes on its own, by design, so that a digest stays
+  # pullable for a rollback. Nothing here pulls by digest (every workload
+  # references a tag), so the history is pure weight: on 2026-09-23 it was 796
+  # manifests for 10 tags, 14G of blobs, and a one-off collection took it to
+  # 1.0G.
+  #
+  # `--delete-untagged` is safe on what buildkit pushes: each tag points at an
+  # OCI index whose image and attestation manifests carry no tag of their own,
+  # and 3.1.1 marks an index's children before it sweeps (verified against the
+  # dry run on every live tag). RE-VERIFY with `--dry-run` before bumping
+  # `image:` — an older distribution swept those children and broke the tag.
+  #
+  # THE RACE, and why this is a guard and not the textbook answer. A collection
+  # marks, then sweeps; a push that uploads its layers during the mark and
+  # writes its manifest before the sweep leaves a tag pointing at deleted
+  # blobs. Distribution's answer is read-only mode for the duration, but it
+  # cannot be toggled on a running registry: it is a config block (the
+  # REGISTRY_STORAGE_MAINTENANCE_READONLY_ENABLED env var PANICS 3.1.1 at boot —
+  # "readonly config key must contain additional keys"), so flipping it means
+  # two restarts, and under Recreate each one is a full outage of the registry
+  # every deploy logs into. Instead: the only pushers are app CI on merge (no
+  # repo builds on a schedule), so the run sits at 03:30 UTC on a Sunday, and
+  # it skips itself if any upload was touched in the last 30 minutes. The
+  # skip exits 0 on purpose; the alert below is on the last SUCCESS, so a
+  # registry that skips every week still surfaces after eight days.
+  cronJobs:
+    gc:
+      schedule: "30 3 * * 0"
+      command:
+        - /bin/sh
+        - -c
+        - |
+          set -eu
+          root=/var/lib/registry/docker/registry/v2/repositories
+          if [ -n "$(find "$root" -path '*/_uploads/*' -mmin -30 2>/dev/null | head -n 1)" ]; then
+            echo "registry-gc: an upload was touched in the last 30 minutes; skipping this run"
+            exit 0
+          fi
+          echo "registry-gc: before $(du -sh /var/lib/registry | cut -f1)"
+          registry garbage-collect --quiet --delete-untagged /etc/distribution/config.yml
+          echo "registry-gc: after $(du -sh /var/lib/registry | cut -f1)"
+      storage: true
+      activeDeadlineSeconds: 1800
+
+  # prod-only, like every spec.alerts. No contact point is wired (see
+  # kubernetes/services/grafana/values.yaml): it shows in the Alerting UI.
+  # The age is measured from the last success, or from the CronJob's creation
+  # when it has never succeeded — max() picks the later, and a success is
+  # always later than the creation. NoData means the CronJob itself is gone,
+  # which is the same fact as "nothing collects", so it alerts too — but only
+  # after `for: 1h`, i.e. two hourly evaluations in a row. A CronJob that has
+  # just been created (a first deploy, a repave) has no series yet until
+  # kube-state-metrics' next scrape, and with `for: 0s` its very first
+  # evaluation fired a NoData alert (2026-09-23).
+  alerts:
+    registry: |
+      apiVersion: 1
+      groups:
+        - orgId: 1
+          name: registry
+          folder: registry
+          interval: 1h
+          rules:
+            - uid: registry-gc-stale
+              title: registry garbage collection has not succeeded in 8 days
+              condition: C
+              for: 1h
+              noDataState: Alerting
+              execErrState: OK
+              labels:
+                severity: warning
+              annotations:
+                summary: >-
+                  registry-gc last succeeded more than 8 days ago (it runs weekly).
+                  Untagged manifests are piling up on the node's disk again — read
+                  `kubectl logs -n platform-registry job/<latest registry-gc job>`.
+              data:
+                - refId: A
+                  relativeTimeRange:
+                    from: 600
+                    to: 0
+                  datasourceUid: prometheus
+                  model:
+                    refId: A
+                    expr: 'time() - max(kube_cronjob_status_last_successful_time{namespace="platform-registry", cronjob="registry-gc"} or kube_cronjob_created{namespace="platform-registry", cronjob="registry-gc"})'
+                    instant: false
+                    range: true
+                    intervalMs: 60000
+                    maxDataPoints: 43200
+                - refId: B
+                  datasourceUid: __expr__
+                  model:
+                    refId: B
+                    type: reduce
+                    expression: A
+                    reducer: last
+                - refId: C
+                  datasourceUid: __expr__
+                  model:
+                    refId: C
+                    type: threshold
+                    expression: B
+                    conditions:
+                      - evaluator:
+                          type: gt
+                          params: [691200]
+
 environments:
   prod: {}

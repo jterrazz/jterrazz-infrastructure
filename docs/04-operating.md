@@ -392,6 +392,11 @@ do not retell it here.
 `~/.jterrazz-infrastructure/backups/` and verifies it by decrypting it back —
 an archive nobody has opened is a guess, not a backup.
 
+Most of that tree is the registry's blobs. `registry-gc` (below) keeps them at
+the size of the live tags: 1.0G after the first collection on 2026-09-23,
+against 14G before it, which was also the size of the backup taken on
+2026-09-19. See [Registry garbage collection](#registry-garbage-collection).
+
 `make backup ARGS=--consistent` runs `k3s-killall.sh` first. Without it the
 databases are captured mid-write: `systemctl stop k3s` does NOT stop the
 containers, which is how two earlier backups came out torn.
@@ -607,6 +612,50 @@ stale revision Secrets (never the current revision):
 ```bash
 kubectl get secret -n <env>-<app> -l owner=helm,name=<env>-<app>   # sh.helm.release.v1.<release>.v<n>
 ```
+
+## Registry garbage collection
+
+The registry never deletes anything on its own: every CI push moves `:latest`
+to a new manifest and leaves the old one behind, untagged but still holding
+its layers. `registry-gc`, a CronJob in `platform-registry`, runs
+`registry garbage-collect --delete-untagged` every Sunday at 03:30 UTC. Why
+that command is safe, and why the run is guarded rather than read-only, is the
+comment on `cronJobs:` in `kubernetes/services/registry/app.yaml`.
+
+- **It skips itself** when any upload was touched in the last 30 minutes, and
+  says so in its log. A skip exits 0.
+- **Grafana alerts** (`registry-gc-stale`) when the last success is more than 8
+  days old, or when the CronJob is gone. No contact point is wired, so it shows
+  in the Alerting UI only.
+
+Run it now, the same way the schedule does:
+
+```bash
+kubectl create job -n platform-registry --from=cronjob/registry-gc registry-gc-manual-$(date +%s)
+kubectl logs -n platform-registry -l app.jterrazz.com/cronjob=gc --tail=5
+```
+
+See what it would delete, without deleting it (the last line is the count):
+
+```bash
+kubectl exec -n platform-registry deploy/registry -- \
+  registry garbage-collect --dry-run --delete-untagged /etc/distribution/config.yml | tail -1
+```
+
+Two things not to do:
+
+- **Do not set `REGISTRY_STORAGE_MAINTENANCE_READONLY_ENABLED` on the
+  Deployment.** distribution 3.1.1 panics at boot on it
+  (`readonly config key must contain additional keys`), and the Deployment is
+  `Recreate`, so the running pod is already gone: the registry is down, and so
+  is the deploy that would restore it. That happened on 2026-09-23 for about
+  five minutes. `kubectl rollout undo deployment/registry -n
+  platform-registry` brings back the Helm-applied spec.
+- **Do not bump `image:` without re-running the dry run.** Every live tag is
+  an OCI index whose child manifests have no tag. 3.1.1 keeps them; an older
+  distribution swept them and broke the tag. In the dry run's output, the
+  index and both children of each tag must appear as `marking`, never as
+  `eligible for deletion`.
 
 ## Add a new platform service
 
