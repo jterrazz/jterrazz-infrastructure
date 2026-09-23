@@ -642,7 +642,18 @@ kubectl exec -n platform-registry deploy/registry -- \
   registry garbage-collect --dry-run --delete-untagged /etc/distribution/config.yml | tail -1
 ```
 
-Two things not to do:
+It depends on one setting beside it: `REGISTRY_STORAGE_CACHE_BLOBDESCRIPTOR`
+is empty, which turns off the registry's in-memory blob cache. With that cache
+on, a layer the job sweeps stays "present" in the running registry's memory,
+and the next push that re-uses it skips the upload and writes a tag that
+cannot be pulled (distribution#1803, still open). At boot the registry logs
+`unknown cache type … caching disabled`, which confirms the setting.
+
+Three things not to do:
+
+- **Do not re-enable the blob-descriptor cache.** See above. The only other
+  safe arrangement is restarting the registry after every collection, which
+  under `Recreate` is an outage every week.
 
 - **Do not set `REGISTRY_STORAGE_MAINTENANCE_READONLY_ENABLED` on the
   Deployment.** distribution 3.1.1 panics at boot on it

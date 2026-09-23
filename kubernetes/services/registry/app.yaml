@@ -54,6 +54,20 @@ spec:
     # /auth is the secretMount below; `htpasswd` is the Secret key.
     REGISTRY_AUTH_HTPASSWD_PATH: "/auth/htpasswd"
     REGISTRY_STORAGE_DELETE_ENABLED: "true"
+    # NO BLOB-DESCRIPTOR CACHE — load-bearing for registry-gc below; do not
+    # drop as a micro-optimisation. The image bakes in `storage.cache.
+    # blobdescriptor: inmemory`, and garbage-collect never tells that cache
+    # what it swept (it runs in its own pod anyway). A push that re-uses a
+    # swept layer is then told "Layer already exists", skips the upload, and
+    # the tag it writes cannot be pulled — until the registry restarts.
+    # Reproduced on 2026-09-23 against registry:3.1.1 in a throwaway container:
+    # cache on, the re-pushed image was broken; cache off, it pushed and pulled
+    # fine. Upstream: distribution/distribution#1803, #3802, #4269, all still
+    # open. The empty value disables it — the registry logs "unknown cache type
+    # … caching disabled" at boot, which is the confirmation, not a fault.
+    # Every blob lookup then reads the filesystem, which for one user's
+    # registry is nothing.
+    REGISTRY_STORAGE_CACHE_BLOBDESCRIPTOR: ""
 
   storage:
     mountPath: /var/lib/registry
@@ -101,6 +115,10 @@ spec:
   # references a tag), so the history is pure weight: on 2026-09-23 it was 796
   # manifests for 10 tags, 14G of blobs, and a one-off collection took it to
   # 1.0G.
+  #
+  # It is only correct because the blob-descriptor cache is off (env above):
+  # with it on, a layer this job sweeps stays "present" in the registry's
+  # memory, and the next push that re-uses it breaks its tag.
   #
   # `--delete-untagged` is safe on what buildkit pushes: each tag points at an
   # OCI index whose image and attestation manifests carry no tag of their own,
