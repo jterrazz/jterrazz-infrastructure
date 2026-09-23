@@ -1,0 +1,327 @@
+suite: spec.cronJobs — the app's container, run on a schedule
+#
+# A cron job runs the APP'S OWN container with another command, so most of
+# what is pinned here is inheritance: the same env, secrets and mounts as the
+# Deployment. The rest is the scheduling defaults (Kubernetes' own are wrong
+# for a scheduled job) and one isolation rule that is easy to break and silent
+# when broken: a job pod must never carry the Service's selector labels.
+#
+# The fixture's prod environment declares `report` (every default); staging
+# merges in `vacuum` (every default overridden, the data volume mounted).
+values:
+  - ../ci/test-values.yaml
+templates:
+  - templates/cronjob.yaml
+tests:
+  - it: renders one CronJob per entry, named <app>-<name>
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: CronJob
+      - equal:
+          path: metadata.name
+          value: ci-test-app-report
+
+  - it: merges an environment's entries into spec's, like any other map
+    set:
+      environment: staging
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: renders nothing when no job is declared
+    set:
+      spec.cronJobs: null
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: never stamps the Service selector on a job pod
+    # The Service selects `app` + `environment`. A job pod carrying both would
+    # become an endpoint — ready at once, having no readiness probe — and
+    # Traefik would send live requests to a process that is not listening.
+    asserts:
+      - notExists:
+          path: spec.jobTemplate.spec.template.metadata.labels.app
+      - equal:
+          path: spec.jobTemplate.spec.template.metadata.labels["app.kubernetes.io/component"]
+          value: cronjob
+
+  - it: carries the platform client labels, so a job can reach what the app can
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.metadata.labels["platform-client.jterrazz.com/gateway-intelligence"]
+          value: "true"
+
+  - it: applies the scheduled-job defaults Kubernetes does not
+    asserts:
+      - equal:
+          path: spec.concurrencyPolicy
+          value: Forbid
+      - equal:
+          path: spec.timeZone
+          value: Etc/UTC
+      - equal:
+          path: spec.startingDeadlineSeconds
+          value: 600
+      - equal:
+          path: spec.successfulJobsHistoryLimit
+          value: 1
+      - equal:
+          path: spec.failedJobsHistoryLimit
+          value: 3
+      - equal:
+          path: spec.suspend
+          value: false
+      - equal:
+          path: spec.jobTemplate.spec.backoffLimit
+          value: 0
+      - equal:
+          path: spec.jobTemplate.spec.activeDeadlineSeconds
+          value: 3600
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.restartPolicy
+          value: Never
+
+  - it: honours every per-job override
+    set:
+      environment: staging
+    documentSelector:
+      path: metadata.name
+      value: ci-test-app-vacuum
+    asserts:
+      - equal:
+          path: spec.timeZone
+          value: Europe/Paris
+      - equal:
+          path: spec.concurrencyPolicy
+          value: Replace
+      - equal:
+          path: spec.suspend
+          value: true
+      - equal:
+          path: spec.startingDeadlineSeconds
+          value: 120
+      - equal:
+          path: spec.jobTemplate.spec.backoffLimit
+          value: 2
+      - equal:
+          path: spec.jobTemplate.spec.activeDeadlineSeconds
+          value: 600
+
+  - it: runs the app's image with the job's command, never the server
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].image
+          value: registry.internal.jterrazz.com/ci-test-app:ci
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].command
+          value: ["node", "dist/report.js"]
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].args
+          value: ["--since", "24h"]
+      - notExists:
+          path: spec.jobTemplate.spec.template.spec.containers[0].ports
+      - notExists:
+          path: spec.jobTemplate.spec.template.spec.containers[0].livenessProbe
+
+  - it: pulls a private image the way the Deployment does
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.imagePullSecrets
+          value:
+            - name: registry-credentials
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].imagePullPolicy
+          value: Always
+
+  - it: leaves a public image on Kubernetes' pull defaults
+    set:
+      environment: staging
+    documentSelector:
+      path: metadata.name
+      value: ci-test-app-vacuum
+    asserts:
+      - notExists:
+          path: spec.jobTemplate.spec.template.spec.imagePullSecrets
+      - notExists:
+          path: spec.jobTemplate.spec.template.spec.containers[0].imagePullPolicy
+
+  - it: inherits the app's env and secrets
+    asserts:
+      - contains:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env
+          content:
+            name: LOG_LEVEL
+            value: info
+      - contains:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env
+          content:
+            name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: ci-test-app-secrets
+                key: DATABASE_URL
+      - contains:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env
+          content:
+            name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: http://otel-collector.platform-telemetry:4318
+
+  - it: derives the Node heap cap from the job's own request, not the app's
+    # The job asks for 1Gi; the app for 512Mi (whose cap would be 384).
+    asserts:
+      - contains:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env
+          content:
+            name: NODE_OPTIONS
+            value: --max-old-space-size=768
+
+  - it: derives the memory limit from the job's own request
+    # The app's explicit 1Gi limit was sized for the app's 512Mi request.
+    # Inherited by a job asking for 1Gi, it would sit at the request; for a job
+    # asking for more, the API server would reject the object outright.
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].resources
+          value:
+            requests:
+              cpu: 100m
+              memory: 1Gi
+            limits:
+              memory: 2048Mi
+
+  - it: keeps the app's resources, limit included, when the job sets none
+    set:
+      environment: staging
+    documentSelector:
+      path: metadata.name
+      value: ci-test-app-vacuum
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].resources
+          value:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+
+  - it: mounts the app's config files and secret mounts, but not its data
+    asserts:
+      - notContains:
+          path: spec.jobTemplate.spec.template.spec.volumes
+          content:
+            name: data
+          any: true
+      - contains:
+          path: spec.jobTemplate.spec.template.spec.volumes
+          content:
+            name: config
+            configMap:
+              name: ci-test-app-config
+      - contains:
+          path: spec.jobTemplate.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: ci-test-app-files
+            mountPath: /etc/ci-test-files
+            readOnly: true
+
+  - it: "mounts the data volume on `storage: true`, through the app's own claim"
+    set:
+      environment: staging
+    documentSelector:
+      path: metadata.name
+      value: ci-test-app-vacuum
+    asserts:
+      - contains:
+          path: spec.jobTemplate.spec.template.spec.volumes
+          content:
+            name: data
+            persistentVolumeClaim:
+              claimName: ci-test-existing-claim
+      - contains:
+          path: spec.jobTemplate.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: data
+            mountPath: /var/lib/postgresql/data
+
+  - it: never chowns the volume on a run
+    # The Deployment hands the volume over on every start already.
+    set:
+      environment: staging
+    documentSelector:
+      path: metadata.name
+      value: ci-test-app-vacuum
+    asserts:
+      - notExists:
+          path: spec.jobTemplate.spec.template.spec.initContainers
+
+  - it: hardens the container like the Deployment's, securityContext merged in
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].securityContext
+          value:
+            allowPrivilegeEscalation: false
+            capabilities:
+              add: ["NET_BIND_SERVICE"]
+              drop: ["ALL"]
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.securityContext
+          value:
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+
+  - it: drops the pod-level uid block for a root app
+    set:
+      environment: staging
+    documentSelector:
+      path: metadata.name
+      value: ci-test-app-vacuum
+    asserts:
+      - notExists:
+          path: spec.jobTemplate.spec.template.spec.securityContext
+
+  - it: hard-fails a job without a schedule
+    set:
+      spec.cronJobs.broken.command: ["true"]
+    asserts:
+      - failedTemplate:
+          errorPattern: "spec.cronJobs.broken: `schedule` is required"
+
+  - it: hard-fails a job without a command, which would start the server forever
+    set:
+      spec.cronJobs.broken.schedule: "* * * * *"
+    asserts:
+      - failedTemplate:
+          errorPattern: "spec.cronJobs.broken: `command` is required"
+
+  - it: hard-fails a name that is not a DNS-1123 label
+    set:
+      spec.cronJobs.Nightly_Report.schedule: "* * * * *"
+      spec.cronJobs.Nightly_Report.command: ["true"]
+    asserts:
+      - failedTemplate:
+          errorPattern: "spec.cronJobs.Nightly_Report: the name must be lowercase"
+
+  - it: hard-fails a name too long for the Jobs it would create
+    # ci-test-app- (12) + 41 = 53 > 52.
+    set:
+      spec.cronJobs.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.schedule: "* * * * *"
+      spec.cronJobs.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.command: ["true"]
+    asserts:
+      - failedTemplate:
+          errorPattern: "is 53 characters; a CronJob name may have at most 52"
+
+  - it: "hard-fails `storage: true` on an app that declares no storage"
+    set:
+      spec.storage: null
+      spec.cronJobs.report.storage: true
+    asserts:
+      - failedTemplate:
+          errorPattern: "spec.cronJobs.report: `storage: true` mounts spec.storage"

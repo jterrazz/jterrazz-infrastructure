@@ -55,7 +55,17 @@ spec:
   dashboards: {}
   # name -> Grafana unified-alerting provisioning YAML. prod-only, like dashboards.
   alerts: {}
-  # Merged OVER the chart's hardened container defaults (deployment.yaml).
+  # name -> { schedule, command, args?, timeZone?, resources?, storage?,
+  # suspend?, concurrencyPolicy?, startingDeadlineSeconds?, backoffLimit?,
+  # activeDeadlineSeconds? }. Each entry is a CronJob `<app>-<name>` running the
+  # app's own container with `command` instead of the server. `schedule` and
+  # `command` are required; the per-entry defaults (Forbid, UTC, no blind
+  # retry, a one-hour deadline) are in templates/cronjob.yaml. `storage: true`
+  # mounts spec.storage.
+  cronJobs: {}
+  # Merged OVER the chart's hardened container defaults
+  # (app.containerSecurityContext in templates/_helpers.tpl), for the
+  # Deployment and every cron job alike.
   securityContext: {}
   # Drops runAsNonRoot and the pod-level uid/gid/fsGroup block.
   runAsRoot: false

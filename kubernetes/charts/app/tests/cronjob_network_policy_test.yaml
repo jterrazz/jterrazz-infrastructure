@@ -1,0 +1,45 @@
+suite: spec.cronJobs — the NetworkPolicy of the job pods
+#
+# Job pods carry no `app` label (app.cronJobSelectorLabels says why), so the
+# app's own NetworkPolicy does not select them. This is theirs: nothing in,
+# since a job serves no one, and the app's own egress out. Its own suite
+# because helm-unittest renders a suite's `templates` for every test, and the
+# cron job suite counts CronJob documents.
+values:
+  - ../ci/test-values.yaml
+templates:
+  - templates/network-policy.yaml
+tests:
+  - it: gives job pods their own NetworkPolicy — nothing in, the app's egress out
+    documentSelector:
+      path: metadata.name
+      value: ci-test-app-cronjobs
+    asserts:
+      - equal:
+          path: spec.podSelector.matchLabels
+          value:
+            app.kubernetes.io/name: ci-test-app
+            app.kubernetes.io/component: cronjob
+            environment: prod
+      - equal:
+          path: spec.policyTypes
+          value: ["Ingress", "Egress"]
+      - notExists:
+          path: spec.ingress
+      - contains:
+          path: spec.egress
+          content:
+            to:
+              - ipBlock:
+                  cidr: 0.0.0.0/0
+                  except:
+                    - 10.0.0.0/8
+                    - 172.16.0.0/12
+                    - 192.168.0.0/16
+
+  - it: renders no job NetworkPolicy when no job is declared
+    set:
+      spec.cronJobs: null
+    asserts:
+      - hasDocuments:
+          count: 1

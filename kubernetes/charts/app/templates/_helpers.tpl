@@ -86,10 +86,15 @@ about this, leave it alone".
 {{/*
 Memory limit — explicit `resources.memoryLimit`, else 2x the request. A
 derived limit is always emitted in Mi; a request in neither Mi nor Gi passes
-through unchanged.
+through unchanged. `app.memoryLimitOf` takes the resources map itself, so a
+cron job's own `resources` derive their limit by the same rule.
 */}}
 {{- define "app.memoryLimit" -}}
-{{- $resources := (fromYaml (include "app.merged" .)).resources -}}
+{{- include "app.memoryLimitOf" (fromYaml (include "app.merged" .)).resources -}}
+{{- end -}}
+
+{{- define "app.memoryLimitOf" -}}
+{{- $resources := . -}}
 {{- $memLimit := $resources.memoryLimit -}}
 {{- if $memLimit -}}
 {{- $memLimit -}}
@@ -109,10 +114,15 @@ Node.js V8 old-space cap (MiB) ≈ 75% of the memory *request*, and ONLY at or
 above a 512Mi request: below that floor a derived cap (96MB for a 128Mi Next.js
 service) starves SSR boot and crash-loops the pod. Returns "" there, and for a
 non-Mi/Gi request, so the caller skips injection entirely.
+`app.nodeMaxOldSpaceOf` takes the resources map itself, so a cron job's heap cap
+follows its OWN request rather than the app's.
 */}}
 {{- define "app.nodeMaxOldSpace" -}}
-{{- $resources := (fromYaml (include "app.merged" .)).resources -}}
-{{- $mem := $resources.memory -}}
+{{- include "app.nodeMaxOldSpaceOf" (fromYaml (include "app.merged" .)).resources -}}
+{{- end -}}
+
+{{- define "app.nodeMaxOldSpaceOf" -}}
+{{- $mem := .memory -}}
 {{- $reqMi := include "app.memMi" $mem | default "0" | int -}}
 {{- if ge $reqMi 512 -}}
 {{- div (mul $reqMi 3) 4 -}}
@@ -141,7 +151,7 @@ server-side ingress rule via a pod label selector.
 
 Per entry:
   env         map of env var name -> value injected into opted-in consumers.
-              A user-set env of the same name always wins (see deployment.yaml).
+              A user-set env of the same name always wins (app.containerEnv).
   egress      { namespace, ports[] } — the consumer's egress NetworkPolicy hole.
               ports are the POD ports (NOT the Service port). Namespace is
               pinned (gateway-intelligence only exists in prod).
@@ -312,4 +322,196 @@ form, `.content` for the map form. Input dict: filename, file.
 {{- else -}}
 {{- .file -}}
 {{- end -}}
+{{- end -}}
+
+{{/*
+The container securityContext: the chart's hardened defaults with
+`spec.securityContext` merged OVER them. readOnlyRootFilesystem is deliberately
+NOT among the defaults: every app here is a Next.js or Node service that writes
+caches at runtime, and setting it would crash-loop them. runAsNonRoot is
+dropped for an explicit spec.runAsRoot, which it would contradict. deepCopy
+because mergeOverwrite mutates its first argument. Returns YAML.
+*/}}
+{{- define "app.containerSecurityContext" -}}
+{{- $spec := fromYaml (include "app.merged" .) -}}
+{{- $secDefaults := dict
+      "allowPrivilegeEscalation" false
+      "capabilities" (dict "drop" (list "ALL"))
+      "seccompProfile" (dict "type" "RuntimeDefault") -}}
+{{- if not $spec.runAsRoot -}}
+{{- $_ := set $secDefaults "runAsNonRoot" true -}}
+{{- end -}}
+{{- toYaml (mergeOverwrite (deepCopy $secDefaults) $spec.securityContext) -}}
+{{- end -}}
+
+{{/*
+The pod-level securityContext block, or nothing at all for spec.runAsRoot.
+*/}}
+{{- define "app.podSecurityContext" -}}
+{{- if not (fromYaml (include "app.merged" .)).runAsRoot -}}
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+{{- end -}}
+{{- end -}}
+
+{{/*
+The container `env:` list, shared by the Deployment and every cron job so a
+job runs with exactly the environment the app does — the same secrets, the
+same platform endpoints. Input dict: ctx (the root context), resources (the
+map the NODE_OPTIONS heap cap derives from: the app's, or a job's own).
+Emits list items at column 0.
+*/}}
+{{- define "app.containerEnv" -}}
+{{- $ctx := .ctx -}}
+{{- $spec := fromYaml (include "app.merged" $ctx) -}}
+{{- $envVars := $spec.env -}}
+{{- $secrets := $spec.secrets -}}
+{{- $platformEnv := fromYaml (include "app.platformEnv" $ctx) -}}
+- name: PORT
+  value: {{ $spec.port | quote }}
+{{- range $key, $value := $envVars }}
+- name: {{ $key }}
+  value: {{ $value | quote }}
+{{- end }}
+{{- if not (hasKey $envVars "OTEL_SERVICE_NAME") }}
+- name: OTEL_SERVICE_NAME
+  value: {{ include "app.name" $ctx }}
+{{- end }}
+{{- /* Both spellings: `deployment.environment` is what the collector's
+       Langfuse filter, the remote-write label (deployment_environment) and
+       @jterrazz/telemetry read; `deployment.environment.name` is the current
+       semconv, which Langfuse maps to its Environment field. */}}
+{{- if not (hasKey $envVars "OTEL_RESOURCE_ATTRIBUTES") }}
+- name: OTEL_RESOURCE_ATTRIBUTES
+  value: "deployment.environment={{ $ctx.Values.environment }},deployment.environment.name={{ $ctx.Values.environment }}"
+{{- end }}
+{{- /* Opt-in platform-service env (spec.platformServices → the catalog
+       above). An app must declare `otel-collector` for telemetry to flow —
+       declaring it is also what opens the egress hole. A user-set env wins. */}}
+{{- range $key, $value := $platformEnv }}
+{{- if not (hasKey $envVars $key) }}
+- name: {{ $key }}
+  value: {{ $value | quote }}
+{{- end }}
+{{- end }}
+{{- /* Default Node.js heap cap ≈ 75% of the memory request. Skipped entirely
+       if the app sets its own NODE_OPTIONS. Harmless on non-Node runtimes
+       (the var is ignored). */}}
+{{- $nodeHeap := include "app.nodeMaxOldSpaceOf" .resources }}
+{{- if and $nodeHeap (not (hasKey $envVars "NODE_OPTIONS")) }}
+- name: NODE_OPTIONS
+  value: "--max-old-space-size={{ $nodeHeap }}"
+{{- end }}
+{{- if $secrets.env }}
+{{- range $secrets.env }}
+- name: {{ . }}
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "app.secretsName" $ctx }}
+      key: {{ . }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{/*
+The container `volumeMounts:` / pod `volumes:` lists. Input dict: ctx, storage
+(whether the data volume is part of it — always for the Deployment when
+spec.storage is set, only on request for a cron job). Emit list items; callers
+`trim` and indent them.
+*/}}
+{{- define "app.volumeMounts" -}}
+{{- $spec := fromYaml (include "app.merged" .ctx) -}}
+{{- if .storage }}
+- name: data
+  mountPath: {{ $spec.storage.mountPath }}
+{{- end }}
+{{- range $filename, $file := $spec.configFiles }}
+- name: config
+  mountPath: {{ include "app.configFilePath" (dict "filename" $filename "file" $file) }}
+  subPath: {{ $filename }}
+  readOnly: true
+{{- end }}
+{{- range $spec.secretMounts }}
+- name: {{ .secretName }}
+  mountPath: {{ .mountPath }}
+  readOnly: true
+{{- end }}
+{{- end -}}
+
+{{- define "app.volumes" -}}
+{{- $ctx := .ctx -}}
+{{- $spec := fromYaml (include "app.merged" $ctx) -}}
+{{- if .storage }}
+- name: data
+  persistentVolumeClaim:
+    claimName: {{ $spec.storage.claimName | default (printf "%s-data" (include "app.name" $ctx)) }}
+{{- end }}
+{{- if $spec.configFiles }}
+- name: config
+  configMap:
+    name: {{ include "app.name" $ctx }}-config
+{{- end }}
+{{- range $spec.secretMounts }}
+- name: {{ .secretName }}
+  secret:
+    secretName: {{ .secretName }}
+{{- end }}
+{{- end -}}
+
+{{/*
+The validated `spec.cronJobs` map (name -> job), for the environment being
+rendered. Every check a bad entry could otherwise turn into a silently wrong
+object fails the render here instead:
+
+  * the name must be a DNS-1123 label, and `<app>-<name>` at most 52
+    characters — the CronJob controller appends an 11-character suffix to
+    name each Job, and a Job name is capped at 63;
+  * `schedule` is required;
+  * `command` is required and non-empty. The app's own entrypoint is its
+    server, and a server started on a schedule never exits: it would run
+    until activeDeadlineSeconds killed it, every time;
+  * `storage: true` needs spec.storage, or there is no volume to mount.
+
+Returns YAML; consume via fromYaml.
+*/}}
+{{- define "app.cronJobs" -}}
+{{- $spec := fromYaml (include "app.merged" .) -}}
+{{- $app := include "app.name" . -}}
+{{- $jobs := $spec.cronJobs | default dict -}}
+{{- range $name, $job := $jobs -}}
+{{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $name) -}}
+{{- fail (printf "spec.cronJobs.%s: the name must be lowercase letters, digits and dashes (a DNS-1123 label)" $name) -}}
+{{- end -}}
+{{- $full := printf "%s-%s" $app $name -}}
+{{- if gt (len $full) 52 -}}
+{{- fail (printf "spec.cronJobs.%s: %q is %d characters; a CronJob name may have at most 52, because each Job it creates appends an 11-character suffix" $name $full (len $full)) -}}
+{{- end -}}
+{{- if not $job.schedule -}}
+{{- fail (printf "spec.cronJobs.%s: `schedule` is required (a cron expression, evaluated in `timeZone`, default Etc/UTC)" $name) -}}
+{{- end -}}
+{{- if not $job.command -}}
+{{- fail (printf "spec.cronJobs.%s: `command` is required — without it the job would start the app's own server, which never exits" $name) -}}
+{{- end -}}
+{{- if and $job.storage (not $spec.storage) -}}
+{{- fail (printf "spec.cronJobs.%s: `storage: true` mounts spec.storage, and this app declares none" $name) -}}
+{{- end -}}
+{{- end -}}
+{{- $jobs | toYaml -}}
+{{- end -}}
+
+{{/*
+The labels every cron job pod carries — and, as importantly, the one it does
+NOT: `app`. The Service and the app's NetworkPolicy select on
+app.selectorLabels (`app` + `environment`), so a job pod stamped with them
+would be admitted as a Service endpoint. It has no readiness probe, so it would
+count as ready the moment it started, and Traefik would route live traffic to
+a process that is not listening. `app.kubernetes.io/component: cronjob` is what
+the jobs' own NetworkPolicy selects instead.
+*/}}
+{{- define "app.cronJobSelectorLabels" -}}
+app.kubernetes.io/name: {{ include "app.name" . }}
+app.kubernetes.io/component: cronjob
+environment: {{ .Values.environment }}
 {{- end -}}

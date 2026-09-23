@@ -1,0 +1,127 @@
+{{- /*
+One CronJob per `spec.cronJobs` entry. A job is the APP'S CONTAINER run on a
+schedule with another command: the same image, env, secrets, config files,
+secret mounts and securityContext, so anything the app can do, its jobs can
+do. What differs is only what a run-to-completion process needs to differ.
+
+The defaults are the ones a scheduled job should have and Kubernetes' own do
+not give it:
+
+  concurrencyPolicy        Forbid — a run that overruns its interval never
+                           gets a second copy beside it.
+  startingDeadlineSeconds  600 — a run missed by more than ten minutes (the
+                           cluster was down) is skipped, not replayed late.
+  backoffLimit             0 — a failed run is not retried blindly; it stays
+                           failed and visible, and the next schedule is the
+                           retry. Kubernetes' default is 6.
+  activeDeadlineSeconds    3600 — a wedged run is killed after an hour.
+  history limits           1 succeeded / 3 failed Jobs kept, so a failure
+                           stays inspectable without Jobs piling up.
+  timeZone                 Etc/UTC — explicit, and free of DST: in a zone
+                           that changes clocks, a 02:30 schedule is skipped
+                           one night a year and run twice another.
+
+The data volume is mounted only on `storage: true`, and never through the
+chown initContainer: the Deployment already hands the volume over on every
+start, and chowning a whole data tree on every run is slow and pointless.
+*/ -}}
+{{- if eq (include "app.envExists" .) "true" -}}
+{{- $spec := fromYaml (include "app.merged" .) -}}
+{{- $app := include "app.name" . -}}
+{{- $platformClientLabels := fromYaml (include "app.platformClientLabels" .) -}}
+{{- range $name, $job := fromYaml (include "app.cronJobs" .) }}
+{{- /* Deep-merged, so a job that sets only `memory` keeps the app's cpu. But
+       a job that sets its own `memory` and no `memoryLimit` must NOT inherit
+       the app's limit: that limit was sized against the app's request, and a
+       job asking for more than it would be rejected by the API server (limit
+       below request). Dropping it lets app.memoryLimitOf derive 2x the job's
+       own request instead. */ -}}
+{{- $jobResources := $job.resources | default dict -}}
+{{- $resources := mergeOverwrite (deepCopy $spec.resources) $jobResources -}}
+{{- if and (hasKey $jobResources "memory") (not (hasKey $jobResources "memoryLimit")) -}}
+{{- $_ := set $resources "memoryLimit" "" -}}
+{{- end -}}
+{{- /* No right-trim on the next tag: the newline before `---` is what keeps
+       the second job from gluing onto the first one's last line. */ -}}
+{{- $storage := $job.storage | default false }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $app }}-{{ $name }}
+  labels:
+    {{- include "app.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: cronjob
+    app.jterrazz.com/cronjob: {{ $name }}
+spec:
+  schedule: {{ $job.schedule | quote }}
+  timeZone: {{ $job.timeZone | default "Etc/UTC" | quote }}
+  concurrencyPolicy: {{ $job.concurrencyPolicy | default "Forbid" }}
+  suspend: {{ $job.suspend | default false }}
+  startingDeadlineSeconds: {{ $job.startingDeadlineSeconds | default 600 }}
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "app.cronJobSelectorLabels" $ | nindent 8 }}
+        app.jterrazz.com/cronjob: {{ $name }}
+    spec:
+      backoffLimit: {{ $job.backoffLimit | default 0 }}
+      activeDeadlineSeconds: {{ $job.activeDeadlineSeconds | default 3600 }}
+      template:
+        metadata:
+          labels:
+            {{- include "app.cronJobSelectorLabels" $ | nindent 12 }}
+            app.kubernetes.io/instance: {{ $.Release.Name }}
+            app.jterrazz.com/cronjob: {{ $name }}
+            {{- /* So a job can reach the platform services the app opted
+                   into: their ingress rules select on these. */}}
+            {{- range $key, $value := $platformClientLabels }}
+            {{ $key }}: {{ $value | quote }}
+            {{- end }}
+        spec:
+          restartPolicy: Never
+          {{- with include "app.podSecurityContext" $ }}
+          {{- . | nindent 10 }}
+          {{- end }}
+          {{- if eq (include "app.privateImage" $) "true" }}
+          imagePullSecrets:
+            - name: registry-credentials
+          {{- end }}
+          containers:
+            - name: {{ $name }}
+              image: {{ include "app.image" $ }}
+              {{- if eq (include "app.privateImage" $) "true" }}
+              imagePullPolicy: Always
+              {{- end }}
+              securityContext:
+                {{- include "app.containerSecurityContext" $ | nindent 16 }}
+              command:
+                {{- range $job.command }}
+                - {{ . | quote }}
+                {{- end }}
+              {{- if $job.args }}
+              args:
+                {{- range $job.args }}
+                - {{ . | quote }}
+                {{- end }}
+              {{- end }}
+              env:
+                {{- include "app.containerEnv" (dict "ctx" $ "resources" $resources) | trim | nindent 16 }}
+              {{- if or $storage $spec.configFiles $spec.secretMounts }}
+              volumeMounts:
+                {{- include "app.volumeMounts" (dict "ctx" $ "storage" $storage) | trim | nindent 16 }}
+              {{- end }}
+              resources:
+                requests:
+                  cpu: {{ $resources.cpu }}
+                  memory: {{ $resources.memory }}
+                limits:
+                  memory: {{ include "app.memoryLimitOf" $resources }}
+          {{- if or $storage $spec.configFiles $spec.secretMounts }}
+          volumes:
+            {{- include "app.volumes" (dict "ctx" $ "storage" $storage) | trim | nindent 12 }}
+          {{- end }}
+{{- end }}
+{{- end }}

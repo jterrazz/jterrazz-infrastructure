@@ -147,6 +147,11 @@ tests:
     set:
       metadata.name: gateway-intelligence
       spec.platformServices: []
+    # The app's own policy, by name: the fixture declares a cron job, so the
+    # template also renders `<app>-cronjobs`, which admits nothing by design.
+    documentSelector:
+      path: metadata.name
+      value: gateway-intelligence
     asserts:
       - contains:
           path: spec.ingress

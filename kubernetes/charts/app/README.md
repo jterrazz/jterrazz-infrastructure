@@ -446,6 +446,66 @@ shape is identical to what `--set-file` produces, so generalising that loop to
 also scan `alerts/*.yaml` is a jterrazz-actions-only change — this chart needs
 no edit when it happens.
 
+### `spec.cronJobs`
+
+Map of `name -> job`. Each entry renders a CronJob `<app>-<name>` that runs
+**the app's own container** on a schedule, with `command` in place of the
+server: the same image, `env`, secrets, platform-service env, `configFiles`,
+`secretMounts` and securityContext. Anything the app can do, its jobs can do.
+
+```yaml
+spec:
+    cronJobs:
+        digest:
+            schedule: "0 6 * * *"                 # required
+            command: ["node", "dist/digest.js"]   # required
+            args: ["--since", "24h"]
+            resources: { memory: 512Mi }          # deep-merged over spec.resources
+```
+
+| Key                       | Default   | Why that default                                                                                               |
+| ------------------------- | --------- | -------------------------------------------------------------------------------------------------------------- |
+| `schedule`                | required  | —                                                                                                              |
+| `command`                 | required  | The app's entrypoint is its server. Scheduled, it would never exit, and would run until the deadline killed it. |
+| `args`                    | none      | —                                                                                                              |
+| `timeZone`                | `Etc/UTC` | Explicit and free of DST. In a zone that changes clocks, a 02:30 schedule is skipped one night a year and run twice another. |
+| `concurrencyPolicy`       | `Forbid`  | A run that overruns its interval never gets a second copy beside it.                                            |
+| `startingDeadlineSeconds` | `600`     | A run missed by more than ten minutes (the cluster was down) is skipped, not replayed late.                    |
+| `backoffLimit`            | `0`       | A failed run is not retried blindly: it stays failed and visible, and the next schedule is the retry. Kubernetes' default is 6. |
+| `activeDeadlineSeconds`   | `3600`    | A wedged run is killed after an hour.                                                                          |
+| `suspend`                 | `false`   | The kill switch, per environment.                                                                              |
+| `storage`                 | `false`   | `true` mounts `spec.storage`, through the same claim as the Deployment.                                       |
+| `resources`               | the app's | Deep-merged over `spec.resources`, so setting only `memory` keeps the app's cpu.                               |
+
+The history limits are fixed at 1 succeeded and 3 failed Jobs, and pods run
+with `restartPolicy: Never`.
+
+Three rules that are not visible from the values:
+
+- **A job pod carries no `app` label.** The Service selects `app` +
+  `environment`. A job pod stamped with both would become an endpoint, ready
+  at once since it has no readiness probe, and Traefik would route live
+  traffic to a process that is not listening. Job pods are labelled
+  `app.kubernetes.io/name`, `app.kubernetes.io/component: cronjob`,
+  `app.jterrazz.com/cronjob: <name>` and `environment`, plus the app's
+  platform client labels. The consequence: a `pods:app=<name>` peer on some
+  other workload does not admit a job. Select on `app.kubernetes.io/name`
+  instead.
+- **Job pods get their own NetworkPolicy, `<app>-cronjobs`.** It admits
+  nothing in, since a job serves no one, and lets out exactly what the app's
+  policy lets out.
+- **Resources follow the job, not the app.** A job that sets `memory` without
+  `memoryLimit` gets 2x its own request as its limit, not the app's limit. The
+  app's limit was sized for the app's request, and a job asking for more than
+  it would be rejected by the API server. The `NODE_OPTIONS` heap cap is
+  derived from the job's request the same way.
+
+The volume is never chowned on a run: the Deployment already hands it over on
+every start. A name must be a DNS-1123 label, and `<app>-<name>` may be at
+most 52 characters, because each Job gets an 11-character suffix and a Job
+name is capped at 63. A missing `schedule` or `command`, or `storage: true` on
+an app without `spec.storage`, fails the render.
+
 ### `spec.platformServices`
 
 Opt-in wiring to in-cluster platform services. The catalog is the single
@@ -493,6 +553,10 @@ The policy itself — and the peer vocabulary it is written in, and the two trap
 it exists to absorb (ports are POD ports; hostNetwork clients are not pods) —
 comes from `kubernetes/charts/common`. A platform service declares the same
 shapes by hand in its `network:` block.
+
+Cron job pods are not selected by this policy (they carry no `app` label) and
+get their own, `<app>-cronjobs`: nothing in, the same egress out. See
+[`spec.cronJobs`](#speccronjobs).
 
 ### `spec.network`
 
@@ -591,6 +655,8 @@ For a declared environment, namespace `<environment>-<app>`:
 | ConfigMap                 | `<app>-config`                | `spec.configFiles` set          |
 | ConfigMap                 | `<app>-dashboard-<name>`      | `spec.dashboards` set **and** env is prod |
 | ConfigMap                 | `<app>-alerts`                | `spec.alerts` set **and** env is prod |
+| CronJob                   | `<app>-<name>`                | per `spec.cronJobs` entry        |
+| NetworkPolicy             | `<app>-cronjobs`              | `spec.cronJobs` set             |
 | PV / PVC                  | `<app>-<env>-data` / `<app>-data` | `spec.storage` set **without** a `claimName` |
 
 ## Versioning and publishing

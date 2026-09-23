@@ -144,6 +144,20 @@ spec:
           interval: 5m
           rules: []
 
+  # A scheduled job: the app's own container with another command. `args`
+  # and a memory-only `resources` override (cpu is inherited, and the >=512Mi
+  # request derives the job's OWN NODE_OPTIONS cap); no `storage`, so the data
+  # volume stays unmounted while the config files and secret mounts follow the
+  # app. Every other key takes the chart's default here — the staging
+  # environment below overrides them.
+  cronJobs:
+    report:
+      schedule: "0 6 * * *"
+      command: ["node", "dist/report.js"]
+      args: ["--since", "24h"]
+      resources:
+        memory: 1Gi
+
   ingress:
     # Public surface, sub-path -> exercises the stripPrefix middleware.
     - host: ci-test-app.jterrazz.com
@@ -232,6 +246,20 @@ environments:
     # An exec probe: this server does not speak HTTP at all.
     health:
       exec: ["sh", "-c", "pg_isready"]
+    # The maintenance-job shape: the data volume mounted (through the claim
+    # above), a root pod, no args, and every scheduling default overridden.
+    # Merged INTO spec's `cronJobs` map, so `report` renders here too.
+    cronJobs:
+      vacuum:
+        schedule: "30 3 * * 0"
+        timeZone: Europe/Paris
+        command: ["sh", "-c", "vacuumdb --all"]
+        storage: true
+        suspend: true
+        concurrencyPolicy: Replace
+        startingDeadlineSeconds: 120
+        backoffLimit: 2
+        activeDeadlineSeconds: 600
     # Nothing reaches it, it dials nothing — which is the entire security
     # model of an unauthenticated datastore.
     network:

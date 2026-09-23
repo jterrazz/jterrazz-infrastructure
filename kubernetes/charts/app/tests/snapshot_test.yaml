@@ -22,6 +22,7 @@ suite: full fixture render (snapshot)
 templates:
   - templates/alert-configmap.yaml
   - templates/configmap.yaml
+  - templates/cronjob.yaml
   - templates/dashboard-configmap.yaml
   - templates/deployment.yaml
   - templates/infisical.yaml

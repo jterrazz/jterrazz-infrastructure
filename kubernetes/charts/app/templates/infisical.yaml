@@ -18,8 +18,8 @@ secret — it is never a chart value, so it never reaches a Helm release Secret,
 `helm get values -a`, or a runner's argv. Path and env are CI's own
 (`jterrazz-actions/actions/infra-connect` reads its `docker login` from exactly
 there), so the cluster and CI share ONE stored copy. `registry-credentials` is
-the literal name deployment.yaml's `imagePullSecrets` uses: a contract between
-two templates, not a derived string.
+the literal name the `imagePullSecrets` of deployment.yaml and cronjob.yaml
+use: a contract between templates, not a derived string.
 
 The backticked string is the OPERATOR's template, not Helm's — Helm passes it
 through untouched and the operator renders it (text/template + sprig) against

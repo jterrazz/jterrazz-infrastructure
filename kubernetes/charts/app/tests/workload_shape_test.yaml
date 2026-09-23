@@ -252,6 +252,11 @@ tests:
       environment: staging
     templates:
       - templates/network-policy.yaml
+    # The app's own policy, by name: the fixture declares a cron job, so the
+    # template also renders `<app>-cronjobs`, which admits nothing by design.
+    documentSelector:
+      path: metadata.name
+      value: ci-test-app
     asserts:
       - contains:
           path: spec.ingress
@@ -291,6 +296,11 @@ tests:
   - it: keeps the derived Traefik ingress and internet egress for an app
     templates:
       - templates/network-policy.yaml
+    # The app's own policy, by name: the fixture declares a cron job, so the
+    # template also renders `<app>-cronjobs`, which admits nothing by design.
+    documentSelector:
+      path: metadata.name
+      value: ci-test-app
     asserts:
       - contains:
           path: spec.ingress

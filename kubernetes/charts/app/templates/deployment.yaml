@@ -1,9 +1,6 @@
 {{- if eq (include "app.envExists" .) "true" -}}
 {{- $spec := fromYaml (include "app.merged" .) -}}
-{{- $secrets := $spec.secrets -}}
-{{- $envVars := $spec.env -}}
 {{- $resources := $spec.resources -}}
-{{- $platformEnv := fromYaml (include "app.platformEnv" .) -}}
 {{- $platformClientLabels := fromYaml (include "app.platformClientLabels" .) -}}
 {{- $storage := $spec.storage -}}
 {{- /* Recreate is DERIVED from storage rather than asked for: every volume this
@@ -23,21 +20,6 @@
 {{- if and $storage (hasKey $storage "owner") -}}
 {{- $owner = $storage.owner | toString -}}
 {{- end -}}
-{{- /* readOnlyRootFilesystem is deliberately NOT among these defaults: every app
-here is a Next.js or Node service that writes caches at runtime, and setting
-it would crash-loop them. `spec.securityContext` merges OVER the defaults, so
-an app needing a capability back never has to fork the chart. deepCopy because
-mergeOverwrite mutates its first argument.
-*/ -}}
-{{- $secDefaults := dict
-      "allowPrivilegeEscalation" false
-      "capabilities" (dict "drop" (list "ALL"))
-      "seccompProfile" (dict "type" "RuntimeDefault") -}}
-{{- /* runAsNonRoot would contradict an explicit spec.runAsRoot opt-out. */ -}}
-{{- if not $spec.runAsRoot -}}
-{{- $_ := set $secDefaults "runAsNonRoot" true -}}
-{{- end -}}
-{{- $securityContext := mergeOverwrite (deepCopy $secDefaults) $spec.securityContext -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -77,11 +59,8 @@ spec:
         {{ $key }}: {{ $value | quote }}
         {{- end }}
     spec:
-      {{- if not $spec.runAsRoot }}
-      securityContext:
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
+      {{- with include "app.podSecurityContext" . }}
+      {{- . | nindent 6 }}
       {{- end }}
       {{- /* Only for an image on OUR registry: that is the only one the
              credential can authenticate, and naming a Secret that does not
@@ -126,7 +105,7 @@ spec:
           imagePullPolicy: Always
           {{- end }}
           securityContext:
-            {{- toYaml $securityContext | nindent 12 }}
+            {{- include "app.containerSecurityContext" . | nindent 12 }}
           {{- if $spec.command }}
           command:
             {{- range $spec.command }}
@@ -142,69 +121,10 @@ spec:
           ports:
             - containerPort: {{ $spec.port }}
           env:
-            - name: PORT
-              value: {{ $spec.port | quote }}
-            {{- range $key, $value := $envVars }}
-            - name: {{ $key }}
-              value: {{ $value | quote }}
-            {{- end }}
-            {{- if not (hasKey $envVars "OTEL_SERVICE_NAME") }}
-            - name: OTEL_SERVICE_NAME
-              value: {{ include "app.name" . }}
-            {{- end }}
-            {{- /* Both spellings: `deployment.environment` is what the
-                   collector's Langfuse filter, the remote-write label
-                   (deployment_environment) and @jterrazz/telemetry read;
-                   `deployment.environment.name` is the current semconv,
-                   which Langfuse maps to its Environment field. */}}
-            {{- if not (hasKey $envVars "OTEL_RESOURCE_ATTRIBUTES") }}
-            - name: OTEL_RESOURCE_ATTRIBUTES
-              value: "deployment.environment={{ .Values.environment }},deployment.environment.name={{ .Values.environment }}"
-            {{- end }}
-            {{- /* Opt-in platform-service env (spec.platformServices → the
-                   catalog in _helpers.tpl). An app must declare
-                   `otel-collector` for telemetry to flow — declaring it is
-                   also what opens the egress hole. A user-set env wins. */}}
-            {{- range $key, $value := $platformEnv }}
-            {{- if not (hasKey $envVars $key) }}
-            - name: {{ $key }}
-              value: {{ $value | quote }}
-            {{- end }}
-            {{- end }}
-            {{- /* Default Node.js heap cap ≈ 75% of the memory request.
-                   Skipped entirely if the app sets its own NODE_OPTIONS.
-                   Harmless on non-Node runtimes (the var is ignored). */}}
-            {{- $nodeHeap := include "app.nodeMaxOldSpace" . }}
-            {{- if and $nodeHeap (not (hasKey $envVars "NODE_OPTIONS")) }}
-            - name: NODE_OPTIONS
-              value: "--max-old-space-size={{ $nodeHeap }}"
-            {{- end }}
-            {{- if $secrets.env }}
-            {{- range $secrets.env }}
-            - name: {{ . }}
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "app.secretsName" $ }}
-                  key: {{ . }}
-            {{- end }}
-            {{- end }}
+            {{- include "app.containerEnv" (dict "ctx" . "resources" $resources) | trim | nindent 12 }}
           {{- if or $storage $spec.configFiles $spec.secretMounts }}
           volumeMounts:
-            {{- if $storage }}
-            - name: data
-              mountPath: {{ $storage.mountPath }}
-            {{- end }}
-            {{- range $filename, $file := $spec.configFiles }}
-            - name: config
-              mountPath: {{ include "app.configFilePath" (dict "filename" $filename "file" $file) }}
-              subPath: {{ $filename }}
-              readOnly: true
-            {{- end }}
-            {{- range $spec.secretMounts }}
-            - name: {{ .secretName }}
-              mountPath: {{ .mountPath }}
-              readOnly: true
-            {{- end }}
+            {{- include "app.volumeMounts" (dict "ctx" . "storage" (not (not $storage))) | trim | nindent 12 }}
           {{- end }}
           resources:
             requests:
@@ -229,20 +149,6 @@ spec:
             timeoutSeconds: {{ $spec.health.timeoutSeconds }}
       {{- if or $storage $spec.configFiles $spec.secretMounts }}
       volumes:
-        {{- if $storage }}
-        - name: data
-          persistentVolumeClaim:
-            claimName: {{ $storage.claimName | default (printf "%s-data" (include "app.name" .)) }}
-        {{- end }}
-        {{- if $spec.configFiles }}
-        - name: config
-          configMap:
-            name: {{ include "app.name" . }}-config
-        {{- end }}
-        {{- range $spec.secretMounts }}
-        - name: {{ .secretName }}
-          secret:
-            secretName: {{ .secretName }}
-        {{- end }}
+        {{- include "app.volumes" (dict "ctx" . "storage" (not (not $storage))) | trim | nindent 8 }}
       {{- end }}
 {{- end }}
