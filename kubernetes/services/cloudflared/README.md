@@ -8,7 +8,7 @@ internal Traefik service.
 
 ## How it routes
 
-```
+```text
 client ──https──► Cloudflare edge ──QUIC tunnel──► this Deployment
                                                        │
                                                        ▼

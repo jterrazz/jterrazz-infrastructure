@@ -47,6 +47,7 @@ for doc in yaml.safe_load_all(sys.stdin):
     if not doc or doc.get("kind") != "CustomResourceDefinition":
         continue
     if doc["metadata"]["name"] != "infisicalsecrets.secrets.infisical.com":
+
         continue
     for version in doc["spec"]["versions"]:
         out = collections.OrderedDict()

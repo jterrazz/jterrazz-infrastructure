@@ -48,6 +48,7 @@ spec:
     cpu: 100m
     memory: 256Mi
     memoryLimit: 512Mi          # optional; defaults to 2x the request
+
   health:
     path: /health
   env:
@@ -56,6 +57,7 @@ spec:
     path: /my-app               # Infisical path -> InfisicalSecret
     env: [DATABASE_URL, API_TOKEN]
   ingress:                      # base default; an environment may replace it
+
     - host: my-app.jterrazz.com
       path: /
       public: true
@@ -63,6 +65,7 @@ spec:
   storage:
     size: 2Gi
     mountPath: /data
+
 environments:
   prod:
     tag: main
@@ -200,29 +203,29 @@ ingress:
     public: false             # tailnet-only: private-access middleware attached
 ```
 
-* `public` is **required** per entry — the render fails without it rather
+- `public` is **required** per entry — the render fails without it rather
   than silently defaulting a network-visibility decision.
-* The single-object form was removed in chart 1.17.0; a non-list fails with
+- The single-object form was removed in chart 1.17.0; a non-list fails with
   an explicit message.
-* `access: private | cluster-internal | public` is the same decision as
+- `access: private | cluster-internal | public` is the same decision as
   `public:` in `platform-service`'s three-value vocabulary, and exists for the
   one answer a boolean cannot give: **cluster-internal**, i.e. tailnet humans
   *plus* the cluster's own pods, for a route something inside the cluster must
   also reach (OpenPanel's dashboard SSRs against its own public URL). Set one or
   the other, never both; `public:` stays the everyday spelling.
-* `path` defaults to `/`. Any other path also emits a `stripPrefix`
+- `path` defaults to `/`. Any other path also emits a `stripPrefix`
   middleware (legacy `/api` behaviour: the backend mounts routes at the
   root). Set `stripPrefix: false` on the entry to keep the prefix visible to
   the app — e.g. an MCP server registered at the literal `/mcp` — or to a
   **string** to strip something other than the route's own path: OpenPanel's
   ingest is routed on `/api/track` and its backend serves `/track`, so it
   strips `/api`.
-* `tlsSecret` names an existing TLS Secret and suppresses the `Certificate`
+- `tlsSecret` names an existing TLS Secret and suppresses the `Certificate`
   this entry would otherwise render. For a hostname **two releases** answer on:
   neither can own its certificate without a second one being issued for the
   same name, so the service owns it (`certificates:` in its `service.yaml`) and
   both routes name it.
-* `redirectTo` turns the entry into a **redirect-only host**: it answers on
+- `redirectTo` turns the entry into a **redirect-only host**: it answers on
   `host` and 301s to the given absolute `https://` URL, never reaching the app.
   The path is carried over by default (`preservePath: true`), which is what a
   canonical-host redirect needs — dropping it would break every deep link that
@@ -245,10 +248,10 @@ ingress:
 
   A redirect host still needs its own `Certificate` and its own Public Hostname
   on the Cloudflare tunnel — TLS terminates before the redirect is served.
-* One `Certificate` per **unique host** (`<app>-<host-slug>-tls`, DNS-01 via
+- One `Certificate` per **unique host** (`<app>-<host-slug>-tls`, DNS-01 via
   the `letsencrypt-production` ClusterIssuer); one `IngressRoute` per
   **entry** (`<app>-<idx>`), so two entries can share a host.
-* Public hostnames still need a Public Hostname route in the Cloudflare Zero
+- Public hostnames still need a Public Hostname route in the Cloudflare Zero
   Trust dashboard, and a new zone must be added to cert-manager's
   `issuers.yaml`. Private `*.internal.jterrazz.com` names resolve through one
   hand-made wildcard CNAME and need no DNS work.
@@ -599,7 +602,7 @@ nothing, because it has no password of its own (`op-postgres`, `op-redis`,
 falls back to `<registry>/<app>:latest`. Whether the image lives on **our**
 registry decides two more things, with no knob for either:
 
-* the `registry-credentials` `imagePullSecret` is attached only then — the
+- the `registry-credentials` `imagePullSecret` is attached only then — the
   credential authenticates that registry alone, and naming a Secret that is not
   in the namespace earns a `FailedToRetrieveImagePullSecret` warning on every
   pod start. That Secret is not built from values: the chart renders a second
@@ -610,7 +613,7 @@ registry decides two more things, with no knob for either:
   so it never lands in a release Secret or on a runner's argv, and rotating it
   needs no app deploy at all (`docs/guides/operate.md`, § Rotating the registry
   password);
-* `imagePullPolicy: Always` is set only then — our tags (`main`, `next`) are
+- `imagePullPolicy: Always` is set only then — our tags (`main`, `next`) are
   mutable, so `IfNotPresent` would keep serving whatever the node cached first.
   A third-party image keeps Kubernetes' default, which is what its pinned tag
   deserves and what keeps a pod restart off Docker Hub's anonymous pull quota.

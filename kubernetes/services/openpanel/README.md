@@ -13,7 +13,7 @@ integrates OpenPanel's browser snippet itself. Other origins listed in
 
 ## Architecture
 
-```
+```text
  jterrazz.com (browser) ─► analytics.jterrazz.com/api/track ──► Cloudflare edge
         │                                                          │ tunnel
         ▼                                                          ▼

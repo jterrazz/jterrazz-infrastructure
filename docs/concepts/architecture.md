@@ -76,7 +76,7 @@ API server) is tailnet-only: Traefik's LoadBalancer is pinned to
 the Tailscale CGNAT range by `loadBalancerSourceRanges`, and UFW double-enforces.
 Nothing listens on a public address.
 
-```
+```text
 ┌───────────────────────────── INTERNET ────────────────────────────────┐
 │                          Cloudflare edge                              │
 └──────────────────────────────┬────────────────────────────────────────┘
@@ -118,7 +118,7 @@ Mac anyway. Re-add `cluster-init: true` the day a second node exists.
 
 ## The tree
 
-```
+```text
 ansible/
 ├── playbooks/     site.yml     base → security → resolved → tailscale → k3s → platform
 │                  platform.yml the platform layer alone (what CI runs)

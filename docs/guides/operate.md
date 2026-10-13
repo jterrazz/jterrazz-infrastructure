@@ -128,7 +128,7 @@ gh secret set INFISICAL_CLIENT_SECRET -R jterrazz/<repo> --body "$INFISICAL_CLIE
 
 ### Local `.env` (gitignored, repo root)
 
-```
+```text
 INFISICAL_CLIENT_ID
 INFISICAL_CLIENT_SECRET
 ```
@@ -216,7 +216,7 @@ curl -s "http://$POD_IP:2000/metrics" | grep '^cloudflared_tunnel_total_requests
 # k8s.container.name / app — pinned by the VL-Stream-Fields header on the
 # collector's exporter. Everything else (node, deployment, pod uid, file path)
 # is a regular field: filter on it, just do not expect it to narrow the scan.
-#
+
 # LogQL -> LogsQL, the three that bite: `|=` "x" is just a bare word or
 # "quoted phrase"; `| json` is unnecessary (JSON bodies are parsed on ingest);
 # `| line_format` / `sum by (...) (rate(...))` become the `format` and `stats`
@@ -424,7 +424,7 @@ All persistent state is one directory: `/var/lib/k8s-data` on the node, which
 is a symlink to `~/.jterrazz-infrastructure/data` on the Mac. Restore = stop
 the consumer, replace the directory, start it again.
 
-```
+```text
 data/
 ├── grafana/                    grafana.db — users, API keys, alert state
 ├── victoria-metrics/           metrics (30d)
@@ -467,7 +467,7 @@ The operator reconciles on the Infisical VALUE, not on the Kubernetes object.
 It caches the server's ETag per `InfisicalSecret`, and while the value is
 unchanged it writes nothing:
 
-```
+```text
 Secrets unchanged (server ETag match), skipping reconciliation
 ```
 
@@ -764,7 +764,7 @@ evidence.
 | ClickHouse | `26.1.3.52`    | Exactly what OpenPanel's self-hosting compose pins at the 2.3.0 images (moved with them, 2026-09-19). Newer is uncited and 26.5/26.7 change event-ingest datetime parsing and reject the AggregatingMergeTree schema shape OpenPanel uses. |
 | Redis 8.x  | staying on 7.x | Neither OpenPanel nor BullMQ publishes a Redis 8 support statement.                                                                                                                                |
 
-#### The PostgreSQL major migration (14 → 17 was run this way on 2026-09-19)
+### The PostgreSQL major migration (14 → 17 was run this way on 2026-09-19)
 
 Kept as the procedure for the next major. DB was ~26 MB, ~5 minutes of
 dashboard/ingest downtime end to end. **Dump with the *newer* server's

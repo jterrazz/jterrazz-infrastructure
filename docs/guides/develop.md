@@ -115,7 +115,9 @@ mechanically when editing any values file, manifest or template in this repo.
   neither of which the app chart expresses, for the one workload in the cluster
   that needs them. Its `cloudflared-platform` release still carries the
   tunnel-token InfisicalSecret, so the manifest is a Deployment and nothing
-  else. Everything that used to sit beside it — OpenPanel's six workloads,
+  else.
+
+  Everything that used to sit beside it — OpenPanel's six workloads,
   the registry — now renders through `charts/app`, which is
   why that chart grew `command`/`args`, an exec/tcp probe, `storage.claimName`,
   `servicePort` and `network.isolated`. Reach for a new raw manifest only when
@@ -136,7 +138,9 @@ mechanically when editing any values file, manifest or template in this repo.
   app Deployment. Neither holds a list of hostnames, status codes or repos, and
   `assert-sync.py` no longer needs a check to hold two such lists together. Add
   a surface and it is probed with no edit here; the contract is
-  `kubernetes/charts/common/templates/_smoke.tpl`. Two consequences: an
+  `kubernetes/charts/common/templates/_smoke.tpl`.
+
+  Two consequences: an
   unannotated route is probed with a `GET / -> 200` fallback and named in the
   output, which means an app has not redeployed onto the current chart rather
   than that it is uninteresting; and a repave leaves nothing to discover, hence
