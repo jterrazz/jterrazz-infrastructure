@@ -2,8 +2,8 @@
 
 The 2am document: where the secrets are, what to run when something is down,
 and how to rebuild from nothing. Design lives in
-[01-architecture.md](01-architecture.md); the rules a change to the tree
-follows are [02-developing.md](02-developing.md).
+[Architecture](../concepts/architecture.md); the rules a change to the tree
+follows are [Develop](develop.md).
 
 ## Reaching the cluster
 
@@ -274,7 +274,7 @@ orb -m jterrazz-infrastructure -u root resolvectl status eth0
 and always shows a single `nameserver 127.0.0.53`. `networkctl status eth0 |
 grep 'Network File'` names the file the drop-in must sit beside — the role
 derives it rather than hardcoding `eth0.network`. Which file kubelet is pinned
-to, and why, is [02-developing.md](02-developing.md#the-vm-is-built-one-way).
+to, and why, is [Develop](develop.md#the-vm-is-built-one-way).
 
 ### Objects that need a gesture before they move
 
@@ -315,7 +315,7 @@ the wildcard TLS certificate covers `svc.internal`, not `a.b.internal`.
 
 `analytics` is the one public hostname whose record is NOT created by the
 tunnel's Public Hostname feature (every other one is — see
-[cloudflared](../kubernetes/services/cloudflared/README.md)). Its *route* is in
+[cloudflared](../../kubernetes/services/cloudflared/README.md)). Its *route* is in
 Zero Trust, its *record* is this one, so deleting it falls back to nothing and
 OpenPanel's ingest stops resolving. Proxied is mandatory: `cfargotunnel.com`
 only resolves at the edge. To retire it, add `analytics.jterrazz.com` as a
@@ -448,7 +448,7 @@ survives one, so deleting a directory here is the deletion the `Retain` policy
 was protecting against.
 
 For consistent database dumps rather than a file copy, see the backup section
-of [openpanel](../kubernetes/services/openpanel/README.md#backup--restore).
+of [openpanel](../../kubernetes/services/openpanel/README.md#backup--restore).
 
 ## Rotating credentials
 
@@ -699,7 +699,7 @@ Deployment is the last resort, for something no chart can express; cloudflared
    group_vars — CoreDNS needs the name before the route exists, and `smoke.sh`
    fails if the list and the live routes disagree either way. A public service
    needs a new zone — the three steps are in
-   [02-developing.md](02-developing.md#dns-has-exactly-three-owners-and-none-of-them-is-this-repos-code).
+   [Develop](develop.md#dns-has-exactly-three-owners-and-none-of-them-is-this-repos-code).
    Smoke: **nothing**, unless the default (`GET /` -> 200) is wrong for this
    service, in which case add `smoke: { path, expect }` to the same
    `service.yaml`. The chart stamps it on the route and `scripts/smoke.sh`
@@ -734,7 +734,7 @@ Deployment is the last resort, for something no chart can express; cloudflared
 
 Apps live in their own repo and deploy themselves; this repo only owns the
 chart they render through. Full schema and merge semantics:
-[kubernetes/charts/app/README.md](../kubernetes/charts/app/README.md).
+[kubernetes/charts/app/README.md](../../kubernetes/charts/app/README.md).
 
 1. Add `.infrastructure/application.yaml` to the app repo, with `tag:` set on
    every environment — omitting it silently deploys "staging" instead. Smoke

@@ -9,14 +9,14 @@ here; the workflows that execute the contract are
 - **One manifest**, `.infrastructure/application.yaml` — an `Application` the
   app chart renders: port, resources, ingress, storage, secrets, per
   environment. The schema, its merge semantics, `platformServices` and storage
-  are [kubernetes/charts/app/README.md](../kubernetes/charts/app/README.md).
+  are [kubernetes/charts/app/README.md](../../kubernetes/charts/app/README.md).
 - **`tag:` on every environment.** Without it the workflow takes a legacy
   branch that deploys "staging" and leaves prod silently stale.
 - **One universal CI interface** — `make build`, `make lint`, `make test`,
   whatever the toolchain.
 - **Two GitHub secrets**, `INFISICAL_CLIENT_ID` and `INFISICAL_CLIENT_SECRET`,
   set on the repo before its first deploy — see
-  [04-operating.md](04-operating.md#github-secrets-every-app-repo).
+  [Operate](../guides/operate.md#github-secrets-every-app-repo).
 
 ## What the app repo gets
 
@@ -26,7 +26,7 @@ here; the workflows that execute the contract are
 - **The chart, pulled unversioned** from
   `oci://registry.internal.jterrazz.com/charts/app`. An app never pins a chart
   version, which is why a template edit must bump `version:` in
-  `charts/app/Chart.yaml` — see [07-hand-synced-pairs.md](07-hand-synced-pairs.md).
+  `charts/app/Chart.yaml` — see [Hand-synced pairs](hand-synced-pairs.md).
 - **Discovery instead of registration.** Smoke probes and redeploys read the
   live cluster: `scripts/smoke.sh` probes what each IngressRoute's
   `smoke.jterrazz.com/*` annotations say, and `scripts/trigger-app-deploys.sh`

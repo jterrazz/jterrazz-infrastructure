@@ -1,20 +1,32 @@
-# The corpus
+# The manual
 
 Everything this repository knows about itself: one cluster on one machine, the
-charts apps deploy through, and what breaks. Each chapter owns its subject;
-nothing here is written twice.
+charts apps deploy through, and what breaks. Each page owns its subject;
+nothing here is written twice. The pages are cut by what a reader came to do.
 
-| Chapter                                                | Holds                                                                             |
-| ------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| [01-architecture.md](01-architecture.md)               | The machine, the four layers, the three charts, the traffic paths, the tree       |
-| [02-developing.md](02-developing.md)                   | How a change is made: the gate, the five config rules, the conventions, DNS owners |
-| [03-testing.md](03-testing.md)                         | What proves a change: the tree-side checks, the chart fixtures, the smoke probe    |
-| [04-operating.md](04-operating.md)                     | Secrets, troubleshooting, repaving, backups, restores, adding a service or app     |
-| [05-deploy-contract.md](05-deploy-contract.md)         | What an app repo owes the cluster and what it gets back                            |
-| [06-ci.md](06-ci.md)                                   | The four workflows, what triggers each, and what a merge does not do               |
-| [07-hand-synced-pairs.md](07-hand-synced-pairs.md)     | The facts written down twice, each with its checker or an admission it has none    |
-| [08-platform-services.md](08-platform-services.md)     | What runs on the cluster that is not an app                                        |
-| [09-hetzner.md](09-hetzner.md)                         | How to resurrect a rented target, from git history                                 |
+## Guides
+
+| Page                                         | Holds                                                                                   |
+| -------------------------------------------- | --------------------------------------------------------------------------------------- |
+| [develop](guides/develop.md)                 | How a change is made: the gate, the five config rules, the conventions, DNS owners      |
+| [test](guides/test.md)                       | What proves a change: the tree-side checks, the chart fixtures, the smoke probe         |
+| [operate](guides/operate.md)                 | Secrets, troubleshooting, repaving, backups, restores, adding a service or app          |
+| [resurrect-hetzner](guides/resurrect-hetzner.md) | How to bring a rented target back, from git history                                 |
+
+## Concepts
+
+| Page                                      | Holds                                                                    |
+| ----------------------------------------- | ------------------------------------------------------------------------ |
+| [architecture](concepts/architecture.md)  | The machine, the four layers, the three charts, the traffic paths, the tree |
+
+## Reference
+
+| Page                                                  | Holds                                                                       |
+| ----------------------------------------------------- | --------------------------------------------------------------------------- |
+| [deploy-contract](reference/deploy-contract.md)       | What an app repo owes the cluster and what it gets back                     |
+| [ci](reference/ci.md)                                 | The four workflows, what triggers each, and what a merge does not do        |
+| [hand-synced-pairs](reference/hand-synced-pairs.md)   | The facts written down twice, each with its checker or an admission it has none |
+| [platform-services](reference/platform-services.md)   | What runs on the cluster that is not an app                                 |
 
 The decisions this repository took alone stand in [decisions/](decisions/),
 numbered and chronological, with the mold `_template.md` beside them.

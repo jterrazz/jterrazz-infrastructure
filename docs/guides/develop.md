@@ -2,22 +2,22 @@
 
 How a change to this tree is made: what to run before a pull request, the rules
 for editing any values file, and the conventions the layout implies but does not
-state. What the system IS is [01-architecture.md](01-architecture.md); what
-proves a change is [03-testing.md](03-testing.md); what to type when something
-is down is [04-operating.md](04-operating.md).
+state. What the system IS is [Architecture](../concepts/architecture.md); what
+proves a change is [Test](test.md); what to type when something
+is down is [Operate](operate.md).
 
 ## Before you commit
 
 `make check` (alias `make lint`, the name every app repo's CI uses) runs what CI
 runs on the tree: shellcheck, python syntax, the cross-file sync assertions,
 ansible-lint, helm lint and unittest, actionlint. What each one proves, and what
-none of them can, is [03-testing.md](03-testing.md).
+none of them can, is [Test](test.md).
 
 A change to a chart template also needs its `version:` bumped in that chart's
 `Chart.yaml`. The app chart is consumed unversioned and both publish guards skip
 rather than overwrite, so a forgotten bump ships nothing, silently — the pair
 and its consequences are in
-[07-hand-synced-pairs.md](07-hand-synced-pairs.md).
+[Hand-synced pairs](../reference/hand-synced-pairs.md).
 
 ## Editing config
 
@@ -81,7 +81,7 @@ mechanically when editing any values file, manifest or template in this repo.
   CoreDNS (which uses `dnsPolicy: Default`) forwards into its own 127.0.0.53
   stub and the loop plugin fatals on startup. The DHCP resolver this works
   around, and how to diagnose it on a live VM, are
-  [04-operating.md](04-operating.md#dns-on-the-vm).
+  [Operate](operate.md#dns-on-the-vm).
 
 ## How the platform layer is applied
 
@@ -141,7 +141,7 @@ mechanically when editing any values file, manifest or template in this repo.
   output, which means an app has not redeployed onto the current chart rather
   than that it is uninteresting; and a repave leaves nothing to discover, hence
   `--dry-run > file` before and `--from file` after, in
-  [the repave sequence](04-operating.md#repaving-the-cluster).
+  [the repave sequence](operate.md#repaving-the-cluster).
 
 ## Networking
 
@@ -205,7 +205,7 @@ tuning.
 - **Public** — the Cloudflare Zero Trust tunnel owns the record. Add a Public
   Hostname in its UI; nothing lands in this repo.
 - **The machine** — two records made by hand in the Cloudflare dashboard and
-  written down in [04-operating.md](04-operating.md#dns-records-set-once-survive-everything):
+  written down in [Operate](operate.md#dns-records-set-once-survive-everything):
   the `*.internal` wildcard, and `analytics`, which is the exception to "the
   tunnel owns every public record" because its route is a Public Hostname but
   its record is manual, so deleting it falls back to nothing.

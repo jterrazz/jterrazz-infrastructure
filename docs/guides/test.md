@@ -3,7 +3,7 @@
 What proves a change here, and what nothing proves. There is no test suite in
 the ordinary sense: the evidence is of two kinds — tree-side checks, which read
 files and render templates with no cluster anywhere, and one black-box probe of
-the deployed state. The workflows that carry both are [06-ci.md](06-ci.md).
+the deployed state. The workflows that carry both are [CI](../reference/ci.md).
 
 ## The tree-side checks
 
@@ -14,13 +14,13 @@ Each check answers for one thing:
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | `shellcheck scripts/*.sh scripts/lib/*.sh`                       | the shell is not quietly wrong — quoting, unset vars, the classic word-split                    |
 | `ast.parse` on `infisical-vars.py` and `assert-sync.py`          | both python scripts parse (and leave no `__pycache__/` behind, which `py_compile` would)        |
-| `python3 scripts/assert-sync.py`                                 | every fact this repo writes down twice still agrees — the roster is [07-hand-synced-pairs.md](07-hand-synced-pairs.md) |
+| `python3 scripts/assert-sync.py`                                 | every fact this repo writes down twice still agrees — the roster is [Hand-synced pairs](../reference/hand-synced-pairs.md) |
 | `ansible-lint -c ansible/.ansible-lint ansible/`                 | the whole Ansible tree, roles and templates and inventories, not just `playbooks/`               |
 | `ansible-playbook --syntax-check` on both playbooks              | each playbook parses against the inventory that actually runs it                                |
 | `helm lint` on `common` alone, then `app` and `platform-service` against their `ci/test-values.yaml` | the charts render, and render something — see [the fixtures](#the-fixtures-are-the-validation-contract) |
 | `helm unittest --strict app platform-service`                    | what the templates COMPUTED, not merely that the YAML is well-formed                            |
 | `actionlint`                                                     | the workflow files themselves                                                                    |
-| `make docs`                                                      | this corpus still opens on the estate's spine — the map bijective, the chapters contiguous, the four fixed names in place |
+| `make docs`                                                      | the manual still has the estate's shape — the map bijective, the pages in their sections, the three required pages in place |
 
 `--strict` on helm-unittest matters: it rejects an unknown key in a test file,
 so a typo'd assertion name is an error rather than an assertion that silently
@@ -130,7 +130,7 @@ discovered without probing anything.
   run; bumping the `infisical` release without re-extracting it means CI
   validates against a CRD the cluster no longer has, and the break lands at
   `kubectl apply`. That pair has no checker — see
-  [07-hand-synced-pairs.md](07-hand-synced-pairs.md).
+  [Hand-synced pairs](../reference/hand-synced-pairs.md).
 - **`private_hostnames` against the live routes** is only ever checked at smoke
   time, both ways. Until a smoke run, a name CoreDNS answers for and nothing
   serves looks the same as a healthy list.

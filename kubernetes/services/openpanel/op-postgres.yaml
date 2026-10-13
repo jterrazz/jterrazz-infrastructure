@@ -4,7 +4,7 @@
 # its self-hosting compose and documents no other version; the only support
 # statement reaching higher is Prisma 6's supported-databases list (PG 9.6-18)
 # — the ORM, not the application. 14 goes EOL on 2026-11-12, which is why the
-# accept-the-risk migration in docs/04-operating.md was run on 2026-09-19
+# accept-the-risk migration in docs/guides/operate.md was run on 2026-09-19
 # (pg_dumpall with a 17 client, restore into a fresh 17 cluster; the PG 14
 # directory stays beside it as `pgdata-pg14-<date>`, the rollback). 17 rather
 # than 18: the 18 image moved its default data layout, and 17 is supported

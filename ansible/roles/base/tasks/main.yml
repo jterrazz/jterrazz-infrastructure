@@ -109,7 +109,7 @@
 # the data still lands in the Mac's page cache, so only a macOS crash or hard
 # power-off can lose the last seconds — the same contract a native macOS
 # fsync() gives. Applies to /dev/vd* only: virtiofs mounts (/var/lib/k8s-data)
-# are untouched, their fsyncs stay durable. See docs/02-developing.md § The fsync tax.
+# are untouched, their fsyncs stay durable. See docs/guides/develop.md § The fsync tax.
 # Runtime-only sysfs attribute, hence a unit that re-applies it at every boot.
 - name: Install the virtio-blk no-flush unit
   ansible.builtin.copy:

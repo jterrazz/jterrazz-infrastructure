@@ -19,21 +19,21 @@ answer.
 
 ## Where to read
 
-| Question                                                 | Chapter                                                            |
-| -------------------------------------------------------- | -------------------------------------------------------------------- |
-| How does the system fit together? What is the layout?    | [docs/01-architecture.md](docs/01-architecture.md)                 |
-| I am editing a values file, manifest, template or role   | [docs/02-developing.md](docs/02-developing.md)                     |
-| What proves this change? What does a deploy prove?       | [docs/03-testing.md](docs/03-testing.md)                           |
-| Secrets, troubleshooting, repave, restore, add a service | [docs/04-operating.md](docs/04-operating.md)                       |
-| I am deploying or configuring an app                     | [docs/05-deploy-contract.md](docs/05-deploy-contract.md)           |
-| What does CI run, and what does a merge trigger?         | [docs/06-ci.md](docs/06-ci.md)                                     |
-| I am changing a version, a digest or a shared value      | [docs/07-hand-synced-pairs.md](docs/07-hand-synced-pairs.md)       |
-| What runs on the cluster, and where is its detail?       | [docs/08-platform-services.md](docs/08-platform-services.md)       |
-| How do I bring a rented target back?                     | [docs/09-hetzner.md](docs/09-hetzner.md)                           |
-| Why was a choice made?                                   | [docs/decisions/](docs/decisions/)                                 |
-| The `application.yaml` schema                            | [kubernetes/charts/app/README.md](kubernetes/charts/app/README.md) |
-| What the two charts share                                | [kubernetes/charts/common/README.md](kubernetes/charts/common/README.md) |
-| One service's versions, data paths and quirks            | `kubernetes/services/<svc>/README.md`                              |
+| Question                                                 | Page                                                                                |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| How does the system fit together? What is the layout?    | [docs/concepts/architecture.md](docs/concepts/architecture.md)                      |
+| I am editing a values file, manifest, template or role   | [docs/guides/develop.md](docs/guides/develop.md)                                    |
+| What proves this change? What does a deploy prove?       | [docs/guides/test.md](docs/guides/test.md)                                          |
+| Secrets, troubleshooting, repave, restore, add a service | [docs/guides/operate.md](docs/guides/operate.md)                                    |
+| I am deploying or configuring an app                     | [docs/reference/deploy-contract.md](docs/reference/deploy-contract.md)              |
+| What does CI run, and what does a merge trigger?         | [docs/reference/ci.md](docs/reference/ci.md)                                        |
+| I am changing a version, a digest or a shared value      | [docs/reference/hand-synced-pairs.md](docs/reference/hand-synced-pairs.md)          |
+| What runs on the cluster, and where is its detail?       | [docs/reference/platform-services.md](docs/reference/platform-services.md)          |
+| How do I bring a rented target back?                     | [docs/guides/resurrect-hetzner.md](docs/guides/resurrect-hetzner.md)                |
+| Why was a choice made?                                   | [docs/decisions/](docs/decisions/)                                                  |
+| The `application.yaml` schema                            | [kubernetes/charts/app/README.md](kubernetes/charts/app/README.md)                  |
+| What the two charts share                                | [kubernetes/charts/common/README.md](kubernetes/charts/common/README.md)            |
+| One service's versions, data paths and quirks            | `kubernetes/services/<svc>/README.md`                                               |
 
 ## Gestures
 
@@ -44,6 +44,6 @@ make diff       # what a platform deploy would change, without changing it
 make smoke      # probe the deployed public surfaces
 ```
 
-What each one proves is [docs/03-testing.md](docs/03-testing.md); what a change
+What each one proves is [docs/guides/test.md](docs/guides/test.md); what a change
 owes before it is committed is
-[docs/02-developing.md](docs/02-developing.md#before-you-commit).
+[docs/guides/develop.md](docs/guides/develop.md#before-you-commit).

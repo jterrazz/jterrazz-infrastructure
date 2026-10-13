@@ -10,10 +10,10 @@ paths, secrets and quirks.
   app-chart releases (`op-postgres`, `op-redis`, `op-clickhouse`, `op-api`,
   `op-worker`, `op-dashboard`) plus `openpanel-platform`, which owns the volumes
   and the two certificates its routes share.
-  [README](../kubernetes/services/openpanel/README.md)
+  [README](../../kubernetes/services/openpanel/README.md)
 - **cloudflared** — the public-traffic tunnel, namespace `platform-networking`.
   The one raw Deployment in the tree, deliberately (`hostNetwork: true`).
-  [README](../kubernetes/services/cloudflared/README.md)
+  [README](../../kubernetes/services/cloudflared/README.md)
 - **Telemetry** (`platform-telemetry`) — the VictoriaMetrics family:
   VictoriaMetrics (metrics, 30d, scrapes via `-promscrape.config` and receives
   Prometheus remote-write), VictoriaLogs (logs, 90d) and VictoriaTraces (traces,
@@ -33,7 +33,7 @@ paths, secrets and quirks.
   restore it cannot start. Recover with `make deploy-platform` from the Mac.
   A weekly CronJob, `registry-gc`, deletes the untagged manifests every push
   leaves behind; it is in
-  [04-operating.md](04-operating.md#registry-garbage-collection).
+  [Operate](../guides/operate.md#registry-garbage-collection).
 - **gateway-intelligence** — an app-chart workload deployed by its own repo. It
   runs CLIProxyAPI with `api-keys: []`, which leaves its auth middleware
   allowing everything. The security boundary is NetworkPolicy plus private-only

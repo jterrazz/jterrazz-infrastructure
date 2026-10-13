@@ -1,7 +1,7 @@
 # CI
 
 Four workflows: what each one is triggered by and what it does. What the checks
-inside them actually prove is [03-testing.md](03-testing.md).
+inside them actually prove is [Test](../guides/test.md).
 
 Three read the tree; one reads the cluster.
 
@@ -14,7 +14,7 @@ Three read the tree; one reads the cluster.
 
 `make check` runs the tree-side checks locally, under the name every app repo
 uses (`make lint` is an alias). It is not the whole of `validate.yaml`: what
-only CI runs, and why, is [03-testing.md](03-testing.md#what-only-ci-runs).
+only CI runs, and why, is [Test](../guides/test.md#what-only-ci-runs).
 
 A merge to main deploys nothing on its own. `deploy-platform.yaml` is filtered
 to `ansible/**` and `kubernetes/{services,cluster,charts}/**`, and

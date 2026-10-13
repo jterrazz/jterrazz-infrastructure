@@ -11,23 +11,23 @@ Ansible configures it, Helmfile deploys onto it — every platform release decla
 once in `kubernetes/helmfile.yaml.gotmpl`. Public traffic enters through a Cloudflare
 tunnel; private services are tailnet-only. Apps live in their own repos and
 deploy themselves through the shared `app` chart published here. Hetzner is a
-recipe in `docs/09-hetzner.md`, not a live mode.
+recipe in `docs/guides/resurrect-hetzner.md`, not a live mode.
 
 ## Where things are documented
 
-The map of the corpus is `docs/README.md`; every chapter is numbered.
+The map of the corpus is `docs/README.md`; its pages are cut into guides, concepts and reference.
 
 | Need                                          | Read                                   |
 | --------------------------------------------- | --------------------------------------- |
-| How it fits together, the layers, the layout  | `docs/01-architecture.md`               |
-| Editing a values file, manifest, template or role, and the conventions the tree does not state | `docs/02-developing.md` |
-| What proves a change, and what a deploy proves | `docs/03-testing.md`                   |
-| Secrets, troubleshooting, repave, restore     | `docs/04-operating.md`                  |
-| Deploying an app: what the contract is        | `docs/05-deploy-contract.md`            |
-| What CI runs, and what a merge triggers       | `docs/06-ci.md`                         |
-| Facts written down twice, and their checkers  | `docs/07-hand-synced-pairs.md`          |
-| What runs on the cluster                      | `docs/08-platform-services.md`          |
-| Bringing the Hetzner target back              | `docs/09-hetzner.md`                    |
+| How it fits together, the layers, the layout  | `docs/concepts/architecture.md`               |
+| Editing a values file, manifest, template or role, and the conventions the tree does not state | `docs/guides/develop.md` |
+| What proves a change, and what a deploy proves | `docs/guides/test.md`                   |
+| Secrets, troubleshooting, repave, restore     | `docs/guides/operate.md`                  |
+| Deploying an app: what the contract is        | `docs/reference/deploy-contract.md`            |
+| What CI runs, and what a merge triggers       | `docs/reference/ci.md`                         |
+| Facts written down twice, and their checkers  | `docs/reference/hand-synced-pairs.md`          |
+| What runs on the cluster                      | `docs/reference/platform-services.md`          |
+| Bringing the Hetzner target back              | `docs/guides/resurrect-hetzner.md`                    |
 | Why a choice was made                         | `docs/decisions/`                       |
 | `application.yaml` schema (deploying an app)  | `kubernetes/charts/app/README.md`       |
 | Per-service detail (cloudflared, openpanel, grafana)  | `kubernetes/services/<svc>/README.md` |
