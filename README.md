@@ -6,6 +6,39 @@ over the tailnet, and nothing listens on a public address. Apps live in their
 own repositories and deploy themselves through the `app` chart published from
 here.
 
+## Why
+
+A fleet of small apps does not need a cloud bill or a control plane to babysit.
+One machine, rebuilt from this tree in one command, keeps the whole estate
+reproducible: the VM's existence is the only state, Ansible configures it,
+Helmfile deploys onto it, and an app joins by shipping one manifest rather than
+by being registered here.
+
+## In 30 seconds
+
+An app repo declares itself in `.infrastructure/application.yaml` and its CI
+renders the chart published from here:
+
+```yaml
+apiVersion: jterrazz.com/v1
+kind: Application
+metadata:
+  name: my-app
+spec:
+  port: 3000
+  resources:
+    cpu: 100m
+    memory: 256Mi
+  health:
+    path: /health
+  ingress:
+    - host: my-app.jterrazz.com
+      path: /
+```
+
+The example is trimmed; the full schema is [the app chart's README](kubernetes/charts/app/README.md); what
+an app owes the cluster is [the deploy contract](docs/reference/deploy-contract.md).
+
 ## Quick start
 
 ```bash
