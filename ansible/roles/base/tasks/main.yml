@@ -1,5 +1,5 @@
 ---
-# Target OS is Debian 13 (trixie); package names below are Debian-native.
+# outside: target OS is Debian 13 (trixie); package names below are Debian-native.
 
 - name: Display deployment target
   ansible.builtin.debug:
@@ -34,21 +34,21 @@
       - python3-pip
       - python3-yaml
       - python3-kubernetes
-      # Required by ansible.builtin.deb822_repository (roles/tailscale). Debian
+      # outside: required by ansible.builtin.deb822_repository (roles/tailscale). Debian
       # 13 removed apt-key, so deb822 sources are the only supported path.
       - python3-debian
       - iptables
-      # A SEPARATE, non-default package on Debian 12+. Must be installed here,
+      # outside: a SEPARATE, non-default package on Debian 12+. Must be installed here,
       # before the tailscale role symlinks /etc/resolv.conf at its stub and
       # before k3s pins --resolv-conf=/run/systemd/resolve/resolv.conf.
       - systemd-resolved
-      # OrbStack VMs ship without sshd; the security role needs `sshd -t` to
+      # outside: OrbStack VMs ship without sshd; the security role needs `sshd -t` to
       # validate its drop-in, and skips the hardening entirely without it.
       - openssh-server
     state: present
   tags: [base, packages]
 
-# Debian 13 ships OpenSSH socket-activated, which breaks the security role two
+# hazard: Debian 13 ships OpenSSH socket-activated, which breaks the security role two
 # ways: `Port` in sshd_config is ignored (ListenStream decides it), and
 # restarting ssh.service does not re-bind, so a config change looks applied but
 # is not. Switch to the classic always-listening daemon instead.
@@ -66,7 +66,7 @@
   when: ssh_socket_unit.stat.exists
   tags: [base, ssh]
 
-# Also creates /run/sshd, which `sshd -t` needs: on a fresh install that has
+# invariant: also creates /run/sshd, which `sshd -t` needs: on a fresh install that has
 # never started the daemon, the security role's validation fails without it.
 - name: Ensure ssh service is started and enabled
   ansible.builtin.systemd_service:
@@ -76,7 +76,7 @@
     daemon_reload: true
   tags: [base, ssh]
 
-# kubelet opens /dev/kmsg at startup and k3s crashloops without it. Some
+# hazard: kubelet opens /dev/kmsg at startup and k3s crashloops without it. Some
 # lightweight VMs do not expose it, hence the conditional /dev/console
 # fallback plus a tmpfiles.d entry to recreate the symlink on reboot.
 - name: Stat /dev/kmsg
@@ -102,7 +102,7 @@
         state: link
         force: true
 
-# OrbStack answers every virtio-blk FLUSH with a macOS F_FULLFSYNC on its disk
+# hazard: OrbStack answers every virtio-blk FLUSH with a macOS F_FULLFSYNC on its disk
 # image, so each guest fsync() on the VM disk (k3s' kine SQLite, containerd,
 # /var/log/pods) costs ~330KB of Mac SSD writes. "write through" tells the
 # block layer the device has no volatile cache and it stops sending FLUSHes;
@@ -159,13 +159,13 @@
       * hard nproc 65536
   tags: [base]
 
-# DO NOT CHANGE THESE PATHS. /var/lib/k8s-data is baked into every PV manifest
+# hazard: dO NOT CHANGE THESE PATHS. /var/lib/k8s-data is baked into every PV manifest
 # under kubernetes/ and holds live data. It is a symlink into OrbStack's
 # auto file-share of the Mac home, which is what makes the data survive a
 # `make destroy` of the VM while the PV path itself stays stable.
 - name: Resolve Mac bind dir
   ansible.builtin.set_fact:
-    # Created on the Mac by scripts/deploy.sh (vm_up) before the VM is ever
+    # invariant: created on the Mac by scripts/deploy.sh (vm_up) before the VM is ever
     # created, so it always exists.
     storage_orbstack_data_dir: "/mnt/mac/Users/{{ lookup('env', 'USER') }}/.jterrazz-infrastructure/data"
   tags: [base, storage]

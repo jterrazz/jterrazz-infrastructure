@@ -4,7 +4,7 @@
     name: systemd-resolved
     state: restarted
 
-# `networkctl reload` + `reconfigure`, NOT `systemctl restart systemd-networkd`:
+# outside: `networkctl reload` + `reconfigure`, NOT `systemctl restart systemd-networkd`:
 # this play reaches the host over that very link (OrbStack SSH proxy, or
 # Tailscale from CI), and a daemon restart is the one operation that can drop it.
 # `reload` re-reads the .network files and their drop-ins; `reconfigure` re-applies

@@ -1,5 +1,5 @@
 ---
-# CoreDNS does not chase CNAMEs across upstream zones, so a pod resolving a
+# hazard: CoreDNS does not chase CNAMEs across upstream zones, so a pod resolving a
 # private hostname stops at the CNAME into *.ts.net and gets NXDOMAIN — which
 # is how containerd fails to pull from registry.internal.jterrazz.com. This adds a
 # `jterrazz.com` server block whose hosts plugin short-circuits the private
@@ -9,7 +9,7 @@
 # The lists are `private_hostnames` and `private_hostnames_via_traefik` in
 # inventories/group_vars/all.yml, rendered by templates/coredns-custom.yaml.j2.
 
-# Looked up at deploy time, not hardcoded: the ClusterIP is dynamic per
+# hazard: looked up at deploy time, not hardcoded: the ClusterIP is dynamic per
 # cluster, so a fixed value silently breaks on the next repave. The Service is
 # created by k3s' own Traefik helm-install job, which cluster-manifests.yml
 # waits for — hence its ordering before this file in main.yml; the retries
@@ -28,7 +28,7 @@
     definition: "{{ lookup('ansible.builtin.template', 'coredns-custom.yaml.j2') | from_yaml }}"
   notify: Restart CoreDNS
 
-# CoreDNS only reloads the custom ConfigMap on restart, and everything after
+# outside: CoreDNS only reloads the custom ConfigMap on restart, and everything after
 # this point (registry image pulls, `helm registry login`) needs the new
 # records — an end-of-play handler would be far too late.
 - name: Restart CoreDNS now if the config changed

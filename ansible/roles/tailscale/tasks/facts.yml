@@ -1,5 +1,5 @@
 ---
-# THE single place that shells out for the node's tailnet identity — do not
+# hazard: tHE single place that shells out for the node's tailnet identity — do not
 # re-derive tailscale_ip / tailscale_dns_hostname elsewhere. Callers that may
 # run without the tailscale role (roles/k3s/tasks/main.yml,
 # roles/platform/tasks/stage-manifests.yml) include this file guarded by
@@ -20,7 +20,7 @@
 - name: Set shared Tailscale facts
   ansible.builtin.set_fact:
     tailscale_ip: "{{ tailscale_ip_result.stdout | default('') | trim }}"
-    # DNSName comes back with a trailing dot; strip it so the value drops
+    # outside: DNSName comes back with a trailing dot; strip it so the value drops
     # straight into Helm values and TLS SANs.
     tailscale_dns_hostname: >-
       {{ (tailscale_status_result.stdout | from_json).Self.DNSName | regex_replace('\.$', '')

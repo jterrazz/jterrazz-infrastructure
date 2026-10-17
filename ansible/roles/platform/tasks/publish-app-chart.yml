@@ -1,10 +1,10 @@
 ---
-# Deliberately DUPLICATES .github/workflows/publish-chart.yaml. That workflow
+# invariant: deliberately DUPLICATES .github/workflows/publish-chart.yaml. That workflow
 # is the normal path; this exists for the fresh-cluster case, where the
 # registry is empty and no app can pull the chart at all until someone
 # hand-runs it. Skip with `--skip-tags chart-publish` when the chart is there.
 
-# `helm registry login` below talks HTTPS, and on a fresh cluster DNS-01
+# outside: `helm registry login` below talks HTTPS, and on a fresh cluster DNS-01
 # issuance lags the registry pod by a minute or two — without this the login
 # fails with a TLS error. The registry itself is a Helm release applied by the
 # pass before this one, so it is already rolled out by here.
@@ -14,7 +14,7 @@
     -n platform-registry --timeout=180s
   changed_when: false
 
-# Same account as the htpasswd line bootstrap.yml generates, from the same
+# outside: same account as the htpasswd line bootstrap.yml generates, from the same
 # Infisical key: during a rotation's overlap the name is `deploy-next`, and a
 # literal here would log in as an account the registry no longer holds.
 - name: Login to the OCI registry for Helm
@@ -40,7 +40,7 @@
   ansible.builtin.set_fact:
     app_chart_version: "{{ (app_chart_yaml.content | b64decode | from_yaml).version }}"
 
-# Mirrors the guard in .github/workflows/publish-chart.yaml: the chart is
+# invariant: mirrors the guard in .github/workflows/publish-chart.yaml: the chart is
 # pulled UNVERSIONED by every app deploy, so overwriting a published version
 # means two different template sets answer to one tag depending on when an app
 # pulled. It SKIPS rather than fails, to keep a routine redeploy green — which
@@ -65,7 +65,7 @@
 - name: Package and push the app chart
   when: app_chart_published.rc != 0
   block:
-    # The .tgz filename is not knowable here (helm derives it from Chart.yaml),
+    # hazard: the .tgz filename is not knowable here (helm derives it from Chart.yaml),
     # and parsing it out of `helm package` stdout breaks on any warning line.
     # Emptying the directory first means the one file in it IS the chart.
     - name: Reset the chart staging directory
@@ -79,7 +79,7 @@
         state: directory
         mode: "0700"
 
-    # `common` (the library chart) is a file://../common dependency and nothing
+    # outside: `common` (the library chart) is a file://../common dependency and nothing
     # is vendored, so it has to be resolved before `helm package` will run at
     # all. It is then bundled into the .tgz, which is what lets an app repo
     # keep pulling one unversioned chart. Local path, so no network.

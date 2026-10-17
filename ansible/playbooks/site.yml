@@ -1,11 +1,11 @@
 ---
-# Host layer + platform layer, in one run:
+# outside: host layer + platform layer, in one run:
 #   ansible-playbook playbooks/site.yml -i inventories/laptop.yml
 #
 # The target is Debian 13 (trixie). There is no dual-distro support — templates
 # and package names are Debian-native.
 
-# Runs before fact gathering and over raw SSH, because every later play needs a
+# invariant: runs before fact gathering and over raw SSH, because every later play needs a
 # Python interpreter for its module payloads. The `command -v` short-circuit
 # makes a stripped image self-heal instead of failing on the very first task.
 - name: Bootstrap Python interpreter
@@ -18,7 +18,7 @@
       register: python_bootstrap
       changed_when: "'Setting up python3' in python_bootstrap.stdout"
 
-# Role order is load-bearing: base installs the systemd-resolved package and
+# invariant: role order is load-bearing: base installs the systemd-resolved package and
 # creates the /var/lib/k8s-data symlink; resolved must unmask and repair it
 # before k3s, whose kubelet pins the resolved uplink resolv.conf, and before
 # tailscale, whose daemon reads /etc/resolv.conf at startup.

@@ -1,12 +1,12 @@
 ---
-# Global variables — the visible config surface of this repo. This file MUST
+# invariant: global variables — the visible config surface of this repo. This file MUST
 # stay beside the inventory files: Ansible auto-loads `group_vars/` from next
 # to the inventory (or the playbook) and nowhere else. Role `defaults/main.yml`
 # is only for values a user should not normally touch.
 
 timezone: UTC
 
-# KEEP IN SYNC with the `azure/setup-helm` version in BOTH
+# hazard: kEEP IN SYNC with the `azure/setup-helm` version in BOTH
 # .github/workflows/validate.yaml and .github/workflows/publish-chart.yaml.
 # Three machines, one Helm: a chart packaged by one version and rendered by
 # another is a silent behaviour difference.
@@ -20,7 +20,7 @@ timezone: UTC
 # roles/platform/tasks/helm-tooling.yml and scripts/lib/helm-plugin.sh.
 helm_version: "v4.3.0"
 
-# The release layer. helmfile owns every `helm upgrade --install` this repo
+# invariant: the release layer. helmfile owns every `helm upgrade --install` this repo
 # performs; the releases themselves are declared in kubernetes/helmfile.yaml.gotmpl
 # and the chart versions live THERE, not here.
 #
@@ -29,12 +29,12 @@ helm_version: "v4.3.0"
 # renderer that is not the applier proves nothing.
 helmfile_version: "v1.8.0"
 
-# helm-diff is not optional tooling: `helmfile apply` is diff-then-sync, so
+# value: helm-diff is not optional tooling: `helmfile apply` is diff-then-sync, so
 # without the plugin there is no deploy at all. Pinned because it renders the
 # chart AND talks to the cluster.
 helm_diff_version: "v3.15.13"
 
-# SINGLE SOURCE OF TRUTH — deliberately NOT duplicated in roles/k3s/defaults
+# hazard: SINGLE SOURCE OF TRUTH — deliberately NOT duplicated in roles/k3s/defaults
 # (which is why that file does not exist): a role default wins only when this
 # file is not loaded, so two copies is a silent-drift trap.
 #
@@ -55,12 +55,12 @@ helm_diff_version: "v3.15.13"
 #   kubectl -n kube-system get svc traefik \
 #     -o jsonpath='{.spec.loadBalancerSourceRanges}'   # must be non-empty
 k3s_version: "v1.37.0+k3s1"
-# k3s' own default data-dir, repeated here only because tasks/main.yml and the
+# outside: k3s' own default data-dir, repeated here only because tasks/main.yml and the
 # apiserver's audit-log-path need the path as a value.
 k3s_data_dir: "/var/lib/rancher/k3s"
 k3s_node_ip: "{{ ansible_default_ipv4.address }}"
 
-# Private hostnames, short-circuited IN-CLUSTER to the node's own tailnet IP.
+# outside: private hostnames, short-circuited IN-CLUSTER to the node's own tailnet IP.
 # Needed because CoreDNS cannot chase a CNAME from a public zone into the
 # tailnet zone, so without the override an in-cluster lookup NXDOMAINs.
 # Rendered into the `coredns-custom` ConfigMap by
@@ -83,17 +83,16 @@ private_hostnames:
   - registry.internal.jterrazz.com
   - grafana.internal.jterrazz.com
   - gateway-intelligence.internal.jterrazz.com
-  # An app-chart route (prod-signews-api), not a platform service — this list
+  # invariant: an app-chart route (prod-signews-api), not a platform service — this list
   # is about who answers the name, not about which repo declares it.
   - signews.internal.jterrazz.com
-  # The OS dashboard (prod-os), an app-chart route like the one above.
   - os.internal.jterrazz.com
-  # Was in private_hostnames_via_traefik until 2026-09-19: OpenPanel 2.3.0's
+  # outside: was in private_hostnames_via_traefik until 2026-09-19: OpenPanel 2.3.0's
   # dashboard honours API_URL_SSR, so nothing in the cluster fetches this host
   # any more (kubernetes/services/openpanel/config.yaml).
   - openpanel.internal.jterrazz.com
 
-# Same as above, but mapped to Traefik's ClusterIP rather than the node's
+# outside: same as above, but mapped to Traefik's ClusterIP rather than the node's
 # tailnet IP — for a pod that fetches its own PUBLIC URL from inside the
 # cluster. A pod cannot hairpin to the node's ServiceLB; it times out.
 # Empty since 2026-09-19 (openpanel left once its dashboard could split the

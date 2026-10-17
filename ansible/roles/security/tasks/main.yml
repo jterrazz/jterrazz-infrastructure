@@ -1,5 +1,5 @@
 ---
-# Do NOT "restore" fail2ban or auditd here. fail2ban would guard a public SSH
+# hazard: do NOT "restore" fail2ban or auditd here. fail2ban would guard a public SSH
 # port that does not exist (there is no public inbound path at all; SSH is
 # tailnet-only), and auditd needs CAP_AUDIT_*, which the OrbStack hypervisor
 # withholds — its rules never load on this target.
@@ -14,7 +14,7 @@
     cache_valid_time: 3600
   tags: [security, packages]
 
-# insertbefore: BOF is load-bearing. In sshd_config the FIRST occurrence of a
+# hazard: insertbefore: BOF is load-bearing. In sshd_config the FIRST occurrence of a
 # keyword wins, so an Include at the bottom lets the stock file's own defaults
 # beat every value the drop-in sets. This is a no-op on a stock Debian 13 file
 # and self-heals one where the line was removed — without the Include the whole
@@ -38,7 +38,7 @@
     group: root
   tags: [security, ssh]
 
-# Two stages, because a bad sshd config locks us out of the box and only the
+# hazard: two stages, because a bad sshd config locks us out of the box and only the
 # second stage can catch it: `validate:` parses the CANDIDATE file before
 # Ansible moves it into place, while `sshd -t` afterwards parses the EFFECTIVE
 # config (stock file + every drop-in), which is what sshd actually loads. The
@@ -75,7 +75,7 @@
           removed so sshd keeps running on the distro defaults. Run
           `sshd -t` on the host to see the parse error.
 
-# Setting security_ci_deploy_pubkey empty in extra-vars skips this entirely.
+# invariant: setting security_ci_deploy_pubkey empty in extra-vars skips this entirely.
 - name: Install the CI deploy public key in root's authorized_keys
   ansible.posix.authorized_key:
     user: root
@@ -85,7 +85,7 @@
   when: security_ci_deploy_pubkey | length > 0
   tags: [security, ssh]
 
-# The cluster binds no IPv6 listeners, so the v6 rule set would be dead config.
+# invariant: the cluster binds no IPv6 listeners, so the v6 rule set would be dead config.
 - name: Disable IPv6 in UFW
   ansible.builtin.lineinfile:
     path: /etc/default/ufw
@@ -93,7 +93,7 @@
     line: "IPV6=no"
   tags: [security, firewall]
 
-# Only the forward policy: UFW already defaults incoming to deny and outgoing
+# invariant: only the forward policy: UFW already defaults incoming to deny and outgoing
 # to allow.
 - name: Configure the UFW default forward policy # noqa: args[module]
   community.general.ufw:

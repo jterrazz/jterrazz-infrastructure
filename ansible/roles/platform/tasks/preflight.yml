@@ -1,5 +1,5 @@
 ---
-# Every secret the platform play consumes is asserted here, before anything is
+# invariant: every secret the platform play consumes is asserted here, before anything is
 # deployed. The list must stay COMPLETE: a secret checked only at its point of
 # use fails halfway through a deploy, and one with a fallback default fails
 # worse — the deploy goes green and the service comes up with a known password.

@@ -1,5 +1,5 @@
 ---
-# One `helmfile apply` pass over kubernetes/helmfile.yaml.gotmpl — the single
+# invariant: one `helmfile apply` pass over kubernetes/helmfile.yaml.gotmpl — the single
 # declaration of every platform release. Included more than once because a few
 # things the helmfile cannot own (the ClusterIssuers, cloudflared's raw
 # Deployment) have to be interleaved; see main.yml for the order and
@@ -22,7 +22,7 @@
       apply --detailed-exitcode --concurrency 1
       {{ ('--selector tier=' ~ helmfile_tier) if (helmfile_tier | default('')) else '' }}
   environment:
-    # Consumed by `requiredEnv` in the helmfile: the hostPath PV's nodeAffinity
+    # invariant: consumed by `requiredEnv` in the helmfile: the hostPath PV's nodeAffinity
     # target, and Grafana's admin password (an inline values map, so it never
     # reaches a command line).
     NODE_NAME: "{{ inventory_hostname }}"

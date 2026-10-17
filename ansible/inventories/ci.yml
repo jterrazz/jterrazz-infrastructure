@@ -1,5 +1,5 @@
 ---
-# CI inventory — the same OrbStack VM, reached over Tailscale because a GitHub
+# outside: CI inventory — the same OrbStack VM, reached over Tailscale because a GitHub
 # Actions runner has no OrbStack. Used by .github/workflows/deploy-platform.yaml.
 #
 # The SSH private key is the repo's GitHub secret `CI_DEPLOY_SSH_PRIVATE`, NOT
@@ -11,7 +11,7 @@ all:
     cluster:
       hosts:
         jterrazz-infrastructure:
-          # MagicDNS FQDN — resolves only because the runner joins the tailnet
+          # invariant: MagicDNS FQDN — resolves only because the runner joins the tailnet
           # with accept-dns via tailscale/github-action.
           ansible_host: jterrazz-infrastructure.tail77a797.ts.net
           ansible_user: root

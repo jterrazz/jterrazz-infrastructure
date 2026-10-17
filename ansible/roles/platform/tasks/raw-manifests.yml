@@ -1,5 +1,5 @@
 ---
-# What is left after every workload that a chart CAN express became a Helm
+# invariant: what is left after every workload that a chart CAN express became a Helm
 # release: cloudflared's Deployment, and the Grafana dashboard ConfigMaps this
 # repo generates from JSON.
 #
@@ -11,7 +11,7 @@
 # Position is load-bearing: this runs AFTER bootstrap.yml, whose `tier: platform`
 # pass declares the InfisicalSecret whose Secret cloudflared reads at startup.
 
-# Its tunnel token arrives via the InfisicalSecret bootstrap.yml applied; a pod
+# outside: its tunnel token arrives via the InfisicalSecret bootstrap.yml applied; a pod
 # scheduled before that Secret exists sits in CreateContainerConfigError rather
 # than retrying gracefully.
 - name: Apply the cloudflared deployment
@@ -19,7 +19,7 @@
   register: cloudflared_result
   changed_when: "'created' in cloudflared_result.stdout or 'configured' in cloudflared_result.stdout"
 
-# APP alert rules and dashboards are deliberately NOT applied here: they ship
+# invariant: APP alert rules and dashboards are deliberately NOT applied here: they ship
 # with the app that emits the metric, through the app chart's `spec.alerts` /
 # `spec.dashboards` (which render the same labelled ConfigMaps the sidecars in
 # grafana/values.yaml watch). One living in this repo outlives the app it watches

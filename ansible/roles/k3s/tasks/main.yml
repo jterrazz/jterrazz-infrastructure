@@ -1,5 +1,5 @@
 ---
-# This role has NO defaults/main.yml on purpose: k3s_version lives in
+# hazard: this role has NO defaults/main.yml on purpose: k3s_version lives in
 # inventories/group_vars/all.yml and must not be duplicated, since a role
 # default silently wins whenever group_vars is not loaded.
 
@@ -33,7 +33,7 @@
     k3s_needs_install: "{{ not k3s_binary.stat.exists or (k3s_version not in (k3s_current_version.stdout | default(''))) }}"
   tags: [k3s]
 
-# Generated once and persisted at /etc/rancher/k3s/token — regenerating it
+# outside: generated once and persisted at /etc/rancher/k3s/token — regenerating it
 # on an existing cluster invalidates every node's registration.
 - name: Check if the k3s token file exists
   ansible.builtin.stat:
@@ -77,7 +77,7 @@
   no_log: true
   tags: [k3s]
 
-# Only fires when this role runs standalone (site.yml's tailscale role sets
+# outside: only fires when this role runs standalone (site.yml's tailscale role sets
 # them). The IP and DNS name go into the API server's TLS SANs, which is the
 # only way kubectl over the tailnet gets a valid cert.
 - name: Ensure Tailscale facts are available
@@ -95,7 +95,7 @@
   notify: Restart k3s
   tags: [k3s]
 
-# Must exist before the apiserver starts: it does not create the directory for
+# invariant: must exist before the apiserver starts: it does not create the directory for
 # audit-log-path and fails to come up at all if the parent is missing.
 - name: Ensure the audit log directory exists
   ansible.builtin.file:
@@ -144,7 +144,7 @@
     daemon_reload: true
   tags: [k3s]
 
-# Placement is load-bearing in BOTH directions. Later than this and the
+# hazard: placement is load-bearing in BOTH directions. Later than this and the
 # readiness checks below pass against the OLD config, so a broken config change
 # looks green until the next run. Earlier (right after the config template) and
 # a fresh host dies with "Could not find the requested service k3s", because
@@ -168,7 +168,7 @@
   until: k3s_nodes.rc == 0
   tags: [k3s]
 
-# `secrets-encryption: true` only covers Secrets written after the restart.
+# invariant: `secrets-encryption: true` only covers Secrets written after the restart.
 # This rewrites the ones already in the datastore; without it the plaintext
 # copies of every existing app credential stay exactly where they were.
 # Idempotent — a re-encrypt on an already-encrypted store is a no-op rewrite.

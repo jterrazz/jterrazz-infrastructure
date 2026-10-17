@@ -1,10 +1,9 @@
 ---
-# EXACT pins, never `>=`: a floor lets the GHA runner (clean cache, always
+# invariant: EXACT pins, never `>=`: a floor lets the GHA runner (clean cache, always
 # newest) and a laptop (already satisfies it, never upgrades) resolve
 # different versions from this same file. Bump deliberately.
 
-#
-# community.general crossed a MAJOR here (12 -> 13). Its breaking changes are
+# outside: community.general crossed a MAJOR here (12 -> 13). Its breaking changes are
 # a module-utils privatisation, dropping ansible-core 2.17, and defaults/
 # positional-arg changes in github_repo / rocketchat / the *_pet|string|words
 # lookups — none of which this repo uses. The only two modules it consumes

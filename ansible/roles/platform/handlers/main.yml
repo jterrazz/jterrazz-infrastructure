@@ -1,5 +1,5 @@
 ---
-# tasks/coredns.yml flushes handlers immediately after notifying this: the rest
+# invariant: tasks/coredns.yml flushes handlers immediately after notifying this: the rest
 # of the role needs the new records before it runs.
 - name: Restart CoreDNS
   ansible.builtin.command: kubectl -n kube-system rollout restart deploy/coredns

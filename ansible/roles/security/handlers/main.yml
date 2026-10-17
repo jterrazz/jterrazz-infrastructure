@@ -1,5 +1,5 @@
 ---
-# ssh.service, NOT ssh.socket: the base role turns socket activation off so the
+# invariant: ssh.service, NOT ssh.socket: the base role turns socket activation off so the
 # daemon owns the listener and a restart actually re-binds it.
 - name: Restart SSH
   ansible.builtin.systemd_service:
