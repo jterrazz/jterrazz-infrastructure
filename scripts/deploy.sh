@@ -1,5 +1,5 @@
 #!/bin/bash
-# Create the cluster's VM with orbctl and configure it with Ansible.
+# hazard: create the cluster's VM with orbctl and configure it with Ansible.
 #
 # Ansible's secrets are pulled live from Infisical by
 # scripts/infisical-vars.py using the universal-auth credentials in
@@ -20,7 +20,7 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/common.sh"
 
-# One string, three identities: the `orbctl list` name, the Ansible
+# hazard: one string, three identities: the `orbctl list` name, the Ansible
 # inventory_hostname in inventories/laptop.yml, and the Tailscale hostname the
 # `*.internal` wildcard CNAME resolves to. Renaming it here alone joins the
 # tailnet under a new name and breaks every private hostname.
@@ -39,18 +39,18 @@ set -a
 source "$PROJECT_DIR/.env"
 set +a
 
-# Script-scope and declared BEFORE the trap so cleanup sees it however the
+# hazard: script-scope and declared BEFORE the trap so cleanup sees it however the
 # script exits, including a failure partway through the fetch. `${var:-}` keeps
 # `rm -f` from tripping `set -u` if the path was never populated.
 secrets_file=""
 trap 'rm -f "${secrets_file:-}"' EXIT
 
-# The whole provisioning layer: one OrbStack VM. Idempotent by probe rather
+# outside: the whole provisioning layer: one OrbStack VM. Idempotent by probe rather
 # than by state file — `orbctl info` is the question "does this VM exist", and
 # it is the only question, because OrbStack can change neither image nor
 # architecture in place. To repave, `--destroy` then run this again.
 vm_up() {
-    # First and unconditionally: roles/base symlinks /var/lib/k8s-data at this
+    # outside: first and unconditionally: roles/base symlinks /var/lib/k8s-data at this
     # directory through OrbStack's /mnt/mac share, and if it does not exist
     # before the VM boots the symlink dangles and every hostPath mount fails at
     # the first pod schedule. Its living on the Mac is also what makes the data
@@ -63,7 +63,7 @@ vm_up() {
     fi
 
     info "orbctl create debian:trixie $VM_NAME"
-    # `debian:trixie` SPELLED OUT: Debian is the one distro whose bare image
+    # hazard: `debian:trixie` SPELLED OUT: Debian is the one distro whose bare image
     # name resolves to the PREVIOUS stable (bookworm), and every Ansible role
     # here is Debian-13-native. Never drop the tag.
     #
@@ -83,7 +83,7 @@ vm_destroy() {
     orbctl delete --force "$VM_NAME"
 }
 
-# Sets the script-scope $secrets_file instead of echoing the path: command
+# hazard: sets the script-scope $secrets_file instead of echoing the path: command
 # substitution would run this in a SUBSHELL, so the assignment made right after
 # `mktemp` would never reach the parent and the EXIT trap would leak the
 # tempfile whenever the fetch failed partway.
@@ -93,7 +93,7 @@ fetch_secrets_file() {
     "$SCRIPT_DIR/infisical-vars.py" "$scope" "$secrets_file"
 }
 
-# Without this a fresh machine silently uses whatever collections the local
+# hazard: without this a fresh machine silently uses whatever collections the local
 # ansible install happens to bundle, which may not satisfy requirements.yml.
 # Idempotent — ansible-galaxy skips collections already at the pinned version.
 install_collections() {
@@ -103,7 +103,7 @@ install_collections() {
 
 run_site() {
     fetch_secrets_file site
-    # ansible.cfg has a relative roles_path, so this must run from ansible/.
+    # invariant: ansible.cfg has a relative roles_path, so this must run from ansible/.
     cd "$PROJECT_DIR/ansible"
     install_collections
     info "ansible-playbook site.yml"

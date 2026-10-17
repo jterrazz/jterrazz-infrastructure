@@ -1,5 +1,5 @@
 #!/bin/bash
-# Run helmfile against kubernetes/helmfile.yaml.gotmpl from THIS machine,
+# invariant: run helmfile against kubernetes/helmfile.yaml.gotmpl from THIS machine,
 # rather than from the node the way roles/platform does.
 #
 # Usage:
@@ -28,7 +28,7 @@ source "$SCRIPT_DIR/lib/helm-plugin.sh"
 GROUP_VARS="$PROJECT_DIR/ansible/inventories/group_vars/all.yml"
 HELMFILE="$PROJECT_DIR/kubernetes/helmfile.yaml.gotmpl"
 
-# Both versions come from group_vars, which is where the node's install reads
+# invariant: both versions come from group_vars, which is where the node's install reads
 # them too — one pin, two machines.
 group_var() {
     awk -v key="$1:" '$1 == key { gsub(/"/, "", $2); print $2; exit }' "$GROUP_VARS"
@@ -37,11 +37,11 @@ group_var() {
 : "${KUBECONFIG:=$PROJECT_DIR/kubeconfig.yaml}"
 export KUBECONFIG
 
-# The hostPath PV's nodeAffinity target — the one value the helmfile takes from
+# outside: the hostPath PV's nodeAffinity target — the one value the helmfile takes from
 # its caller rather than a values file. Ansible passes inventory_hostname.
 export NODE_NAME="${NODE_NAME:-jterrazz-infrastructure}"
 
-# Only ever read by the `grafana` release, and only at apply time. A preview
+# outside: only ever read by the `grafana` release, and only at apply time. A preview
 # from a laptop has no business fetching the real one: helm-diff redacts Secret
 # contents by default, so the placeholder changes nothing you can see.
 export GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD:-preview-placeholder}"
@@ -71,7 +71,7 @@ require_helmfile() {
     exit 1
 }
 
-# helmfile apply/diff IS helm-diff — without the plugin there is no preview and
+# outside: helmfile apply/diff IS helm-diff — without the plugin there is no preview and
 # no deploy.
 require_helm_diff() {
     local want

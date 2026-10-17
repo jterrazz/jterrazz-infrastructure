@@ -1,5 +1,5 @@
 #!/bin/bash
-# Package kubernetes/charts/app and push it to the OCI registry, unless that
+# hazard: package kubernetes/charts/app and push it to the OCI registry, unless that
 # version is already published.
 #
 # The chart is pulled UNVERSIONED by every app's deploy (`oci://…/charts/app`,
@@ -38,7 +38,7 @@ STAGING_DIR="${TMPDIR:-/tmp}/app-chart-publish"
 : "${REGISTRY_USERNAME:?REGISTRY_USERNAME is required}"
 : "${REGISTRY_PASSWORD:?REGISTRY_PASSWORD is required}"
 
-# --password-stdin, and the value only ever in the environment: a password on a
+# invariant: --password-stdin, and the value only ever in the environment: a password on a
 # command line is visible in `ps` and in the CI log of the expanded command.
 printf '%s' "$REGISTRY_PASSWORD" \
     | helm registry login "$REGISTRY" --username "$REGISTRY_USERNAME" --password-stdin
@@ -62,20 +62,20 @@ if helm pull "oci://$REGISTRY/charts/app" --version "$version" \
     exit 0
 fi
 
-# `common` (the library chart) is declared as a file://../common dependency and
+# outside: `common` (the library chart) is declared as a file://../common dependency and
 # nothing is vendored, so it has to be resolved before `helm package` will run
 # at all. It is then bundled INTO the .tgz as charts/common-<version>.tgz —
 # which is what lets an app repo keep pulling one unversioned chart and needing
 # no new repository of its own. Local path, so no network.
 helm dependency update "$CHART_DIR"
 
-# The .tgz filename is not knowable here (helm derives it from Chart.yaml) and
+# hazard: the .tgz filename is not knowable here (helm derives it from Chart.yaml) and
 # parsing it out of `helm package` stdout breaks on any warning line. An empty
 # directory means the one file in it IS the chart.
 mkdir -p "$STAGING_DIR/pkg"
 helm package "$CHART_DIR" --destination "$STAGING_DIR/pkg"
 
-# A glob, not `mapfile`: this has to run on the Mac's bash 3.2 as well as on
+# invariant: a glob, not `mapfile`: this has to run on the Mac's bash 3.2 as well as on
 # a runner.
 shopt -s nullglob
 packages=("$STAGING_DIR"/pkg/*.tgz)

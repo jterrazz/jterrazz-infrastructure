@@ -1,5 +1,5 @@
 #!/bin/bash
-# Encrypted snapshot of every persistent volume, restorable on any future
+# outside: encrypted snapshot of every persistent volume, restorable on any future
 # machine with nothing but the passphrase.
 #
 # WHY ENCRYPTED AT ALL: the volumes live on the Mac at
@@ -25,17 +25,17 @@ source "$SCRIPT_DIR/lib/common.sh"
 MACHINE="${ORB_MACHINE:-jterrazz-infrastructure}"
 DATA_DIR="${BACKUP_DATA_DIR:-$HOME/.jterrazz-infrastructure/data}"
 OUT_DIR="${BACKUP_OUT_DIR:-$HOME/.jterrazz-infrastructure/backups}"
-# 600k iterations: openssl's own default is 10k, which is a decade out of date
+# invariant: 600k iterations: openssl's own default is 10k, which is a decade out of date
 # for a key this long-lived.
 ITER=600000
-# Where the passphrase lives. Same folder as the rest of this repo's secrets.
+# invariant: where the passphrase lives. Same folder as the rest of this repo's secrets.
 KEY_PATH=/jterrazz-infrastructure
 
 usage() { echo "usage: $0 [--consistent] [--verify-only <archive>]"; exit 2; }
 
 require_key() {
     if [ -z "${BACKUP_ENCRYPTION_KEY:-}" ]; then
-        # Same source of truth as every other credential here.
+        # invariant: same source of truth as every other credential here.
         if [ -f "$SCRIPT_DIR/../.env" ]; then
             set -a
             # shellcheck disable=SC1091
@@ -43,7 +43,7 @@ require_key() {
             set +a
         fi
     fi
-    # Still nothing: pull it from Infisical directly. Deliberately NOT routed
+    # outside: still nothing: pull it from Infisical directly. Deliberately NOT routed
     # through infisical-vars.py — that writes the deploy extra-vars file onto
     # the node, and this key has no business there.
     if [ -z "${BACKUP_ENCRYPTION_KEY:-}" ] && [ -n "${INFISICAL_CLIENT_ID:-}" ] \
@@ -73,13 +73,13 @@ require_key() {
     fi
 }
 
-# Decrypt and list. An archive nobody has ever opened is a guess, not a backup,
+# invariant: decrypt and list. An archive nobody has ever opened is a guess, not a backup,
 # so this runs on every snapshot and not only on demand.
 verify() {
     local archive="$1"
     info "Verifying $archive"
     local count
-    # `if ! count=$(...)`, not a bare assignment: under `set -e` a failed
+    # invariant: `if ! count=$(...)`, not a bare assignment: under `set -e` a failed
     # decrypt aborts the script outright and the branches below never run, so
     # the one failure this function exists to report is the one it misses.
     if ! count=$(openssl enc -d -aes-256-cbc -pbkdf2 -iter "$ITER" \
@@ -115,7 +115,7 @@ main() {
     archive="$OUT_DIR/k8s-data-$stamp.tar.gz.enc"
 
     if [ "$consistent" -eq 1 ]; then
-        # `systemctl stop k3s` does NOT stop the containers — they keep writing
+        # outside: `systemctl stop k3s` does NOT stop the containers — they keep writing
         # through the whole tar and the databases land torn. killall is the
         # only thing that actually stops them.
         section "Stopping workloads"
@@ -127,7 +127,7 @@ main() {
     fi
 
     section "Archiving $DATA_DIR"
-    # --exclude .DS_Store: Finder writes it into every directory it displays and
+    # invariant: --exclude .DS_Store: Finder writes it into every directory it displays and
     # tar aborts on the permission error mid-archive.
     tar -czf - --exclude '.DS_Store' -C "$(dirname "$DATA_DIR")" "$(basename "$DATA_DIR")" \
         | openssl enc -aes-256-cbc -pbkdf2 -iter "$ITER" \

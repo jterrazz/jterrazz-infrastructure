@@ -1,5 +1,5 @@
 #!/bin/bash
-# Black-box smoke test: does every surface this cluster is supposed to serve
+# invariant: black-box smoke test: does every surface this cluster is supposed to serve
 # actually answer, and are its certificates still valid?
 #
 # The PROBES go in the front door — public hostnames through the Cloudflare
@@ -49,15 +49,14 @@ REPO_DIR="$(dirname "$SCRIPT_DIR")"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/common.sh"
 
-# Fail a certificate that expires within this many days. Let's Encrypt renews
+# outside: fail a certificate that expires within this many days. Let's Encrypt renews
 # at 30 days remaining via cert-manager, so 15 means "renewal has been failing
 # for two weeks" — an alert, not a routine reminder.
 CERT_MIN_DAYS=15
 
-# Per-request ceiling. Generous: a cold Next.js pod can take a few seconds.
+# invariant: per-request ceiling. Generous: a cold Next.js pod can take a few seconds.
 CURL_TIMEOUT=15
 
-# =============================================================================
 
 want_public=false
 want_private=false
@@ -94,7 +93,7 @@ for arg in "$@"; do
     esac
 done
 
-# --certs on its own still needs something to check certificates FOR.
+# invariant: --certs on its own still needs something to check certificates FOR.
 if ! $want_public && ! $want_private; then
     want_public=true
 fi
@@ -114,18 +113,15 @@ record_fail() {
     failures+=("$1")
 }
 
-# ---------------------------------------------------------------------------
-# Discovery
-# ---------------------------------------------------------------------------
 
-# Every IngressRoute in the cluster, as JSON. Fails loudly rather than returning
+# invariant: every IngressRoute in the cluster, as JSON. Fails loudly rather than returning
 # nothing: an empty list would report "0 failures" about a cluster that is
 # entirely down, which is the worst answer this script could give.
 ingressroutes_json() {
     cluster_kubectl get ingressroute.traefik.io -A -o json
 }
 
-# JSON in, one PIPE-separated check per line out:
+# hazard: JSON in, one PIPE-separated check per line out:
 #   scope|method|url|codes|location|source|origin
 # Pipe, not tab: bash `read` collapses runs of IFS *whitespace*, so a tab-
 # separated line with an empty `location` would silently shift every field after
@@ -289,11 +285,8 @@ if $list_only; then
     exit 0
 fi
 
-# ---------------------------------------------------------------------------
-# Probes
-# ---------------------------------------------------------------------------
 
-# curl's %{http_code} is 000 when the connection never completed (DNS failure,
+# hazard: curl's %{http_code} is 000 when the connection never completed (DNS failure,
 # refused, timeout). That is always a failure — it can never be in an accepted
 # list — but it is worth naming separately in the output, because "000" and
 # "503" point at completely different things.
@@ -308,7 +301,7 @@ http_status() {
         --write-out '%{http_code} %{redirect_url}'
         --request "$method"
     )
-    # A POST probe sends an empty JSON object. Without a JSON content type the
+    # invariant: a POST probe sends an empty JSON object. Without a JSON content type the
     # ingest endpoint answers 415 before it ever looks at credentials, which
     # would make the check pass for the wrong reason.
     if [ "$method" = "POST" ]; then
@@ -347,7 +340,7 @@ run_http_check() {
     fi
 }
 
-# `openssl x509 -checkend` does the date arithmetic itself and exits non-zero
+# invariant: `openssl x509 -checkend` does the date arithmetic itself and exits non-zero
 # when the certificate expires within the window — no date(1) parsing, which
 # would need two different incantations for BSD and GNU.
 run_cert_check() {
@@ -390,7 +383,7 @@ if $want_certs; then
         in_scope "$scope" || continue
         host="${url#https://}"
         host="${host%%/*}"
-        # Several checks share a hostname (and several hostnames share one
+        # invariant: several checks share a hostname (and several hostnames share one
         # certificate); probe each host once.
         case " $seen " in
             *" $host "*) continue ;;
@@ -400,7 +393,7 @@ if $want_certs; then
     done
 fi
 
-# The live replacement for the static "every private hostname is probed"
+# invariant: the live replacement for the static "every private hostname is probed"
 # assertion: group_vars and the cluster are compared to each other, not to a
 # third copy of the list.
 if [ ${#notes[@]} -gt 0 ]; then

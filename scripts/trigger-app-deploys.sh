@@ -1,5 +1,5 @@
 #!/bin/bash
-# Trigger every app's CI to redeploy — run after a fresh cluster rebuild, when
+# hazard: trigger every app's CI to redeploy — run after a fresh cluster rebuild, when
 # the registry is empty and no app workload exists yet.
 #
 # THE FLEET IS DISCOVERED, NOT LISTED. Every app Deployment carries
@@ -41,11 +41,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/common.sh"
 
-# The workflow name every app repo exposes. It is the one string this script
+# invariant: the workflow name every app repo exposes. It is the one string this script
 # still has to know, because a workflow_dispatch is addressed by name.
 WORKFLOW="Build and Deploy"
 
-# Stagger: these are rolling deploys against ONE memory-constrained node, and
+# invariant: stagger: these are rolling deploys against ONE memory-constrained node, and
 # without a gap every CI run lands at once and competes for RAM.
 STAGGER_SECONDS=20
 
@@ -74,7 +74,7 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-# Every app-chart Deployment in the cluster. `managed-by=Helm` plus the
+# outside: every app-chart Deployment in the cluster. `managed-by=Helm` plus the
 # existence of an `environment` label is what distinguishes them from the
 # upstream charts' workloads (grafana, cert-manager, traefik...), which carry
 # no environment.
@@ -83,7 +83,7 @@ app_deployments_json() {
         -l "app.kubernetes.io/managed-by=Helm,environment" -o json
 }
 
-# One repo per line, deduplicated (an app with prod/next/staging is three
+# outside: one repo per line, deduplicated (an app with prod/next/staging is three
 # Deployments and one repo). `!<ns>/<name>` for a Deployment with no annotation.
 # shellcheck disable=SC2016  # this is a Python program, not a shell string
 DISCOVER_PY='
@@ -111,7 +111,7 @@ for where in sorted(missing):
 
 declare -a repos=() unannotated=()
 
-# Everything diagnostic goes to stderr, so `--dry-run > fleet.txt` is a clean
+# invariant: everything diagnostic goes to stderr, so `--dry-run > fleet.txt` is a clean
 # list of repos and nothing else.
 if [ -n "$from_file" ]; then
     section "Replaying $from_file" >&2

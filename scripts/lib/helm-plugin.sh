@@ -1,12 +1,12 @@
 #!/bin/bash
-# Installing a Helm plugin at a pinned version, across Helm majors. Source it:
+# outside: installing a Helm plugin at a pinned version, across Helm majors. Source it:
 #   source "$(dirname "${BASH_SOURCE[0]}")/lib/helm-plugin.sh"
 #   helm_plugin_install https://github.com/databus23/helm-diff v3.15.13
 #
 # Sourced by scripts/helmfile.sh and by the `kubernetes` job of
 # .github/workflows/validate.yaml — the two places that install a plugin.
 
-# Helm 4 verifies plugin signatures by default and neither plugin this repo
+# outside: Helm 4 verifies plugin signatures by default and neither plugin this repo
 # uses publishes one; Helm 3 has no --verify flag at all. Pass it only where it
 # exists, so this survives the next helm bump in either direction.
 helm_plugin_install() {

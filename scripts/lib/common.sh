@@ -1,5 +1,5 @@
 #!/bin/bash
-# Shared logging helpers. Source it:
+# invariant: shared logging helpers. Source it:
 #   source "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"
 
 export RED='\033[0;31m'
@@ -14,8 +14,7 @@ warn() { echo -e "${YELLOW}⚠ $1${NC}"; }
 error() { echo -e "${RED}✗ $1${NC}" >&2; }
 section() { echo -e "\n${GREEN}▶ $1${NC}"; }
 
-# ---------------------------------------------------------------------------
-# One read path to the cluster, shared by smoke.sh and trigger-app-deploys.sh.
+# outside: one read path to the cluster, shared by smoke.sh and trigger-app-deploys.sh.
 # Both DISCOVER what they act on from live objects, so both need the same
 # question answered: how does this machine reach the API server?
 #
@@ -36,7 +35,7 @@ cluster_kubectl() {
     repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
     if [ -n "${CLUSTER_KUBECTL:-}" ]; then
-        # Deliberately unquoted: the value is a command line, not one word.
+        # outside: deliberately unquoted: the value is a command line, not one word.
         # shellcheck disable=SC2086
         $CLUSTER_KUBECTL "$@"
     elif [ -n "${CLUSTER_SSH_KEY:-}" ]; then
@@ -50,7 +49,7 @@ cluster_kubectl() {
     fi
 }
 
-# The advice every caller prints when the read above fails.
+# invariant: the advice every caller prints when the read above fails.
 cluster_access_hint() {
     error "Reach the cluster one of three ways:"
     error "  CLUSTER_KUBECTL=\"orb -m jterrazz-infrastructure -u root kubectl\"  (from the Mac, no tailnet needed)"
