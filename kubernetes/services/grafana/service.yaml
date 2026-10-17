@@ -1,28 +1,28 @@
-# Service-chart values for Grafana (Cert + private IngressRoute + storage).
+# outside: Service-chart values for Grafana (Cert + private IngressRoute + storage).
 name: grafana
 host: grafana.internal.jterrazz.com
-# Tailnet-only. Grafana's datasources reach every telemetry backend in the
+# outside: tailnet-only. Grafana's datasources reach every telemetry backend in the
 # cluster; there is no reason for it to answer the public internet.
 access: private
 
-# Grafana bounces an unauthenticated browser to /login. 200 is also accepted:
+# outside: Grafana bounces an unauthenticated browser to /login. 200 is also accepted:
 # it is what an anonymous-allowed instance, or a future auth change, would
 # serve. Anything else means Grafana is down.
 smoke:
   expect: "302,200"
 storage:
-  # grafana.db — users, API keys, starred dashboards, alert state. Dashboards
+  # invariant: grafana.db — users, API keys, starred dashboards, alert state. Dashboards
   # themselves are provisioned from ConfigMaps and are not stored here.
   data:
     size: 1Gi
-    # NODE-LOCAL on purpose — Grafana works this volume continuously and
+    # outside: NODE-LOCAL on purpose — Grafana works this volume continuously and
     # virtiofs makes that measurably worse. See the CPU limit note in
     # values.yaml; the cost is that a repave resets logins, annotations and
     # dashboard-version history, all of which are safe to lose because
     # everything that matters is provisioned from git.
     nodeLocalPath: /var/lib/grafana-node-local
 
-# Traefik -> Grafana, and nothing else from outside platform-telemetry. Every
+# outside: Traefik -> Grafana, and nothing else from outside platform-telemetry. Every
 # other flow Grafana needs (its queries into the three Victoria stores, the
 # apiserver, grafana.com for plugin installs) is namespace-wide and stays in
 # kubernetes/cluster/network-policies/platform-telemetry.yaml.
@@ -31,7 +31,7 @@ network:
     app.kubernetes.io/name: grafana
     app.kubernetes.io/instance: grafana
   ingress:
-    # 3000, NOT the Service's 80. The Service is `port: 80 -> targetPort:
+    # invariant: 3000, NOT the Service's 80. The Service is `port: 80 -> targetPort:
     # grafana (3000)`, and a NetworkPolicy only ever sees the POD port —
     # kube-proxy has already rewritten the destination by the time the packet
     # is filtered.

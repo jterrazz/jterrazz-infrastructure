@@ -1,4 +1,4 @@
-# App-chart values for op-postgres — orgs, projects, dashboards, users.
+# outside: app-chart values for op-postgres — orgs, projects, dashboards, users.
 #
 # 17-alpine, ABOVE OpenPanel's own pin. OpenPanel pins `postgres:14-alpine` in
 # its self-hosting compose and documents no other version; the only support
@@ -17,11 +17,11 @@ environment: prod
 spec:
   image: postgres:17-alpine
   port: 5432
-  # `postgresql://openpanel:<password>@op-postgres:5432/openpanel` is the
+  # outside: `postgresql://openpanel:<password>@op-postgres:5432/openpanel` is the
   # DATABASE_URL in Infisical, so the Service answers on 5432, not on 80.
   servicePort: 5432
 
-  # uid/gid 70 is the ALPINE image's `postgres` user — the Debian-based
+  # outside: uid/gid 70 is the ALPINE image's `postgres` user — the Debian-based
   # postgres images use 999. The same uid `storage.owner` chowns to: pinning it
   # is what stops the entrypoint chowning PGDATA and su-exec-ing down itself.
   securityContext:
@@ -31,7 +31,7 @@ spec:
   env:
     POSTGRES_USER: openpanel
     POSTGRES_DB: openpanel
-    # Keep PGDATA in a subdir so lost+found / hostPath root never collides with
+    # invariant: keep PGDATA in a subdir so lost+found / hostPath root never collides with
     # initdb's empty-dir check.
     PGDATA: /var/lib/postgresql/data/pgdata
 
@@ -42,7 +42,7 @@ spec:
 
   storage:
     mountPath: /var/lib/postgresql/data
-    # openpanel-platform owns this claim (service.yaml, Retain) so the data
+    # invariant: openpanel-platform owns this claim (service.yaml, Retain) so the data
     # survives a repave; this release only mounts it.
     claimName: openpanel-postgres
     owner: "70:70"
@@ -56,7 +56,7 @@ spec:
     memoryLimit: 384Mi
 
   network:
-    # Postgres has a password, but the two stores beside it do not, and the
+    # hazard: Postgres has a password, but the two stores beside it do not, and the
     # rule is the same for all three: reachable only from this namespace (the
     # baseline in cluster/network-policies/platform-analytics.yaml), dialling
     # nothing but DNS.

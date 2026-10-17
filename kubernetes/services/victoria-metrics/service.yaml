@@ -1,4 +1,4 @@
-# Service-chart values for VictoriaMetrics — storage only. `host` is
+# invariant: Service-chart values for VictoriaMetrics — storage only. `host` is
 # deliberately unset (Grafana and the OTel collector reach it in-cluster), and
 # with no host the chart emits neither IngressRoute nor Certificate.
 #
@@ -12,13 +12,13 @@
 # PVC by name, so the storage-<release>-<ordinal> constraint never applies.
 name: victoria-metrics
 storage:
-  # No pathSuffix — the PV lands on /var/lib/k8s-data/victoria-metrics.
+  # invariant: no pathSuffix — the PV lands on /var/lib/k8s-data/victoria-metrics.
   #
   # Nominal — hostPath enforces no quota, the real cap is the Mac disk.
   data:
     size: 20Gi
 
-# Scrape egress, DELIBERATELY UNRESTRICTED, and it has to be. The target set is
+# invariant: scrape egress, DELIBERATELY UNRESTRICTED, and it has to be. The target set is
 # discovered from prometheus.io annotations at runtime (server.scrape in
 # values.yaml beside this file), so a static list here would have to be
 # re-derived on every deploy. The blast radius is bounded on the far side

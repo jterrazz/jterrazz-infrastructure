@@ -1,4 +1,4 @@
-# The non-secret env every OpenPanel APPLICATION release shares — op-api,
+# hazard: the non-secret env every OpenPanel APPLICATION release shares — op-api,
 # op-worker and op-dashboard each load this file before their own, which is
 # what the `openpanel-config` ConfigMap and its three `envFrom` blocks used to
 # do. The datastores do not read it; their own values files carry the two
@@ -26,25 +26,25 @@ spec:
     BATCH_SIZE: "5000"
     BATCH_INTERVAL: "10000"
     ALLOW_INVITATION: "true"
-    # ALLOW_REGISTRATION is deliberately NOT here: it is per-release in
+    # invariant: ALLOW_REGISTRATION is deliberately NOT here: it is per-release in
     # op-api.yaml and op-dashboard.yaml so the true/false flip stays greppable.
     REDIS_URL: "redis://op-redis:6379"
-    # The /openpanel path segment is the DB init-db.sh creates.
+    # invariant: the /openpanel path segment is the DB init-db.sh creates.
     CLICKHOUSE_URL: "http://op-clickhouse:8123/openpanel"
     DASHBOARD_URL: "https://openpanel.internal.jterrazz.com"
     API_URL: "https://openpanel.internal.jterrazz.com/api"
-    # Dashboard SSR only (2.3.0 honours it; upstream added it 2026-07-01): the
+    # invariant: dashboard SSR only (2.3.0 honours it; upstream added it 2026-07-01): the
     # in-cluster Service, so a server-side fetch never has to leave the pod
     # network and hairpin through Traefik. The browser keeps API_URL.
     API_URL_SSR: "http://op-api:3000"
-    # Browser origins allowed to POST events to /api/track on the public host.
+    # outside: browser origins allowed to POST events to /api/track on the public host.
     # jterrazz.com + www.jterrazz.com are LIVE senders (the externally-hosted
     # site posts here directly); the rest are pre-authorised and cost nothing.
     # There is no shared SDK — each site integrates OpenPanel's browser snippet
     # itself, so adding a sender means adding its apex (and www./sub) here.
     API_CORS_ORIGINS: "https://openpanel.internal.jterrazz.com,https://jterrazz.com,https://www.jterrazz.com,https://spwn.sh,https://sig.news"
 
-  # Infisical /jterrazz-infrastructure/openpanel, env prod. Each release syncs
+  # outside: Infisical /jterrazz-infrastructure/openpanel, env prod. Each release syncs
   # its own copy of the folder and projects only the keys it names — the
   # `openpanel-secrets` Secret that all three read wholesale through `envFrom`
   # is gone, and with it the Ansible task that had to create it before any of
@@ -64,7 +64,7 @@ spec:
       - DATABASE_URL_DIRECT
       - COOKIE_SECRET
 
-  # Nothing in this namespace gets the reach the chart derives for an app:
+  # invariant: nothing in this namespace gets the reach the chart derives for an app:
   # every rule below is one flow that was in
   # cluster/network-policies/platform-analytics.yaml when these six workloads
   # had no release to declare it with.

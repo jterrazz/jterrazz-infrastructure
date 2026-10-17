@@ -1,4 +1,4 @@
-# App-chart values for the private container registry — the workload half.
+# hazard: app-chart values for the private container registry — the workload half.
 # The IngressRoute, Certificate and blob PV/PVC are service.yaml next to this
 # file (the `registry-platform` release, which owns the volume this one only
 # mounts).
@@ -18,7 +18,7 @@ metadata:
 environment: prod
 
 spec:
-  # distribution 3.x. The 2.8 -> 3.x jump is safe HERE specifically because
+  # hazard: distribution 3.x. The 2.8 -> 3.x jump is safe HERE specifically because
   # this workload configures the registry entirely through REGISTRY_* env vars
   # and mounts no config file: 3.0 moved the default config path from
   # /etc/docker/registry/config.yml to /etc/distribution/config.yml, so a
@@ -32,17 +32,17 @@ spec:
   # pushes schema2/OCI, storage is filesystem, TLS terminates at Traefik).
   image: registry:3.1.1
   port: 5000
-  # containerd and CI both dial `registry.internal.jterrazz.com` and terminate at
+  # outside: containerd and CI both dial `registry.internal.jterrazz.com` and terminate at
   # Traefik, whose IngressRoute (service.yaml) names port 5000.
   servicePort: 5000
 
-  # The image runs as root and its blob store is root-owned. Pinning a uid
+  # hazard: the image runs as root and its blob store is root-owned. Pinning a uid
   # would need the whole tree chowned; `storage.owner: ""` says the same thing
   # from the other side — do not chown 10Gi of layers on every pod start.
   runAsRoot: true
 
   env:
-    # THE LOG-VOLUME FIX — do not drop as redundant. No config file is mounted,
+    # hazard: tHE LOG-VOLUME FIX — do not drop as redundant. No config file is mounted,
     # but the image BAKES IN distribution's config-dev.yml, which sets
     # `log.level: debug`; REGISTRY_* env overrides it. At debug, distribution
     # dumps every request's spans as JSON through the logger
@@ -51,10 +51,10 @@ spec:
     REGISTRY_LOG_LEVEL: "info"
     REGISTRY_AUTH: "htpasswd"
     REGISTRY_AUTH_HTPASSWD_REALM: "Registry"
-    # /auth is the secretMount below; `htpasswd` is the Secret key.
+    # invariant: /auth is the secretMount below; `htpasswd` is the Secret key.
     REGISTRY_AUTH_HTPASSWD_PATH: "/auth/htpasswd"
     REGISTRY_STORAGE_DELETE_ENABLED: "true"
-    # NO BLOB-DESCRIPTOR CACHE — load-bearing for registry-gc below; do not
+    # hazard: nO BLOB-DESCRIPTOR CACHE — load-bearing for registry-gc below; do not
     # drop as a micro-optimisation. The image bakes in `storage.cache.
     # blobdescriptor: inmemory`, and garbage-collect never tells that cache
     # what it swept (it runs in its own pod anyway). A push that re-uses a
@@ -71,16 +71,16 @@ spec:
 
   storage:
     mountPath: /var/lib/registry
-    # From the platform-service chart (service.yaml -> storage.data).
+    # invariant: from the platform-service chart (service.yaml -> storage.data).
     claimName: registry-data
     owner: ""
 
   secretMounts:
-    # Bootstrapped by ansible/roles/platform/tasks/bootstrap.yml.
+    # outside: bootstrapped by ansible/roles/platform/tasks/bootstrap.yml.
     - secretName: registry-auth
       mountPath: /auth
 
-  # Probe `/`, NOT `/v2/`: with REGISTRY_AUTH=htpasswd, `GET /v2/` answers 401
+  # hazard: probe `/`, NOT `/v2/`: with REGISTRY_AUTH=htpasswd, `GET /v2/` answers 401
   # without credentials, which kubelet reads as a failure and which would
   # CrashLoop a healthy registry. Port 5000 deliberately, not the debug
   # listener on 5001 (which config-dev.yml also enables, serving /debug/health
@@ -92,14 +92,14 @@ spec:
   resources:
     cpu: 10m
     memory: 128Mi
-    # Do not lower: a tight limit makes Go's GC thrash while streaming a large
+    # hazard: do not lower: a tight limit makes Go's GC thrash while streaming a large
     # blob, throughput collapses to ~0.6MB/s, and buildkit's ~60s upload
     # timeout fires — surfacing as "blob upload invalid" on the retried,
     # wrong-offset resume rather than as an OOM.
     memoryLimit: 512Mi
 
   network:
-    # Traefik and nothing else: every pull and push arrives that way, and there
+    # outside: Traefik and nothing else: every pull and push arrives that way, and there
     # is no direct ClusterIP consumer. `isolated` is what keeps the chart from
     # also granting the internet egress an app gets — storage is a local
     # hostPath, so DNS (which the namespace baseline grants) is the whole of
@@ -108,7 +108,7 @@ spec:
     exposeTo:
       - traefik
 
-  # GARBAGE COLLECTION. Every CI push moves `:latest` to a new manifest and
+  # hazard: GARBAGE COLLECTION. Every CI push moves `:latest` to a new manifest and
   # leaves the old one behind, untagged but still holding its layers — a
   # registry never deletes on its own, by design, so that a digest stays
   # pullable for a rollback. Nothing here pulls by digest (every workload
@@ -158,7 +158,7 @@ spec:
       storage: true
       activeDeadlineSeconds: 1800
 
-  # prod-only, like every spec.alerts. No contact point is wired (see
+  # invariant: prod-only, like every spec.alerts. No contact point is wired (see
   # kubernetes/services/grafana/values.yaml): it shows in the Alerting UI.
   # The age is measured from the last success, or from the CronJob's creation
   # when it has never succeeded — max() picks the later, and a success is

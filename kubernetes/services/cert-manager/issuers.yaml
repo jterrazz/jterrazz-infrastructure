@@ -1,5 +1,5 @@
 ---
-# DNS-01, not HTTP-01: the cluster has no public inbound path, so an HTTP-01
+# hazard: DNS-01, not HTTP-01: the cluster has no public inbound path, so an HTTP-01
 # challenge could never be reached. Adding a new public zone means adding it to
 # the dnsZones list of BOTH issuers below.
 apiVersion: cert-manager.io/v1
@@ -24,7 +24,7 @@ spec:
             - sig.news
             - spwn.sh
 ---
-# Staging — higher rate limits, untrusted chain. For testing issuance only.
+# invariant: staging — higher rate limits, untrusted chain. For testing issuance only.
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:

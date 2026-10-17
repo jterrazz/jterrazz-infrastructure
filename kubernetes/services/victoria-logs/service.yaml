@@ -1,4 +1,4 @@
-# Service-chart values for VictoriaLogs — storage only. `host` is deliberately
+# invariant: Service-chart values for VictoriaLogs — storage only. `host` is deliberately
 # unset (Grafana and the OTel collector both reach it in-cluster), and
 # with no host the chart emits neither IngressRoute nor Certificate.
 #
@@ -11,7 +11,7 @@
 # constraint never applies.
 name: victoria-logs
 storage:
-  # No pathSuffix — the PV lands on /var/lib/k8s-data/victoria-logs.
+  # invariant: no pathSuffix — the PV lands on /var/lib/k8s-data/victoria-logs.
   #
   # Nominal — hostPath enforces no quota, the real cap is the Mac disk.
   data:

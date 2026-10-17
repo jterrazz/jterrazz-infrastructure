@@ -1,4 +1,4 @@
-# VictoriaMetrics single-node — the metrics store.
+# hazard: VictoriaMetrics single-node — the metrics store.
 #
 # Chart: vm/victoria-metrics-single, pinned in kubernetes/helmfile.yaml.gotmpl.
 # Two ingest paths, both on :8428 —
@@ -15,12 +15,12 @@
 # the per-pod DNS a StatefulSet guarantees.
 
 server:
-  # Without this the objects are named <release>-victoria-metrics-single-server.
+  # outside: without this the objects are named <release>-victoria-metrics-single-server.
   # Every consumer (Grafana datasource, the collector's remote-write exporter)
   # addresses the Service by name, so keep it short and stable.
   fullnameOverride: victoria-metrics
 
-  # DATA LOSS IF CHANGED. Names the PVC that kubernetes/services/victoria-metrics/
+  # hazard: DATA LOSS IF CHANGED. Names the PVC that kubernetes/services/victoria-metrics/
   # service.yaml creates (<name>-<key> = victoria-metrics-data) over a hostPath
   # PV at /var/lib/k8s-data/victoria-metrics.
   #
@@ -32,11 +32,11 @@ server:
   persistentVolume:
     existingClaim: victoria-metrics-data
 
-  # Age-based only. Do NOT add `-retention.maxDiskSpaceUsageBytes`: a size cap
+  # hazard: age-based only. Do NOT add `-retention.maxDiskSpaceUsageBytes`: a size cap
   # silently clips the window (a 2GB cap gives roughly 7d here).
   retentionPeriod: "30d"
 
-  # 60s, against the 5s default. Each flush writes a new part directory, and on
+  # hazard: 60s, against the 5s default. Each flush writes a new part directory, and on
   # this target a flush is charged per fsync rather than per byte — see the
   # ~135KB-per-fsync tax in docs/guides/develop.md. What 60s risks is data still in RAM on
   # an UNCLEAN exit (OOM kill, SIGKILL, hard reset); a graceful stop flushes.
@@ -52,7 +52,7 @@ server:
     limits:
       memory: 896Mi
 
-  # Reproduces the scrape surface of prometheus-community/prometheus 29.19.0's
+  # outside: reproduces the scrape surface of prometheus-community/prometheus 29.19.0's
   # default `serverFiles."prometheus.yml"` — derived by rendering that chart, not
   # hand-approximated. Enabling it also renders the ClusterRole/Binding
   # kubernetes_sd needs and mounts the config at /scrapeconfig/scrape.yml.
@@ -64,12 +64,12 @@ server:
     enabled: true
     config:
       global:
-        # 1m, not the chart's 15s default — Prometheus scraped at 1m here and a
+        # value: 1m, not the chart's 15s default — Prometheus scraped at 1m here and a
         # 4x resolution bump is a 4x sample-rate bump on a memory-bound node.
         scrape_interval: 1m
 
       scrape_configs:
-        # VictoriaMetrics' own metrics, on the port it listens on.
+        # outside: VictoriaMetrics' own metrics, on the port it listens on.
         - job_name: victoriametrics
           static_configs:
             - targets: ["localhost:8428"]
@@ -88,7 +88,7 @@ server:
           scheme: https
           tls_config:
             ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-          # CARDINALITY. These per-(verb × resource × subresource × scope × le)
+          # invariant: CARDINALITY. These per-(verb × resource × subresource × scope × le)
           # histograms grow with the API surface, not with anything this cluster
           # does, and nothing reads them — no dashboard, no app alert rule.
           # Dropped at INGEST so they cost no index, cache or disk. Only the
@@ -112,7 +112,7 @@ server:
             ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
             insecure_skip_verify: true
 
-        # cadvisor. Both Grafana dashboards depend on this job:
+        # outside: cadvisor. Both Grafana dashboards depend on this job:
         # container_cpu_usage_seconds_total / container_memory_working_set_bytes
         # / container_network_*_bytes_total come from nowhere else.
         - job_name: kubernetes-nodes-cadvisor
@@ -247,7 +247,7 @@ server:
           scrape_interval: 5m
           scrape_timeout: 30s
 
-        # This is the job that picks up kube-state-metrics and node-exporter:
+        # invariant: this is the job that picks up kube-state-metrics and node-exporter:
         # both charts annotate their own Service with prometheus.io/scrape=true.
         # Discovery is annotation-driven, so there is no install-order constraint
         # between those releases and this one.
@@ -264,7 +264,7 @@ server:
               regex: true
               source_labels:
                 - __meta_kubernetes_service_annotation_prometheus_io_scrape_slow
-            # DEDUP. Without this, a MULTI-PORT Service annotated
+            # outside: DEDUP. Without this, a MULTI-PORT Service annotated
             # prometheus.io/scrape=true yields one target per endpointslice port,
             # and the __address__ rewrite below collapses them all onto the one
             # prometheus.io/port — N identical targets, scraped N times
@@ -323,7 +323,7 @@ server:
               regex: true
               source_labels:
                 - __meta_kubernetes_service_annotation_prometheus_io_scrape_slow
-            # Same dedup as the fast job above — see the DEDUP comment there for
+            # invariant: same dedup as the fast job above — see the DEDUP comment there for
             # why it exists and why the `if` guard is not optional. No Service
             # sets prometheus.io/scrape_slow today, so this has no live effect;
             # it is here so the bug does not come back with the first one that

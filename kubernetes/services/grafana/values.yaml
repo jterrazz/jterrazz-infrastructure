@@ -2,7 +2,7 @@ persistence:
   enabled: true
   existingClaim: grafana-data
 
-# Grafana's default is `wal = false`, and the knob is inert on this image
+# hazard: Grafana's default is `wal = false`, and the knob is inert on this image
 # anyway: the CGO-free modernc.org/sqlite driver silently ignores it
 # (grafana/grafana#127893). WAL is instead a persistent property of the db
 # FILE, flipped offline — the driver honours it from then on:
@@ -21,10 +21,10 @@ resources:
     cpu: 50m
     memory: 256Mi
   limits:
-    # Spin containment: with the cap, a repeat of the reclaim storm below
+    # outside: spin containment: with the cap, a repeat of the reclaim storm below
     # degrades only Grafana instead of starving the node.
     cpu: 1500m
-    # 768Mi because 384Mi caused the recurring "Grafana spiral" (pegged at the
+    # invariant: 768Mi because 384Mi caused the recurring "Grafana spiral" (pegged at the
     # CPU cap, /api/health 503, SQLite "context deadline exceeded", diagnosed
     # 2026-07 as a lock bug — it never was one). Grafana 13's unified storage
     # holds ~320Mi anon, which left the grafana.db + bleve-index FILE pages
@@ -36,12 +36,12 @@ resources:
     # thrashing returns.
     memory: 768Mi
 
-# 3, not the chart's 10: ten ReplicaSets per Deployment is ten objects in a
+# invariant: 3, not the chart's 10: ten ReplicaSets per Deployment is ten objects in a
 # SQLite-backed apiserver for a rollback nobody performs. One step back suffices.
 revisionHistoryLimit: 3
 
 sidecar:
-  # ONE `resources` block covers EVERY sidecar the chart renders (all five
+  # hazard: oNE `resources` block covers EVERY sidecar the chart renders (all five
   # containers interpolate `.Values.sidecar.resources` in _pod.tpl — there is no
   # per-sidecar override). Sized rather than left BestEffort because an evicted
   # sidecar is not a visible outage: dashboards and alert rules silently stop
@@ -59,7 +59,7 @@ sidecar:
     folderAnnotation: grafana_folder
     provider:
       foldersFromFilesStructure: true
-  # Rules fire and show in the Alerting UI, but no contact point is wired, so
+  # invariant: rules fire and show in the Alerting UI, but no contact point is wired, so
   # nothing is delivered anywhere. Deliberate — delivery is a later step.
   #
   # The RULES themselves live with the app that emits the metric: the app chart
@@ -71,7 +71,7 @@ sidecar:
     searchNamespace: ALL
     labelValue: "1"
 
-# VictoriaLogs is not a core Grafana datasource — it ships as a plugin, signed
+# outside: VictoriaLogs is not a core Grafana datasource — it ships as a plugin, signed
 # by VictoriaMetrics and served from the Grafana catalog, so grafana-cli installs
 # it with no unsigned-plugin allowlisting. Grafana installs plugins at pod start,
 # which means the pod needs egress to grafana.com on every restart.
@@ -85,7 +85,7 @@ plugins:
 datasources:
   datasources.yaml:
     apiVersion: 1
-    # Provisioning applies these BEFORE the datasources below, and that ordering
+    # invariant: provisioning applies these BEFORE the datasources below, and that ordering
     # is what frees the uids: rows are matched by NAME, so these three deletes
     # release `prometheus`/`loki`/`tempo` for the entries that follow. Without
     # them the insert collides on the unique uid index and Grafana logs a
@@ -99,13 +99,13 @@ datasources:
       - name: Tempo
         orgId: 1
     datasources:
-      # THE UIDs `prometheus` / `loki` / `tempo` ARE THE STABLE IDENTIFIERS and
+      # hazard: tHE UIDs `prometheus` / `loki` / `tempo` ARE THE STABLE IDENTIFIERS and
       # do NOT track the names or types below. Every dashboard JSON in
       # kubernetes/services/grafana/dashboards/ and every app-shipped alert rule
       # (the app chart's `spec.alerts`, which lives in other repos) references a
       # datasource by uid. Renaming a uid silently breaks all of them.
       - name: VictoriaMetrics
-        # VictoriaMetrics serves the Prometheus HTTP API on :8428, so Grafana's
+        # outside: VictoriaMetrics serves the Prometheus HTTP API on :8428, so Grafana's
         # core prometheus datasource talks to it directly; MetricsQL is a
         # superset of PromQL, so every panel expression parses.
         type: prometheus
@@ -113,19 +113,19 @@ datasources:
         url: http://victoria-metrics.platform-telemetry.svc:8428
         isDefault: true
       - name: VictoriaLogs
-        # Query language is LogsQL, not LogQL.
+        # invariant: query language is LogsQL, not LogQL.
         type: victoriametrics-logs-datasource
         uid: loki
         url: http://victoria-logs.platform-telemetry.svc:9428
       - name: VictoriaTraces
-        # VictoriaTraces exposes a Jaeger-compatible query API under
+        # outside: VictoriaTraces exposes a Jaeger-compatible query API under
         # /select/jaeger; the path is part of the URL, not a jsonData option.
         # https://docs.victoriametrics.com/victoriatraces/querying/grafana/
         type: jaeger
         uid: tempo
         url: http://victoria-traces.platform-telemetry.svc:10428/select/jaeger
         jsonData:
-          # These point at the uids above — the second reason uid stability
+          # invariant: these point at the uids above — the second reason uid stability
           # matters.
           tracesToLogsV2:
             datasourceUid: loki

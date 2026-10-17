@@ -1,10 +1,10 @@
-# Service-chart values for the OTel Collector — its credentials and the one
+# outside: Service-chart values for the OTel Collector — its credentials and the one
 # NetworkPolicy rule that names it. No host: the collector serves no route.
 #
 # The upstream chart's own values are values.yaml beside this file.
 name: otel-collector
 
-# Infisical /jterrazz-infrastructure/otel-collector (env prod) -> the
+# invariant: Infisical /jterrazz-infrastructure/otel-collector (env prod) -> the
 # Langfuse OTLP Basic-Auth header.
 #
 # THE SECRET NAME IS READ BY A LITERAL STRING: values.yaml's
@@ -17,7 +17,7 @@ secrets:
   path: /jterrazz-infrastructure/otel-collector
   secretName: otel-collector-secrets
 
-# The ingest half of the app chart's `platformServices: [otel-collector]`
+# invariant: the ingest half of the app chart's `platformServices: [otel-collector]`
 # contract: any pod in any namespace may write telemetry to the collector's two
 # OTLP ports.
 #
@@ -33,7 +33,7 @@ secrets:
 # cloud.langfuse.com — is covered by the namespace baseline in
 # kubernetes/cluster/network-policies/platform-telemetry.yaml.
 network:
-  # The upstream chart's labels, not ours.
+  # outside: the upstream chart's labels, not ours.
   podSelector:
     app.kubernetes.io/name: opentelemetry-collector
     app.kubernetes.io/instance: otel-collector

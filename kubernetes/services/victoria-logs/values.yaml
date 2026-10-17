@@ -1,4 +1,4 @@
-# VictoriaLogs single-node — the log store. Chart: vm/victoria-logs-single,
+# hazard: VictoriaLogs single-node — the log store. Chart: vm/victoria-logs-single,
 # pinned in kubernetes/helmfile.yaml.gotmpl. Two write paths, both on :9428,
 # both always on (no receiver flag to enable):
 #   * OTLP/HTTP  /insert/opentelemetry/v1/logs  — what the OTel collector uses
@@ -6,24 +6,24 @@
 # (`{k8s.namespace.name="x"}`), the pipe operators do not — see docs/guides/operate.md.
 
 server:
-  # Without this the objects are named <release>-victoria-logs-single-server.
+  # invariant: without this the objects are named <release>-victoria-logs-single-server.
   fullnameOverride: victoria-logs
 
-  # DATA LOSS IF CHANGED — see the matching note in service.yaml. `existingClaim`
+  # hazard: DATA LOSS IF CHANGED — see the matching note in service.yaml. `existingClaim`
   # also makes the chart drop its StatefulSet volumeClaimTemplate and mount this
   # PVC by name, which is why no `claimName` override is needed here.
   persistentVolume:
     existingClaim: victoria-logs-data
 
-  # 90d, and actually ENFORCED: VictoriaLogs deletes data past the window and
+  # value: 90d, and actually ENFORCED: VictoriaLogs deletes data past the window and
   # rejects ingestion of entries outside it.
   retentionPeriod: "90d"
 
-  # 60s against the 5s default — rationale in victoria-metrics/values.yaml.
+  # value: 60s against the 5s default — rationale in victoria-metrics/values.yaml.
   extraArgs:
     inmemoryDataFlushInterval: 60s
 
-  # The REQUEST is small on purpose: the caches are budgeted from
+  # hazard: the REQUEST is small on purpose: the caches are budgeted from
   # `-memory.allowedPercent` of the LIMIT, not of the request. Do not cut the
   # 512Mi limit — that is the number the cache budget tracks.
   resources:
@@ -33,7 +33,7 @@ server:
     limits:
       memory: 512Mi
 
-  # The chart runs the server as uid 1000 / fsGroup 2000 with a read-only root
+  # outside: the chart runs the server as uid 1000 / fsGroup 2000 with a read-only root
   # filesystem (podSecurityContext defaults, left alone). fsGroup does NOT apply
   # to hostPath volumes — the kubelet's ownership management skips that plugin —
   # so the DirectoryOrCreate hostPath arrives root-owned on a fresh node and the
@@ -49,7 +49,7 @@ server:
         runAsUser: 0
         runAsNonRoot: false
       volumeMounts:
-        # `server-volume` is the chart's fixed internal name for the data
+        # invariant: `server-volume` is the chart's fixed internal name for the data
         # volume, not something these values can rename.
         - name: server-volume
           mountPath: /storage

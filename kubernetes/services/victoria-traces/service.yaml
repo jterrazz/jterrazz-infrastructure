@@ -1,4 +1,4 @@
-# Service-chart values for VictoriaTraces — storage only. `host` is deliberately
+# invariant: Service-chart values for VictoriaTraces — storage only. `host` is deliberately
 # unset (Grafana and the OTel collector both reach it in-cluster), and with no
 # host the chart emits neither IngressRoute nor Certificate.
 #
@@ -10,7 +10,7 @@
 # StatefulSet volumeClaimTemplate entirely.
 name: victoria-traces
 storage:
-  # No pathSuffix — the PV lands on /var/lib/k8s-data/victoria-traces.
+  # invariant: no pathSuffix — the PV lands on /var/lib/k8s-data/victoria-traces.
   #
   # Nominal — hostPath enforces no quota, the real cap is the Mac disk.
   data:

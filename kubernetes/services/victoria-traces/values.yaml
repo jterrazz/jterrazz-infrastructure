@@ -1,4 +1,4 @@
-# VictoriaTraces single-node — the trace store.
+# invariant: VictoriaTraces single-node — the trace store.
 #
 # Chart: vm/victoria-traces-single, pinned in kubernetes/helmfile.yaml.gotmpl.
 #
@@ -26,20 +26,20 @@
 # Jaeger surface is the documented, non-experimental one.)
 
 server:
-  # Without this the objects are named <release>-vt-single-server (the chart's
+  # invariant: without this the objects are named <release>-vt-single-server (the chart's
   # nameOverride is `vt-single`, not the chart name).
   fullnameOverride: victoria-traces
 
-  # DATA LOSS IF CHANGED — see the matching note in service.yaml. `existingClaim`
+  # hazard: DATA LOSS IF CHANGED — see the matching note in service.yaml. `existingClaim`
   # also makes the chart drop its StatefulSet volumeClaimTemplate and mount this
   # PVC by name, which is why no `claimName` override is needed here.
   persistentVolume:
     existingClaim: victoria-traces-data
 
-  # 720h == 30d. The flag takes s/h/d/w/M/y suffixes; minimum retention is 1d.
+  # value: 720h == 30d. The flag takes s/h/d/w/M/y suffixes; minimum retention is 1d.
   retentionPeriod: "720h"
 
-  # 300s, not the 60s the other two use — rationale in victoria-metrics/values.yaml,
+  # invariant: 300s, not the 60s the other two use — rationale in victoria-metrics/values.yaml,
   # and this store gets the longer interval because it can afford it: the boxed
   # note above already accepts losing trace history outright, and a flush here
   # writes a 32-74 file columnar part (one bloom/values pair per span attribute)
@@ -48,18 +48,18 @@ server:
   extraArgs:
     inmemoryDataFlushInterval: 300s
 
-  # The REQUEST is small on purpose: the caches are budgeted from
+  # invariant: the REQUEST is small on purpose: the caches are budgeted from
   # `-memory.allowedPercent` of the LIMIT, not of the request.
   resources:
     requests:
       cpu: 25m
       memory: 96Mi
     limits:
-      # A limit that is too tight OOMKills in a loop and makes `helm --wait`
+      # hazard: a limit that is too tight OOMKills in a loop and makes `helm --wait`
       # flake — measure before tightening.
       memory: 512Mi
 
-  # Same reasoning as victoria-logs/values.yaml: uid 1000 / fsGroup 2000 with a
+  # invariant: same reasoning as victoria-logs/values.yaml: uid 1000 / fsGroup 2000 with a
   # read-only root fs, and fsGroup is not applied to hostPath volumes, so a
   # freshly created /var/lib/k8s-data/victoria-traces would be root-owned and
   # unwritable. runAsUser 0 + runAsNonRoot false override the pod-level context.
@@ -71,7 +71,7 @@ server:
         runAsUser: 0
         runAsNonRoot: false
       volumeMounts:
-        # `server-volume` is the chart's fixed internal name for the data
+        # invariant: `server-volume` is the chart's fixed internal name for the data
         # volume, not something these values can rename.
         - name: server-volume
           mountPath: /storage

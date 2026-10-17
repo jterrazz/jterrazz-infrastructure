@@ -3,7 +3,7 @@ controllerManager:
     resources:
       requests:
         cpu: 5m
-        # Idles ~73Mi; a controller-runtime manager spikes well above that
+        # value: idles ~73Mi; a controller-runtime manager spikes well above that
         # when resyncing many InfisicalSecrets at once.
         memory: 128Mi
       limits:

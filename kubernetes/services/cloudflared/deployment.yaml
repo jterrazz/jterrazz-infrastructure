@@ -1,4 +1,4 @@
-# Cloudflared (Cloudflare Tunnel) — the only public ingress path; the host has
+# hazard: cloudflared (Cloudflare Tunnel) — the only public ingress path; the host has
 # no open public IP.
 #
 # The tunnel is remote-managed (token-based) and routes PER HOSTNAME, not by
@@ -19,14 +19,14 @@ metadata:
     app.kubernetes.io/name: cloudflared
     app.kubernetes.io/component: tunnel
 spec:
-  # One replica is not a single point of failure the way it looks: cloudflared
+  # invariant: one replica is not a single point of failure the way it looks: cloudflared
   # maintains 4 redundant edge connections per replica.
   replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: cloudflared
   strategy:
-    # Recreate: edge connections are transient and Cloudflare fails over to the
+    # outside: recreate: edge connections are transient and Cloudflare fails over to the
     # new replica, so there is nothing for a rolling update to protect.
     type: Recreate
   template:
@@ -35,7 +35,7 @@ spec:
         app.kubernetes.io/name: cloudflared
         app.kubernetes.io/component: tunnel
     spec:
-      # hostNetwork so cloudflared dials the Cloudflare edge through the
+      # hazard: hostNetwork so cloudflared dials the Cloudflare edge through the
       # host's network stack rather than CNI. The CNI bridge on OrbStack
       # mangles outbound TCP/7844 to Cloudflare in a way that yields
       # `connect: connection refused` for cloudflared specifically
@@ -51,13 +51,13 @@ spec:
           args:
             - tunnel
             - --no-autoupdate
-            # OrbStack's NAT eats outbound UDP/443 so cloudflared can't
+            # outside: OrbStack's NAT eats outbound UDP/443 so cloudflared can't
             # establish a QUIC connection to the Cloudflare edge (every
             # dial times out with "no recent network activity"). Forcing
             # HTTP/2 falls back to TCP/443 which traverses the NAT fine.
             - --protocol
             - http2
-            # Also serves /ready, which both probes below use.
+            # invariant: also serves /ready, which both probes below use.
             - --metrics
             - 0.0.0.0:2000
             - run
@@ -71,7 +71,7 @@ spec:
             - name: metrics
               containerPort: 2000
               protocol: TCP
-          # /ready returns 200 once at least one edge connection is established;
+          # invariant: /ready returns 200 once at least one edge connection is established;
           # used for liveness too, so a stuck process gets restarted.
           livenessProbe:
             httpGet:
