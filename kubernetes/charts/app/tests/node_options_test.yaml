@@ -1,6 +1,5 @@
 suite: NODE_OPTIONS heap cap and its 512Mi floor
-#
-# The chart injects NODE_OPTIONS=--max-old-space-size=<75% of the memory
+# hazard: the chart injects NODE_OPTIONS=--max-old-space-size=<75% of the memory
 # REQUEST>, but only above a 512Mi floor. The floor is not a style choice: for
 # a small Next.js service (128Mi request) the derived 96MB cap starves SSR boot
 # and crash-loops the pod — it regressed spwn.sh once. Below the floor the
@@ -21,7 +20,7 @@ tests:
           any: true
 
   - it: injects nothing for a tiny Next.js-sized request
-    # The exact shape that crash-looped spwn.sh: 128Mi -> a 96MB cap.
+    # hazard: the exact shape that crash-looped spwn.sh: 128Mi -> a 96MB cap.
     set:
       spec.resources.memory: 128Mi
     asserts:
@@ -32,7 +31,7 @@ tests:
           any: true
 
   - it: injects a 75% cap exactly AT the floor
-    # 512 * 3 / 4 = 384. The floor is inclusive (`ge 512`).
+    # value: 512 * 3 / 4 = 384. The floor is inclusive (`ge 512`).
     set:
       spec.resources.memory: 512Mi
     asserts:
@@ -43,7 +42,7 @@ tests:
             value: "--max-old-space-size=384"
 
   - it: derives the cap from a Gi request through app.memMi
-    # 1Gi -> 1024Mi -> 768. The cap tracks the REQUEST, not the (2x) limit:
+    # value: 1Gi -> 1024Mi -> 768. The cap tracks the REQUEST, not the (2x) limit:
     # sizing the heap off the cgroup limit is exactly the drift this prevents.
     set:
       spec.resources.memory: 1Gi
@@ -65,7 +64,7 @@ tests:
             value: "--max-old-space-size=576"
 
   - it: lets an app-declared NODE_OPTIONS win and injects nothing extra
-    # The app's own value must survive verbatim AND the derived one must not
+    # hazard: the app's own value must survive verbatim AND the derived one must not
     # be appended: two NODE_OPTIONS entries is an invalid PodSpec, and the
     # last one would win silently.
     set:
@@ -84,7 +83,7 @@ tests:
             value: "--max-old-space-size=768"
 
   - it: skips injection for a request in an unparseable unit
-    # app.memMi returns "" -> no cap, rather than a cap derived from a number
+    # invariant: app.memMi returns "" -> no cap, rather than a cap derived from a number
     # whose unit the chart did not understand.
     set:
       spec.resources.memory: 1000000Ki
@@ -96,7 +95,7 @@ tests:
           any: true
 
   - it: derives the cap from an environment-level resources override
-    # `resources` DEEP merges, so an environment can raise memory alone and the
+    # invariant: `resources` DEEP merges, so an environment can raise memory alone and the
     # cap must follow it — this is the path a staging/prod split actually uses.
     set:
       spec.resources.memory: 256Mi

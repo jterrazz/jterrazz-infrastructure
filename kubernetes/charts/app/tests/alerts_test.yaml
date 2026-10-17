@@ -1,6 +1,5 @@
 suite: spec.alerts -> Grafana alert-rule ConfigMap
-#
-# The label is the whole feature: Grafana's alerts sidecar
+# hazard: the label is the whole feature: Grafana's alerts sidecar
 # (kubernetes/services/grafana/values.yaml) selects `grafana_alert: "1"` across
 # ALL namespaces, so a ConfigMap that loses the label is not a broken alert —
 # it is inert data nobody notices until an outage goes unannounced. Everything
@@ -12,7 +11,7 @@ templates:
   - templates/alert-configmap.yaml
 tests:
   - it: renders nothing when the app declares no alerts
-    # Not a no-op assertion: the template must not emit an empty-`data`
+    # invariant: not a no-op assertion: the template must not emit an empty-`data`
     # ConfigMap. The alerts sidecar treats one as a provisioning file set and
     # an app that simply has no rules would churn Grafana on every deploy.
     values:
@@ -24,7 +23,7 @@ tests:
           count: 0
 
   - it: puts every entry in ONE ConfigMap named <app>-alerts
-    # One object, N keys — the fixture carries two entries precisely so a
+    # invariant: one object, N keys — the fixture carries two entries precisely so a
     # template that overwrote `data` per iteration would fail here.
     values:
       - ../ci/test-values.yaml
@@ -42,7 +41,7 @@ tests:
             app: ci-test-app
             environment: prod
             grafana_alert: "1"
-      # No grafana_folder annotation, unlike dashboards: the alerts sidecar has
+      # invariant: no grafana_folder annotation, unlike dashboards: the alerts sidecar has
       # no folderAnnotation configured, and each group names its own `folder:`.
       - notExists:
           path: metadata.annotations
@@ -52,7 +51,7 @@ tests:
           path: data["ci-test-app-extra.yaml"]
 
   - it: keys each entry <name>.yaml and passes the payload through verbatim
-    # Byte-for-byte: these rule files are copied from a working Grafana
+    # hazard: byte-for-byte: these rule files are copied from a working Grafana
     # provisioning file, so any re-indent or re-quote the chart applies is a
     # rule that silently fails to provision.
     values:
@@ -80,7 +79,7 @@ tests:
                 rules: []
 
   - it: takes alerts from an environment override like any other spec key
-    # spec.alerts is a plain map, so app.merged's deep-merge applies: an
+    # value: spec.alerts is a plain map, so app.merged's deep-merge applies: an
     # environment may add or replace an entry. Pinned because the prod gate
     # makes this the one key whose override is only ever exercised in prod.
     values:
@@ -96,6 +95,6 @@ tests:
           value: |
             apiVersion: 1
             groups: []
-      # The non-overridden entry survives (maps deep-merge, lists replace).
+      # invariant: the non-overridden entry survives (maps deep-merge, lists replace).
       - exists:
           path: data["ci-test-app-extra.yaml"]

@@ -1,6 +1,5 @@
 suite: full fixture render (snapshot)
-#
-# Pins the ENTIRE manifest set the chart produces from ci/test-values.yaml,
+# invariant: pins the ENTIRE manifest set the chart produces from ci/test-values.yaml,
 # byte for byte, in __snapshot__/snapshot_test.yaml.snap.
 #
 # The targeted suites next to this one assert the load-bearing logic and say
@@ -15,10 +14,8 @@ suite: full fixture render (snapshot)
 # regenerates the .snap — and the diff in that file is what the change review
 # should actually look at. Never regenerate without reading it.
 #
-# ---------------------------------------------------------------------------
 # The template list is explicit, and it is EVERY template the chart has. ADD A
 # NEW TEMPLATE HERE when you add one, or it renders unwatched.
-# ---------------------------------------------------------------------------
 templates:
   - templates/alert-configmap.yaml
   - templates/configmap.yaml

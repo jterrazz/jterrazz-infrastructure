@@ -1,7 +1,4 @@
-# Default values for app chart
-# Apps define their config in .infrastructure/application.yaml
-#
-# Every key the templates read is declared here with its default, so a template
+# invariant: every key the templates read is declared here with its default, so a template
 # never re-defaults one (`values.yaml` owns defaults; templates read them
 # plainly). An empty string / map / list means "unset" for the branch that
 # reads it.
@@ -9,30 +6,30 @@
 metadata:
   name: ""
 
-# Facts about the app REPO, not the workload — set by CI, never by
+# invariant: facts about the app REPO, not the workload — set by CI, never by
 # application.yaml. Empty means "CI did not pass it", and the chart stamps
 # nothing rather than guessing.
 meta:
-  # Set by app CI: --set meta.repository=${{ github.repository }}, i.e.
+  # invariant: set by app CI: --set meta.repository=${{ github.repository }}, i.e.
   # `<owner>/<name>`. Stamped as the `app.jterrazz.com/repository` annotation on
   # the Deployment, which is the ONLY place scripts/trigger-app-deploys.sh
   # learns that this app exists and which repo rebuilds it.
   repository: ""
 
 spec:
-  # Set by app CI: --set spec.image=registry.internal.jterrazz.com/<app>:<tag>.
+  # invariant: set by app CI: --set spec.image=registry.internal.jterrazz.com/<app>:<tag>.
   # Empty falls back to <registry>/<app>:latest (_helpers.tpl app.image).
   image: ""
   port: 3000
-  # What the Service listens on. 80 keeps the app port out of every
+  # invariant: what the Service listens on. 80 keeps the app port out of every
   # IngressRoute; a workload whose clients dial it by name and port (a database
   # in a connection string) sets its own port here instead.
   servicePort: 80
   replicas: 1
-  # Entrypoint overrides. Empty means "whatever the image does".
+  # invariant: entrypoint overrides. Empty means "whatever the image does".
   command: []
   args: []
-  # Empty derives it: Recreate when storage is mounted (never two writers on
+  # invariant: empty derives it: Recreate when storage is mounted (never two writers on
   # one RWO hostPath volume), the Kubernetes default otherwise. Set it to
   # Recreate for a workload that must not run twice for a reason storage
   # cannot express — a migration on boot.
@@ -41,21 +38,21 @@ spec:
     cpu: 100m
     memory: 256Mi
     memoryLimit: ""
-  # { size, mountPath, claimName?, owner? }. `claimName` mounts a PVC another
+  # invariant: { size, mountPath, claimName?, owner? }. `claimName` mounts a PVC another
   # release owns (and renders no PV/PVC here, so `size` is then unused);
   # `owner` is the uid:gid the chown initContainer hands the volume to,
   # defaulting to 1000:1000 and skipped entirely when set empty.
   storage: {}
-  # filename -> content, or filename -> { path, content } to mount it at an
+  # invariant: filename -> content, or filename -> { path, content } to mount it at an
   # absolute path the image dictates rather than under /app.
   configFiles: {}
-  # [{ secretName, mountPath }] — an existing Secret mounted read-only as
+  # invariant: [{ secretName, mountPath }] — an existing Secret mounted read-only as
   # files. For a credential an image reads from disk rather than from env.
   secretMounts: []
   dashboards: {}
-  # name -> Grafana unified-alerting provisioning YAML. prod-only, like dashboards.
+  # outside: name -> Grafana unified-alerting provisioning YAML. prod-only, like dashboards.
   alerts: {}
-  # name -> { schedule, command, args?, timeZone?, resources?, storage?,
+  # invariant: name -> { schedule, command, args?, timeZone?, resources?, storage?,
   # suspend?, concurrencyPolicy?, startingDeadlineSeconds?, backoffLimit?,
   # activeDeadlineSeconds? }. Each entry is a CronJob `<app>-<name>` running the
   # app's own container with `command` instead of the server. `schedule` and
@@ -63,55 +60,55 @@ spec:
   # retry, a one-hour deadline) are in templates/cronjob.yaml. `storage: true`
   # mounts spec.storage.
   cronJobs: {}
-  # Merged OVER the chart's hardened container defaults
+  # value: merged OVER the chart's hardened container defaults
   # (app.containerSecurityContext in templates/_helpers.tpl), for the
   # Deployment and every cron job alike.
   securityContext: {}
-  # Drops runAsNonRoot and the pod-level uid/gid/fsGroup block.
+  # invariant: drops runAsNonRoot and the pod-level uid/gid/fsGroup block.
   runAsRoot: false
   env: {}
-  # { path, env[] } — an empty path renders no InfisicalSecret.
+  # outside: { path, env[] } — an empty path renders no InfisicalSecret.
   secrets: {}
-  # Infisical env slug; empty means "the deploy environment's own name".
+  # outside: Infisical env slug; empty means "the deploy environment's own name".
   secretsEnv: ""
-  # List of { host, path?, public, stripPrefix?, redirectTo?, preservePath?,
+  # invariant: list of { host, path?, public, stripPrefix?, redirectTo?, preservePath?,
   # smoke? }.
   ingress: []
-  # Ingress this app grants beyond Traefik and the platformServices catalogue:
+  # outside: Ingress this app grants beyond Traefik and the platformServices catalogue:
   # `exposeTo` is a list of common.networkPolicy peers, each opened on
   # spec.port. For a client that cannot stamp the catalogue's clientLabel
   # because a third-party chart renders its pods.
   network:
-    # Drops the two rules this chart derives for an application — Traefik
+    # outside: drops the two rules this chart derives for an application — Traefik
     # ingress on spec.port, egress to the internet — leaving DNS plus exactly
     # what `exposeTo` and `egress` declare below. What a datastore is.
     isolated: false
     exposeTo: []
-    # Extra egress rules in the common.networkPolicy vocabulary:
+    # invariant: extra egress rules in the common.networkPolicy vocabulary:
     # [{ to: <peer>, ports?: [...] }]. Additive.
     egress: []
-  # Opt-in in-cluster platform services, resolved against the catalog in
+  # invariant: opt-in in-cluster platform services, resolved against the catalog in
   # templates/_helpers.tpl (app.platformCatalog). Valid: otel-collector,
   # gateway-intelligence. Unknown names hard-fail the render.
   platformServices: []
   health:
     path: /health
-    # Alternatives to the HTTP path, for a server that does not speak it. The
+    # invariant: alternatives to the HTTP path, for a server that does not speak it. The
     # first one set wins: exec, then tcp, then path.
     exec: []
     tcp: false
-    # Raised from Kubernetes' 1s: a Node app doing in-process background work
+    # value: raised from Kubernetes' 1s: a Node app doing in-process background work
     # exceeds it on a trivial route. Everything else uses the k8s defaults.
     timeoutSeconds: 5
-    # 30 × the k8s default 10s period = 300s of boot grace before liveness/readiness.
+    # value: 30 × the k8s default 10s period = 300s of boot grace before liveness/readiness.
     startupFailureThreshold: 30
 
 environments: {}
 
-# Set by app CI during helm upgrade --install
+# outside: set by app CI during helm upgrade --install
 environment: ""
 
-# Our own registry, and NO credential: the pull secret is synced from Infisical
+# invariant: our own registry, and NO credential: the pull secret is synced from Infisical
 # by the operator (templates/infisical.yaml), never passed in as a value. The
 # hostname decides two things — which images get the pull secret and
 # `imagePullPolicy: Always` (app.privateImage), and which server the synced

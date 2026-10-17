@@ -1,6 +1,5 @@
 suite: platform-service.labels is stamped on all four kinds
-#
-# The chart emits exactly four kinds — IngressRoute, Certificate,
+# invariant: the chart emits exactly four kinds — IngressRoute, Certificate,
 # PersistentVolume, PersistentVolumeClaim — and every one of them must carry
 # the common label set. `part-of: jterrazz-infrastructure` is what makes
 # `kubectl get <kind> -l app.kubernetes.io/part-of=jterrazz-infrastructure`
@@ -71,7 +70,7 @@ tests:
         documentIndex: 1
 
   - it: labels a claimName-overridden PVC the same way
-    # The override changes metadata.name only — the labels must not follow it.
+    # invariant: the override changes metadata.name only — the labels must not follow it.
     templates:
       - templates/storage.yaml
     asserts:
@@ -85,7 +84,7 @@ tests:
         documentIndex: 3
 
   - it: requires a name before it will label anything
-    # No `templates:` filter here on purpose: `required` aborts the WHOLE
+    # outside: no `templates:` filter here on purpose: `required` aborts the WHOLE
     # render at whichever template Helm reaches first (storage.yaml), so
     # scoping the assertion to one template would report "no failed document".
     set:

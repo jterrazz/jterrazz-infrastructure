@@ -1,6 +1,5 @@
 suite: spec.cronJobs — the app's container, run on a schedule
-#
-# A cron job runs the APP'S OWN container with another command, so most of
+# hazard: a cron job runs the APP'S OWN container with another command, so most of
 # what is pinned here is inheritance: the same env, secrets and mounts as the
 # Deployment. The rest is the scheduling defaults (Kubernetes' own are wrong
 # for a scheduled job) and one isolation rule that is easy to break and silent
@@ -38,7 +37,7 @@ tests:
           count: 0
 
   - it: never stamps the Service selector on a job pod
-    # The Service selects `app` + `environment`. A job pod carrying both would
+    # outside: the Service selects `app` + `environment`. A job pod carrying both would
     # become an endpoint — ready at once, having no readiness probe — and
     # Traefik would send live requests to a process that is not listening.
     asserts:
@@ -170,7 +169,7 @@ tests:
             value: http://otel-collector.platform-telemetry:4318
 
   - it: derives the Node heap cap from the job's own request, not the app's
-    # The job asks for 1Gi; the app for 512Mi (whose cap would be 384).
+    # value: the job asks for 1Gi; the app for 512Mi (whose cap would be 384).
     asserts:
       - contains:
           path: spec.jobTemplate.spec.template.spec.containers[0].env
@@ -179,7 +178,7 @@ tests:
             value: --max-old-space-size=768
 
   - it: derives the memory limit from the job's own request
-    # The app's explicit 1Gi limit was sized for the app's 512Mi request.
+    # value: the app's explicit 1Gi limit was sized for the app's 512Mi request.
     # Inherited by a job asking for 1Gi, it would sit at the request; for a job
     # asking for more, the API server would reject the object outright.
     asserts:
@@ -248,7 +247,7 @@ tests:
             mountPath: /var/lib/postgresql/data
 
   - it: never chowns the volume on a run
-    # The Deployment hands the volume over on every start already.
+    # invariant: the Deployment hands the volume over on every start already.
     set:
       environment: staging
     documentSelector:
@@ -310,7 +309,7 @@ tests:
           errorPattern: "spec.cronJobs.Nightly_Report: the name must be lowercase"
 
   - it: hard-fails a name too long for the Jobs it would create
-    # ci-test-app- (12) + 41 = 53 > 52.
+    # invariant: ci-test-app- (12) + 41 = 53 > 52.
     set:
       spec.cronJobs.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.schedule: "* * * * *"
       spec.cronJobs.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.command: ["true"]

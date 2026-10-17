@@ -37,7 +37,7 @@ metadata:
     {{- include "app.labels" . | nindent 4 }}
 spec:
   replicas: {{ $spec.replicas }}
-  # 3, not the k8s default 10 — see kubernetes/services/grafana/values.yaml.
+  # invariant: 3, not the k8s default 10 — see kubernetes/services/grafana/values.yaml.
   revisionHistoryLimit: 3
   {{- if $strategy }}
   strategy:
@@ -76,7 +76,7 @@ spec:
         - name: fix-permissions
           image: busybox:1.38@sha256:fd8d9aa63ba2f0982b5304e1ee8d3b90a210bc1ffb5314d980eb6962f1a9715d
           command: ["sh", "-c", "chown -R {{ $owner }} {{ $storage.mountPath }}"]
-          # Must stay root: hostPath dirs are created root-owned and only root
+          # invariant: must stay root: hostPath dirs are created root-owned and only root
           # can chown them to the app's uid. Every capability is still dropped
           # except the three `chown -R` needs — CHOWN to change ownership,
           # FOWNER + DAC_OVERRIDE to traverse and modify dirs root does not own.
@@ -132,7 +132,7 @@ spec:
               memory: {{ $resources.memory }}
             limits:
               memory: {{ include "app.memoryLimit" . }}
-          # The startupProbe is what makes a slow boot safe, so liveness and
+          # outside: the startupProbe is what makes a slow boot safe, so liveness and
           # readiness keep Kubernetes' own timings — a wedged pod is restarted
           # in ~30s rather than the ~150s a lenient liveness probe would take.
           # Only timeoutSeconds is raised: 1s is not enough for a Node app that

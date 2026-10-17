@@ -1,6 +1,5 @@
 suite: network -> NetworkPolicy peer vocabulary
-#
-# The `network:` block is how a platform service declares the rules that used
+# invariant: the `network:` block is how a platform service declares the rules that used
 # to be hand-written in kubernetes/cluster/network-policies/<ns>.yaml. Every
 # peer form lowers to a different selector shape, and a wrong one is the
 # quietest failure in this repo: it applies cleanly, reads as if it allows the
@@ -14,7 +13,7 @@ values:
   - ../ci/test-values.yaml
 tests:
   - it: names the policy after the service and selects the declared pods
-    # The workload is rendered by the UPSTREAM chart, so its labels are that
+    # hazard: the workload is rendered by the UPSTREAM chart, so its labels are that
     # chart's — the selector is an input and can never be derived from `name`.
     asserts:
       - isKind:
@@ -47,7 +46,7 @@ tests:
               - port: 8080
 
   - it: "`any-namespace-pods:` ANDs a namespace-wide selector with a pod label"
-    # One peer element, not two: two elements would be an OR — any pod in any
+    # invariant: one peer element, not two: two elements would be an OR — any pod in any
     # namespace, label or no label.
     asserts:
       - equal:
@@ -59,7 +58,7 @@ tests:
                   platform-client.jterrazz.com/ci-test: "true"
 
   - it: "`<port>/<PROTO>` spells a protocol out; a bare port is TCP by default"
-    # Left unwritten rather than defaulted to `protocol: TCP` here, so the
+    # invariant: left unwritten rather than defaulted to `protocol: TCP` here, so the
     # rendered object matches byte-for-byte what the API server stores.
     asserts:
       - equal:
@@ -98,7 +97,7 @@ tests:
                   - 192.168.0.0/16
 
   - it: "`anywhere` does NOT except RFC1918, and carries no ports"
-    # The distinction is load-bearing: the apiserver is RFC1918 twice over on
+    # invariant: the distinction is load-bearing: the apiserver is RFC1918 twice over on
     # this cluster (ClusterIP 10.43.0.1:443 DNATs to the node's own
     # 192.168.x.x:6443), so `internet` would cut off anything that must reach
     # it. Never "tidy" one into the other.
@@ -111,7 +110,7 @@ tests:
                   cidr: 0.0.0.0/0
 
   - it: renders one direction only when only one is declared
-    # grafana's shape: ingress from Traefik, and egress left to the namespace
+    # outside: grafana's shape: ingress from Traefik, and egress left to the namespace
     # baseline. An unasked-for `policyTypes: [Egress]` here would turn the
     # baseline's allow into a deny for these pods.
     set:

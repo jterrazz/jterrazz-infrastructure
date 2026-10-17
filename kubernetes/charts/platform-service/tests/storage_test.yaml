@@ -1,6 +1,5 @@
 suite: named-volume storage map, claimName override, nodeAffinity
-#
-# hostPath paths and PV names here are LIVE DATA references. The `data` key
+# outside: hostPath paths and PV names here are LIVE DATA references. The `data` key
 # reproduces the historical `<name>-data` object names byte-for-byte, which is
 # why registry-data, grafana-data, victoria-metrics-data and the openpanel
 # volumes all kept the names they were created with. Anything that
@@ -50,7 +49,7 @@ tests:
         documentIndex: 0
 
   - it: nests a volume under the app directory when pathSuffix is set
-    # One directory per app on disk: /var/lib/k8s-data/<name>/<suffix>.
+    # invariant: one directory per app on disk: /var/lib/k8s-data/<name>/<suffix>.
     asserts:
       - equal:
           path: spec.hostPath.path
@@ -58,7 +57,7 @@ tests:
         documentIndex: 6
 
   - it: takes nodeLocalPath verbatim, outside /var/lib/k8s-data
-    # The opt-out from the Mac share. A path that silently kept the
+    # hazard: the opt-out from the Mac share. A path that silently kept the
     # /var/lib/k8s-data prefix would put the data back on virtiofs.
     asserts:
       - equal:
@@ -90,7 +89,7 @@ tests:
         documentIndex: 1
 
   - it: claimName overrides ONLY the PVC name, never the PV or the binding
-    # Why that separation is data-destroying if it breaks: templates/storage.yaml.
+    # hazard: why that separation is data-destroying if it breaks: templates/storage.yaml.
     asserts:
       - equal:
           path: metadata.name
@@ -117,7 +116,7 @@ tests:
         documentIndex: 0
 
   - it: omits nodeAffinity entirely when no node name is supplied
-    # It used to render `values: [""]` — a PV matching no node, which can never
+    # invariant: it used to render `values: [""]` — a PV matching no node, which can never
     # bind, and whose failure surfaces as a pod stuck Pending with no reason
     # naming this file.
     set:
@@ -128,7 +127,7 @@ tests:
         documentIndex: 0
 
   - it: hard-fails a volume declared without a size
-    # Without `required` this rendered an empty capacity: a PV that never binds
+    # invariant: without `required` this rendered an empty capacity: a PV that never binds
     # and a PVC requesting nothing, both diagnosable only at runtime.
     set:
       storage.sizeless.pathSuffix: whatever

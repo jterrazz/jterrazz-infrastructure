@@ -1,6 +1,5 @@
 suite: what the cluster records about the app repo and its clients
-#
-# Two stamps this chart makes so that nothing outside the cluster has to keep a
+# invariant: two stamps this chart makes so that nothing outside the cluster has to keep a
 # list: the repository annotation scripts/trigger-app-deploys.sh rebuilds the
 # fleet from, and the `exposeTo` ingress rule that lets an app declare its own
 # clients instead of a hand-written NetworkPolicy in cluster/.
@@ -16,7 +15,7 @@ tests:
           value: jterrazz/ci-test-app
 
   - it: stamps nothing when CI passed no repository
-    # An app whose CI predates `--set meta.repository` must be REPORTED as
+    # hazard: an app whose CI predates `--set meta.repository` must be REPORTED as
     # missing by the discovery script, not silently given a wrong value.
     templates:
       - templates/deployment.yaml
@@ -43,7 +42,7 @@ tests:
       environments:
         prod: {}
     asserts:
-      # [0] is the unconditional Traefik rule; the declared peers follow it.
+      # outside: [0] is the unconditional Traefik rule; the declared peers follow it.
       - equal:
           path: spec.ingress[1]
           value:
@@ -55,7 +54,7 @@ tests:
               - port: 8317
 
   - it: hard-fails an exposeTo peer outside the vocabulary
-    # A typo'd peer would otherwise render a policy that admits nothing, and a
+    # hazard: a typo'd peer would otherwise render a policy that admits nothing, and a
     # NetworkPolicy that grants nothing fails silently at runtime.
     templates:
       - templates/network-policy.yaml

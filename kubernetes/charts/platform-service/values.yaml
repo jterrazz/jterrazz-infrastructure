@@ -1,17 +1,15 @@
-# platform-service chart defaults
-# Each platform service overrides these in kubernetes/services/<svc>/service.yaml
 
 name: ""
 host: ""
 port: 80
 
-# Extra hostnames answered by the same IngressRoute and carried as SANs on the
+# hazard: extra hostnames answered by the same IngressRoute and carried as SANs on the
 # same certificate. Transitional ONLY, and the point is a rename: a service serves
 # its old and new name at once so no consumer breaks. One service, one canonical
 # `host` — not a place to park unrelated hostnames.
 aliases: []
 
-# Network visibility of the IngressRoute. Chooses which Traefik ipAllowList
+# invariant: network visibility of the IngressRoute. Chooses which Traefik ipAllowList
 # middleware is attached (the two are never chained — Traefik ANDs chained
 # ipAllowLists, so chaining allows strictly less, not more):
 #
@@ -28,7 +26,7 @@ aliases: []
 # (templates/ingress-route.yaml).
 access: private
 
-# What scripts/smoke.sh must get back from `host` for this service to count as
+# hazard: what scripts/smoke.sh must get back from `host` for this service to count as
 # serving. Stamped on the IngressRoute as smoke.jterrazz.com/{path,expect}, so
 # smoke discovers it instead of holding a second copy of this table — the
 # annotation contract is kubernetes/charts/common/templates/_smoke.tpl.
@@ -45,7 +43,7 @@ smoke:
   path: /
   expect: "200"
 
-# Extra certificates, <name> -> { dnsNames: [...] }, where <name> is BOTH the
+# invariant: extra certificates, <name> -> { dnsNames: [...] }, where <name> is BOTH the
 # Certificate and the TLS Secret it writes — a name that addresses live data,
 # so this chart derives neither. The service's own `host` (plus `aliases`) does
 # not belong here; it already gets `<name>-tls` above.
@@ -60,7 +58,7 @@ smoke:
 #     openpanel-analytics-tls:  { dnsNames: [analytics.jterrazz.com] }
 certificates: {}
 
-# The service's credentials, synced from Infisical by the operator into a
+# outside: the service's credentials, synced from Infisical by the operator into a
 # Secret an upstream chart or values file reads by name:
 #
 #   secrets:
@@ -74,7 +72,7 @@ certificates: {}
 # (creationPolicy Orphan), so deleting the release does not log the service out.
 secrets: {}
 
-# Named volumes: <key> -> { size, pathSuffix?, claimName?, nodeLocalPath? }.
+# invariant: named volumes: <key> -> { size, pathSuffix?, claimName?, nodeLocalPath? }.
 # Names and paths address live data — see templates/storage.yaml before
 # changing any of them.
 #
@@ -91,7 +89,7 @@ secrets: {}
 #     uploads:   { size: 5Gi, pathSuffix: uploads }
 storage: {}
 
-# NetworkPolicy for the workload this release fronts — the per-service half of
+# hazard: NetworkPolicy for the workload this release fronts — the per-service half of
 # what kubernetes/cluster/network-policies/<ns>.yaml used to hold by hand. The
 # namespace BASELINE (default-deny, allow-same-namespace, the namespace-wide
 # DNS egress) stays there; anything that names one workload belongs here.
@@ -134,7 +132,7 @@ storage: {}
 #         ports: [443]
 network: {}
 
-# Injected at deploy time: the `platform-service` release template in
+# invariant: injected at deploy time: the `platform-service` release template in
 # kubernetes/helmfile.yaml.gotmpl sets it from $NODE_NAME. Used as the hostPath
 # PV's nodeAffinity match.
 infrastructure:

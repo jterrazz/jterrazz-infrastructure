@@ -1,6 +1,5 @@
 suite: ingress list — replace-not-merge, and the explicit-visibility guard
-#
-# app.merged resolves `ingress` through sprig mergeOverwrite, where LISTS ARE
+# outside: app.merged resolves `ingress` through sprig mergeOverwrite, where LISTS ARE
 # REPLACED WHOLESALE (maps deep-merge, scalars take the environment's value).
 # For a list of network surfaces that is the only safe rule: a half-merged
 # ingress list is unreadable, and the failure mode of getting it wrong is a
@@ -16,7 +15,7 @@ values:
   - ../ci/test-values.yaml
 tests:
   - it: renders every prod entry from the base spec list
-    # The fixture's prod list is seven entries on seven hosts: 6 Certificates
+    # invariant: the fixture's prod list is seven entries on seven hosts: 6 Certificates
     # (one per unique host, MINUS the ingest entry, which names an existing
     # `tlsSecret` another release owns) + 7 IngressRoutes + 4 Middlewares (two
     # strip-prefix, two redirects) = 17.
@@ -25,7 +24,7 @@ tests:
           count: 17
 
   - it: REPLACES the base list with the environment's, never merges them
-    # The fixture's staging environment declares exactly ONE entry while spec
+    # invariant: the fixture's staging environment declares exactly ONE entry while spec
     # declares two. If lists merged, this would render three surfaces and
     # staging would answer on ci-test-app.jterrazz.com — publicly.
     set:
@@ -55,7 +54,7 @@ tests:
         documentIndex: 1
 
   - it: "leaves a `public: true` entry with no access middleware"
-    # Public routes still sit behind the rate-limit / compress / security-headers
+    # invariant: public routes still sit behind the rate-limit / compress / security-headers
     # chain the websecure entrypoint attaches globally — but no ipAllowList.
     set:
       environment: probe
@@ -69,7 +68,7 @@ tests:
         documentIndex: 1
 
   - it: "hard-fails an ingress entry with no explicit `public` field"
-    # Network visibility must never be implied by omission — the whole reason
+    # hazard: network visibility must never be implied by omission — the whole reason
     # the field is required rather than defaulted to either value.
     set:
       environment: probe
@@ -91,7 +90,7 @@ tests:
           errorMessage: "ingress must be a list of { host, path?, public? } entries. The single-object form was removed in chart 1.17.0 — migrate to a one-element list."
 
   - it: emits one Certificate per unique host, not per entry
-    # Two entries on the same host share one TLS secret; two Certificates for
+    # outside: two entries on the same host share one TLS secret; two Certificates for
     # one dnsName would race each other at cert-manager.
     set:
       environment: probe
@@ -140,7 +139,7 @@ tests:
         documentIndex: 4
 
   - it: skips the strip-prefix middleware when the app opts out
-    # An MCP server registered at the literal /mcp path needs the prefix kept.
+    # invariant: an MCP server registered at the literal /mcp path needs the prefix kept.
     set:
       environment: probe
       environments.probe.ingress:

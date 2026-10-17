@@ -1,6 +1,5 @@
 suite: spec.cronJobs — the NetworkPolicy of the job pods
-#
-# Job pods carry no `app` label (app.cronJobSelectorLabels says why), so the
+# outside: job pods carry no `app` label (app.cronJobSelectorLabels says why), so the
 # app's own NetworkPolicy does not select them. This is theirs: nothing in,
 # since a job serves no one, and the app's own egress out. Its own suite
 # because helm-unittest renders a suite's `templates` for every test, and the

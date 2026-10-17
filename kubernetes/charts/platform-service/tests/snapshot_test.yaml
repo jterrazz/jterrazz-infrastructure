@@ -1,6 +1,5 @@
 suite: full fixture render (snapshot)
-#
-# Pins the ENTIRE manifest set the chart produces from ci/test-values.yaml,
+# hazard: pins the ENTIRE manifest set the chart produces from ci/test-values.yaml,
 # byte for byte, in __snapshot__/snapshot_test.yaml.snap.
 #
 # What this catches that the targeted suites do not: a hostPath that moves, a

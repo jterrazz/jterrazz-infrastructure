@@ -1,8 +1,5 @@
 suite: undeclared environment renders NOTHING (chart 2.x behaviour)
-#
-# ===========================================================================
-# READ BEFORE "FIXING" A FAILURE HERE
-# ===========================================================================
+# invariant: READ BEFORE "FIXING" A FAILURE HERE
 # Every template is gated on app.envExists, so `--set environment=prd` against
 # a chart that declares `prod` renders an EMPTY RELEASE instead of failing.
 # A `helm upgrade --install` of an empty release does not error — it deletes
@@ -19,7 +16,7 @@ suite: undeclared environment renders NOTHING (chart 2.x behaviour)
 # `templates:` filter means "every template in the chart rendered nothing".)
 tests:
   - it: renders zero manifests with the chart's own default values
-    # No `values:` at all — this is why plain `helm lint`/`helm template`
+    # outside: no `values:` at all — this is why plain `helm lint`/`helm template`
     # validates nothing here, and why ci/test-values.yaml IS the contract.
     asserts:
       - hasDocuments:
@@ -35,7 +32,7 @@ tests:
           count: 0
 
   - it: drops the prod-only dashboard ConfigMap in another environment
-    # dashboard-configmap.yaml is additionally gated on environment == prod:
+    # outside: dashboard-configmap.yaml is additionally gated on environment == prod:
     # Grafana has one folder per app, and three environments' worth of the same
     # dashboard would collide in it.
     values:
@@ -64,7 +61,7 @@ tests:
           value: ci-test-app
 
   - it: drops the prod-only alert ConfigMap in another environment
-    # alert-configmap.yaml is gated on environment == prod for a stricter
+    # outside: alert-configmap.yaml is gated on environment == prod for a stricter
     # reason than dashboards: Grafana rule `uid:`s are global, so a staging
     # copy would not sit beside the prod rule — it would provision over it.
     values:

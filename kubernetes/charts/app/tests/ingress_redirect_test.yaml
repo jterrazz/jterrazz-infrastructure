@@ -3,7 +3,7 @@ templates:
   - templates/ingress.yaml
 tests:
   - it: "emits one <app>-<idx>-redirect Middleware per redirect entry"
-    # Rendered from the CI fixture, whose entries 3 and 4 are redirects. The
+    # hazard: rendered from the CI fixture, whose entries 3 and 4 are redirects. The
     # name is what the entry's own IngressRoute references, so a rename here is
     # a 404 there. documentSelector fails outright if the object is missing.
     values:

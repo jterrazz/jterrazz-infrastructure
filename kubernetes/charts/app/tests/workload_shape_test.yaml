@@ -1,6 +1,5 @@
 suite: the datastore shape — everything an app never sets
-#
-# Chart 2.11 widened this chart from "a Node service behind Traefik" to "any
+# hazard: chart 2.11 widened this chart from "a Node service behind Traefik" to "any
 # workload this cluster runs", so that the six OpenPanel components and the
 # registry stopped being hand-written manifests. Each assertion
 # below is one of those workloads' requirements, and each is a branch an app
@@ -14,7 +13,7 @@ values:
   - ../ci/test-values.yaml
 tests:
   - it: mounts a claim another release owns, and renders no PV/PVC for it
-    # The PV/PVC pair is the identity of live data and belongs to the release
+    # outside: the PV/PVC pair is the identity of live data and belongs to the release
     # that created it. Rendering a second pair here would make `helm uninstall`
     # of the wrong release delete a bound claim.
     set:
@@ -43,7 +42,7 @@ tests:
           value: ["sh", "-c", "chown -R 70:70 /var/lib/postgresql/data"]
 
   - it: skips the chown initContainer entirely for owner ""
-    # The registry runs as root over a root-owned blob store: chowning 10Gi of
+    # value: the registry runs as root over a root-owned blob store: chowning 10Gi of
     # layers to 1000 on every pod start would be both slow and wrong.
     set:
       environment: staging
@@ -63,7 +62,7 @@ tests:
           value: Recreate
 
   - it: takes Recreate from spec.strategy when there is no storage to derive it from
-    # op-api runs its migrations on boot; a rolling update would put two
+    # invariant: op-api runs its migrations on boot; a rolling update would put two
     # migration runners on one database.
     set:
       metadata.name: api
@@ -96,7 +95,7 @@ tests:
           path: spec.strategy
 
   - it: puts the workload's own port on the Service when clients dial it by name
-    # `postgresql://…@op-postgres:5432/…` is written in Infisical, not here —
+    # outside: `postgresql://…@op-postgres:5432/…` is written in Infisical, not here —
     # the Service has to answer on 5432, not on 80.
     set:
       environment: staging
@@ -131,7 +130,7 @@ tests:
           path: spec.template.spec.containers[0].livenessProbe.httpGet
 
   - it: probes with tcpSocket when the client is too heavy to run per probe
-    # mongosh's cold start alone exceeds the probe timeout, which crash-loops a
+    # hazard: mongosh's cold start alone exceeds the probe timeout, which crash-loops a
     # perfectly healthy mongod on the liveness kill.
     set:
       metadata.name: db
@@ -203,7 +202,7 @@ tests:
           value: Always
 
   - it: names no pull secret for a third-party image, and leaves its policy alone
-    # A Secret that does not exist in the namespace earns a
+    # value: a Secret that does not exist in the namespace earns a
     # FailedToRetrieveImagePullSecret warning on every pod start; `Always` on a
     # pinned public tag spends Docker Hub's anonymous pull quota for nothing.
     set:
@@ -217,7 +216,7 @@ tests:
           path: spec.template.spec.containers[0].imagePullPolicy
 
   - it: isolated drops the Traefik ingress rule and the internet egress rule
-    # The whole security model of an unauthenticated datastore is that nothing
+    # invariant: the whole security model of an unauthenticated datastore is that nothing
     # reaches it and it dials nothing. The derived rules would grant both.
     set:
       environment: staging
@@ -245,14 +244,14 @@ tests:
                     - 192.168.0.0/16
 
   - it: admits a same-namespace pod label and nothing wider
-    # `pods:` is a bare podSelector — "here". `any-namespace-pods:` with the
+    # invariant: `pods:` is a bare podSelector — "here". `any-namespace-pods:` with the
     # same label would admit a pod of that name from anywhere in the cluster,
     # which for a database with no password is the whole difference.
     set:
       environment: staging
     templates:
       - templates/network-policy.yaml
-    # The app's own policy, by name: the fixture declares a cron job, so the
+    # value: the app's own policy, by name: the fixture declares a cron job, so the
     # template also renders `<app>-cronjobs`, which admits nothing by design.
     documentSelector:
       path: metadata.name
@@ -296,7 +295,7 @@ tests:
   - it: keeps the derived Traefik ingress and internet egress for an app
     templates:
       - templates/network-policy.yaml
-    # The app's own policy, by name: the fixture declares a cron job, so the
+    # value: the app's own policy, by name: the fixture declares a cron job, so the
     # template also renders `<app>-cronjobs`, which admits nothing by design.
     documentSelector:
       path: metadata.name
