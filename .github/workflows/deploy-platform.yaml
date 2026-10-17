@@ -1,6 +1,6 @@
 name: Deploy Platform
 
-# Runs ansible-playbook against the OrbStack VM over Tailscale to apply
+# outside: runs ansible-playbook against the OrbStack VM over Tailscale to apply
 # platform-layer changes (cert-manager, otel-collector, openpanel, ...) and
 # any manifests under kubernetes/services or kubernetes/cluster.
 #
@@ -25,20 +25,17 @@ on:
       - 'kubernetes/services/**'
       - 'kubernetes/cluster/**'
       - 'kubernetes/charts/platform-service/**'
-      # The app chart: the helmfile installs platform workloads from the LOCAL
+      # invariant: the app chart: the helmfile installs platform workloads from the LOCAL
       # copy of it (./charts/app), not from the published OCI one.
       - 'kubernetes/charts/app/**'
-      # The library chart both of them render through.
       - 'kubernetes/charts/common/**'
-      # The one declaration of every platform Helm release.
       - 'kubernetes/helmfile.yaml.gotmpl'
-      # The job runs this to build its extra-vars file.
       - 'scripts/infisical-vars.py'
   workflow_dispatch:
 
 permissions:
   contents: read
-  # `environment: production` below makes the runner's GITHUB_TOKEN create
+  # invariant: `environment: production` below makes the runner's GITHUB_TOKEN create
   # and update a Deployment record (in_progress → success/failure) — that
   # needs the deployments scope, not just contents:read.
   deployments: write
@@ -51,14 +48,14 @@ jobs:
   deploy:
     name: Apply platform via Ansible
     runs-on: ubuntu-latest
-    # Records a GitHub Deployment under the `production` environment and
+    # outside: records a GitHub Deployment under the `production` environment and
     # auto-updates its status (in_progress → success/failure) as this job
     # runs, so the repo's Environments/Deployments view stays live.
     environment: production
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # Fetch CI secrets (Tailscale OAuth, docker registry creds) + join
+      # outside: fetch CI secrets (Tailscale OAuth, docker registry creds) + join
       # the tailnet as tag:ci. After this step the runner can reach the
       # OrbStack VM at jterrazz-infrastructure.tail77a797.ts.net.
       #
@@ -76,7 +73,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          # Must be >= 3.12 or ansible-core 2.21 is not installable at all —
+          # hazard: must be >= 3.12 or ansible-core 2.21 is not installable at all —
           # pip would silently resolve an ancient core instead. Same value as
           # the `ansible` job in validate.yaml, deliberately.
           python-version: "3.13"
@@ -94,7 +91,7 @@ jobs:
           pip install ansible-core==2.21.4
           ansible-galaxy collection install -r requirements.yml
 
-      # Materialise the deploy private key in a 0600 tempfile so ansible
+      # outside: materialise the deploy private key in a 0600 tempfile so ansible
       # can consume it without it ever touching the workspace.
       - name: Write SSH deploy key
         env:
@@ -109,7 +106,7 @@ jobs:
           printf '%s\n' "$CI_DEPLOY_SSH_PRIVATE" > "$KEY_FILE"
           echo "CI_DEPLOY_KEY_FILE=$KEY_FILE" >> "$GITHUB_ENV"
 
-      # Same script scripts/deploy.sh uses, in its `platform` scope — one
+      # outside: same script scripts/deploy.sh uses, in its `platform` scope — one
       # implementation of the Infisical fetch, the missing-key hard-fail and
       # the YAML escaping instead of two hand-synced copies. `platform` omits
       # the Tailscale OAuth credentials: platform.yml only reads Tailscale
@@ -124,7 +121,7 @@ jobs:
           python3 scripts/infisical-vars.py platform "$EXTRA"
           echo "EXTRA_VARS_FILE=$EXTRA" >> "$GITHUB_ENV"
 
-      # Scope: platform.yml only (Helm-managed services + manifests).
+      # outside: scope: platform.yml only (Helm-managed services + manifests).
       # Skips the base/security/resolved/tailscale/k3s roles because those can restart
       # sshd or tailscaled and would kill the runner's SSH session mid-run.
       # Use `make deploy` from the laptop when you need to apply changes

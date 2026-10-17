@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - 'kubernetes/charts/app/**'
-      # Bundled INTO the app chart by `helm package`, so a change here
+      # outside: bundled INTO the app chart by `helm package`, so a change here
       # changes what every app renders.
       - 'kubernetes/charts/common/**'
       - 'scripts/publish-app-chart.sh'
@@ -29,7 +29,7 @@ jobs:
         with:
           version: v4.3.0
 
-      # Left at @main deliberately: this is jterrazz's own first-party
+      # invariant: left at @main deliberately: this is jterrazz's own first-party
       # action (owner-controlled, not a third-party supply-chain risk in
       # the same sense as the pinned actions above), and floating on @main
       # is how it's meant to pick up changes across the fleet of app repos
@@ -40,7 +40,7 @@ jobs:
           infisical-client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           infisical-client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
 
-      # The login, the already-published guard and the push all live in the
+      # invariant: the login, the already-published guard and the push all live in the
       # script, which is also what documents them — and what
       # scripts/assert-sync.py compares against the Ansible copy of the same
       # guard. Credentials go through `env:` so the registry password never

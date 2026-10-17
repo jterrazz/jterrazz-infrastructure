@@ -1,6 +1,6 @@
 name: Smoke
 
-# Black-box verification that the cluster is actually serving: every public
+# hazard: black-box verification that the cluster is actually serving: every public
 # hostname through the Cloudflare tunnel, every private hostname over the
 # tailnet, and the TLS expiry of both sets. The logic is scripts/smoke.sh —
 # this workflow only supplies a runner with tailnet membership.
@@ -22,7 +22,7 @@ name: Smoke
 
 on:
   schedule:
-    # Mondays 07:17 UTC. Off the hour on purpose: GitHub's scheduler queues
+    # outside: Mondays 07:17 UTC. Off the hour on purpose: GitHub's scheduler queues
     # every :00 job on the planet at once and delays are routine.
     - cron: "17 7 * * 1"
   workflow_dispatch:
@@ -33,7 +33,7 @@ on:
 permissions:
   contents: read
 
-# Never cancel a run in flight: each one is a point-in-time observation, and a
+# invariant: never cancel a run in flight: each one is a point-in-time observation, and a
 # cancelled smoke test reads as "unknown", not "fine".
 concurrency:
   group: smoke
@@ -43,7 +43,7 @@ jobs:
   smoke:
     name: Probe public + private surfaces
     runs-on: ubuntu-latest
-    # A workflow_run fires on completion regardless of outcome; probing right
+    # invariant: a workflow_run fires on completion regardless of outcome; probing right
     # after a FAILED deploy would just report the failure a second time, in a
     # place that looks like an independent signal. The other two triggers have
     # no such object and must always run.
@@ -53,7 +53,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # Same first-party action deploy-platform.yaml uses, at @main for the
+      # outside: same first-party action deploy-platform.yaml uses, at @main for the
       # same reason (owner-controlled, meant to roll across the fleet). It
       # fetches the Infisical-held CI secrets and joins the tailnet as tag:ci —
       # without it the --private and the private half of --certs cannot resolve
@@ -64,7 +64,7 @@ jobs:
           infisical-client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           infisical-client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
 
-      # smoke.sh discovers WHAT to probe from the cluster's own IngressRoutes,
+      # outside: smoke.sh discovers WHAT to probe from the cluster's own IngressRoutes,
       # so it needs a read of the API server. The same CI_DEPLOY_SSH_PRIVATE
       # keypair deploy-platform.yaml uses gets it there — kubectl runs on the
       # node over SSH. No kubeconfig, no new secret: KUBECONFIG_BASE64 is
@@ -83,7 +83,7 @@ jobs:
           printf '%s\n' "$CI_DEPLOY_SSH_PRIVATE" > "$KEY_FILE"
           echo "CLUSTER_SSH_KEY=$KEY_FILE" >> "$GITHUB_ENV"
 
-      # curl and openssl are preinstalled on ubuntu-latest; there is nothing to
+      # outside: curl and openssl are preinstalled on ubuntu-latest; there is nothing to
       # set up. The script exits non-zero if any single check fails and prints
       # a per-check PASS/FAIL line plus a summary of the failures.
       - name: Smoke test

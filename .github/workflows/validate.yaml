@@ -1,6 +1,6 @@
 name: Validate
 
-# Runs on PRs (pre-merge gate) AND on push to main (a direct push — e.g. a
+# invariant: runs on PRs (pre-merge gate) AND on push to main (a direct push — e.g. a
 # merge commit made outside a PR, or an admin bypass — would otherwise reach
 # main, and therefore deploy-platform.yaml/publish-chart.yaml, unvalidated).
 #
@@ -13,7 +13,7 @@ on:
   push:
     branches: [main]
 
-# One validation run per ref at a time; a new push supersedes whatever was
+# hazard: one validation run per ref at a time; a new push supersedes whatever was
 # already validating for the same branch/PR. Unlike the deploy workflows
 # (which must never be cancelled mid-apply), validation is pure read-only
 # checks, so cancelling a stale run is safe and saves runner time.
@@ -31,20 +31,20 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # Mirrors the shellcheck step in `make check`. ubuntu-latest ships
+      # outside: mirrors the shellcheck step in `make check`. ubuntu-latest ships
       # shellcheck preinstalled, so there is nothing to set up.
       - name: ShellCheck
         run: shellcheck scripts/*.sh scripts/lib/*.sh
 
       - name: Python syntax check
-        # ast.parse rather than py_compile: same check, no __pycache__ artifact.
+        # invariant: ast.parse rather than py_compile: same check, no __pycache__ artifact.
         run: |
           set -euo pipefail
           for f in scripts/infisical-vars.py scripts/assert-sync.py; do
             python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read(), sys.argv[1])" "$f"
           done
 
-      # Several facts in this repo are necessarily written down twice, in two
+      # invariant: several facts in this repo are necessarily written down twice, in two
       # languages, because two different machines consume them (a Traefik
       # entrypoint argument vs a Traefik Middleware CRD; a Python secret map vs
       # an Ansible assert). Each pair carries a "KEEP IN SYNC" comment — and a
@@ -59,7 +59,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # ubuntu-latest ships a node, but its npm is whatever was current the day
+      # hazard: ubuntu-latest ships a node, but its npm is whatever was current the day
       # the image was baked — and the failure this job hit first time out was an
       # npm-version-dependent crash inside `npm exec`. Pinning the major here
       # means the gate runs on a known npm rather than on an image detail that
@@ -68,11 +68,10 @@ jobs:
         with:
           node-version: "24"
 
-      # The manual gate. `make docs` is the one place the command and its pin
-      # are written, so this and a laptop run the same check — locally it is a
-      # soft skip (like actionlint and helm-unittest) and this job is what makes
-      # that safe.
-      - name: Docs layout
+      # invariant: `make docs` is the one place the command and its pin are written,
+      # so this and a laptop run the same check — locally it is a soft skip (like
+      # actionlint and helm-unittest) and this job is what makes that safe.
+      - name: Content check
         run: make docs
 
   ansible:
@@ -83,7 +82,7 @@ jobs:
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          # ansible-core 2.21 requires Python >= 3.12 and is tested on 3.12-3.14.
+          # outside: ansible-core 2.21 requires Python >= 3.12 and is tested on 3.12-3.14.
           # 3.13 sits in the middle of that window with the widest wheel
           # coverage for ansible-lint's compiled deps (cffi, cryptography,
           # ruamel-yaml-clib — which ansible-lint drops entirely on 3.14).
@@ -91,7 +90,7 @@ jobs:
           # tested matrix.
           python-version: "3.13"
 
-      # Pinned exact (not `ansible ansible-lint`, which pulls whatever the
+      # outside: pinned exact (not `ansible ansible-lint`, which pulls whatever the
       # latest ansible-core/ansible-lint happen to be that day, and pulls in
       # the full `ansible` community package's bundled collections instead
       # of the explicit set in requirements.yml below).
@@ -103,7 +102,7 @@ jobs:
         run: ansible-galaxy collection install -r requirements.yml
 
       - name: Ansible Lint
-        # Lint the whole ansible/ tree (roles + templates + inventories), not
+        # invariant: lint the whole ansible/ tree (roles + templates + inventories), not
         # just playbooks/, and from the repo root so paths in the output are
         # repo-relative. `-c` is required: ansible-lint's config discovery
         # searches the CWD and walks UP, never down into the linted directory,
@@ -111,7 +110,7 @@ jobs:
         run: ansible-lint -c ansible/.ansible-lint ansible/
 
       - name: Syntax Check
-        # From ansible/ so ansible.cfg (relative roles_path) is picked up.
+        # outside: from ansible/ so ansible.cfg (relative roles_path) is picked up.
         # Both playbooks, each against the inventory that actually runs it.
         working-directory: ansible
         run: |
@@ -123,7 +122,7 @@ jobs:
     name: Validate Kubernetes
     runs-on: ubuntu-latest
     env:
-      # Three locations, tried IN ORDER — kubeconform uses the first that
+      # hazard: three locations, tried IN ORDER — kubeconform uses the first that
       # resolves and falls through when a file is absent:
       #
       #   1. kubernetes/schemas/ — vendored, in this repo. Overrides for CRDs
@@ -172,7 +171,7 @@ jobs:
           kubeconform -v
 
       - name: Validate cluster manifests
-        # kubernetes/cluster/ is plain manifests applied with
+        # outside: kubernetes/cluster/ is plain manifests applied with
         # `kubectl apply -f <dir> -R` (the kustomization.yaml is gone — it was a
         # hand-maintained resource list with no overlay left to serve), so
         # kubeconform walks the directory directly.
@@ -183,7 +182,7 @@ jobs:
           echo "All cluster manifests are valid!"
 
       - name: Validate Helm charts against CI fixtures
-        # Plain `helm lint`/`helm template` with default values renders
+        # outside: plain `helm lint`/`helm template` with default values renders
         # (near) zero objects for these charts — everything meaningful is
         # gated behind values apps/services actually set. ci/test-values.yaml
         # (maintained alongside each chart) supplies a representative values
@@ -207,7 +206,7 @@ jobs:
               | kubeconform -strict $KUBECONFORM_SCHEMA_ARGS -summary -
           done
 
-      # kubeconform proves each rendered object is SCHEMA-valid. It cannot see
+      # hazard: kubeconform proves each rendered object is SCHEMA-valid. It cannot see
       # whether the template computed the right value — a NODE_OPTIONS heap cap
       # derived from the wrong number, a dockerconfigjson whose escaping broke,
       # an `access:` value that silently picked the wrong ipAllowList are all
@@ -219,7 +218,7 @@ jobs:
       # depend on the helm CLI version installed alongside it — which is what
       # keeps the committed snapshots reproducible between a laptop and here.
       - name: Install helm-unittest
-        # scripts/lib/helm-plugin.sh carries the Helm 3/4 --verify fallback, so
+        # outside: scripts/lib/helm-plugin.sh carries the Helm 3/4 --verify fallback, so
         # this and scripts/helmfile.sh install plugins the same way.
         run: |
           set -euo pipefail
@@ -229,12 +228,12 @@ jobs:
           helm plugin list
 
       - name: Helm chart unit tests
-        # Both charts at once so a failure in either fails the job. `--strict`
+        # hazard: both charts at once so a failure in either fails the job. `--strict`
         # rejects unknown keys in a test file, so a typo'd assertion name is an
         # error rather than an assertion that silently never runs.
         run: helm unittest --strict kubernetes/charts/app kubernetes/charts/platform-service
 
-      # kubernetes/helmfile.yaml.gotmpl is the ONLY declaration of every
+      # invariant: kubernetes/helmfile.yaml.gotmpl is the ONLY declaration of every
       # platform release, and roles/platform applies it verbatim. Rendering it
       # here catches a bad chart version, a values file that moved, a `needs:`
       # pointing at a release that no longer exists — all of which would
@@ -255,7 +254,7 @@ jobs:
           helmfile --version
 
       - name: Render the platform helmfile
-        # No cluster: `template` is `helm template` per release, so it needs
+        # invariant: no cluster: `template` is `helm template` per release, so it needs
         # the chart repositories and nothing else. The two variables are
         # `requiredEnv` in the state file — real values only matter at apply
         # time, and helm never sees these because nothing is installed.
@@ -265,7 +264,7 @@ jobs:
         run: helmfile --file kubernetes/helmfile.yaml.gotmpl template > /dev/null
 
       - name: Validate raw service manifests
-        # kubernetes/services/** is mostly Helm values files (values.yaml for
+        # outside: kubernetes/services/** is mostly Helm values files (values.yaml for
         # an upstream chart, service.yaml for platform-service, one per release
         # for the app chart) with two actual K8s manifests left among them:
         # cloudflared's Deployment and cert-manager's ClusterIssuers. Rather
@@ -289,7 +288,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # Same install pattern as kubeconform above: pinned version + sha256 of
+      # hazard: same install pattern as kubeconform above: pinned version + sha256 of
       # the release tarball, so a compromised or re-tagged release cannot
       # silently execute here.
       - name: Install gitleaks
@@ -305,7 +304,7 @@ jobs:
           gitleaks version
 
       - name: Scan the working tree
-        # --no-git scans the CHECKED-OUT FILES ONLY, never the commit history.
+        # hazard: --no-git scans the CHECKED-OUT FILES ONLY, never the commit history.
         #
         # That is deliberate and it is not a bug to "fix": this repository
         # predates any secret hygiene and its history is known to contain
