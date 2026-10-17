@@ -88,6 +88,7 @@ Nothing listens on a public address.
 │   (SSH · private hosts · CI runners)                 │                │
 │              └──────────────────┬────────────────────┘                │
 │                                 ▼                                     │
+
 │   ┌─────────────────── k3s · SQLite datastore ─────────────────────┐  │
 │   │  Traefik ──► IngressRoutes                                     │  │
 │   │     ├─ public   spwn.sh · sig.news · analytics                 │  │
@@ -136,6 +137,7 @@ kubernetes/
 │                     NetworkPolicy and InfisicalSecret, pulled by the two
 │                     charts below through a relative file:// dependency.
 │                     Reference: kubernetes/charts/common/README.md
+
 ├── charts/app/       application chart, published to the OCI registry (with
 │                     charts/common bundled into the .tgz).
 │                     Version: kubernetes/charts/app/Chart.yaml. Reference:
@@ -144,6 +146,7 @@ kubernetes/
 │                     IngressRoute + Certificate + hostPath PV/PVCs + the
 │                     per-service NetworkPolicy, from one values file.
 │                     Reference: kubernetes/charts/platform-service/README.md
+
 ├── cluster/          cluster-wide manifests, `kubectl apply -f … -R`:
 │                     namespaces, the `manual` StorageClass, Traefik
 │                     middlewares + TLS options, and the namespace-baseline

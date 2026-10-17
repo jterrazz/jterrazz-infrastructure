@@ -1,4 +1,4 @@
-# jterrazz infrastructure
+# outside: jterrazz infrastructure
 #
 # One k3s cluster: an OrbStack VM on the dev Mac. `make deploy` creates it
 # (orbctl) and configures it (Ansible); `scripts/deploy.sh` is the canonical
@@ -12,14 +12,13 @@ YELLOW := \033[33m
 BLUE := \033[34m
 NC := \033[0m
 
-# The OrbStack VM, and the node's MagicDNS name read out of the CI inventory
+# outside: the OrbStack VM, and the node's MagicDNS name read out of the CI inventory
 # rather than written down a third time (roles/k3s/tasks/kubeconfig.yml and
 # inventories/ci.yml are the other two places it appears).
 VM_NAME := jterrazz-infrastructure
 KUBECONFIG_FILE := kubeconfig.yaml
 NODE_FQDN := $(shell awk '/ansible_host:/ {print $$2; exit}' ansible/inventories/ci.yml)
 
-##@ Deploy
 
 deploy: ## Provision + configure the cluster (orbctl + Ansible site.yml)
 	./scripts/deploy.sh
@@ -33,9 +32,8 @@ destroy: ## Tear down the OrbStack VM (data on the Mac stays)
 redeploy-apps: ## Trigger every app's CI to rebuild+redeploy (bootstrap after cluster rebuild)
 	./scripts/trigger-app-deploys.sh
 
-##@ Utilities
 
-# `make deploy` writes kubeconfig.yaml as a side effect (roles/k3s/tasks/
+# outside: `make deploy` writes kubeconfig.yaml as a side effect (roles/k3s/tasks/
 # kubeconfig.yml); this is the same two steps on their own, for the far more
 # common case of "the file is stale/gone and I only want to look at the
 # cluster". k3s writes a loopback server address, which is useless from the
@@ -52,7 +50,7 @@ kubeconfig: ## Regenerate ./kubeconfig.yaml from the VM (server = MagicDNS name)
 		|| { echo "✗ server address not rewritten — k3s wrote something other than 127.0.0.1/0.0.0.0"; exit 1; }
 	@echo "✓ $(KUBECONFIG_FILE) → https://$(NODE_FQDN):6443 (needs the tailnet)"
 
-# Read-only preview against the LIVE cluster, meant to be run BEFORE
+# outside: read-only preview against the LIVE cluster, meant to be run BEFORE
 # `make deploy-platform`: that play runs `helmfile apply` over
 # kubernetes/helmfile.yaml.gotmpl, so a bumped chart version or an edited
 # values.yaml lands the moment it runs. This shows what would change first.
@@ -65,7 +63,7 @@ diff: ## Preview what `make deploy-platform` would change (helmfile diff, read-o
 backup: ## Encrypted snapshot of every persistent volume (ARGS=--consistent for a torn-free copy)
 	@./scripts/backup.sh $(ARGS)
 
-# Black-box probe of the deployed surfaces. `--public` needs nothing;
+# invariant: black-box probe of the deployed surfaces. `--public` needs nothing;
 # `--private` and the private half of `--certs` need this machine to be on the
 # tailnet, so they are left out of the default target here — CI
 # (.github/workflows/smoke.yaml) runs the full set from a runner that joins it.
@@ -76,7 +74,7 @@ backup: ## Encrypted snapshot of every persistent volume (ARGS=--consistent for 
 smoke: ## Probe the public surfaces + their TLS expiry (ARGS=--private on the tailnet)
 	./scripts/smoke.sh --public --certs $(ARGS)
 
-# The deploy tools first, then the four `make check` hard-fails on — a green
+# invariant: the deploy tools first, then the four `make check` hard-fails on — a green
 # check-tools that omits them just moves the failure to the next target.
 check-tools: ## Check required tools
 	@command -v ansible     >/dev/null 2>&1 && echo "✓ Ansible"      || echo "✗ Ansible"
@@ -88,15 +86,14 @@ check-tools: ## Check required tools
 	@command -v ansible-lint >/dev/null 2>&1 && echo "✓ ansible-lint" || echo "✗ ansible-lint"
 	@command -v python3     >/dev/null 2>&1 && echo "✓ python3"      || echo "✗ python3"
 
-##@ Check
 
-# Deliberately strict: a missing tool is a hard failure, so this can never
+# invariant: deliberately strict: a missing tool is a hard failure, so this can never
 # print all green on a machine where it checked nothing. Install them with:
 #   brew install shellcheck helm actionlint
 #   pip install ansible-core ansible-lint
 # actionlint and helm-unittest are the two soft skips — CI re-runs both
 # unconditionally, so a laptop without them is not a gap in the gate.
-check: ## Run the checks CI runs (shellcheck, python, sync assertions, ansible-lint, helm lint + unittest, actionlint, docs layout)
+check: ## Run the checks CI runs (shellcheck, python, sync assertions, ansible-lint, helm lint + unittest, actionlint, content check)
 	@echo "== shellcheck scripts/ =="
 	shellcheck scripts/*.sh scripts/lib/*.sh
 	@echo "✓ shellcheck clean"
@@ -111,7 +108,7 @@ check: ## Run the checks CI runs (shellcheck, python, sync assertions, ansible-l
 	@echo ""
 	@echo "== cross-file sync assertions =="
 	@# Facts this repo has to write down twice (the Infisical var map vs the
-	@# Ansible preflight assert, Traefik's trustedIPs vs the rate-limit
+	@# Ansible preflight assert, the Traefik trustedIPs vs the rate-limit
 	@# excludedIPs, the four Helm/helmfile/ansible-core/helm-unittest version
 	@# pins, the busybox digest, the two app-chart publish guards, the library
 	@# chart version vs its two pins). Each pair carries a "keep in sync"
@@ -161,7 +158,7 @@ check: ## Run the checks CI runs (shellcheck, python, sync assertions, ansible-l
 		echo "⚠ actionlint not installed (brew install actionlint) — skipped"; \
 	fi
 	@echo ""
-	@echo "== docs layout =="
+	@echo "== content check =="
 	@# The third soft skip, for the same reason as the two above: validate.yaml
 	@# runs `make docs` unconditionally on a runner that ships node, so a laptop
 	@# without it is not a gap in the gate.
@@ -171,31 +168,30 @@ check: ## Run the checks CI runs (shellcheck, python, sync assertions, ansible-l
 		echo "⚠ npx not installed (node) — skipped"; \
 	fi
 
-# Every repository of the estate opens its docs/ on the same shape — the map at
-# docs/README.md and its pages cut into start/, guides/, concepts/ and
-# reference/ — and this refuses a tree that breaks it. The rule ids and the sentence each one prints
-# live in the engine that prints them, never in a second copy here.
+# outside: this repository declares itself content (jterrazz.config.ts) and has no
+# npm project to install the toolchain into, so `typescript check` runs through
+# npx at a pinned version: an unpinned `@latest` would roll onto a release with
+# new rules the day it published, turning a green tree red with no commit. It
+# judges the manual's layout, the Markdown, the comments, the names and the
+# secrets; the rule ids and the sentence each one prints live in the engine that
+# prints them, never in a second copy here.
 #
-# Pinned, and run through npx because there is no npm project in this repo to
-# install it into: an unpinned `@latest` would roll onto a release with new
-# rules the day it published, turning a green tree red with no commit.
-#
-# `--package` + the bin name, never the short `npx @jterrazz/typescript@11.0.0`
-# form. The short form makes npm infer the command from the package name, and
-# the name it infers — `typescript` — is also the name of one of the package's
-# own dependencies; resolving it against the ephemeral tree died on the GitHub
-# runner with `Cannot read properties of null (reading 'edgesOut')` while
-# passing on a laptop. Naming both halves leaves npm nothing to infer.
-docs: ## Check docs/ against the estate's manual spine
-	npx --yes --package=@jterrazz/typescript@11.0.0 -- typescript docs-layout .
+# hazard: `--package` + the bin name, never the short
+# `npx @jterrazz/typescript@11.0.0` form: it makes npm infer the command from
+# the package name, and the name it infers — `typescript` — is also the name of
+# one of the package's own dependencies; resolving it against the ephemeral tree
+# died on the GitHub runner with `Cannot read properties of null (reading
+# 'edgesOut')` while passing on a laptop. Naming both halves leaves npm nothing
+# to infer.
+docs: ## Check the repository as content (manual layout, Markdown, comments, names, secrets)
+	npx --yes --package=@jterrazz/typescript@11.0.0 -- typescript check
 
-# `lint` is the name in every app repo's universal CI interface (make build /
+# invariant: `lint` is the name in every app repo's universal CI interface (make build /
 # lint / test); `check` is what this target actually is.
 lint: check
 
-##@ Help
 
 help:
 	@printf "$(GREEN)jterrazz infrastructure$(NC)\n"
-	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z0-9_-]+:.*##/ { printf "  $(YELLOW)%-16s$(NC) %s\n", $$1, $$2 } /^##@/ { printf "\n$(BLUE)%s$(NC)\n", substr($$0, 5) }' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z0-9_-]+:.*##/ { printf "  $(YELLOW)%-16s$(NC) %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 	@echo ""

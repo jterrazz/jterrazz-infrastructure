@@ -30,8 +30,8 @@ data/
 id_rsa*
 id_ed25519*
 
-# Logs
-*.log
+# Toolchain artefacts
+.artifacts/
 
 # Environment
 .env
