@@ -1,5 +1,5 @@
 ---
-# platform-networking — cert-manager (+ its webhook/cainjector) and
+# outside: platform-networking — cert-manager (+ its webhook/cainjector) and
 # cloudflared. Traefik itself runs in kube-system under k3s, not here.
 
 apiVersion: networking.k8s.io/v1
@@ -13,18 +13,18 @@ spec:
     - Ingress
   ingress:
     - ports:
-        # kube-apiserver -> cert-manager's admission webhook on 10250. Omit it
+        # outside: kube-apiserver -> cert-manager's admission webhook on 10250. Omit it
         # and every Certificate/Issuer write fails with "no endpoints
         # available for service cert-manager-webhook".
         - protocol: TCP
           port: 10250
-        # VictoriaMetrics (platform-telemetry) -> cert-manager controller +
+        # outside: VictoriaMetrics (platform-telemetry) -> cert-manager controller +
         # webhook metrics on 9402.
         - protocol: TCP
           port: 9402
 
 ---
-# Egress is DEFAULT-DENY for every pod in the namespace (podSelector {} +
+# invariant: egress is DEFAULT-DENY for every pod in the namespace (podSelector {} +
 # policyTypes: Egress), so each rule below is load-bearing.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -36,7 +36,7 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # cert-manager -> CoreDNS (kube-system) on 53 for in-cluster names.
+    # outside: cert-manager -> CoreDNS (kube-system) on 53 for in-cluster names.
     - to:
         - namespaceSelector:
             matchLabels:
@@ -44,7 +44,7 @@ spec:
       ports:
         - protocol: UDP
           port: 53
-    # cloudflared -> the Cloudflare edge on 7844 (QUIC/UDP and HTTP2/TCP; the
+    # hazard: cloudflared -> the Cloudflare edge on 7844 (QUIC/UDP and HTTP2/TCP; the
     # deployment forces --protocol http2, so TCP is the one in use). Today
     # cloudflared runs hostNetwork, so its traffic never traverses this policy
     # — declared so that dropping hostNetwork does not silently kill the tunnel.
@@ -60,12 +60,12 @@ spec:
           port: 7844
         - protocol: TCP
           port: 7844
-    # cloudflared -> Traefik and any in-cluster backend, TCP any port.
+    # outside: cloudflared -> Traefik and any in-cluster backend, TCP any port.
     - to:
         - namespaceSelector: {}
       ports:
         - protocol: TCP
-    # cert-manager -> Let's Encrypt ACME and the Cloudflare API on 443, AND
+    # hazard: cert-manager -> Let's Encrypt ACME and the Cloudflare API on 443, AND
     # -> the kube-apiserver: one rule, because on this cluster the two are the
     # same destination shape.
     #
@@ -89,7 +89,7 @@ spec:
           port: 443
         - protocol: TCP
           port: 6443
-    # cert-manager -> public DNS on 53, to self-check its own DNS-01 challenge
+    # outside: cert-manager -> public DNS on 53, to self-check its own DNS-01 challenge
     # records before asking Let's Encrypt to validate them.
     - to:
         - ipBlock:

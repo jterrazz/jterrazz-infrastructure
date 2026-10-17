@@ -1,5 +1,5 @@
 ---
-# kube-system — CoreDNS, Traefik, klipper-lb and metrics-server.
+# hazard: kube-system — CoreDNS, Traefik, klipper-lb and metrics-server.
 #
 # This namespace is last to get a policy on purpose: it is the one where a
 # wrong rule takes the whole cluster down rather than one service. Everything
@@ -27,7 +27,7 @@ spec:
     - Ingress
 
 ---
-# DNS from everywhere, and this rule is why the rest is safe to write. Every
+# hazard: DNS from everywhere, and this rule is why the rest is safe to write. Every
 # pod in every namespace resolves through here; scoping it to known namespaces
 # would break the next namespace anyone creates.
 apiVersion: networking.k8s.io/v1
@@ -53,7 +53,7 @@ spec:
           protocol: TCP
 
 ---
-# Traefik is the cluster's front door: klipper-lb DNATs the node's 80/443 into
+# outside: Traefik is the cluster's front door: klipper-lb DNATs the node's 80/443 into
 # it, cloudflared dials its ClusterIP from the host netns, and in-cluster
 # callers use it for the private hostnames. All three land on 8000/8443.
 apiVersion: networking.k8s.io/v1
@@ -81,7 +81,7 @@ spec:
           protocol: UDP
 
 ---
-# klipper-lb. THIS IS THE RULE THAT BREAKS THE TAILNET IF IT IS MISSING, and
+# hazard: klipper-lb. THIS IS THE RULE THAT BREAKS THE TAILNET IF IT IS MISSING, and
 # it is invisible to every test that goes through cloudflared: the tunnel
 # dials Traefik's ClusterIP directly, so public traffic keeps working while
 # every tailnet client gets `connection refused` on 443. CI is a tailnet
@@ -115,7 +115,7 @@ spec:
           protocol: UDP
 
 ---
-# The apiserver's metrics API (`kubectl top`, HPA) dials metrics-server from
+# outside: the apiserver's metrics API (`kubectl top`, HPA) dials metrics-server from
 # the host, so this is an ipBlock and not a namespaceSelector.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -137,7 +137,7 @@ spec:
           protocol: TCP
 
 ---
-# VictoriaMetrics (platform-telemetry) scrapes CoreDNS on 9153 (kube-dns
+# outside: VictoriaMetrics (platform-telemetry) scrapes CoreDNS on 9153 (kube-dns
 # Service annotation) and Traefik on 9100 (pod annotation). It is the only
 # scraper, so the namespaceSelector is the whole source set.
 apiVersion: networking.k8s.io/v1
@@ -161,7 +161,7 @@ spec:
           protocol: TCP
 
 ---
-# klipper-lb's svclb pods forward into Traefik, and the helm-install jobs talk
+# outside: klipper-lb's svclb pods forward into Traefik, and the helm-install jobs talk
 # to the apiserver; both live here.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

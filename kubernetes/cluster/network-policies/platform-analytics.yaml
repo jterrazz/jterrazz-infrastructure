@@ -1,5 +1,5 @@
 ---
-# platform-analytics (OpenPanel). k3s enforces NetworkPolicy, so this is real
+# outside: platform-analytics (OpenPanel). k3s enforces NetworkPolicy, so this is real
 # isolation: ClickHouse and Redis run WITHOUT passwords (upstream design), and
 # these policies plus the per-workload ones are the only thing keeping another
 # namespace off them.
@@ -30,7 +30,7 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    # OpenPanel's own pods -> each other (apps to datastores); sourced by the
+    # outside: OpenPanel's own pods -> each other (apps to datastores); sourced by the
     # namespace label, so nothing outside platform-analytics matches. This is
     # the whole of what the three datastores admit: their own policies grant
     # nothing, and Traefik reaches only op-api and op-dashboard, which say so
@@ -41,7 +41,7 @@ spec:
               kubernetes.io/metadata.name: platform-analytics
 
 ---
-# Egress is DEFAULT-DENY for every pod in the namespace (podSelector {} +
+# invariant: egress is DEFAULT-DENY for every pod in the namespace (podSelector {} +
 # policyTypes: Egress). This policy grants the namespace-wide minimum and
 # nothing else; each application release declares the rest — which is what
 # keeps the three datastores at "DNS and nothing else".
@@ -55,7 +55,7 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # All op-* pods -> CoreDNS on 53; namespace-wide because a pod resolves
+    # invariant: all op-* pods -> CoreDNS on 53; namespace-wide because a pod resolves
     # before it can know which namespace answered.
     - to:
         - namespaceSelector: {}

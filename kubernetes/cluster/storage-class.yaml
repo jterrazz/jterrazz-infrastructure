@@ -1,5 +1,5 @@
 ---
-# `manual` — static provisioning against pre-created hostPath PVs under
+# hazard: `manual` — static provisioning against pre-created hostPath PVs under
 # /var/lib/k8s-data (on OrbStack a symlink to the Mac, so the data also
 # survives a `make destroy` repave). Retain, so deleting a PVC keeps the
 # data. ONE exception: a volume with `nodeLocalPath` set leaves that tree and

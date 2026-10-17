@@ -1,5 +1,5 @@
 ---
-# platform-telemetry — Grafana, the VictoriaMetrics family (metrics/logs/traces),
+# invariant: platform-telemetry — Grafana, the VictoriaMetrics family (metrics/logs/traces),
 # kube-state-metrics, node-exporter and the OTel Collector.
 #
 # k3s enforces NetworkPolicy, so this is real isolation — and it is needed here
@@ -37,7 +37,7 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    # Pods in platform-telemetry -> each other, any port, sourced by the namespace
+    # invariant: Pods in platform-telemetry -> each other, any port, sourced by the namespace
     # label. This ONE rule carries every store-facing flow, because every
     # legitimate client of a store lives here: grafana queries all three stores
     # (8428/9428/10428), otel-collector writes to all three, victoria-metrics
@@ -56,7 +56,7 @@ spec:
               kubernetes.io/metadata.name: platform-telemetry
 
 ---
-# Egress is DEFAULT-DENY for every pod in the namespace (podSelector {} +
+# invariant: egress is DEFAULT-DENY for every pod in the namespace (podSelector {} +
 # policyTypes: Egress), so each rule below is load-bearing — a telemetry flow
 # not listed here stops working.
 apiVersion: networking.k8s.io/v1
@@ -69,7 +69,7 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # Everything here -> CoreDNS on 53; namespace-wide because a pod resolves
+    # invariant: everything here -> CoreDNS on 53; namespace-wide because a pod resolves
     # before it can know which namespace answered.
     - to:
         - namespaceSelector: {}
@@ -78,14 +78,14 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    # Everything here -> anything else in platform-telemetry: the mirror of
+    # outside: everything here -> anything else in platform-telemetry: the mirror of
     # allow-same-namespace above (grafana and the collector to the three
     # stores, VictoriaMetrics to kube-state-metrics).
     - to:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: platform-telemetry
-    # -> the kube-apiserver, and -> the public internet on 443: one rule, because
+    # hazard: -> the kube-apiserver, and -> the public internet on 443: one rule, because
     # on this cluster they are the same destination pattern.
     #
     # NOTE THE MISSING `except`. Copying the `0.0.0.0/0 except <RFC1918>` shape

@@ -1,5 +1,5 @@
 ---
-# Global rate limit — 100 req/s average, burst 200: normal browsing passes,
+# hazard: global rate limit — 100 req/s average, burst 200: normal browsing passes,
 # aggressive scrapers do not. Attached to the websecure entrypoint for every
 # route (kubernetes/services/traefik/helm-chart-config.yaml).
 apiVersion: traefik.io/v1alpha1
@@ -14,7 +14,7 @@ spec:
   rateLimit:
     average: 100
     burst: 200
-    # Key the limiter on the REAL client IP.
+    # invariant: key the limiter on the REAL client IP.
     #
     # excludedIPs, NOT `depth: N`: `depth` counts from the right of XFF and
     # hard-codes how many hops appended a value (whether cloudflared appends
@@ -84,7 +84,7 @@ spec:
       Server: ""
 
 ---
-# Tailnet-only allow-list: platform-service chart `access: private`, app chart
+# invariant: tailnet-only allow-list: platform-service chart `access: private`, app chart
 # `public: false`. 10.42/16 is load-bearing, not slack — klipper-lb DNATs and
 # MASQUERADEs inside the svclb pod's netns (the Traefik Service is
 # externalTrafficPolicy: Cluster), so a tailnet request reaches Traefik with an
@@ -107,7 +107,7 @@ spec:
       - "10.42.0.0/16" # k3s pod CIDR — the svclb SNAT source (see header).
 
 ---
-# Strict superset of `private-access`, for routes that must ALSO be reachable
+# invariant: strict superset of `private-access`, for routes that must ALSO be reachable
 # from inside the cluster or via a node hairpin. Use one or the other on a
 # route, never both (chained ipAllowLists are ANDed).
 #

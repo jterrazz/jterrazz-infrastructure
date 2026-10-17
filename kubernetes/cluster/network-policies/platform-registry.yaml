@@ -1,5 +1,5 @@
 ---
-# platform-registry (the private Docker registry).
+# outside: platform-registry (the private Docker registry).
 #
 # The registry holds every application image and its push credentials are
 # htpasswd-only, so it is the crown jewel of the cluster. Nothing but Traefik
@@ -32,7 +32,7 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    # Pods in platform-registry -> each other; sourced by the namespace label.
+    # invariant: Pods in platform-registry -> each other; sourced by the namespace label.
     - from:
         - namespaceSelector:
             matchLabels:
@@ -49,7 +49,7 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # registry -> CoreDNS on 53; namespace-wide because a pod resolves before
+    # invariant: registry -> CoreDNS on 53; namespace-wide because a pod resolves before
     # it can know which namespace answered.
     - to:
         - namespaceSelector: {}
@@ -58,7 +58,7 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    # registry -> the internet on 443. Storage is a local hostPath PVC, so in
+    # invariant: registry -> the internet on 443. Storage is a local hostPath PVC, so in
     # principle DNS alone would do. OPEN: confirm distribution 3.x makes no
     # outbound call at all before removing this — the namespace is on the
     # critical path for every app deploy, so the failure would land in CI.
