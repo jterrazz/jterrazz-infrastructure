@@ -7,7 +7,7 @@ the NetworkPolicy.
 
 One values file per service, `kubernetes/services/<svc>/service.yaml`, rendered
 by the `<svc>-platform` release in `kubernetes/helmfile.yaml.gotmpl`. **That
-release name is frozen** — renaming it creates a new release and orphans the
+release name is frozen**: renaming it creates a new release and orphans the
 hostPath PV the old one bound.
 
 `values.yaml` is the field-by-field reference and owns every default. This file
@@ -24,11 +24,11 @@ is the *why*, and the recipes.
 | `NetworkPolicy` | `<name>` | `network` is set |
 
 All of them come from `kubernetes/charts/common`, the library chart this one and
-`app` share — that is where the IngressRoute shape, the never-chain-ipAllowLists
+`app` share; that is where the IngressRoute shape, the never-chain-ipAllowLists
 rule, the PV/PVC data-safety constraints and the NetworkPolicy peer vocabulary
 actually live.
 
-## `secrets:` — the service's credentials
+## `secrets:`, the service's credentials
 
 ```yaml
 secrets:
@@ -42,17 +42,17 @@ Renders `InfisicalSecret <name>-infisical`, which the operator syncs into
 contract, not a derived string**: the collector's `values.yaml` reads one key
 out of it by name, cloudflared's Deployment names it in a `secretKeyRef`, and an
 upstream chart may wire `envFrom` to a literal name it chose. Rename it and the
-credential simply never arrives — with no error anywhere.
+credential simply never arrives, with no error anywhere.
 
 The managed Secret's `creationPolicy` is Infisical's default `Orphan`, so it
 outlives the release: `helm uninstall` does not log the service out.
 
 Declaring this here is what replaced the hand-applied InfisicalSecrets in
-`ansible/roles/platform/tasks/bootstrap.yml` — the operator provides the CRD
+`ansible/roles/platform/tasks/bootstrap.yml`: the operator provides the CRD
 (`needs: platform-secrets/infisical`), and the release that mounts the Secret
 orders itself after this one.
 
-## `certificates:` — a hostname several releases answer on
+## `certificates:`, a hostname several releases answer on
 
 ```yaml
 certificates:
@@ -60,7 +60,7 @@ certificates:
   openpanel-analytics-tls:  { dnsNames: [analytics.jterrazz.com] }
 ```
 
-The service's own `host` needs nothing here — it already gets `<name>-tls`.
+The service's own `host` needs nothing here; it already gets `<name>-tls`.
 This block is for a service split across several **app-chart** releases, whose
 routes therefore live on those releases: two of them answering on one hostname
 cannot each own its certificate without issuing a second one for the same name.
@@ -71,7 +71,7 @@ sole user.
 The map key is **both** the Certificate and the TLS Secret name, because both
 address a live secret Traefik reads by name.
 
-## `smoke:` — what the route must answer
+## `smoke:`, what the route must answer
 
 `scripts/smoke.sh` holds no table of hostnames or status codes. It lists every
 IngressRoute in the cluster and probes what these two annotations say:
@@ -84,8 +84,8 @@ smoke:
 
 The default (`/` -> 200) is the weakest useful claim, so most services need no
 block at all. Override it where the service genuinely answers something else to
-an unauthenticated caller — Grafana bounces to `/login` (302), the registry
-challenges for a token (401) — and keep the list as narrow as the service
+an unauthenticated caller (Grafana bounces to `/login` with a 302, the registry
+challenges for a token with a 401), and keep the list as narrow as the service
 allows. `000` and any 5xx must never be in it; a probe that accepts them is a
 probe that cannot fail.
 
@@ -93,7 +93,7 @@ The annotation contract itself, including the two things only the app chart and
 hand-written manifests emit (`location`, `method`), is
 `kubernetes/charts/common/templates/_smoke.tpl`.
 
-## `network:` — the per-service policy
+## `network:`, the per-service policy
 
 NetworkPolicies **union**, so a namespace's rules are split by ownership rather
 than by file convenience:
@@ -123,7 +123,7 @@ network:
 ```
 
 One policy is rendered, named after the service, carrying both directions.
-`policyTypes` follows the directions actually declared — a service that lists
+`policyTypes` follows the directions actually declared: a service that lists
 only `ingress:` leaves egress to the namespace baseline rather than silently
 denying it.
 
@@ -133,16 +133,16 @@ denying it.
 | --- | --- |
 | `traefik` | the `kube-system` namespace, where k3s runs Traefik |
 | `namespace:<ns>` | one namespace, by its `kubernetes.io/metadata.name` |
-| `any-namespace` | every namespace — what DNS egress needs |
+| `any-namespace` | every namespace, which is what DNS egress needs |
 | `pods:<key>=<value>` | pods carrying a label, in **this** namespace |
 | `any-namespace-pods:<key>=<value>` | pods carrying a label, in any namespace |
 | `internet` | `0.0.0.0/0` **except** RFC1918 |
 | `anywhere` | `0.0.0.0/0`, no exception |
 
 `internet` and `anywhere` are deliberately distinct and one is not a tidier
-spelling of the other. On this cluster the apiserver is RFC1918 twice over —
+spelling of the other. On this cluster the apiserver is RFC1918 twice over:
 pods dial the `kubernetes` ClusterIP `10.43.0.1:443`, which iptables DNATs to
-the node's own `192.168.x.x:6443` — so anything that must reach it, or must
+the node's own `192.168.x.x:6443`, so anything that must reach it, or must
 scrape a target set no static list can enumerate, needs `anywhere`.
 
 ### The two traps
@@ -158,7 +158,7 @@ an empty `namespaceSelector` and admits a pod of that name from anywhere in the
 cluster. For an unauthenticated database that difference is the whole control.
 
 **hostNetwork clients are not pods.** cloudflared and the apiserver arrive as
-the node address, so only an `ipBlock` peer matches them — a namespace- or
+the node address, so only an `ipBlock` peer matches them; a namespace- or
 pod-selector rule silently excludes them.
 
 A bare port number is TCP (the Kubernetes default, left unwritten so the

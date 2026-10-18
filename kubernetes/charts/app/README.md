@@ -1,4 +1,4 @@
-# app chart — the `application.yaml` reference
+# app chart: the `application.yaml` reference
 
 Every application in the fleet deploys through this one chart. An app repo
 owns a single file, `.infrastructure/application.yaml`, and the shared CI
@@ -15,10 +15,10 @@ helm upgrade --install <env>-<app> oci://registry.internal.jterrazz.com/charts/a
 ```
 
 (The exact invocation lives in `jterrazz-actions/actions/docker-deploy`; the
-three `--set` values above are the contract this chart expects from CI —
+three `--set` values above are the contract this chart expects from CI;
 everything else comes from `application.yaml`. No credential is among them: the
 registry pull secret is synced from Infisical, see
-[`spec.image`](#specimage--and-what-the-registry-decides).)
+[`spec.image`](#specimage-and-what-the-registry-decides).)
 
 `meta.repository` is `${{ github.repository }}`, stamped on the Deployment as
 the `app.jterrazz.com/repository` annotation. It is how the infrastructure
@@ -32,7 +32,7 @@ header at the top is decorative (Helm ignores unknown top-level keys) and
 kept only because it reads like a manifest.
 
 The chart is pulled **unversioned**. There is no version pin anywhere in the
-app CI, which means a chart push reaches every app on its next deploy — see
+app CI, which means a chart push reaches every app on its next deploy, so read
 [Versioning](#versioning-and-publishing) before changing a template.
 
 ## Shape
@@ -41,7 +41,7 @@ app CI, which means a chart push reaches every app on its next deploy — see
 apiVersion: jterrazz.com/v1
 kind: Application
 metadata:
-  name: my-app                  # required — names every object and the namespace
+  name: my-app                  # required; names every object and the namespace
 spec:
   port: 3000                    # container port; the Service always listens on 80
   resources:
@@ -81,33 +81,33 @@ environments:
 ```
 
 `kubernetes/charts/app/ci/test-values.yaml` is a working example that
-exercises every branch below — CI renders it through `kubeconform` on every
+exercises every branch below; CI renders it through `kubeconform` on every
 PR. Start from it when you're unsure of a shape.
 
 **Where the templates live.** The IngressRoute, Certificate, PV/PVC,
 NetworkPolicy and InfisicalSecret this chart emits are rendered by
 `kubernetes/charts/common`, a library chart shared with `platform-service` and
-bundled into this chart's published `.tgz` — so an app repo still pulls one
+bundled into this chart's published `.tgz`, so an app repo still pulls one
 unversioned chart and needs no new repository. What is written down there is
 the *shape* and its constraints; what is written down here is what an app
 controls. See [charts/common/README.md](../common/README.md).
 
 ## Merge semantics
 
-Three layers, resolved per key: **environment override → `spec` → chart
-default**. Whole-value replacement, not deep merge, with two exceptions:
+Three layers, resolved per key: **the environment override, then `spec`, then the
+chart default**. Whole-value replacement, not deep merge, with two exceptions:
 
 | Key                     | Rule                                                             |
 | ----------------------- | ---------------------------------------------------------------- |
-| any map (`resources`, `env`, `secrets`, `health`, …) | Deep-merged per key — `resources: {memory: …}` in an env keeps the base `cpu`. **The environment wins** on a key collision. |
-| any list (`ingress`, `platformServices`) | **Replaces** — an env's list fully supersedes `spec`'s, deliberately (a half-merged list of network surfaces is unreadable) |
+| any map (`resources`, `env`, `secrets`, `health`, ...) | Deep-merged per key: `resources: {memory: ...}` in an env keeps the base `cpu`. **The environment wins** on a key collision. |
+| any list (`ingress`, `platformServices`) | **Replaces**: an env's list fully supersedes `spec`'s, deliberately (a half-merged list of network surfaces is unreadable) |
 | any scalar              | Env value if present, else `spec`, else default                   |
 
 One resolver implements all of it: `app.merged` in `templates/_helpers.tpl`,
 which is why an environment can override **any** `spec` key.
 
 **Nothing renders for an environment that isn't declared.** Every template is
-gated on `environment` existing as a key under `environments:` — a typo'd
+gated on `environment` existing as a key under `environments:`, and a typo'd
 `--set environment=prd` produces an empty release, not an error.
 
 ## Fields
@@ -119,12 +119,12 @@ it, so IngressRoutes never mention the app port. `PORT` is injected into the
 container env automatically.
 
 `servicePort` (default 80) is for a workload whose **clients dial it by name and
-port** — a database in a connection string, an in-cluster HTTP API — because
+port** (a database in a connection string, an in-cluster HTTP API), because
 that URL is written down somewhere this chart cannot see. Setting it moves the
 Service port and every IngressRoute this chart renders along with it.
 
 `replicas` is env-level (default 1). Note storage forces
-`strategy: Recreate` — don't ask for >1 replica with a hostPath volume.
+`strategy: Recreate`, so don't ask for >1 replica with a hostPath volume.
 
 ### `spec.command`, `spec.args`, `spec.strategy`
 
@@ -135,7 +135,7 @@ image decides. No app in the fleet sets either.
 mounted**, because every volume this chart mounts is an RWO hostPath and two
 writers on one is the trap the datastores exist to avoid; the Kubernetes
 default otherwise. Set it explicitly only for a workload that must not run
-twice for a reason storage cannot express — `op-api` runs its database
+twice for a reason storage cannot express: `op-api` runs its database
 migrations on boot, so a rolling update would put two migration runners on one
 database.
 
@@ -149,7 +149,7 @@ resources:
 ```
 
 Only memory is limited. `memoryLimit` defaults to double the request, always
-emitted in `Mi` (a `1Gi` request yields `2048Mi` — identical quantity); a
+emitted in `Mi` (a `1Gi` request yields `2048Mi`, the identical quantity); a
 non-`Mi`/`Gi` request passes through unchanged.
 
 **`NODE_OPTIONS` auto-injection**: for apps requesting **>= 512Mi**, the
@@ -158,7 +158,7 @@ Below that floor it injects **nothing**, and an app that sets its own
 `NODE_OPTIONS` always wins. The floor is load-bearing: without a cap V8 sizes
 its heap off the (2x) cgroup limit and drifts toward it, which matters for a
 768Mi API but starves a ~128Mi Next.js service's SSR boot into a crash-loop.
-Harmless on non-Node runtimes — the variable is ignored.
+Harmless on non-Node runtimes, where the variable is ignored.
 
 ### `spec.health`
 
@@ -171,8 +171,8 @@ health:
 
 All three probes share one action, `httpGet` on `health.path` at `spec.port`.
 The startupProbe gates liveness and readiness, so a slow boot can't get
-SIGKILLed mid-startup. Everything the chart does not name above — probe periods,
-liveness and readiness failure thresholds — is left at the Kubernetes default.
+SIGKILLed mid-startup. Everything the chart does not name above (probe periods,
+liveness and readiness failure thresholds) is left at the Kubernetes default.
 
 Two alternatives exist for a server that does not speak HTTP; the first one set
 wins (`exec`, then `tcp`, then `path`):
@@ -188,7 +188,7 @@ health:
 start alone exceeds the probe timeout, so an exec probe crash-loops a perfectly
 healthy database on the liveness kill.
 
-### `spec.ingress` — a list, always
+### `spec.ingress`: a list, always
 
 Each entry is
 `{ host, path?, public, access?, stripPrefix?, tlsSecret?, redirectTo?, preservePath?, smoke? }`.
@@ -203,7 +203,7 @@ ingress:
     public: false             # tailnet-only: private-access middleware attached
 ```
 
-- `public` is **required** per entry — the render fails without it rather
+- `public` is **required** per entry: the render fails without it rather
   than silently defaulting a network-visibility decision.
 - The single-object form was removed in chart 1.17.0; a non-list fails with
   an explicit message.
@@ -216,7 +216,7 @@ ingress:
 - `path` defaults to `/`. Any other path also emits a `stripPrefix`
   middleware (legacy `/api` behaviour: the backend mounts routes at the
   root). Set `stripPrefix: false` on the entry to keep the prefix visible to
-  the app — e.g. an MCP server registered at the literal `/mcp` — or to a
+  the app (an MCP server registered at the literal `/mcp`, say), or to a
   **string** to strip something other than the route's own path: OpenPanel's
   ingest is routed on `/api/track` and its backend serves `/track`, so it
   strips `/api`.
@@ -228,7 +228,7 @@ ingress:
 - `redirectTo` turns the entry into a **redirect-only host**: it answers on
   `host` and 301s to the given absolute `https://` URL, never reaching the app.
   The path is carried over by default (`preservePath: true`), which is what a
-  canonical-host redirect needs — dropping it would break every deep link that
+  canonical-host redirect needs: dropping it would break every deep link that
   ever pointed at the old host. Set `preservePath: false` to send every request
   to one fixed page. Combining `redirectTo` with `path` is a render error: a
   redirect answers for the whole host, so the path would be silently ignored.
@@ -247,7 +247,7 @@ ingress:
   ```
 
   A redirect host still needs its own `Certificate` and its own Public Hostname
-  on the Cloudflare tunnel — TLS terminates before the redirect is served.
+  on the Cloudflare tunnel, because TLS terminates before the redirect is served.
 - One `Certificate` per **unique host** (`<app>-<host-slug>-tls`, DNS-01 via
   the `letsencrypt-production` ClusterIssuer); one `IngressRoute` per
   **entry** (`<app>-<idx>`), so two entries can share a host.
@@ -256,7 +256,7 @@ ingress:
   `issuers.yaml`. Private `*.internal.jterrazz.com` names resolve through one
   hand-made wildcard CNAME and need no DNS work.
 
-#### `smoke:` — what the probe should get back
+#### `smoke:` names what the probe should get back
 
 `scripts/smoke.sh` in the infrastructure repo lists every IngressRoute in the
 cluster and probes what these annotations say. **You almost never write this
@@ -267,8 +267,8 @@ it is healthy, so it derives the contract per entry.
 | --- | --- | --- |
 | `path: /` (or no path) | `spec.health.path` | `200` |
 | `path: /api` (stripPrefix on, the default) | `/api` + `spec.health.path` | `200` |
-| `path: /mcp` with `stripPrefix: false` | **nothing** — opted out | — |
-| `redirectTo: …` | `/` | `301`, **and** the `Location` the middleware sends |
+| `path: /mcp` with `stripPrefix: false` | **nothing**, opted out | nothing |
+| `redirectTo: ...` | `/` | `301`, **and** the `Location` the middleware sends |
 
 The `stripPrefix: false` case opts out because the app routes everything under
 that prefix itself: nothing here can know which URL below it answers, and a
@@ -293,9 +293,9 @@ ingress:
 ```
 
 `expect` is a comma-separated list of accepted codes; keep it as narrow as the
-surface genuinely allows, and never put `000` or a 5xx in it — the entire value
+surface genuinely allows, and never put `000` or a 5xx in it: the entire value
 of the probe is that a dead service cannot read as "fine". `method:` sets the
-verb for a route that answers only one — OpenPanel's ingest is POST-only, and a
+verb for a route that answers only one; OpenPanel's ingest is POST-only, and a
 GET there 404s whether the backend is healthy or not.
 
 A route whose `stripPrefix` is neither its own path nor false also opts out by
@@ -316,7 +316,7 @@ Renders an `InfisicalSecret` (`<app>-infisical`) that syncs into Secret
 using the shared `infisical-credentials` in `platform-secrets`. The Infisical **env slug**
 defaults to the deploy environment name; an environment that has no matching
 Infisical env sets `secretsEnv:` to borrow another one (that's what `next`
-does — `secretsEnv: prod`).
+does, with `secretsEnv: prod`).
 
 ### `spec.env`
 
@@ -338,14 +338,14 @@ storage:
 `size` and `mountPath` are `required`: a missing one would otherwise render an
 unbindable PV or an empty mountPath, diagnosable only at runtime.
 
-**`claimName` means the volume belongs to someone else** — a `<svc>-platform`
+**`claimName` means the volume belongs to someone else**: a `<svc>-platform`
 release, whose `storage:` map created it and whose release name is the identity
 of that live data. This chart then only *mounts* it and renders no PV/PVC of its
 own (so `size` is unused): two releases owning one volume is how a
 `helm uninstall` of the wrong one deletes a bound claim.
 
 **`owner`** is the `uid:gid` the `fix-permissions` initContainer hands the
-volume to — the image's own user (`70:70` for alpine Postgres, `101:101` for
+volume to: the image's own user (`70:70` for alpine Postgres, `101:101` for
 ClickHouse, `999:1000` for Redis), not always 1000. Set it to the empty string
 to skip the initContainer entirely, for an image that runs as root over a
 root-owned volume; chowning a 10Gi blob store on every pod start is both slow
@@ -358,7 +358,7 @@ the Deployment to `strategy: Recreate`. A root `fix-permissions`
 initContainer `chown -R 1000:1000`s the mount, because hostPath dirs are
 created root-owned and the app container runs as 1000.
 
-The PV carries **no `nodeAffinity`** — only app CI installs this chart and it
+The PV carries **no `nodeAffinity`**: only app CI installs this chart and it
 passes no node name. (`platform-service`, whose PVs Ansible creates, does pin
 it.) If a second node is ever added, this needs restoring: an unpinned hostPath
 PV can bind on a node whose disk holds an empty directory.
@@ -376,7 +376,7 @@ configFiles:
   op-config.xml:
     path: /etc/clickhouse-server/config.d/op-config.xml
     content: |
-      <clickhouse>…</clickhouse>
+      <clickhouse>...</clickhouse>
 ```
 
 ### `spec.secretMounts`
@@ -388,7 +388,7 @@ secretMounts:
 ```
 
 An existing Secret mounted read-only as files, for an image that reads a
-credential from disk rather than from the environment — the registry's bcrypt
+credential from disk rather than from the environment; the registry's bcrypt
 htpasswd is the one user. For a credential that arrives as env vars, use
 `spec.secrets`.
 
@@ -396,19 +396,19 @@ htpasswd is the one user. For a credential that arrives as env vars, use
 
 Map of `name -> Grafana dashboard JSON`. Renders a ConfigMap labelled
 `grafana_dashboard: "1"` and annotated `grafana_folder: <app>`, which
-Grafana's sidecar picks up. **Only rendered when `environment == prod`** —
+Grafana's sidecar picks up. **Only rendered when `environment == prod`**:
 one dashboard per app, not one per environment.
 
 App CI fills this map for you: `jterrazz-actions/actions/docker-deploy` scans
 `.infrastructure/dashboards/*.json` and appends
 `--set-file spec.dashboards.<basename>=<file>` per file. Dashboards therefore
-never appear in `application.yaml` — dropping a JSON file in that directory is
+never appear in `application.yaml`; dropping a JSON file in that directory is
 the whole workflow.
 
 ### `spec.alerts`
 
 Map of `name -> Grafana alert provisioning YAML` (an `apiVersion: 1` /
-`groups:` document — the [unified alerting provisioning
+`groups:` document, in the [unified alerting provisioning
 format](https://grafana.com/docs/grafana/latest/alerting/set-up/provision-alerting-resources/file-provisioning/)).
 Renders **one** ConfigMap `<app>-alerts` labelled `grafana_alert: "1"`, with
 one data key `<name>.yaml` per entry, picked up by Grafana's `sidecar.alerts`
@@ -431,7 +431,7 @@ spec:
 
 **Only rendered when `environment == prod`**, and for a harder reason than
 dashboards: a rule `uid:` is global in Grafana, so a staging copy of a rule
-would not sit beside the prod one — it would provision *over* it.
+would not sit beside the prod one; it would provision *over* it.
 
 Two deliberate differences from `spec.dashboards`:
 
@@ -439,14 +439,14 @@ Two deliberate differences from `spec.dashboards`:
   `folderAnnotation` configured; each group carries its own `folder:` inside
   the payload.
 - **One ConfigMap for all entries**, not one per entry, so an app's rule set is
-  replaced atomically — a renamed rule file cannot leave an orphan ConfigMap
+  replaced atomically: a renamed rule file cannot leave an orphan ConfigMap
   behind still provisioning a rule nobody maintains.
 
 Unlike dashboards, **CI does not populate this map from a directory**:
 `docker-deploy`'s `--set-file` loop is hardcoded to `dashboards/*.json`, so
 alerts are written inline in `.infrastructure/application.yaml` today. The map
 shape is identical to what `--set-file` produces, so generalising that loop to
-also scan `alerts/*.yaml` is a jterrazz-actions-only change — this chart needs
+also scan `alerts/*.yaml` is a jterrazz-actions-only change; this chart needs
 no edit when it happens.
 
 ### `spec.cronJobs`
@@ -468,9 +468,9 @@ spec:
 
 | Key                       | Default   | Why that default                                                                                               |
 | ------------------------- | --------- | -------------------------------------------------------------------------------------------------------------- |
-| `schedule`                | required  | —                                                                                                              |
+| `schedule`                | required  |                                                                                                                |
 | `command`                 | required  | The app's entrypoint is its server. Scheduled, it would never exit, and would run until the deadline killed it. |
-| `args`                    | none      | —                                                                                                              |
+| `args`                    | none      |                                                                                                                |
 | `timeZone`                | `Etc/UTC` | Explicit and free of DST. In a zone that changes clocks, a 02:30 schedule is skipped one night a year and run twice another. |
 | `concurrencyPolicy`       | `Forbid`  | A run that overruns its interval never gets a second copy beside it.                                            |
 | `startingDeadlineSeconds` | `600`     | A run missed by more than ten minutes (the cluster was down) is skipped, not replayed late.                    |
@@ -516,7 +516,7 @@ source of truth in `templates/_helpers.tpl` (`app.platformCatalog`):
 
 | Name                   | Injects env                                                                        | Opens egress to                     | Client label |
 | ---------------------- | ---------------------------------------------------------------------------------- | ----------------------------------- | ------------ |
-| `otel-collector`       | `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.platform-telemetry:4318`          | `platform-telemetry` :4317, :4318   | —            |
+| `otel-collector`       | `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.platform-telemetry:4318`          | `platform-telemetry` :4317, :4318   | none         |
 | `gateway-intelligence` | `GATEWAY_INTELLIGENCE_BASE_URL=http://gateway-intelligence.prod-gateway-intelligence.svc.cluster.local/v1` | `prod-gateway-intelligence` :8317 | `platform-client.jterrazz.com/gateway-intelligence` |
 
 Declaring a name wires the whole bundle at once:
@@ -525,7 +525,7 @@ Declaring a name wires the whole bundle at once:
    always wins),
 2. an **egress NetworkPolicy** hole to the catalog namespace on the **pod**
    ports (never the Service port),
-3. a **pod label** on the consumer, when the entry has a `clientLabel` — and
+3. a **pod label** on the consumer, when the entry has a `clientLabel`, and
    the target service, being itself a catalog entry, renders an ingress rule
    selecting that label. A new consumer therefore needs **zero** edits on the
    target.
@@ -534,7 +534,7 @@ Ports are pinned per namespace, so `gateway-intelligence` resolves to the
 `prod-` namespace regardless of which environment the consumer runs in.
 
 An unknown name **hard-fails the render** with the valid list. Telemetry is
-opt-in: an app that doesn't declare `otel-collector` gets no OTLP endpoint —
+opt-in: an app that doesn't declare `otel-collector` gets no OTLP endpoint;
 previously it was an unconditional default that was inert anyway, because
 nothing opened the egress hole.
 
@@ -549,11 +549,11 @@ Always rendered. Derived, so an app configures nothing: ingress from
 carrying this app's `clientLabel` **if** the app is itself a `platformServices`
 catalog target; egress to DNS; and egress to the whole internet **except**
 RFC1918. Every other in-cluster destination comes from `platformServices`, which
-opens both directions at once — or, when nothing in the catalog fits, from
+opens both directions at once or, when nothing in the catalog fits, from
 `spec.network` below.
 
-The policy itself — and the peer vocabulary it is written in, and the two traps
-it exists to absorb (ports are POD ports; hostNetwork clients are not pods) —
+The policy itself, with the peer vocabulary it is written in and the two traps
+it exists to absorb (ports are POD ports; hostNetwork clients are not pods),
 comes from `kubernetes/charts/common`. A platform service declares the same
 shapes by hand in its `network:` block.
 
@@ -576,7 +576,7 @@ spec:
 `exposeTo` names extra clients allowed to reach this app on `spec.port`, and
 `egress` extra destinations it may dial; both are appended to the rules the
 chart already writes. Each peer is a `kubernetes/charts/common` NetworkPolicy
-peer — `namespace:<ns>`, `pods:<key>=<value>`,
+peer: `namespace:<ns>`, `pods:<key>=<value>`,
 `any-namespace-pods:<key>=<value>`, `traefik`, `any-namespace`, `internet`,
 `anywhere`; an unknown one **hard-fails the render** with the valid list. Ports
 are **pod** ports, never Service ports.
@@ -585,35 +585,35 @@ Reach for `exposeTo` only when the client **cannot** opt in through
 `platformServices`, which is the mechanism that needs no edit here at all: a
 third-party chart renders its pods and cannot stamp the catalog's client label.
 Declaring the client's namespace on the TARGET is what replaces a hand-written
-NetworkPolicy in the infrastructure repo's `cluster/network-policies/` — a rule
+NetworkPolicy in the infrastructure repo's `cluster/network-policies/`: a rule
 there would be granting access to an app that repo does not deploy. No
 in-cluster client needs this today; `platformServices` covers them all.
 
-**`isolated: true` drops the two DERIVED rules** — Traefik ingress on
-`spec.port` and egress to the whole internet — leaving DNS plus exactly what
+**`isolated: true` drops the two DERIVED rules** (Traefik ingress on
+`spec.port` and egress to the whole internet), leaving DNS plus exactly what
 `exposeTo` and `egress` declare. No app sets it. It is what a datastore is: a
 workload whose entire security model is that nothing reaches it and it dials
 nothing, because it has no password of its own (`op-postgres`, `op-redis`,
 `op-clickhouse`).
 
-### `spec.image` — and what the registry decides
+### `spec.image`, and what the registry decides
 
 `spec.image` is set by CI (`registry.internal.jterrazz.com/<app>:<tag>`), and
 falls back to `<registry>/<app>:latest`. Whether the image lives on **our**
 registry decides two more things, with no knob for either:
 
-- the `registry-credentials` `imagePullSecret` is attached only then — the
+- the `registry-credentials` `imagePullSecret` is attached only then: the
   credential authenticates that registry alone, and naming a Secret that is not
   in the namespace earns a `FailedToRetrieveImagePullSecret` warning on every
   pod start. That Secret is not built from values: the chart renders a second
   `InfisicalSecret` (`<app>-registry-infisical`) and the operator syncs
   `DOCKER_REGISTRY_USERNAME` / `DOCKER_REGISTRY_PASSWORD` from
-  `/jterrazz-actions` — the same path CI reads its own `docker login` from —
+  `/jterrazz-actions` (the same path CI reads its own `docker login` from)
   into a `kubernetes.io/dockerconfigjson`. The password is never a chart value,
   so it never lands in a release Secret or on a runner's argv, and rotating it
   needs no app deploy at all (`docs/guides/operate.md`, § Rotating the registry
   password);
-- `imagePullPolicy: Always` is set only then — our tags (`main`, `next`) are
+- `imagePullPolicy: Always` is set only then: our tags (`main`, `next`) are
   mutable, so `IfNotPresent` would keep serving whatever the node cached first.
   A third-party image keeps Kubernetes' default, which is what its pinned tag
   deserves and what keeps a pod restart off Docker Hub's anonymous pull quota.
@@ -623,7 +623,7 @@ registry decides two more things, with no knob for either:
 Containers get hardened defaults: `runAsNonRoot: true`,
 `allowPrivilegeEscalation: false`, `capabilities.drop: [ALL]`,
 `seccompProfile: RuntimeDefault`; the pod gets `runAsUser/runAsGroup/fsGroup:
-1000`. `readOnlyRootFilesystem` is deliberately **not** in the defaults —
+1000`. `readOnlyRootFilesystem` is deliberately **not** in the defaults:
 every app here writes caches (`.next/cache`, `/tmp`) at runtime.
 
 ```yaml
@@ -638,7 +638,7 @@ spec:
 
 Use `securityContext` to give one capability back; `runAsRoot` only for an
 image that genuinely cannot run as 1000. Neither should be the first thing
-you reach for — fix the image.
+you reach for; fix the image.
 
 ## What gets rendered
 
@@ -654,7 +654,7 @@ For a declared environment, namespace `<environment>-<app>`:
 | Middleware (stripPrefix)  | `<app>-<idx>-strip-prefix`    | entry has a non-`/` path, `stripPrefix` is not false, and it is not a redirect |
 | Middleware (redirectRegex) | `<app>-<idx>-redirect`       | entry sets `redirectTo`          |
 | InfisicalSecret           | `<app>-infisical`             | `spec.secrets.path` set         |
-| InfisicalSecret           | `<app>-registry-infisical`    | `spec.image` is on our registry — it syncs the `registry-credentials` dockerconfigjson |
+| InfisicalSecret           | `<app>-registry-infisical`    | `spec.image` is on our registry; it syncs the `registry-credentials` dockerconfigjson |
 | ConfigMap                 | `<app>-config`                | `spec.configFiles` set          |
 | ConfigMap                 | `<app>-dashboard-<name>`      | `spec.dashboards` set **and** env is prod |
 | ConfigMap                 | `<app>-alerts`                | `spec.alerts` set **and** env is prod |
@@ -673,12 +673,12 @@ Two rules follow from apps pulling the chart **unversioned**:
 
 1. **Bump `version:` in the same commit as any template change.** The workflow
    `helm pull`s the version first and, if it resolves, publishes **nothing**
-   (a green no-op with a `::notice::`, not a failure — a routine push right
+   (a green no-op with a `::notice::`, not a failure: a routine push right
    after `make deploy` would otherwise go red on an already-current registry).
    The guard's only job is to prevent an *overwrite*, so two template sets can
    never answer to the same tag. The corollary is that a forgotten bump ships
    nothing at all, quietly.
-2. **Every behavioural change reaches every app on its next deploy** — there
+2. **Every behavioural change reaches every app on its next deploy**: there
    is no per-app opt-in window. Additive and defaulted changes only, unless
    you're prepared to redeploy the fleet. (`ansible/roles/platform/tasks/publish-app-chart.yml`
    publishes the same chart from the host during a fresh-cluster build,
@@ -691,15 +691,15 @@ Two rules follow from apps pulling the chart **unversioned**:
 rendered `Secret registry-credentials` from a chart value; 2.12.0 renders an
 `InfisicalSecret` instead and lets the operator write that Secret. The old
 revision's manifest therefore OWNS a Secret the new one does not render, and
-`helm upgrade` prunes it — including the copy the operator had already synced,
+`helm upgrade` prunes it, including the copy the operator had already synced,
 because Helm matches on name, not on who wrote it.
 
 The rest follows on its own:
 
-- the new pod names an `imagePullSecret` that no longer exists →
+- the new pod names an `imagePullSecret` that no longer exists, so
   `ImagePullBackOff`;
 - `--wait --timeout 5m` expires while kubelet backs off between pull attempts;
-- `--atomic` rolls back — and the rollback fails too, with `no Secret with the
+- `--atomic` rolls back, and the rollback fails too, with `no Secret with the
   name "registry-credentials" found`;
 - the operator does not repair it: the Infisical value has not changed, so it
   matches its cached ETag and skips reconciliation entirely (the infrastructure
@@ -707,14 +707,14 @@ The rest follows on its own:
   [deleted managed Secret](../../../docs/guides/operate.md#a-deleted-managed-secret-does-not-come-back)).
 
 Every release in this estate has already crossed that boundary, so it is
-history here — but any other consumer of this chart meets it once per release.
+history here, but any other consumer of this chart meets it once per release.
 Two ways through, both with `--timeout` set well above the default (the pull
 backoff, not the pod, is what runs out the clock):
 
 - **Pre-create** the release's registry `InfisicalSecret` with the adoption
-  metadata Helm demands — annotations `meta.helm.sh/release-name` and
-  `meta.helm.sh/release-namespace`, label `app.kubernetes.io/managed-by: Helm`
-  — so the upgrade adopts the object instead of racing it.
+  metadata Helm demands (annotations `meta.helm.sh/release-name` and
+  `meta.helm.sh/release-namespace`, label `app.kubernetes.io/managed-by: Helm`)
+  so the upgrade adopts the object instead of racing it.
 - **Recreate** that CR a few seconds after the upgrade starts, which is what
   was done here: the operator writes the Secret back while Helm is still
   waiting on the pod, and the pull succeeds before the timeout.
@@ -722,7 +722,7 @@ backoff, not the pod, is what runs out the clock):
 ## Working on the chart
 
 ```bash
-# Resolve the `common` library dependency first — nothing is vendored, and
+# Resolve the `common` library dependency first: nothing is vendored, and
 # helm refuses to render a chart whose declared dependency is not in charts/.
 helm dependency update kubernetes/charts/app
 
@@ -735,4 +735,4 @@ make lint
 ```
 
 If you add a template branch, add a value that reaches it to
-`ci/test-values.yaml` — an unreached branch is an unvalidated branch.
+`ci/test-values.yaml`: an unreached branch is an unvalidated branch.

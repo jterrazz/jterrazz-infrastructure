@@ -19,7 +19,7 @@ client ──https──► Cloudflare edge ──QUIC tunnel──► this Depl
 ```
 
 Per-hostname routing is configured in Cloudflare's Zero Trust UI under
-the tunnel's "Public Hostname" tab — adding a hostname there creates the
+the tunnel's "Public Hostname" tab; adding a hostname there creates the
 DNS CNAME automatically. The tunnel forwards everything to Traefik with
 `No TLS Verify: ON` (internal traffic, no need to validate the cluster's
 self-signed serving cert).
@@ -30,23 +30,23 @@ Done once per tunnel; recorded here for reference and recovery.
 
 ### 1. Create the tunnel
 
-Cloudflare → Zero Trust → Networks → Tunnels → Create a tunnel.
+In Cloudflare, open Zero Trust, then Networks, then Tunnels, and create a tunnel.
 Connector type **Cloudflared**, name `jterrazz-infrastructure`. On the next
-screen Cloudflare shows a connection token (starts with `eyJ…`).
+screen Cloudflare shows a connection token (it starts with `eyJ`).
 
 ### 2. Store the token in Infisical
 
-`https://eu.infisical.com` → project `jterrazz` → env `prod` → path
-`/jterrazz-infrastructure` → add secret `CLOUDFLARE_TUNNEL_TOKEN` with that
+At `https://eu.infisical.com`, in project `jterrazz`, env `prod`, path
+`/jterrazz-infrastructure`, add the secret `CLOUDFLARE_TUNNEL_TOKEN` with that
 value. Ansible decodes the token at deploy time to derive the tunnel
 hostname (`<tunnel-id>.cfargotunnel.com`) used as the DNS target for
 public records.
 
 ### 3. Public Hostname per hostname
 
-The tunnel routes **per hostname, not by wildcard** — every public hostname
+The tunnel routes **per hostname, not by wildcard**: every public hostname
 gets its own Public Hostname rule (apex zones AND subdomains). In the tunnel
-detail page, "Public Hostname" tab → Add one for each:
+detail page, "Public Hostname" tab, add one for each:
 
 - apex zones: `jterrazz.com`, `sig.news`, `spwn.sh` (Subdomain: empty)
 - subdomains: e.g. `signews.jterrazz.com`, `analytics.jterrazz.com`
@@ -56,7 +56,7 @@ For each:
 
 - Service type: HTTPS
 - URL: `traefik.kube-system.svc.cluster.local:443`
-- Additional application settings → TLS → **No TLS Verify: ON**
+- Under Additional application settings, then TLS: **No TLS Verify: ON**
 
 Adding the rule auto-creates the CNAME. Exception: `analytics.jterrazz.com`
 (OpenPanel ingest) already has a hand-made CNAME (see "DNS records" in
@@ -73,7 +73,7 @@ the InfisicalSecret that becomes `cloudflared-secrets`; `deployment.yaml` is
 
 It stays raw on purpose: `hostNetwork: true` plus
 `dnsPolicy: ClusterFirstWithHostNet` are what make the tunnel work here at all
-(the CNI bridge mangles outbound TCP/7844 — see the note in the manifest), and
+(the CNI bridge mangles outbound TCP/7844; see the note in the manifest), and
 the app chart expresses neither. It is the exception; anything else new should
 be a chart release.
 
@@ -116,7 +116,7 @@ kubectl scale -n platform-networking deploy/cloudflared --replicas=0
 
 `hostNetwork: true`. Without it, the CNI bridge on the OrbStack VM mangles
 outbound TCP/7844 to the Cloudflare edge and cloudflared's tunnel handshake
-gets RSTed — while `curl` from the same pod IP connects fine, so only
+gets RSTed, while `curl` from the same pod IP connects fine, so only
 cloudflared's specific socket flow fails. hostNetwork bypasses CNI and traffic
 goes straight through the host's stack.
 
