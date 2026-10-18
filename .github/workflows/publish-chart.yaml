@@ -41,7 +41,7 @@ jobs:
           infisical-client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
 
       # invariant: the login, the already-published guard and the push all live in the
-      # script, which is also what documents them — and what
+      # script, which is also what documents them, and what
       # scripts/assert-sync.py compares against the Ansible copy of the same
       # guard. Credentials go through `env:` so the registry password never
       # lands in the expanded shell text of a step.

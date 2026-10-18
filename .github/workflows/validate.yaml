@@ -1,11 +1,11 @@
 name: Validate
 
-# invariant: runs on PRs (pre-merge gate) AND on push to main (a direct push — e.g. a
-# merge commit made outside a PR, or an admin bypass — would otherwise reach
+# invariant: runs on PRs (pre-merge gate) AND on push to main (a direct push, such as a
+# merge commit made outside a PR or an admin bypass, would otherwise reach
 # main, and therefore deploy-platform.yaml/publish-chart.yaml, unvalidated).
 #
 # No `workflow_call:` here: nothing in this repo (or known to reference it
-# externally) invokes this workflow as a reusable one — grepped for
+# externally) invokes this workflow as a reusable one: grepped for
 # `uses:.*validate` and found no callers. If that changes, re-add it.
 on:
   pull_request:
@@ -47,7 +47,7 @@ jobs:
       # invariant: several facts in this repo are necessarily written down twice, in two
       # languages, because two different machines consume them (a Traefik
       # entrypoint argument vs a Traefik Middleware CRD; a Python secret map vs
-      # an Ansible assert). Each pair carries a "KEEP IN SYNC" comment — and a
+      # an Ansible assert). Each pair carries a "KEEP IN SYNC" comment, and a
       # comment is not a check. This step is the check. Stdlib-only, so this
       # job still installs nothing.
       - name: Cross-file sync assertions
@@ -60,7 +60,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # hazard: ubuntu-latest ships a node, but its npm is whatever was current the day
-      # the image was baked — and the failure this job hit first time out was an
+      # the image was baked, and the failure this job hit first time out was an
       # npm-version-dependent crash inside `npm exec`. Pinning the major here
       # means the gate runs on a known npm rather than on an image detail that
       # changes under it.
@@ -69,7 +69,7 @@ jobs:
           node-version: "24"
 
       # invariant: `make docs` is the one place the command and its pin are written,
-      # so this and a laptop run the same check — locally it is a soft skip (like
+      # so this and a laptop run the same check; locally it is a soft skip (like
       # actionlint and helm-unittest) and this job is what makes that safe.
       - name: Content check
         run: make docs
@@ -85,7 +85,7 @@ jobs:
           # outside: ansible-core 2.21 requires Python >= 3.12 and is tested on 3.12-3.14.
           # 3.13 sits in the middle of that window with the widest wheel
           # coverage for ansible-lint's compiled deps (cffi, cryptography,
-          # ruamel-yaml-clib — which ansible-lint drops entirely on 3.14).
+          # ruamel-yaml-clib, which ansible-lint drops entirely on 3.14).
           # Never a floating "3.x": it would roll to 3.15 and out of the
           # tested matrix.
           python-version: "3.13"
@@ -122,20 +122,20 @@ jobs:
     name: Validate Kubernetes
     runs-on: ubuntu-latest
     env:
-      # hazard: three locations, tried IN ORDER — kubeconform uses the first that
+      # hazard: three locations, tried IN ORDER: kubeconform uses the first that
       # resolves and falls through when a file is absent:
       #
-      #   1. kubernetes/schemas/ — vendored, in this repo. Overrides for CRDs
+      #   1. kubernetes/schemas/, vendored in this repo. Overrides for CRDs
       #      whose catalog copy is behind the version we actually run. Today
       #      that is exactly one file, secrets.infisical.com/InfisicalSecret:
       #      the catalog schema still marks the deprecated flat
       #      `resyncInterval` REQUIRED and rejects `syncConfig`, so a correct
       #      manifest for secrets-operator 0.11.9 fails against it. Extracted
-      #      from the CRD the operator chart itself ships — see
+      #      from the CRD the operator chart itself ships; see
       #      kubernetes/schemas/README.md for the regeneration command and the
       #      sync obligation.
-      #   2. `default` — core/built-in Kubernetes kinds.
-      #   3. the datreeio catalog — every other CRD this repo renders
+      #   2. `default`: core/built-in Kubernetes kinds.
+      #   3. the datreeio catalog: every other CRD this repo renders
       #      (traefik.io IngressRoute/Middleware, cert-manager.io
       #      Certificate/ClusterIssuer).
       #
@@ -172,7 +172,7 @@ jobs:
 
       - name: Validate cluster manifests
         # outside: kubernetes/cluster/ is plain manifests applied with
-        # `kubectl apply -f <dir> -R` (the kustomization.yaml is gone — it was a
+        # `kubectl apply -f <dir> -R` (the kustomization.yaml is gone; it was a
         # hand-maintained resource list with no overlay left to serve), so
         # kubeconform walks the directory directly.
         run: |
@@ -183,15 +183,15 @@ jobs:
 
       - name: Validate Helm charts against CI fixtures
         # outside: plain `helm lint`/`helm template` with default values renders
-        # (near) zero objects for these charts — everything meaningful is
+        # (near) zero objects for these charts: everything meaningful is
         # gated behind values apps/services actually set. ci/test-values.yaml
         # (maintained alongside each chart) supplies a representative values
         # set so lint + template + schema validation exercise the real
         # templates.
         run: |
           set -euo pipefail
-          # `common` is a LIBRARY chart — no values, no fixture, renders
-          # nothing — so it is linted alone. Both consumers pull it through a
+          # `common` is a LIBRARY chart (no values, no fixture, renders
+          # nothing), so it is linted alone. Both consumers pull it through a
           # relative file:// repository and nothing is vendored, so
           # `helm dependency update` has to run before helm will render them at
           # all. No network is involved: every dependency here is a local path.
@@ -207,7 +207,7 @@ jobs:
           done
 
       # hazard: kubeconform proves each rendered object is SCHEMA-valid. It cannot see
-      # whether the template computed the right value — a NODE_OPTIONS heap cap
+      # whether the template computed the right value: a NODE_OPTIONS heap cap
       # derived from the wrong number, a dockerconfigjson whose escaping broke,
       # an `access:` value that silently picked the wrong ipAllowList are all
       # perfectly valid YAML. helm-unittest asserts the logic.
@@ -215,7 +215,7 @@ jobs:
       # Pinned by tag: Helm plugins are installed from a git ref, so there is no
       # digest to pin the way the kubeconform tarball's sha256 is pinned above.
       # The plugin embeds its own Helm rendering library, so its output does not
-      # depend on the helm CLI version installed alongside it — which is what
+      # depend on the helm CLI version installed alongside it, which is what
       # keeps the committed snapshots reproducible between a laptop and here.
       - name: Install helm-unittest
         # outside: scripts/lib/helm-plugin.sh carries the Helm 3/4 --verify fallback, so
@@ -236,7 +236,7 @@ jobs:
       # invariant: kubernetes/helmfile.yaml.gotmpl is the ONLY declaration of every
       # platform release, and roles/platform applies it verbatim. Rendering it
       # here catches a bad chart version, a values file that moved, a `needs:`
-      # pointing at a release that no longer exists — all of which would
+      # pointing at a release that no longer exists, all of which would
       # otherwise surface mid-deploy, after some releases have already been
       # upgraded.
       #
@@ -256,7 +256,7 @@ jobs:
       - name: Render the platform helmfile
         # invariant: no cluster: `template` is `helm template` per release, so it needs
         # the chart repositories and nothing else. The two variables are
-        # `requiredEnv` in the state file — real values only matter at apply
+        # `requiredEnv` in the state file; real values only matter at apply
         # time, and helm never sees these because nothing is installed.
         env:
           NODE_NAME: ci-render
@@ -309,8 +309,8 @@ jobs:
         # That is deliberate and it is not a bug to "fix": this repository
         # predates any secret hygiene and its history is known to contain
         # credentials that have since been rotated. Scanning it would fail
-        # every run forever, and the only remedies — a filter-repo rewrite or a
-        # baseline file enumerating historical findings — are explicitly out of
+        # every run forever, and the only remedies (a filter-repo rewrite or a
+        # baseline file enumerating historical findings) are explicitly out of
         # scope. What this gate is for is stopping a NEW secret from landing:
         # every PR and every push to main is checked before merge, so anything
         # this misses was already committed before the gate existed.
@@ -324,8 +324,8 @@ jobs:
         # rather than allowlisted (see the registry credentials in
         # kubernetes/charts/app/ci/test-values.yaml, and the decode-and-match
         # assertions in the chart tests that no longer embed a base64 blob).
-        # That keeps EVERY scanner quiet — gitleaks here, and whatever runs
-        # against the repo on GitHub's side — not just the one configured here.
+        # That keeps EVERY scanner quiet (gitleaks here, and whatever runs
+        # against the repo on GitHub's side), not just the one configured here.
         # An allowlist is the last resort, for a finding that structurally
         # cannot be rewritten; none exists today.
         run: gitleaks detect --source . --no-git --no-banner --redact -v

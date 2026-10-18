@@ -4,11 +4,11 @@ name: Deploy Platform
 # platform-layer changes (cert-manager, otel-collector, openpanel, ...) and
 # any manifests under kubernetes/services or kubernetes/cluster.
 #
-# Creating the VM is deliberately NOT in scope here — it is `orbctl` on the dev
+# Creating the VM is deliberately NOT in scope here: it is `orbctl` on the dev
 # Mac, which a GHA runner cannot satisfy. Provisioning stays on the laptop via
 # `make deploy`; this workflow only handles incremental updates.
 #
-# Auth: the deploy keypair lives split — public half in
+# Auth: the deploy keypair lives split, the public half in
 # ansible/roles/security/defaults/main.yml (security_ci_deploy_pubkey)
 # so the security role installs it in root's authorized_keys, private
 # half as the CI_DEPLOY_SSH_PRIVATE GitHub Action secret on this repo.
@@ -36,7 +36,7 @@ on:
 permissions:
   contents: read
   # invariant: `environment: production` below makes the runner's GITHUB_TOKEN create
-  # and update a Deployment record (in_progress → success/failure) — that
+  # and update a Deployment record (from in_progress to success or failure), which
   # needs the deployments scope, not just contents:read.
   deployments: write
 
@@ -49,7 +49,7 @@ jobs:
     name: Apply platform via Ansible
     runs-on: ubuntu-latest
     # outside: records a GitHub Deployment under the `production` environment and
-    # auto-updates its status (in_progress → success/failure) as this job
+    # auto-updates its status (from in_progress to success or failure) as this job
     # runs, so the repo's Environments/Deployments view stays live.
     environment: production
     steps:
@@ -73,7 +73,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          # hazard: must be >= 3.12 or ansible-core 2.21 is not installable at all —
+          # hazard: must be >= 3.12 or ansible-core 2.21 is not installable at all;
           # pip would silently resolve an ancient core instead. Same value as
           # the `ansible` job in validate.yaml, deliberately.
           python-version: "3.13"
@@ -82,7 +82,7 @@ jobs:
         working-directory: ansible
         run: |
           # Pinned exact, and ansible-CORE rather than the `ansible` community
-          # bundle — same reasoning as validate.yaml: the bundle ships its own
+          # bundle, for the same reasoning as validate.yaml: the bundle ships its own
           # copies of the collections that requirements.yml pins explicitly,
           # so the version that actually runs would depend on install order.
           # KEEP IN SYNC with the pin in validate.yaml's `ansible` job: the
@@ -98,7 +98,7 @@ jobs:
           CI_DEPLOY_SSH_PRIVATE: ${{ secrets.CI_DEPLOY_SSH_PRIVATE }}
         run: |
           if [ -z "${CI_DEPLOY_SSH_PRIVATE:-}" ]; then
-            echo "::error::CI_DEPLOY_SSH_PRIVATE missing — set via: gh secret set CI_DEPLOY_SSH_PRIVATE -R jterrazz/jterrazz-infrastructure < /tmp/ci-deploy"
+            echo "::error::CI_DEPLOY_SSH_PRIVATE missing; set it via: gh secret set CI_DEPLOY_SSH_PRIVATE -R jterrazz/jterrazz-infrastructure < /tmp/ci-deploy"
             exit 1
           fi
           KEY_FILE="$(mktemp -t ci-deploy-XXXXXX.key)"
@@ -106,7 +106,7 @@ jobs:
           printf '%s\n' "$CI_DEPLOY_SSH_PRIVATE" > "$KEY_FILE"
           echo "CI_DEPLOY_KEY_FILE=$KEY_FILE" >> "$GITHUB_ENV"
 
-      # outside: same script scripts/deploy.sh uses, in its `platform` scope — one
+      # outside: same script scripts/deploy.sh uses, in its `platform` scope: one
       # implementation of the Infisical fetch, the missing-key hard-fail and
       # the YAML escaping instead of two hand-synced copies. `platform` omits
       # the Tailscale OAuth credentials: platform.yml only reads Tailscale
