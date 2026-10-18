@@ -1,16 +1,16 @@
 ---
-# invariant: laptop inventory — the OrbStack VM through the OrbStack SSH proxy. Invoked by
+# invariant: laptop inventory: the OrbStack VM through the OrbStack SSH proxy. Invoked by
 # scripts/deploy.sh. The host key must match VM_NAME in scripts/deploy.sh.
 #
 # The group is `cluster` in EVERY inventory (laptop / ci) so group_vars and any
-# `hosts:` selector stay portable. Not `production` — that collided with the
+# `hosts:` selector stay portable. Not `production`: that collided with the
 # environment concept.
 all:
   children:
     cluster:
       hosts:
         jterrazz-infrastructure:
-          # invariant: `orb` is an SSH-config alias, NOT a resolvable hostname — the VM is
+          # invariant: `orb` is an SSH-config alias, NOT a resolvable hostname; the VM is
           # selected by the user-style `root@<vm>@orb` below. Anything needing
           # a real address (kubeconfig server URL, k3s TLS SANs) must use the
           # Tailscale IP/FQDN instead; see roles/k3s/tasks/kubeconfig.yml.

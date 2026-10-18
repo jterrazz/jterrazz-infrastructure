@@ -15,7 +15,7 @@ write-kubeconfig-mode: "0600"
 
 # Every name a client may use to reach the API server must be here or kubectl
 # fails cert verification; the tailnet IP and MagicDNS name are how the laptop
-# and CI reach it. `ansible_host` is deliberately NOT a SAN — it is `orb`, an
+# and CI reach it. `ansible_host` is deliberately NOT a SAN: it is `orb`, an
 # OrbStack SSH-config alias no client can ever present.
 tls-san:
   - {{ k3s_node_ip }}
@@ -30,8 +30,8 @@ tls-san:
 
 # resolv-conf MUST be the uplink file with real upstream servers, never
 # /etc/resolv.conf (the 127.0.0.53 stub on systemd-resolved hosts). With the
-# stub, kubelet hands it to pods inheriting host DNS — CoreDNS runs
-# dnsPolicy: Default — so CoreDNS forwards into itself and its loop plugin
+# stub, kubelet hands it to pods inheriting host DNS (CoreDNS runs
+# dnsPolicy: Default), so CoreDNS forwards into itself and its loop plugin
 # fatals on startup.
 kubelet-arg:
   - "max-pods=250"
@@ -72,7 +72,7 @@ secrets-encryption: true
 # Disabling it is a SAFETY fix as much as a memory one: local-path ships as
 # the cluster DEFAULT StorageClass with reclaimPolicy `Delete`, so a PVC that
 # ever omits `storageClassName` lands on ephemeral node storage and its data
-# is deleted when the claim goes away — silently, and only for the one
+# is deleted when the claim goes away, silently, and only for the one
 # service that forgot the field. With no default class, that same PVC stays
 # Pending, which is a loud, harmless failure instead.
 disable:

@@ -60,7 +60,7 @@
 # resolve *.ts.net, so registry.internal.jterrazz.com NXDOMAINs, every app pod
 # ImagePullBackOffs and Cloudflare 503s the public hostnames.
 #
-# The script is ALSO how this play logs in (last task in the block) — do not
+# The script is ALSO how this play logs in (last task in the block); do not
 # re-spell `tailscale up` as an argv here, or a flag added to one copy silently
 # misses the other. It is idempotent: it exits 0 when BackendState is Running.
 - name: Set up Tailscale login and boot-time auto-reauth

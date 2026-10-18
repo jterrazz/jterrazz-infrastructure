@@ -1,7 +1,7 @@
 ---
 # outside: the three binaries the release layer runs on: helm, its diff plugin, and
 # helmfile. All pinned in inventories/group_vars/all.yml, and all checked by
-# VERSION rather than presence — a node left behind on an older helm renders
+# VERSION rather than presence: a node left behind on an older helm renders
 # charts differently from the CI that validated them, and `helmfile apply` is
 # helm-diff plus helm underneath.
 #

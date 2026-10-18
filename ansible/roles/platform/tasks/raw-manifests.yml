@@ -3,7 +3,7 @@
 # release: cloudflared's Deployment, and the Grafana dashboard ConfigMaps this
 # repo generates from JSON.
 #
-# cloudflared is a raw manifest on purpose — `hostNetwork: true` and
+# cloudflared is a raw manifest on purpose: `hostNetwork: true` and
 # `dnsPolicy: ClusterFirstWithHostNet`, which the app chart does not express,
 # for the one workload that needs them (see the Gotchas in CLAUDE.md). Anything
 # else that lands here should be a release instead.
@@ -24,7 +24,7 @@
 # `spec.dashboards` (which render the same labelled ConfigMaps the sidecars in
 # grafana/values.yaml watch). One living in this repo outlives the app it watches
 # and goes stale invisibly. Only the infrastructure dashboards below, which
-# describe the cluster itself, belong here — and the sidecar picks them up
+# describe the cluster itself, belong here, and the sidecar picks them up
 # whenever they appear, so they need no ordering against the Grafana release.
 - name: Deploy Grafana infrastructure dashboards
   ansible.builtin.shell:

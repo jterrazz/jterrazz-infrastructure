@@ -1,5 +1,5 @@
 ---
-# invariant: global variables — the visible config surface of this repo. This file MUST
+# invariant: global variables, the visible config surface of this repo. This file MUST
 # stay beside the inventory files: Ansible auto-loads `group_vars/` from next
 # to the inventory (or the playbook) and nowhere else. Role `defaults/main.yml`
 # is only for values a user should not normally touch.
@@ -25,7 +25,7 @@ helm_version: "v4.3.0"
 # and the chart versions live THERE, not here.
 #
 # KEEP IN SYNC with the helmfile version installed by the `kubernetes` job of
-# .github/workflows/validate.yaml — that job renders the same state file, and a
+# .github/workflows/validate.yaml: that job renders the same state file, and a
 # renderer that is not the applier proves nothing.
 helmfile_version: "v1.8.0"
 
@@ -34,19 +34,19 @@ helmfile_version: "v1.8.0"
 # chart AND talks to the cluster.
 helm_diff_version: "v3.15.13"
 
-# hazard: SINGLE SOURCE OF TRUTH — deliberately NOT duplicated in roles/k3s/defaults
+# hazard: SINGLE SOURCE OF TRUTH, deliberately NOT duplicated in roles/k3s/defaults
 # (which is why that file does not exist): a role default wins only when this
 # file is not loaded, so two copies is a silent-drift trap.
 #
 # In-place minor bump is the supported path: roles/k3s re-runs get.k3s.io with
 # INSTALL_K3S_VERSION and restarts the unit, which takes the CONTROL PLANE down
-# for tens of seconds (containers keep running). NEVER SKIP A MINOR —
+# for tens of seconds (containers keep running). NEVER SKIP A MINOR:
 # Kubernetes' version-skew policy forbids it.
 #
 # A k3s minor can move the BUNDLED TRAEFIK CHART across a breaking major, so
 # re-read kubernetes/services/traefik/helm-chart-config.yaml against the new chart's
 # values.schema.json IN THE SAME CHANGE. Renamed *port* keys hard-fail the
-# helm-install job; a renamed `service.*` key does NOT — `service` carries no
+# helm-install job; a renamed `service.*` key does NOT, since `service` carries no
 # `additionalProperties: false`, so a stale key is a SILENT no-op. That is the
 # dangerous half: it would drop `loadBalancerSourceRanges: 100.64.0.0/10`, the
 # only thing restricting Traefik's host ports 80/443 to the tailnet (klipper-lb
@@ -68,11 +68,11 @@ k3s_node_ip: "{{ ansible_default_ipv4.address }}"
 #
 # NOT paired with anything on the public-DNS side: every name here is
 # `<svc>.internal.jterrazz.com`, covered by the single `*.internal` wildcard
-# CNAME — a hand-made record, documented in docs/guides/operate.md. Adding a private
+# CNAME, a hand-made record, documented in docs/guides/operate.md. Adding a private
 # service means adding ONE line here and nothing else, anywhere.
 #
 # An explicit list rather than a wildcard because CoreDNS's `hosts` plugin
-# matches exact names only — expressing `*.internal` needs the `template`
+# matches exact names only; expressing `*.internal` needs the `template`
 # plugin, which k3s's CoreDNS build does not include.
 #
 # This list is the ONE private-hostname fact the cluster cannot supply: CoreDNS
@@ -83,7 +83,7 @@ private_hostnames:
   - registry.internal.jterrazz.com
   - grafana.internal.jterrazz.com
   - gateway-intelligence.internal.jterrazz.com
-  # invariant: an app-chart route (prod-signews-api), not a platform service — this list
+  # invariant: an app-chart route (prod-signews-api), not a platform service; this list
   # is about who answers the name, not about which repo declares it.
   - signews.internal.jterrazz.com
   - os.internal.jterrazz.com
@@ -93,9 +93,9 @@ private_hostnames:
   - openpanel.internal.jterrazz.com
 
 # outside: same as above, but mapped to Traefik's ClusterIP rather than the node's
-# tailnet IP — for a pod that fetches its own PUBLIC URL from inside the
+# tailnet IP, for a pod that fetches its own PUBLIC URL from inside the
 # cluster. A pod cannot hairpin to the node's ServiceLB; it times out.
 # Empty since 2026-09-19 (openpanel left once its dashboard could split the
-# SSR URL from the browser URL — kubernetes/services/openpanel/config.yaml
+# SSR URL from the browser URL; kubernetes/services/openpanel/config.yaml
 # keeps the story). The mechanism stays for the next image that cannot.
 private_hostnames_via_traefik: []

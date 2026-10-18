@@ -2,7 +2,7 @@
 # invariant: every secret the platform play consumes is asserted here, before anything is
 # deployed. The list must stay COMPLETE: a secret checked only at its point of
 # use fails halfway through a deploy, and one with a fallback default fails
-# worse — the deploy goes green and the service comes up with a known password.
+# worse: the deploy goes green and the service comes up with a known password.
 #
 # KEEP IN SYNC with `SCOPES` in scripts/infisical-vars.py, which is what
 # both callers (scripts/deploy.sh and
@@ -23,6 +23,6 @@
       infisical_client_id, infisical_client_secret, registry_username,
       registry_password and grafana_admin_password are passed as extra vars.
       They come from Infisical
-      /jterrazz-infrastructure (plus the grafana/ subfolder) — see
+      /jterrazz-infrastructure (plus the grafana/ subfolder); see
       scripts/infisical-vars.py.
     quiet: true

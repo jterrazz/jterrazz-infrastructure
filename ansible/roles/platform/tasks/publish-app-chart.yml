@@ -5,7 +5,7 @@
 # hand-runs it. Skip with `--skip-tags chart-publish` when the chart is there.
 
 # outside: `helm registry login` below talks HTTPS, and on a fresh cluster DNS-01
-# issuance lags the registry pod by a minute or two — without this the login
+# issuance lags the registry pod by a minute or two; without this the login
 # fails with a TLS error. The registry itself is a Helm release applied by the
 # pass before this one, so it is already rolled out by here.
 - name: Wait for the registry TLS certificate to be issued
@@ -43,7 +43,7 @@
 # invariant: mirrors the guard in .github/workflows/publish-chart.yaml: the chart is
 # pulled UNVERSIONED by every app deploy, so overwriting a published version
 # means two different template sets answer to one tag depending on when an app
-# pulled. It SKIPS rather than fails, to keep a routine redeploy green — which
+# pulled. It SKIPS rather than fails, to keep a routine redeploy green, which
 # is why an unbumped kubernetes/charts/app/Chart.yaml publishes nothing.
 - name: Check whether this chart version is already published
   ansible.builtin.command: >
@@ -57,7 +57,7 @@
 - name: Report that the app chart version is already published
   ansible.builtin.debug:
     msg: >-
-      app chart {{ app_chart_version }} is already in the registry — nothing to
+      app chart {{ app_chart_version }} is already in the registry, nothing to
       publish. If you CHANGED templates, bump version: in
       kubernetes/charts/app/Chart.yaml.
   when: app_chart_published.rc == 0

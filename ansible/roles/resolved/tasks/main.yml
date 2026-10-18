@@ -7,7 +7,7 @@
 # outside: the OrbStack image ships systemd-resolved MASKED (the base role installs the
 # package). Without a stub resolver Tailscale writes /etc/resolv.conf itself
 # with `nameserver 100.100.100.100`, which does not chase CNAMEs from a public
-# zone into the tailnet zone — the deploy then fails at
+# zone into the tailnet zone; the deploy then fails at
 # "helm registry login registry.internal.jterrazz.com".
 - name: Ensure systemd-resolved is enabled (needed for CNAME chasing into tailnet)
   ansible.builtin.systemd_service:
@@ -45,7 +45,7 @@
   notify: Restart systemd-resolved
   tags: [resolved, dns]
 
-# hazard: upstream.conf ABOVE IS NOT ENOUGH — this is the other half. `DNS=` in
+# hazard: upstream.conf ABOVE IS NOT ENOUGH; this is the other half. `DNS=` in
 # resolved.conf sets the GLOBAL resolver and does NOT remove the PER-LINK one
 # DHCP supplies; resolved keeps both, and because eth0 has DefaultRoute it also
 # writes the bogus server into /run/systemd/resolve/resolv.conf. That file is
@@ -81,7 +81,7 @@
       {{ resolved_networkd_file.stdout | default('') | trim | default('nothing', true) }}).
       This role disables the DHCP-supplied resolver through a systemd-networkd
       drop-in, which only works if networkd owns the link. If the OrbStack image
-      switched network stacks, the fix has to switch with it — see the block
+      switched network stacks, the fix has to switch with it; see the block
       comment above this task.
   tags: [resolved, dns]
 
@@ -99,7 +99,7 @@
     content: |
       # Managed by ansible/roles/resolved. OrbStack's DHCP hands out
       # 0.250.250.200, which silently drops every query; a global DNS= cannot
-      # remove a per-link server. Only UseDNS is disabled — address, route
+      # remove a per-link server. Only UseDNS is disabled: address, route
       # and search domain still come from DHCP.
       [DHCPv4]
       UseDNS=false

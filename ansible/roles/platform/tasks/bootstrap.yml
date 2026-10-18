@@ -3,14 +3,14 @@
 # order:
 #   1. the three Secrets Infisical itself cannot provide (its own credentials,
 #      the Cloudflare token cert-manager needs, and the registry's bcrypt
-#      htpasswd — on a fresh cluster the registry has to be up before anything
+#      htpasswd; on a fresh cluster the registry has to be up before anything
 #      can pull the operator's images).
-#   2. `tier: bootstrap` of the helmfile — cert-manager for the Certificate
+#   2. `tier: bootstrap` of the helmfile: cert-manager for the Certificate
 #      CRD, the Infisical operator for the InfisicalSecret one. Both kinds are
 #      applied below, so this pass cannot wait for the main one.
 #   3. the ClusterIssuers, which are the one cert-manager object no chart here
 #      renders.
-#   4. `tier: platform` — the `<name>-platform` releases, i.e. the hostPath
+#   4. `tier: platform`: the `<name>-platform` releases, that is the hostPath
 #      PV/PVCs, Certificates, IngressRoutes and InfisicalSecrets. They come
 #      before the workloads in raw-manifests.yml and before the unselected
 #      pass, both of which mount those claims and read those Secrets by name.
@@ -61,7 +61,7 @@
 # /jterrazz-infrastructure), never a literal: this line is the server side of
 # the credential CI and the kubelet present, and a password rotation overlaps
 # two accounts (`deploy` / `deploy-next`). Hardcoding the name here would
-# regenerate a line for an account nobody authenticates as — which is exactly
+# regenerate a line for an account nobody authenticates as, which is exactly
 # how the 2026-09-06 rotation put the fleet in ImagePullBackOff.
 - name: Generate the htpasswd hash for the registry
   ansible.builtin.shell:

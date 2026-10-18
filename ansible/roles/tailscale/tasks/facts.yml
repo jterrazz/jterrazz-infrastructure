@@ -1,5 +1,5 @@
 ---
-# hazard: tHE single place that shells out for the node's tailnet identity — do not
+# hazard: THE single place that shells out for the node's tailnet identity; do not
 # re-derive tailscale_ip / tailscale_dns_hostname elsewhere. Callers that may
 # run without the tailscale role (roles/k3s/tasks/main.yml,
 # roles/platform/tasks/stage-manifests.yml) include this file guarded by

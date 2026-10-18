@@ -1,7 +1,7 @@
 // Managed by Ansible (security role).
 //
 // These origin patterns MUST stay Debian-shaped. The Ubuntu-style
-// "${distro_id}:${distro_codename}-security" matches NOTHING here — Debian's
+// "${distro_id}:${distro_codename}-security" matches NOTHING here: Debian's
 // security archive publishes as Origin=Debian, Label=Debian-Security. With the
 // Ubuntu pattern unattended-upgrades finds zero allowed origins and exits
 // successfully having installed nothing, so patching stops SILENTLY. Verify:

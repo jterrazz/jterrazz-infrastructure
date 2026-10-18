@@ -107,7 +107,7 @@
 # /var/log/pods) costs ~330KB of Mac SSD writes. "write through" tells the
 # block layer the device has no volatile cache and it stops sending FLUSHes;
 # the data still lands in the Mac's page cache, so only a macOS crash or hard
-# power-off can lose the last seconds — the same contract a native macOS
+# power-off can lose the last seconds, the same contract a native macOS
 # fsync() gives. Applies to /dev/vd* only: virtiofs mounts (/var/lib/k8s-data)
 # are untouched, their fsyncs stay durable. See docs/guides/develop.md § The fsync tax.
 # Runtime-only sysfs attribute, hence a unit that re-applies it at every boot.

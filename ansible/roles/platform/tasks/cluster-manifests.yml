@@ -8,8 +8,8 @@
 
 # hazard: apply the HelmChartConfig BEFORE waiting on the Traefik install job, not
 # after: on a k3s version bump the bundled chart can require the NEW values
-# schema to reconcile at all (v38→v40 renamed the service/ports keys), so
-# wait-then-apply deadlocks — the job retries with stale values for 8 minutes
+# schema to reconcile at all (v38 to v40 renamed the service/ports keys), so
+# wait-then-apply deadlocks: the job retries with stale values for 8 minutes
 # while the config that would fix it sits unapplied. Applying a
 # HelmChartConfig for a not-yet-installed chart is safe: helm-controller
 # just picks it up when the chart lands.
@@ -24,7 +24,7 @@
   changed_when: "'created' in traefik_config_apply.stdout or 'configured' in traefik_config_apply.stdout"
 
 # hazard: retried, because a HelmChartConfig change makes the helm-controller
-# DELETE and recreate the install job asynchronously — a bare `kubectl wait`
+# DELETE and recreate the install job asynchronously; a bare `kubectl wait`
 # right after the apply can land in the window where the job does not exist
 # and fail instantly with NotFound instead of waiting. The long per-try
 # deadline is for a fresh VM with no image cache, where the job needs
@@ -72,7 +72,7 @@
           recreated will stay Pending until this succeeds. kubectl said:
           {{ pv_clear.stderr | default('(no stderr captured)') }}
 
-# outside: recursive apply, no kustomize — so a new file under kubernetes/cluster/ is
+# outside: recursive apply, no kustomize, so a new file under kubernetes/cluster/ is
 # deployed without editing a resource list. kubectl walks the directory
 # lexically, which namespaces.yaml relies on to sort before network-policies/.
 - name: Deploy the cluster-wide manifests

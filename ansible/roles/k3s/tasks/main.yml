@@ -33,7 +33,7 @@
     k3s_needs_install: "{{ not k3s_binary.stat.exists or (k3s_version not in (k3s_current_version.stdout | default(''))) }}"
   tags: [k3s]
 
-# outside: generated once and persisted at /etc/rancher/k3s/token — regenerating it
+# outside: generated once and persisted at /etc/rancher/k3s/token; regenerating it
 # on an existing cluster invalidates every node's registration.
 - name: Check if the k3s token file exists
   ansible.builtin.stat:
@@ -171,7 +171,7 @@
 # invariant: `secrets-encryption: true` only covers Secrets written after the restart.
 # This rewrites the ones already in the datastore; without it the plaintext
 # copies of every existing app credential stay exactly where they were.
-# Idempotent — a re-encrypt on an already-encrypted store is a no-op rewrite.
+# Idempotent: a re-encrypt on an already-encrypted store is a no-op rewrite.
 - name: Check the secrets encryption status
   ansible.builtin.command: k3s secrets-encrypt status
   register: k3s_secrets_encrypt

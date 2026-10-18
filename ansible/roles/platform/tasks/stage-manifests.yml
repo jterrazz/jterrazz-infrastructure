@@ -17,7 +17,7 @@
 
 # invariant: the tailscale role sets these during a full site.yml run, but
 # .github/workflows/deploy-platform.yaml runs this play alone and skips the
-# host layer — hence the guarded include.
+# host layer, hence the guarded include.
 - name: Ensure Tailscale facts are available
   ansible.builtin.include_role:
     name: tailscale
@@ -25,7 +25,7 @@
   when: tailscale_ip is not defined
 
 # invariant: facts.yml gathers the address with `failed_when: false`, so a node that is
-# not on the tailnet yields an EMPTY tailscale_ip — which templates/coredns-
+# not on the tailnet yields an EMPTY tailscale_ip, which templates/coredns-
 # custom.yaml.j2 renders as a one-field hosts entry, and CoreDNS crashloops on
 # it. Fail here instead, before anything is applied.
 - name: Assert the node has a tailnet address

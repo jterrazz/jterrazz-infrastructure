@@ -2,7 +2,7 @@
 # outside: host layer + platform layer, in one run:
 #   ansible-playbook playbooks/site.yml -i inventories/laptop.yml
 #
-# The target is Debian 13 (trixie). There is no dual-distro support — templates
+# The target is Debian 13 (trixie). There is no dual-distro support: templates
 # and package names are Debian-native.
 
 # invariant: runs before fact gathering and over raw SSH, because every later play needs a

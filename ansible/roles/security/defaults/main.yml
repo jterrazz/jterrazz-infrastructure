@@ -12,7 +12,7 @@ security_ufw_default_forward: "deny"
 #
 # KEEP IN SYNC with the GitHub secret `CI_DEPLOY_SSH_PRIVATE` on this repo.
 # Rotating = regenerate, replace this value, update that secret, then
-# `make deploy` to roll the new pubkey onto the VM — in that order, or CI
+# `make deploy` to roll the new pubkey onto the VM, in that order, or CI
 # locks itself out.
 security_ci_deploy_pubkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPPCsf2boqXrePRFuhL3KfJjpabJ0bjAeNqpTLl7GREf ci-deploy@jterrazz-infrastructure"
 

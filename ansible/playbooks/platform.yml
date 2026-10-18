@@ -19,7 +19,7 @@
     # kubeconfig, and a task that forgot the block silently talked to
     # ~/.kube/config (i.e. nothing) instead. The role's `kubeconfig` default
     # is in scope for its own tasks, so the value still comes from
-    # roles/platform/defaults/main.yml. Handlers do NOT inherit this — see
+    # roles/platform/defaults/main.yml. Handlers do NOT inherit this; see
     # roles/platform/handlers/main.yml, which keeps its own block.
     - role: platform
       environment:

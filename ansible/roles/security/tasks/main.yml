@@ -2,7 +2,7 @@
 # hazard: do NOT "restore" fail2ban or auditd here. fail2ban would guard a public SSH
 # port that does not exist (there is no public inbound path at all; SSH is
 # tailnet-only), and auditd needs CAP_AUDIT_*, which the OrbStack hypervisor
-# withholds — its rules never load on this target.
+# withholds, so its rules never load on this target.
 
 - name: Install security packages
   ansible.builtin.apt:
@@ -17,7 +17,7 @@
 # hazard: insertbefore: BOF is load-bearing. In sshd_config the FIRST occurrence of a
 # keyword wins, so an Include at the bottom lets the stock file's own defaults
 # beat every value the drop-in sets. This is a no-op on a stock Debian 13 file
-# and self-heals one where the line was removed — without the Include the whole
+# and self-heals one where the line was removed; without the Include the whole
 # drop-in is silently inert.
 - name: Ensure sshd_config includes the drop-in directory
   ansible.builtin.lineinfile:

@@ -9,7 +9,7 @@
 # Tailscale from CI), and a daemon restart is the one operation that can drop it.
 # `reload` re-reads the .network files and their drop-ins; `reconfigure` re-applies
 # them to the link, which is what actually withdraws the DHCP-supplied DNS server
-# from systemd-resolved. Neither flushes the address — the DHCP lease is renewed,
+# from systemd-resolved. Neither flushes the address: the DHCP lease is renewed,
 # not released.
 - name: Reload systemd-networkd
   ansible.builtin.command:

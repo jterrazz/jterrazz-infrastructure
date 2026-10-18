@@ -3,12 +3,12 @@
 # UFW is not the effective gate for host-network workloads: k3s inserts its own
 # iptables rules ahead of UFW's INPUT filter, so `ufw default deny incoming`
 # does NOT stop a peer from reaching node-exporter:9100, cloudflared:2000 or
-# kubelet:10250 — all three answered a neighbouring OrbStack machine before
+# kubelet:10250; all three answered a neighbouring OrbStack machine before
 # this table existed. This runs at hook priority -10, ahead of both.
 #
 # Scoped to {{ security_guard_interface }} on purpose. Pod traffic to the node
 # arrives via cni0/flannel and tailnet traffic via tailscale0, so neither is
-# matched — verified: the collector still scrapes cloudflared over the node IP.
+# matched (verified: the collector still scrapes cloudflared over the node IP).
 
 table inet jterrazz_guard {
   chain input {
@@ -18,7 +18,7 @@ table inet jterrazz_guard {
     # reach this machine; dropping it locks the VM out of its own operator.
     iif "{{ security_guard_interface }}" ip saddr {{ security_guard_host_ip }} accept
 
-    # Every other peer on the shared bridge — i.e. any other OrbStack machine,
+    # Every other peer on the shared bridge is any other OrbStack machine,
     # which by default mounts this machine's rootfs at /mnt/machines and can
     # already read it. These ports are the remaining network surface.
     iif "{{ security_guard_interface }}" ip saddr {{ security_guard_peer_subnet }} tcp dport { {{ security_guard_blocked_tcp | join(', ') }} } drop

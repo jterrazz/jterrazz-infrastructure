@@ -10,7 +10,7 @@
 #
 # `preflight` and `stage-manifests` are tagged `always` because every file
 # below reads the staged tree out of {{ manifest_dir }} and most need the
-# Tailscale facts — a targeted `--tags releases` fails on a missing path
+# Tailscale facts; a targeted `--tags releases` fails on a missing path
 # without them. `--skip-tags chart-publish` leaves the published OCI chart
 # alone. To redeploy ONE release, use the helmfile's own selector rather than a
 # tag: `helmfile -f <staged>/kubernetes/helmfile.yaml.gotmpl apply -l name=grafana`.
