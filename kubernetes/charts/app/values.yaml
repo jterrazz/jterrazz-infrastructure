@@ -6,7 +6,7 @@
 metadata:
   name: ""
 
-# invariant: facts about the app REPO, not the workload — set by CI, never by
+# invariant: facts about the app REPO, not the workload, set by CI, never by
 # application.yaml. Empty means "CI did not pass it", and the chart stamps
 # nothing rather than guessing.
 meta:
@@ -32,7 +32,7 @@ spec:
   # invariant: empty derives it: Recreate when storage is mounted (never two writers on
   # one RWO hostPath volume), the Kubernetes default otherwise. Set it to
   # Recreate for a workload that must not run twice for a reason storage
-  # cannot express — a migration on boot.
+  # cannot express, such as a migration on boot.
   strategy: ""
   resources:
     cpu: 100m
@@ -46,7 +46,7 @@ spec:
   # invariant: filename -> content, or filename -> { path, content } to mount it at an
   # absolute path the image dictates rather than under /app.
   configFiles: {}
-  # invariant: [{ secretName, mountPath }] — an existing Secret mounted read-only as
+  # invariant: [{ secretName, mountPath }]: an existing Secret mounted read-only as
   # files. For a credential an image reads from disk rather than from env.
   secretMounts: []
   dashboards: {}
@@ -67,7 +67,7 @@ spec:
   # invariant: drops runAsNonRoot and the pod-level uid/gid/fsGroup block.
   runAsRoot: false
   env: {}
-  # outside: { path, env[] } — an empty path renders no InfisicalSecret.
+  # outside: { path, env[] }; an empty path renders no InfisicalSecret.
   secrets: {}
   # outside: Infisical env slug; empty means "the deploy environment's own name".
   secretsEnv: ""
@@ -79,8 +79,8 @@ spec:
   # spec.port. For a client that cannot stamp the catalogue's clientLabel
   # because a third-party chart renders its pods.
   network:
-    # outside: drops the two rules this chart derives for an application — Traefik
-    # ingress on spec.port, egress to the internet — leaving DNS plus exactly
+    # outside: drops the two rules this chart derives for an application (Traefik
+    # ingress on spec.port, egress to the internet), leaving DNS plus exactly
     # what `exposeTo` and `egress` declare below. What a datastore is.
     isolated: false
     exposeTo: []
@@ -110,7 +110,7 @@ environment: ""
 
 # invariant: our own registry, and NO credential: the pull secret is synced from Infisical
 # by the operator (templates/infisical.yaml), never passed in as a value. The
-# hostname decides two things — which images get the pull secret and
+# hostname decides two things: which images get the pull secret and
 # `imagePullPolicy: Always` (app.privateImage), and which server the synced
 # dockerconfigjson authenticates.
 registry:

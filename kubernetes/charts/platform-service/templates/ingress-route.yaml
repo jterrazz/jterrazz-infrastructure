@@ -7,7 +7,7 @@ ignoring it would silently apply the `private` DEFAULT to a values file that
 meant `private: false`, i.e. change network exposure by omission.
 */ -}}
 {{- if hasKey .Values "private" }}
-{{- fail "`private` was replaced by `access: private|cluster-internal|public` — remove it from this values file" }}
+{{- fail "`private` was replaced by `access: private|cluster-internal|public`; remove it from this values file" }}
 {{- end }}
 {{- $middleware := include "common.accessMiddleware" (.Values.access | default "private") -}}
 {{- $middlewares := list -}}

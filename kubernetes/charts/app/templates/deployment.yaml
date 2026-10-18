@@ -6,14 +6,14 @@
 {{- /* Recreate is DERIVED from storage rather than asked for: every volume this
        chart mounts is an RWO hostPath, and two writers on one is the trap the
        datastores exist to avoid. `spec.strategy` overrides it for the workload
-       that needs Recreate WITHOUT a volume — op-api runs its migrations on
+       that needs Recreate WITHOUT a volume: op-api runs its migrations on
        boot, so a rolling update would put two migration runners on the same
        database. */ -}}
 {{- $strategy := $spec.strategy | default (ternary "Recreate" "" (not (not $storage))) -}}
 {{- /* The chown initContainer is what makes a hostPath volume writable by a
        non-root container: the directory is created root-owned and only root
        can hand it over. `storage.owner` names the uid:gid the IMAGE runs as
-       (70:70 for alpine postgres, 101:101 for clickhouse, …); the empty
+       (70:70 for alpine postgres, 101:101 for clickhouse, and so on); the empty
        string skips the container entirely, for an image that runs as root and
        whose data must stay root-owned. */ -}}
 {{- $owner := "1000:1000" -}}
@@ -37,7 +37,7 @@ metadata:
     {{- include "app.labels" . | nindent 4 }}
 spec:
   replicas: {{ $spec.replicas }}
-  # invariant: 3, not the k8s default 10 — see kubernetes/services/grafana/values.yaml.
+  # invariant: 3, not the k8s default 10; see kubernetes/services/grafana/values.yaml.
   revisionHistoryLimit: 3
   {{- if $strategy }}
   strategy:
@@ -53,7 +53,7 @@ spec:
       labels:
         {{- include "app.selectorLabels" . | nindent 8 }}
         {{- /* Platform-client labels: stamped on pod template labels ONLY
-               (never selectorLabels — those are immutable). The target
+               (never selectorLabels, which are immutable). The target
                platform service's ingress NetworkPolicy selects on these. */}}
         {{- range $key, $value := $platformClientLabels }}
         {{ $key }}: {{ $value | quote }}
@@ -78,7 +78,7 @@ spec:
           command: ["sh", "-c", "chown -R {{ $owner }} {{ $storage.mountPath }}"]
           # invariant: must stay root: hostPath dirs are created root-owned and only root
           # can chown them to the app's uid. Every capability is still dropped
-          # except the three `chown -R` needs — CHOWN to change ownership,
+          # except the three `chown -R` needs: CHOWN to change ownership,
           # FOWNER + DAC_OVERRIDE to traverse and modify dirs root does not own.
           securityContext:
             runAsUser: 0
@@ -99,7 +99,7 @@ spec:
           {{- /* Always for our own registry: `main` / `next` tags are mutable,
                  so IfNotPresent would keep serving whatever the node cached at
                  the first pull. A third-party image is left at Kubernetes' own
-                 default, which is what its pinned tag deserves — and what
+                 default, which is what its pinned tag deserves, and what
                  keeps a pod restart off Docker Hub's anonymous pull quota. */}}
           {{- if eq (include "app.privateImage" .) "true" }}
           imagePullPolicy: Always
@@ -133,7 +133,7 @@ spec:
             limits:
               memory: {{ include "app.memoryLimit" . }}
           # outside: the startupProbe is what makes a slow boot safe, so liveness and
-          # readiness keep Kubernetes' own timings — a wedged pod is restarted
+          # readiness keep Kubernetes' own timings: a wedged pod is restarted
           # in ~30s rather than the ~150s a lenient liveness probe would take.
           # Only timeoutSeconds is raised: 1s is not enough for a Node app that
           # also runs in-process background work.

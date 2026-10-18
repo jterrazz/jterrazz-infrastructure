@@ -12,7 +12,7 @@ hand-written rule pays for every time, and neither is visible in the YAML.
      the node address, so only an ipBlock matches them; a podSelector-only rule
      silently excludes them.
 
-The vocabulary cannot fix (1) — the caller still has to name a pod port — but
+The vocabulary cannot fix (1), since the caller still has to name a pod port, but
 it does make the ipBlock shapes in (2) a single spelling instead of five.
 
 PEERS (the `from:` of an ingress rule, the `to:` of an egress rule):
@@ -27,23 +27,23 @@ PEERS (the `from:` of an ingress rule, the `to:` of an egress rule):
                              catalogue: a consumer opts in by stamping the
                              label, so a new consumer needs zero edit here.
   pods:<k>=<v>               pods carrying a label IN THE POLICY'S OWN
-                             namespace — a podSelector with no
+                             namespace: a podSelector with no
                              namespaceSelector beside it, which is what
                              NetworkPolicy reads as "here". The tightest peer
                              there is, and the one an unauthenticated
                              datastore wants: `any-namespace-pods:` with the
                              same label would admit a pod of that name from
                              any namespace in the cluster.
-  internet                   0.0.0.0/0 EXCEPT RFC1918 — no lateral reach into
+  internet                   0.0.0.0/0 EXCEPT RFC1918: no lateral reach into
                              the node LAN, another cluster's pod/service CIDR,
                              or the apiserver.
   anywhere                   0.0.0.0/0, no exception. Deliberately distinct
                              from `internet`: on this cluster the apiserver is
                              RFC1918 twice over (the `kubernetes` ClusterIP
                              10.43.0.1:443 DNATs to the node's own
-                             192.168.x.x:6443), so anything that must reach it
-                             — or must scrape an annotation-driven target set
-                             that no static list can enumerate — needs this one.
+                             192.168.x.x:6443), so anything that must reach it,
+                             or must scrape an annotation-driven target set
+                             that no static list can enumerate, needs this one.
                              Never "tidy" an `anywhere` into an `internet`.
 
 PORTS: a bare number is TCP (the Kubernetes default, left unwritten so the
@@ -52,13 +52,13 @@ protocol out; that is what UDP needs.
 
 Input dict:
   name          metadata.name
-  labels        rendered label lines (a STRING — each chart keeps its own order)
+  labels        rendered label lines (a STRING; each chart keeps its own order)
   podSelector   rendered matchLabels lines, or "" for the whole namespace
   policyTypes   list of "Ingress" / "Egress"
   ingress       list of { from: <peer>, ports?: [...] }
   egress        list of { to:   <peer>, ports?: [...] }
 
-A policyType with no matching rules is a DENY for that direction — which is a
+A policyType with no matching rules is a DENY for that direction, which is a
 real, useful thing to declare, so it is not an error here.
 */}}
 {{- define "common.networkPolicy" -}}
@@ -102,7 +102,7 @@ Output starts at column 0; the caller indents it.
 {{- $dir := .direction -}}
 {{- $rule := .rule -}}
 {{- if not (hasKey $rule $dir) -}}
-{{- fail (printf "network rule is missing its `%s:` peer — got %v" $dir $rule) -}}
+{{- fail (printf "network rule is missing its `%s:` peer, got %v" $dir $rule) -}}
 {{- end -}}
 {{- $peer := index $rule $dir | toString -}}
 - {{ $dir }}:

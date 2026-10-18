@@ -1,5 +1,5 @@
 {{/*
-THE SMOKE CONTRACT — what scripts/smoke.sh probes, written on the route itself.
+THE SMOKE CONTRACT: what scripts/smoke.sh probes, written on the route itself.
 
 smoke.sh holds no table of hostnames or status codes any more: it lists every
 IngressRoute in the cluster and reads these annotations off each one. The
@@ -9,22 +9,22 @@ appears or disappears takes its check with it.
   smoke.jterrazz.com/path      the EXTERNALLY VISIBLE path to probe, i.e. after
                                whatever stripPrefix the route attaches.
   smoke.jterrazz.com/expect    accepted HTTP status codes, comma-separated. Keep
-                               it as narrow as the service genuinely allows —
+                               it as narrow as the service genuinely allows;
                                the point of the probe is that a 502/503/000 can
                                never read as "fine". Never 000, never a 5xx.
   smoke.jterrazz.com/location  optional; asserts the Location header. A 301 to
                                the WRONG host is still a 301, so every redirect
                                names its target.
   smoke.jterrazz.com/method    optional; the HTTP verb, default GET. For a route
-                               that only answers one — OpenPanel's ingest is
+                               that only answers one: OpenPanel's ingest is
                                POST-only, and a GET there 404s whether the
                                backend is healthy or not.
   smoke.jterrazz.com/probe     "false" opts the route out entirely. Only written
-                               when there IS no derivable probe — an unannotated
+                               when there IS no derivable probe; an unannotated
                                route is probed with the fallback (`/`, 200) and
                                reported, which is not the same claim.
 
-Input dict: probe (optional bool — pass false to opt out), path, expect,
+Input dict: probe (optional bool; pass false to opt out), path, expect,
 location (optional), method (optional). Emits annotation LINES at column 0; the
 caller indents.
 */}}

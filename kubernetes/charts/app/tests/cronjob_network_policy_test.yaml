@@ -1,4 +1,4 @@
-suite: spec.cronJobs — the NetworkPolicy of the job pods
+suite: spec.cronJobs, the NetworkPolicy of the job pods
 # outside: job pods carry no `app` label (app.cronJobSelectorLabels says why), so the
 # app's own NetworkPolicy does not select them. This is theirs: nothing in,
 # since a job serves no one, and the app's own egress out. Its own suite
@@ -9,7 +9,7 @@ values:
 templates:
   - templates/network-policy.yaml
 tests:
-  - it: gives job pods their own NetworkPolicy — nothing in, the app's egress out
+  - it: gives job pods their own NetworkPolicy, nothing in, the app's egress out
     documentSelector:
       path: metadata.name
       value: ci-test-app-cronjobs

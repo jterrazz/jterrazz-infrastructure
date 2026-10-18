@@ -2,14 +2,14 @@
 DATA-DESTROYING IF CHANGED. Object names and hostPath paths address LIVE data;
 both charts' callers derive them and this template invents none.
 
-  PV   `name`      — the PVC binds to it by volumeName, so the two can never
+  PV   `name`:      the PVC binds to it by volumeName, so the two can never
                      drift apart here.
-  PVC  `claimName` — usually the same string. It differs when the consumer
+  PVC  `claimName`: usually the same string. It differs when the consumer
                      imposes a name: a StatefulSet volumeClaimTemplate looks
                      for storage-<release>-<ordinal> and silently provisions a
                      FRESH dynamic volume if it does not find one, which is how
                      Loki and Tempo lost every log and trace.
-  path `path`      — an absolute hostPath. Moving it moves the directory and
+  path `path`:      an absolute hostPath. Moving it moves the directory and
                      the pod comes up on an empty volume.
 
 hostPath.type is an IMMUTABLE PV field, so the unconditional DirectoryOrCreate
@@ -18,7 +18,7 @@ below only applies to freshly created PVs.
 nodeAffinity pins the PV to the node holding the data, and is emitted ONLY when
 a node name is supplied: an empty one renders `values: [""]`, a PV that matches
 no node and can never bind. It is immutable once set, so adding it to a
-pre-existing PV means delete-and-recreate the PV object (the DATA survives —
+pre-existing PV means delete-and-recreate the PV object (the DATA survives:
 hostPath dirs plus a Retain reclaim policy).
 
 Input dict: name, claimName, labels (rendered lines), size, path, nodeName.

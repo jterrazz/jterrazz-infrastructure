@@ -9,7 +9,7 @@
 {{/*
 Stamped on every object this chart emits (IngressRoute, Certificate, PV, PVC).
 `part-of: jterrazz-infrastructure` is a grouping label for `kubectl get -l`
-spelunking only — nothing selects on it.
+spelunking only; nothing selects on it.
 */}}
 {{- define "platform-service.labels" -}}
 app.kubernetes.io/name: {{ include "platform-service.name" . }}

@@ -1,11 +1,11 @@
 {{/*
 One InfisicalSecret. Everything that is a property of THIS Infisical project
-rather than of a workload — the API host, the project slug, the shared
-machine-identity credentials in platform-secrets — is pinned here, so a new
+rather than of a workload (the API host, the project slug, the shared
+machine-identity credentials in platform-secrets) is pinned here, so a new
 consumer supplies only its own path and destination.
 
 LIST form (`managedKubeSecretReferences`), not the deprecated singular
-`managedSecretReference:` map. Same fields, same behaviour for one entry — and
+`managedSecretReference:` map. Same fields, same behaviour for one entry, and
 `creationPolicy` is left at its default `Orphan`, which is what the singular
 field always did: the managed Secret outlives the CR rather than being
 garbage-collected with it.
@@ -20,7 +20,7 @@ secretNamespace, and two optional ones:
   template    the operator's own transform, `{ data: { key: <template> } }`.
               Those templates are rendered by the OPERATOR (text/template with
               sprig in scope), never by Helm, and they REPLACE the default
-              key-per-secret projection — `includeAllSecrets` would put the raw
+              key-per-secret projection: `includeAllSecrets` would put the raw
               values back beside them, so a caller that names a template wants
               only what it named.
 */}}

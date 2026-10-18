@@ -1,5 +1,5 @@
 {{/*
-Traefik routing — the IngressRoute and the two Middlewares that hang off it.
+Traefik routing: the IngressRoute and the two Middlewares that hang off it.
 Both charts render routes; only their NAMES and their match expressions differ,
 so every name is an input and this file invents none.
 */}}
@@ -11,7 +11,7 @@ NEVER chain the two allow-lists: Traefik ANDs chained ipAllowLists, so the
 source would have to satisfy BOTH and chaining allows strictly LESS, not more.
 cluster-internal-access is already a strict superset of private-access.
 
-  private          tailnet humans only. The default, and the narrow one — a
+  private          tailnet humans only. The default, and the narrow one: a
                    values file that forgets the key gets tailnet-only.
   cluster-internal tailnet humans PLUS the pod/service CIDRs and the node. For
                    routes something inside the cluster must also reach
@@ -42,13 +42,13 @@ Input dict:
                label order rather than toYaml's alphabetical one)
   match        the whole Traefik match expression. The caller builds it: the
                app chart's Host() && PathPrefix(), platform-service's
-               Host(a) || Host(b) — never the v2 Host(a, b), which the CRD
+               Host(a) || Host(b), never the v2 Host(a, b), which the CRD
                schema accepts and Traefik v3 then fails to build a router for
                (404 on every name, nothing in `kubectl get` to say so).
   middlewares  list of { name, namespace? }, in attachment order
   serviceName  / servicePort  the backend
   tlsSecret    the Certificate's secret
-  annotations  rendered annotation lines (a STRING), or "" — the smoke contract
+  annotations  rendered annotation lines (a STRING), or ""; the smoke contract
                (common.smokeAnnotations) is the only thing that writes them
 */}}
 {{- define "common.ingressRoute" -}}
@@ -105,7 +105,7 @@ Canonical-host redirect Middleware. Input dict: name, labels, host, replacement.
 
 The regex is anchored on the SCHEME too: Traefik matches against the full URL,
 so an unanchored pattern would also rewrite a request whose PATH happens to
-contain the host. 301, not 302 — this host is not coming back, and a permanent
+contain the host. 301, not 302: this host is not coming back, and a permanent
 redirect is what moves search rankings to the canonical host.
 */}}
 {{- define "common.middleware.redirect" -}}

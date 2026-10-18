@@ -12,18 +12,18 @@
 #   helm template app kubernetes/charts/app \
 #     -f kubernetes/charts/app/ci/test-values.yaml
 #
-# Keep this exercising the widest reasonable surface — if a template branch is
+# Keep this exercising the widest reasonable surface: if a template branch is
 # not reachable from here, CI is not checking it. The branches that are
 # MUTUALLY EXCLUSIVE with the app shape above (an existing `claimName` instead
 # of a rendered PV, an exec probe instead of an HTTP one, an isolated
 # NetworkPolicy instead of the derived one) live in the `staging` environment
-# at the bottom, which the unit tests render — one fixture cannot be both
+# at the bottom, which the unit tests render, since one fixture cannot be both
 # shapes at once.
 
 metadata:
   name: ci-test-app
 
-# value: set by app CI from ${{ github.repository }} — pinned here so the Deployment
+# value: set by app CI from ${{ github.repository }}, pinned here so the Deployment
 # renders the app.jterrazz.com/repository annotation branch.
 meta:
   repository: jterrazz/ci-test-app
@@ -44,7 +44,7 @@ spec:
   args: ["--enable-source-maps"]
 
   # invariant: merged OVER the chart's hardened container defaults, which is the whole
-  # point of the key — one capability back, everything else still dropped.
+  # point of the key: one capability back, everything else still dropped.
   securityContext:
     capabilities:
       drop: ["ALL"]
@@ -68,7 +68,7 @@ spec:
     startupFailureThreshold: 60
 
   # hazard: renders the PV + PVC and the root `fix-permissions` initContainer.
-  # Both keys are `required` as of chart 2.2 — dropping either must fail the
+  # Both keys are `required` as of chart 2.2; dropping either must fail the
   # render rather than produce an unbindable PV.
   storage:
     size: 2Gi
@@ -123,7 +123,7 @@ spec:
       { "title": "ci-test-app overview", "panels": [] }
 
   # hazard: also prod-only. Two entries because the alerts ConfigMap is ONE object with
-  # one data key per entry (dashboards are one object each) — a single entry
+  # one data key per entry (dashboards are one object each); a single entry
   # would not catch a template that silently emits only the last key.
   alerts:
     ci-test-app: |
@@ -147,7 +147,7 @@ spec:
   # and a memory-only `resources` override (cpu is inherited, and the >=512Mi
   # request derives the job's OWN NODE_OPTIONS cap); no `storage`, so the data
   # volume stays unmounted while the config files and secret mounts follow the
-  # app. Every other key takes the chart's default here — the staging
+  # app. Every other key takes the chart's default here; the staging
   # environment below overrides them.
   cronJobs:
     report:
@@ -194,7 +194,7 @@ spec:
         path: /ready
         expect: "204,200"
     # invariant: the three things `public:` cannot say, on one entry:
-    #   access       cluster-internal — tailnet humans PLUS the cluster's pods.
+    #   access       cluster-internal: tailnet humans PLUS the cluster's pods.
     #   stripPrefix  a STRING: routed on /api/track, the backend serves /track.
     #   tlsSecret    a certificate owned by another release, so this render
     #                emits no Certificate for this host.
@@ -215,7 +215,7 @@ environments:
   prod:
     tag: main
     replicas: 1
-  # invariant: tHE DATASTORE SHAPE. Not a realistic staging environment — it is the other
+  # invariant: THE DATASTORE SHAPE. Not a realistic staging environment: it is the other
   # arm of every switch the prod render above takes, in the only place a
   # single fixture can hold it. Rendered by the unit tests, not by the CI
   # kubeconform step (which renders `prod`).
@@ -234,7 +234,7 @@ environments:
     # invariant: clients dial this one by name and port, so the Service carries the real
     # port rather than 80.
     servicePort: 5432
-    # invariant: recreate without storage — the migration-on-boot case.
+    # invariant: recreate without storage, the migration-on-boot case.
     strategy: Recreate
     # invariant: an existing claim another release owns: no PV/PVC is rendered, and
     # `owner` hands the volume to the uid the image runs as.
@@ -259,7 +259,7 @@ environments:
         startingDeadlineSeconds: 120
         backoffLimit: 2
         activeDeadlineSeconds: 600
-    # invariant: nothing reaches it, it dials nothing — which is the entire security
+    # invariant: nothing reaches it, it dials nothing, which is the entire security
     # model of an unauthenticated datastore.
     network:
       isolated: true

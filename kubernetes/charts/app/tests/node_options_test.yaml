@@ -2,7 +2,7 @@ suite: NODE_OPTIONS heap cap and its 512Mi floor
 # hazard: the chart injects NODE_OPTIONS=--max-old-space-size=<75% of the memory
 # REQUEST>, but only above a 512Mi floor. The floor is not a style choice: for
 # a small Next.js service (128Mi request) the derived 96MB cap starves SSR boot
-# and crash-loops the pod — it regressed spwn.sh once. Below the floor the
+# and crash-loops the pod; it regressed spwn.sh once. Below the floor the
 # chart must inject NOTHING and leave V8's uncapped default in place.
 templates:
   - templates/deployment.yaml
@@ -96,7 +96,7 @@ tests:
 
   - it: derives the cap from an environment-level resources override
     # invariant: `resources` DEEP merges, so an environment can raise memory alone and the
-    # cap must follow it — this is the path a staging/prod split actually uses.
+    # cap must follow it: this is the path a staging/prod split actually uses.
     set:
       spec.resources.memory: 256Mi
       environments.prod.resources.memory: 1Gi

@@ -1,7 +1,7 @@
 suite: access -> Traefik ipAllowList middleware selection
 # invariant: `access` picks exactly ONE of the two Traefik ipAllowList middlewares, or
 # none. Never both: Traefik ANDs chained ipAllowLists, so chaining allows
-# strictly LESS, not more — and cluster-internal-access is already a strict
+# strictly LESS, not more, and cluster-internal-access is already a strict
 # superset of private-access.
 #
 # This is the chart's network-exposure switch, so every arm is pinned,
@@ -13,7 +13,7 @@ values:
 tests:
   - it: "attaches cluster-internal-access for `access: cluster-internal`"
     # outside: the fixture's value. This is the arm registry (containerd's hairpin pull)
-    # and openpanel (dashboard SSR from a pod IP) need — the arm the pre-2.1
+    # and openpanel (dashboard SSR from a pod IP) need, the arm the pre-2.1
     # boolean could not express at all.
     asserts:
       - equal:
@@ -46,7 +46,7 @@ tests:
 
   - it: "attaches no access middleware for `access: public`"
     # invariant: still behind the global rate-limit / compress / security-headers chain
-    # the websecure entrypoint attaches — just no ipAllowList.
+    # the websecure entrypoint attaches, just no ipAllowList.
     set:
       access: public
     asserts:
@@ -62,23 +62,23 @@ tests:
 
   - it: "hard-fails on the legacy boolean `private:` key"
     # hazard: a leftover `private: false` would otherwise fall through to the `private`
-    # DEFAULT and silently NARROW a route that was meant to be public — a
+    # DEFAULT and silently NARROW a route that was meant to be public: a
     # change in network exposure made by omission, which is the one class of
     # change that must never happen quietly.
     set:
       private: false
     asserts:
       - failedTemplate:
-          errorMessage: "`private` was replaced by `access: private|cluster-internal|public` — remove it from this values file"
+          errorMessage: "`private` was replaced by `access: private|cluster-internal|public`; remove it from this values file"
 
   - it: "hard-fails on `private: true` just the same"
     set:
       private: true
     asserts:
       - failedTemplate:
-          errorMessage: "`private` was replaced by `access: private|cluster-internal|public` — remove it from this values file"
+          errorMessage: "`private` was replaced by `access: private|cluster-internal|public`; remove it from this values file"
 
-  - it: "ORs the canonical host with every alias — never the v2 Host(a, b)"
+  - it: "ORs the canonical host with every alias, never the v2 Host(a, b)"
     # outside: Traefik v3 dropped multi-value matchers. `Host(a, b)` passes the CRD
     # schema and then fails to build the router: 404 on every name, no error
     # on apply and nothing in `kubectl get` to say so.

@@ -4,14 +4,14 @@ suite: full fixture render (snapshot)
 #
 # What this catches that the targeted suites do not: a hostPath that moves, a
 # reclaim policy that flips from Retain to Delete, a storageClassName that
-# stops being `manual`. Those are one-word edits with a data-loss blast radius
-# — the PVs here are hostPath volumes holding Grafana, the three VictoriaMetrics
+# stops being `manual`. Those are one-word edits with a data-loss blast radius:
+# the PVs here are hostPath volumes holding Grafana, the three VictoriaMetrics
 # stores, OpenPanel and registry state. Plus the InfisicalSecret,
 # whose `secretName` is read by a literal string in someone else's chart.
 #
 # Reviewing a failure: read the diff. If every changed line is intended,
 #   helm unittest -u kubernetes/charts/platform-service
-# regenerates the .snap — and that diff is what the change review should
+# regenerates the .snap, and that diff is what the change review should
 # actually look at. Never regenerate without reading it.
 values:
   - ../ci/test-values.yaml

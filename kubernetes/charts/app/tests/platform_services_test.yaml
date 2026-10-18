@@ -3,7 +3,7 @@ suite: platformServices catalog opt-in and its typo guard
 # wires a whole bundle per name: env injection, an egress NetworkPolicy hole,
 # and (for a name that is itself a catalog target) a client pod label the
 # target's ingress rule selects on. The validation lives in app.platformServices
-# — the single accessor all three consumers call — so an unknown name can never
+# (the single accessor all three consumers call), so an unknown name can never
 # reach a rendered manifest.
 values:
   - ../ci/test-values.yaml
@@ -28,7 +28,7 @@ tests:
           errorMessage: 'spec.platformServices: unknown service "nope" (valid: gateway-intelligence, otel-collector)'
 
   - it: hard-fails on a name introduced by an environment override
-    # invariant: lists REPLACE on merge, so an environment can swap the whole list — the
+    # invariant: lists REPLACE on merge, so an environment can swap the whole list, so the
     # check must run on the resolved list, not on spec's.
     set:
       environments.prod.platformServices:
@@ -93,7 +93,7 @@ tests:
             environment: prod
 
   - it: opens one egress rule per declared service, on the POD ports
-    # hazard: ports are the catalog's pod ports, never the Service port — a NetworkPolicy
+    # hazard: ports are the catalog's pod ports, never the Service port: a NetworkPolicy
     # matches the destination pod's port, so using 4318-the-Service-port would
     # produce a policy that silently drops everything.
     templates:

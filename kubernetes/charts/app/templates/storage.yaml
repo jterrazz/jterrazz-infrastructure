@@ -1,6 +1,6 @@
 {{- if eq (include "app.envExists" .) "true" -}}
 {{- $spec := fromYaml (include "app.merged" .) -}}
-{{- /* `claimName` says the PVC belongs to someone else — a `<svc>-platform`
+{{- /* `claimName` says the PVC belongs to someone else: a `<svc>-platform`
        release, whose storage map created it and whose release name is the
        identity of that live data. This chart then only MOUNTS it, and must not
        render a PV/PVC of its own: two releases owning one volume is how a

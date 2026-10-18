@@ -35,7 +35,7 @@ tests:
           value: 2048Mi
 
   - it: uses an explicit memoryLimit verbatim, without unit conversion
-    # value: the explicit value short-circuits the parser entirely — a `1Gi` limit
+    # value: the explicit value short-circuits the parser entirely: a `1Gi` limit
     # stays `1Gi`, so an app can pin the exact string k8s will show.
     set:
       spec.resources.memory: 512Mi

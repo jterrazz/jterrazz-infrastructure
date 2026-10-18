@@ -14,7 +14,7 @@ values:
 tests:
   - it: names the policy after the service and selects the declared pods
     # hazard: the workload is rendered by the UPSTREAM chart, so its labels are that
-    # chart's — the selector is an input and can never be derived from `name`.
+    # chart's: the selector is an input and can never be derived from `name`.
     asserts:
       - isKind:
           of: NetworkPolicy
@@ -46,7 +46,7 @@ tests:
               - port: 8080
 
   - it: "`any-namespace-pods:` ANDs a namespace-wide selector with a pod label"
-    # invariant: one peer element, not two: two elements would be an OR — any pod in any
+    # invariant: one peer element, not two: two elements would be an OR: any pod in any
     # namespace, label or no label.
     asserts:
       - equal:
@@ -84,7 +84,7 @@ tests:
               - port: 4317
               - port: 4318
 
-  - it: "`internet` excepts RFC1918 — no lateral reach, no apiserver"
+  - it: "`internet` excepts RFC1918: no lateral reach, no apiserver"
     asserts:
       - equal:
           path: spec.egress[2].to
@@ -135,7 +135,7 @@ tests:
       network.podSelector: null
     asserts:
       - failedTemplate:
-          errorMessage: network.podSelector is required — the workload is rendered by another chart, so its labels cannot be derived
+          errorMessage: network.podSelector is required; the workload is rendered by another chart, so its labels cannot be derived
 
   - it: hard-fails a network block that declares neither direction
     set:
@@ -143,7 +143,7 @@ tests:
       network.egress: null
     asserts:
       - failedTemplate:
-          errorMessage: "network: declares neither `ingress:` nor `egress:` — a policy that selects pods and grants nothing is a silent deny"
+          errorMessage: "network: declares neither `ingress:` nor `egress:`; a policy that selects pods and grants nothing is a silent deny"
 
   - it: renders nothing when no network block is declared
     set:

@@ -3,7 +3,7 @@ Grafana alert rules, owned by the app repo. `sidecar.alerts` in
 kubernetes/services/grafana/values.yaml watches `grafana_alert: "1"` in ALL
 namespaces, so no platform-side edit is needed. NO folder annotation: each rule
 group names its own `folder:`. ONE ConfigMap with a key per entry, so a rename
-cannot orphan one. prod-only because rule UIDs are global in Grafana — three
+cannot orphan one. prod-only because rule UIDs are global in Grafana: three
 environments provisioning the same `uid:` would fight over one rule.
 */}}
 {{- if and (eq (include "app.envExists" .) "true") (eq .Values.environment "prod") -}}

@@ -11,7 +11,7 @@ suite: full fixture render (snapshot)
 #
 # Reviewing a failure: read the diff. If every changed line is intended,
 #   helm unittest -u kubernetes/charts/app
-# regenerates the .snap — and the diff in that file is what the change review
+# regenerates the .snap, and the diff in that file is what the change review
 # should actually look at. Never regenerate without reading it.
 #
 # The template list is explicit, and it is EVERY template the chart has. ADD A

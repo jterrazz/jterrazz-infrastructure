@@ -1,4 +1,4 @@
-suite: spec.cronJobs — the app's container, run on a schedule
+suite: spec.cronJobs, the app's container run on a schedule
 # hazard: a cron job runs the APP'S OWN container with another command, so most of
 # what is pinned here is inheritance: the same env, secrets and mounts as the
 # Deployment. The rest is the scheduling defaults (Kubernetes' own are wrong
@@ -38,7 +38,7 @@ tests:
 
   - it: never stamps the Service selector on a job pod
     # outside: the Service selects `app` + `environment`. A job pod carrying both would
-    # become an endpoint — ready at once, having no readiness probe — and
+    # become an endpoint (ready at once, having no readiness probe), and
     # Traefik would send live requests to a process that is not listening.
     asserts:
       - notExists:

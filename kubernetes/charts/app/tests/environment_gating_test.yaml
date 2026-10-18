@@ -2,7 +2,7 @@ suite: undeclared environment renders NOTHING (chart 2.x behaviour)
 # invariant: READ BEFORE "FIXING" A FAILURE HERE
 # Every template is gated on app.envExists, so `--set environment=prd` against
 # a chart that declares `prod` renders an EMPTY RELEASE instead of failing.
-# A `helm upgrade --install` of an empty release does not error — it deletes
+# A `helm upgrade --install` of an empty release does not error: it deletes
 # every object the previous revision owned. That is the whole point of pinning
 # it here.
 #
@@ -16,7 +16,7 @@ suite: undeclared environment renders NOTHING (chart 2.x behaviour)
 # `templates:` filter means "every template in the chart rendered nothing".)
 tests:
   - it: renders zero manifests with the chart's own default values
-    # outside: no `values:` at all — this is why plain `helm lint`/`helm template`
+    # outside: no `values:` at all; this is why plain `helm lint`/`helm template`
     # validates nothing here, and why ci/test-values.yaml IS the contract.
     asserts:
       - hasDocuments:
@@ -63,7 +63,7 @@ tests:
   - it: drops the prod-only alert ConfigMap in another environment
     # outside: alert-configmap.yaml is gated on environment == prod for a stricter
     # reason than dashboards: Grafana rule `uid:`s are global, so a staging
-    # copy would not sit beside the prod rule — it would provision over it.
+    # copy would not sit beside the prod rule; it would provision over it.
     values:
       - ../ci/test-values.yaml
     templates:

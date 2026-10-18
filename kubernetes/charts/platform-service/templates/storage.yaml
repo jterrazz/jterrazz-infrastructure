@@ -13,7 +13,7 @@ a symlink to the Mac over OrbStack's virtiofs share. Use it for data a service
 reads and writes constantly rather than merely stores: virtiofs adds
 per-syscall latency, and a SQLite-plus-index workload (Grafana's unified
 storage) turns that into a CPU spin that pegs the pod. The cost is that this
-data does NOT survive a repave — only ever point it at something
+data does NOT survive a repave, so only ever point it at something
 reconstructible.
 */ -}}
 {{- $name := include "platform-service.name" . -}}

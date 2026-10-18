@@ -1,7 +1,7 @@
 suite: spec.alerts -> Grafana alert-rule ConfigMap
 # hazard: the label is the whole feature: Grafana's alerts sidecar
 # (kubernetes/services/grafana/values.yaml) selects `grafana_alert: "1"` across
-# ALL namespaces, so a ConfigMap that loses the label is not a broken alert —
+# ALL namespaces, so a ConfigMap that loses the label is not a broken alert;
 # it is inert data nobody notices until an outage goes unannounced. Everything
 # below exists because that failure is silent.
 #
@@ -23,7 +23,7 @@ tests:
           count: 0
 
   - it: puts every entry in ONE ConfigMap named <app>-alerts
-    # invariant: one object, N keys — the fixture carries two entries precisely so a
+    # invariant: one object, N keys: the fixture carries two entries precisely so a
     # template that overwrote `data` per iteration would fail here.
     values:
       - ../ci/test-values.yaml

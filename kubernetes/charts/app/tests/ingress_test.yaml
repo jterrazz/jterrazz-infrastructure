@@ -1,4 +1,4 @@
-suite: ingress list — replace-not-merge, and the explicit-visibility guard
+suite: ingress list, replace-not-merge, and the explicit-visibility guard
 # outside: app.merged resolves `ingress` through sprig mergeOverwrite, where LISTS ARE
 # REPLACED WHOLESALE (maps deep-merge, scalars take the environment's value).
 # For a list of network surfaces that is the only safe rule: a half-merged
@@ -26,7 +26,7 @@ tests:
   - it: REPLACES the base list with the environment's, never merges them
     # invariant: the fixture's staging environment declares exactly ONE entry while spec
     # declares two. If lists merged, this would render three surfaces and
-    # staging would answer on ci-test-app.jterrazz.com — publicly.
+    # staging would answer on ci-test-app.jterrazz.com, publicly.
     set:
       environment: staging
     asserts:
@@ -55,7 +55,7 @@ tests:
 
   - it: "leaves a `public: true` entry with no access middleware"
     # invariant: public routes still sit behind the rate-limit / compress / security-headers
-    # chain the websecure entrypoint attaches globally — but no ipAllowList.
+    # chain the websecure entrypoint attaches globally, but no ipAllowList.
     set:
       environment: probe
       environments.probe.ingress:
@@ -68,7 +68,7 @@ tests:
         documentIndex: 1
 
   - it: "hard-fails an ingress entry with no explicit `public` field"
-    # hazard: network visibility must never be implied by omission — the whole reason
+    # hazard: network visibility must never be implied by omission: the whole reason
     # the field is required rather than defaulted to either value.
     set:
       environment: probe
@@ -77,7 +77,7 @@ tests:
           path: /
     asserts:
       - failedTemplate:
-          errorMessage: "ingress entry 0 for ci-test-app is missing the required `public: true|false` field — declare network visibility explicitly"
+          errorMessage: "ingress entry 0 for ci-test-app is missing the required `public: true|false` field; declare network visibility explicitly"
 
   - it: hard-fails the pre-1.17 single-object ingress form
     set:
@@ -87,7 +87,7 @@ tests:
         public: true
     asserts:
       - failedTemplate:
-          errorMessage: "ingress must be a list of { host, path?, public? } entries. The single-object form was removed in chart 1.17.0 — migrate to a one-element list."
+          errorMessage: "ingress must be a list of { host, path?, public? } entries. The single-object form was removed in chart 1.17.0; migrate to a one-element list."
 
   - it: emits one Certificate per unique host, not per entry
     # outside: two entries on the same host share one TLS secret; two Certificates for

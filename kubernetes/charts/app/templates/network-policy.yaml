@@ -3,7 +3,7 @@ Always rendered, with no per-app knob. The peer vocabulary and the two
 NetworkPolicy traps are documented in common.networkPolicy
 (kubernetes/charts/common); this file is only what an APP allows.
 
-Ingress: Traefik on the app port — every IngressRoute this chart renders
+Ingress: Traefik on the app port: every IngressRoute this chart renders
 terminates there, so without it the app is unreachable. Plus, if this app is
 itself a platformServices catalog target carrying a clientLabel, any pod in any
 namespace stamped with that label; consumers opt in via spec.platformServices,
@@ -12,7 +12,7 @@ client that CANNOT opt in that way because a third-party chart renders its pods
 and cannot stamp the label.
 
 Egress: DNS, the public internet minus RFC1918, and one hole per opted-in
-platform service — on the POD ports from the catalog, never the Service port.
+platform service, on the POD ports from the catalog, never the Service port.
 
 `spec.network.isolated` drops the two DERIVED rules (Traefik in, internet out)
 and leaves only DNS plus what `exposeTo:` / `egress:` declare. That is what a
@@ -22,7 +22,7 @@ and it dials nothing.
 Cron job pods get a second policy, `<app>-cronjobs`. They carry no `app` label
 (app.cronJobSelectorLabels says why), so the policy above does not select them;
 without their own, a job pod in a namespace with no default-deny would be open
-in both directions. Theirs admits NOTHING in — a job serves no one — and lets
+in both directions. Theirs admits NOTHING in (a job serves no one) and lets
 out exactly what the app's lets out, since a job is the app's own container
 doing the app's own work.
 */ -}}
@@ -49,7 +49,7 @@ doing the app's own work.
 {{- $ingress = append $ingress (dict "from" $peer "ports" (list $spec.port)) -}}
 {{- end -}}
 {{- /* A pod resolves before it can know which namespace answered, so DNS is
-       namespace-wide. The bare 53 is TCP — the Kubernetes default, left
+       namespace-wide. The bare 53 is TCP, the Kubernetes default, left
        unwritten so the rendered object matches what the API server stores. */ -}}
 {{- $egress := list (dict "to" "any-namespace" "ports" (list "53/UDP" 53)) -}}
 {{- if not $net.isolated -}}

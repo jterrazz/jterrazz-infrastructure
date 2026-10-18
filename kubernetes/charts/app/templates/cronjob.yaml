@@ -7,17 +7,17 @@ do. What differs is only what a run-to-completion process needs to differ.
 The defaults are the ones a scheduled job should have and Kubernetes' own do
 not give it:
 
-  concurrencyPolicy        Forbid — a run that overruns its interval never
+  concurrencyPolicy        Forbid: a run that overruns its interval never
                            gets a second copy beside it.
-  startingDeadlineSeconds  600 — a run missed by more than ten minutes (the
+  startingDeadlineSeconds  600: a run missed by more than ten minutes (the
                            cluster was down) is skipped, not replayed late.
-  backoffLimit             0 — a failed run is not retried blindly; it stays
+  backoffLimit             0: a failed run is not retried blindly; it stays
                            failed and visible, and the next schedule is the
                            retry. Kubernetes' default is 6.
-  activeDeadlineSeconds    3600 — a wedged run is killed after an hour.
+  activeDeadlineSeconds    3600: a wedged run is killed after an hour.
   history limits           1 succeeded / 3 failed Jobs kept, so a failure
                            stays inspectable without Jobs piling up.
-  timeZone                 Etc/UTC — explicit, and free of DST: in a zone
+  timeZone                 Etc/UTC, explicit and free of DST: in a zone
                            that changes clocks, a 02:30 schedule is skipped
                            one night a year and run twice another.
 

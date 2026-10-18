@@ -9,7 +9,7 @@
 #     -f kubernetes/charts/platform-service/ci/test-values.yaml
 #
 # Exercises the multi-volume storage map (the openpanel shape) plus the two
-# things chart 2.1 added — `access` and `storage.<key>.claimName` — and the
+# things chart 2.1 added (`access` and `storage.<key>.claimName`) and the
 # populated-nodeName path that the app chart's fixture deliberately leaves
 # empty.
 
@@ -17,7 +17,7 @@ name: ci-test-service
 host: ci-test-service.jterrazz.com
 port: 8080
 
-# invariant: second name on the same route + a SAN on the same certificate — the rename
+# invariant: second name on the same route + a SAN on the same certificate: the rename
 # path. `Host(a) || Host(b)`, never the v2 `Host(a, b)`.
 aliases:
   - ci-test-alias.example
@@ -28,14 +28,14 @@ aliases:
 # check the other two branches.
 access: cluster-internal
 
-# invariant: both halves overridden away from the values.yaml defaults (`/`, 200) — the
+# invariant: both halves overridden away from the values.yaml defaults (`/`, 200): the
 # registry shape, and the only way to tell a stamped contract from an inherited
 # one in the snapshot.
 smoke:
   path: /v2/
   expect: "401"
 
-# invariant: a certificate for a hostname whose ROUTES live on another release — the
+# invariant: a certificate for a hostname whose ROUTES live on another release: the
 # openpanel shape, where two app-chart releases answer on one host and neither
 # can own its certificate without the other duplicating it. The key is both the
 # Certificate and the TLS Secret name.
@@ -64,14 +64,14 @@ storage:
     size: 5Gi
     pathSuffix: uploads
   # invariant: claimName override: the PVC is named storage-ci-test-0 while the PV keeps
-  # its <name>-<key> identity — see templates/storage.yaml for why that matters.
+  # its <name>-<key> identity; see templates/storage.yaml for why that matters.
   metrics:
     size: 1Gi
     pathSuffix: metrics
     claimName: storage-ci-test-0
   # invariant: nodeLocalPath override: the hostPath leaves /var/lib/k8s-data entirely, so
   # the data lives in the VM and does NOT survive a repave (grafana-data is the
-  # one live user — see templates/storage.yaml).
+  # one live user; see templates/storage.yaml).
   node-local:
     size: 1Gi
     nodeLocalPath: /var/lib/ci-test-node-local
@@ -82,7 +82,7 @@ infrastructure:
   nodeName: ci-test-node
 
 # invariant: the `network:` block, exercising every peer form in the vocabulary and both
-# port spellings — an unreached peer is an unvalidated peer, and each one
+# port spellings: an unreached peer is an unvalidated peer, and each one
 # lowers to a different selector shape.
 network:
   podSelector:
@@ -101,5 +101,5 @@ network:
       ports: [4317, 4318]
     - to: internet
       ports: [443]
-    # invariant: no ports at all — the unrestricted-egress shape victoria-metrics needs.
+    # invariant: no ports at all, the unrestricted-egress shape victoria-metrics needs.
     - to: anywhere

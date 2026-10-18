@@ -1,5 +1,5 @@
 {{- /*
-The one InfisicalSecret a platform service needs — the object itself is
+The one InfisicalSecret a platform service needs; the object itself is
 common.infisicalSecret (kubernetes/charts/common), which pins everything that
 belongs to the Infisical PROJECT rather than to this service.
 
@@ -14,7 +14,7 @@ chart invents none.
       "name" (printf "%s-infisical" (include "platform-service.name" .))
       "labels" (include "platform-service.labels" .)
       "envSlug" ($secrets.env | default "prod")
-      "secretsPath" ($secrets.path | required "secrets.path is required — the Infisical path this service's credentials live at")
-      "secretName" ($secrets.secretName | required "secrets.secretName is required — the consumer reads it by that literal name")
+      "secretsPath" ($secrets.path | required "secrets.path is required: the Infisical path this service's credentials live at")
+      "secretName" ($secrets.secretName | required "secrets.secretName is required; the consumer reads it by that literal name")
       "secretNamespace" .Release.Namespace) }}
 {{- end }}

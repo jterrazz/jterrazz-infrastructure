@@ -8,15 +8,15 @@ Every template starts with
 
   {{- $spec := fromYaml (include "app.merged" .) -}}
 
-and then reads plain keys ($spec.port, $spec.env, $spec.resources.memory, …).
+and then reads plain keys ($spec.port, $spec.env, $spec.resources.memory, and so on).
 An environment may override ANY spec key. Merge rules (sprig mergeOverwrite,
 spec first, environment second):
 
-  * scalars  — environment wins, else spec, else the caller's `| default`.
-  * maps     — DEEP merged, environment wins per key. `resources: {memory: …}`
+  * scalars:  environment wins, else spec, else the caller's `| default`.
+  * maps:     DEEP merged, environment wins per key. `resources: {memory: ...}`
                in an environment keeps the base `cpu`; `env:` / `secrets:`
                merge key-by-key with THE ENVIRONMENT WINNING on a collision.
-  * lists    — REPLACED wholesale. An environment's `ingress` or
+  * lists:    REPLACED wholesale. An environment's `ingress` or
                `platformServices` list fully supersedes spec's, deliberately:
                a half-merged list of network surfaces is unreadable.
 
@@ -33,7 +33,7 @@ shared across every template in the render.
 {{- end -}}
 
 {{/*
-Nothing renders for an environment that isn't declared under `environments:` —
+Nothing renders for an environment that isn't declared under `environments:`;
 a typo'd `--set environment=prd` produces an empty release rather than an
 error. Turning that into a hard failure is a breaking change owned by a later
 coordinated release; deliberately NOT done here.
@@ -55,7 +55,7 @@ fromYamlArray.
 {{- define "app.ingressList" -}}
 {{- $list := (fromYaml (include "app.merged" .)).ingress -}}
 {{- if not (kindIs "slice" $list) -}}
-{{- fail "ingress must be a list of { host, path?, public? } entries. The single-object form was removed in chart 1.17.0 — migrate to a one-element list." -}}
+{{- fail "ingress must be a list of { host, path?, public? } entries. The single-object form was removed in chart 1.17.0; migrate to a one-element list." -}}
 {{- end -}}
 {{- $list | toYaml -}}
 {{- end -}}
@@ -71,7 +71,7 @@ registry.internal.jterrazz.com/{{ include "app.name" . }}:latest
 
 {{/*
 Parse a memory quantity to an integer number of MiB. Returns "" for anything
-that is not `<n>Mi` or `<n>Gi` — both callers treat that as "can't reason
+that is not `<n>Mi` or `<n>Gi`; both callers treat that as "can't reason
 about this, leave it alone".
 */}}
 {{- define "app.memMi" -}}
@@ -84,7 +84,7 @@ about this, leave it alone".
 {{- end -}}
 
 {{/*
-Memory limit — explicit `resources.memoryLimit`, else 2x the request. A
+Memory limit: explicit `resources.memoryLimit`, else 2x the request. A
 derived limit is always emitted in Mi; a request in neither Mi nor Gi passes
 through unchanged. `app.memoryLimitOf` takes the resources map itself, so a
 cron job's own `resources` derive their limit by the same rule.
@@ -152,7 +152,7 @@ server-side ingress rule via a pod label selector.
 Per entry:
   env         map of env var name -> value injected into opted-in consumers.
               A user-set env of the same name always wins (app.containerEnv).
-  egress      { namespace, ports[] } — the consumer's egress NetworkPolicy hole.
+  egress      { namespace, ports[] }: the consumer's egress NetworkPolicy hole.
               ports are the POD ports (NOT the Service port). Namespace is
               pinned (gateway-intelligence only exists in prod).
   clientLabel (optional) pod label the consumer stamps on its own pods; the
@@ -160,7 +160,7 @@ Per entry:
               new consumer needs ZERO edit on the target.
 
 OTEL_EXPORTER_OTLP_ENDPOINT keeps its spec-mandated name (the OTel SDK owns
-that contract — the one naming exception). gateway-intelligence carries no
+that contract, the one naming exception). gateway-intelligence carries no
 secret: it enforces no client API key, so consumers pass the non-secret
 placeholder the OpenAI SDK's non-empty-string check demands.
 */}}
@@ -249,14 +249,14 @@ environment: {{ .Values.environment }}
 {{- end -}}
 
 {{/*
-The probe action shared by all three probes — httpGet by default, and the two
+The probe action shared by all three probes: httpGet by default, and the two
 alternatives a datastore needs. Exactly one is emitted, in this order:
 
-  health.exec  [cmd, …]  an exec probe. Postgres answers `pg_isready`, Redis
+  health.exec  [cmd, ...] an exec probe. Postgres answers `pg_isready`, Redis
                          `redis-cli ping`; neither speaks HTTP at all.
   health.tcp   true      a tcpSocket probe on spec.port. For a server that
                          speaks its own protocol and whose CLIENT is too heavy
-                         to run per probe — mongosh's cold start alone exceeds
+                         to run per probe: mongosh's cold start alone exceeds
                          the probe timeout, which crash-loops a healthy mongod.
   health.path  <path>    the default: httpGet on spec.port.
 
@@ -297,9 +297,9 @@ true
 
 {{/*
 Where one `spec.configFiles` entry is mounted. A plain string value is content,
-mounted at /app/<filename> — the shape every app repo uses. A `{ path, content }`
+mounted at /app/<filename>, the shape every app repo uses. A `{ path, content }`
 map puts the same file at an absolute path the IMAGE dictates
-(/etc/clickhouse-server/config.d/…, /docker-entrypoint-initdb.d/…), which is
+(/etc/clickhouse-server/config.d/..., /docker-entrypoint-initdb.d/...), which is
 the only reason the map form exists.
 
 Input dict: filename, file.
@@ -313,7 +313,7 @@ Input dict: filename, file.
 {{- end -}}
 
 {{/*
-The CONTENT of one `spec.configFiles` entry — the value itself for the string
+The CONTENT of one `spec.configFiles` entry: the value itself for the string
 form, `.content` for the map form. Input dict: filename, file.
 */}}
 {{- define "app.configFileContent" -}}
@@ -358,7 +358,7 @@ securityContext:
 
 {{/*
 The container `env:` list, shared by the Deployment and every cron job so a
-job runs with exactly the environment the app does — the same secrets, the
+job runs with exactly the environment the app does: the same secrets, the
 same platform endpoints. Input dict: ctx (the root context), resources (the
 map the NODE_OPTIONS heap cap derives from: the app's, or a job's own).
 Emits list items at column 0.
@@ -387,8 +387,8 @@ Emits list items at column 0.
 - name: OTEL_RESOURCE_ATTRIBUTES
   value: "deployment.environment={{ $ctx.Values.environment }},deployment.environment.name={{ $ctx.Values.environment }}"
 {{- end }}
-{{- /* Opt-in platform-service env (spec.platformServices → the catalog
-       above). An app must declare `otel-collector` for telemetry to flow —
+{{- /* Opt-in platform-service env (spec.platformServices, from the catalog
+       above). An app must declare `otel-collector` for telemetry to flow;
        declaring it is also what opens the egress hole. A user-set env wins. */}}
 {{- range $key, $value := $platformEnv }}
 {{- if not (hasKey $envVars $key) }}
@@ -417,7 +417,7 @@ Emits list items at column 0.
 
 {{/*
 The container `volumeMounts:` / pod `volumes:` lists. Input dict: ctx, storage
-(whether the data volume is part of it — always for the Deployment when
+(whether the data volume is part of it: always for the Deployment when
 spec.storage is set, only on request for a cron job). Emit list items; callers
 `trim` and indent them.
 */}}
@@ -466,7 +466,7 @@ rendered. Every check a bad entry could otherwise turn into a silently wrong
 object fails the render here instead:
 
   * the name must be a DNS-1123 label, and `<app>-<name>` at most 52
-    characters — the CronJob controller appends an 11-character suffix to
+    characters, as the CronJob controller appends an 11-character suffix to
     name each Job, and a Job name is capped at 63;
   * `schedule` is required;
   * `command` is required and non-empty. The app's own entrypoint is its
@@ -492,7 +492,7 @@ Returns YAML; consume via fromYaml.
 {{- fail (printf "spec.cronJobs.%s: `schedule` is required (a cron expression, evaluated in `timeZone`, default Etc/UTC)" $name) -}}
 {{- end -}}
 {{- if not $job.command -}}
-{{- fail (printf "spec.cronJobs.%s: `command` is required — without it the job would start the app's own server, which never exits" $name) -}}
+{{- fail (printf "spec.cronJobs.%s: `command` is required; without it the job would start the app's own server, which never exits" $name) -}}
 {{- end -}}
 {{- if and $job.storage (not $spec.storage) -}}
 {{- fail (printf "spec.cronJobs.%s: `storage: true` mounts spec.storage, and this app declares none" $name) -}}
@@ -502,7 +502,7 @@ Returns YAML; consume via fromYaml.
 {{- end -}}
 
 {{/*
-The labels every cron job pod carries — and, as importantly, the one it does
+The labels every cron job pod carries and, as importantly, the one it does
 NOT: `app`. The Service and the app's NetworkPolicy select on
 app.selectorLabels (`app` + `environment`), so a job pod stamped with them
 would be admitted as a Service endpoint. It has no readiness probe, so it would
