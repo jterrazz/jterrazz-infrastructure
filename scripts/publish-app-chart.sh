@@ -2,10 +2,10 @@
 # hazard: package kubernetes/charts/app and push it to the OCI registry, unless that
 # version is already published.
 #
-# The chart is pulled UNVERSIONED by every app's deploy (`oci://…/charts/app`,
-# no version pin — see CLAUDE.md), so overwriting a published version would
+# The chart is pulled UNVERSIONED by every app's deploy (`oci://.../charts/app`,
+# no version pin; see CLAUDE.md), so overwriting a published version would
 # mean two different template sets answering to one tag depending on when an
-# app last pulled. The guard below therefore refuses to overwrite — and SKIPS
+# app last pulled. The guard below therefore refuses to overwrite, and SKIPS
 # rather than fails, because roles/platform/tasks/publish-app-chart.yml
 # publishes the same chart during a full deploy and a push landing just after
 # `make deploy` would otherwise go red on an already-current registry. The
@@ -18,7 +18,7 @@
 # the two agree on the registry refs and that the workflow calls this script.
 #
 # Usage:
-#   REGISTRY_USERNAME=… REGISTRY_PASSWORD=… ./scripts/publish-app-chart.sh
+#   REGISTRY_USERNAME=... REGISTRY_PASSWORD=... ./scripts/publish-app-chart.sh
 #
 # Needs the tailnet (the registry is private) and a Helm at the pinned
 # `helm_version` from ansible/inventories/group_vars/all.yml.
@@ -55,7 +55,7 @@ mkdir -p "$STAGING_DIR/check"
 
 if helm pull "oci://$REGISTRY/charts/app" --version "$version" \
         --destination "$STAGING_DIR/check" >/dev/null 2>&1; then
-    success "app chart $version is already published — nothing to do."
+    success "app chart $version is already published, nothing to do."
     warn "If you CHANGED templates, bump version: in kubernetes/charts/app/Chart.yaml,"
     warn "or this run publishes nothing."
     rm -rf "$STAGING_DIR"
@@ -64,7 +64,7 @@ fi
 
 # outside: `common` (the library chart) is declared as a file://../common dependency and
 # nothing is vendored, so it has to be resolved before `helm package` will run
-# at all. It is then bundled INTO the .tgz as charts/common-<version>.tgz —
+# at all. It is then bundled INTO the .tgz as charts/common-<version>.tgz,
 # which is what lets an app repo keep pulling one unversioned chart and needing
 # no new repository of its own. Local path, so no network.
 helm dependency update "$CHART_DIR"

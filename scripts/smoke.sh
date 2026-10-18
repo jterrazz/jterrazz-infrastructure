@@ -2,7 +2,7 @@
 # invariant: black-box smoke test: does every surface this cluster is supposed to serve
 # actually answer, and are its certificates still valid?
 #
-# The PROBES go in the front door — public hostnames through the Cloudflare
+# The PROBES go in the front door: public hostnames through the Cloudflare
 # tunnel, private hostnames over the tailnet, TLS from the wire. `kubectl get
 # pods` being green has never been the same claim as "the site loads".
 #
@@ -18,7 +18,7 @@
 #   smoke.jterrazz.com/probe     "false" opts the route out
 #
 # The contract is kubernetes/charts/common/templates/_smoke.tpl. A route with no
-# annotation is still probed — GET / expecting 200 — and REPORTED, because an
+# annotation is still probed (GET / expecting 200) and REPORTED, because an
 # unannotated route is an app that has not redeployed onto the current chart,
 # not a surface nobody cares about.
 #
@@ -33,7 +33,7 @@
 # status is 0 only if every check passed.
 #
 # HOW IT SEES THE CLUSTER: `cluster_kubectl` in scripts/lib/common.sh, shared
-# with trigger-app-deploys.sh — CLUSTER_KUBECTL, CLUSTER_SSH_KEY, or a
+# with trigger-app-deploys.sh: CLUSTER_KUBECTL, CLUSTER_SSH_KEY, or a
 # kubeconfig. No new secret either way.
 #
 # --private and the private half of --certs require tailnet membership. On a
@@ -51,7 +51,7 @@ source "$SCRIPT_DIR/lib/common.sh"
 
 # outside: fail a certificate that expires within this many days. Let's Encrypt renews
 # at 30 days remaining via cert-manager, so 15 means "renewal has been failing
-# for two weeks" — an alert, not a routine reminder.
+# for two weeks", an alert, not a routine reminder.
 CERT_MIN_DAYS=15
 
 # invariant: per-request ceiling. Generous: a cold Next.js pod can take a few seconds.
@@ -132,7 +132,7 @@ ingressroutes_json() {
 #
 # Inline rather than a scripts/*.py of its own: it has exactly one caller, and a
 # separate file would need adding to the two python-syntax lists (Makefile and
-# validate.yaml) — one more pair to keep in sync, which is what this whole
+# validate.yaml), one more pair to keep in sync, which is what this whole
 # change is removing.
 # shellcheck disable=SC2016  # this is a Python program, not a shell string
 DISCOVER_PY='
@@ -160,7 +160,7 @@ for item in doc.get("items", []):
             if mw.get("name") in ACCESS:
                 gated = True
     if not hosts:
-        print("!%s matches no Host() — nothing to probe" % origin)
+        print("!%s matches no Host(), nothing to probe" % origin)
         continue
 
     if str(ann.get(A + "probe", "")).lower() == "false":
@@ -194,8 +194,8 @@ for item in doc.get("items", []):
 gv = open(sys.argv[1], encoding="utf-8").read().splitlines()
 configured = set()
 for key in ("private_hostnames", "private_hostnames_via_traefik"):
-    # `key: []` is a list too — the via-Traefik one has been empty since
-    # 2026-09-19 — and it contributes nothing rather than failing the read.
+    # `key: []` is a list too (the via-Traefik one has been empty since
+    # 2026-09-19), and it contributes nothing rather than failing the read.
     if key + ": []" in gv:
         continue
     if key + ":" not in gv:
@@ -214,10 +214,10 @@ for key in ("private_hostnames", "private_hostnames_via_traefik"):
 
 for host in sorted(private_hosts - configured):
     print("!%s is served tailnet-only but is missing from private_hostnames "
-          "(group_vars) — in-cluster lookups fall back to the public CNAME chain" % host)
+          "(group_vars); in-cluster lookups fall back to the public CNAME chain" % host)
 for host in sorted(configured - private_hosts):
     print("!%s is in private_hostnames (group_vars) but no IngressRoute serves "
-          "it — CoreDNS answers for a name nothing routes" % host)
+          "it; CoreDNS answers for a name nothing routes" % host)
 '
 
 section "Discovering surfaces from the cluster"
@@ -269,7 +269,7 @@ if [ ${#fallbacks[@]} -gt 0 ]; then
     warn "${#fallbacks[@]} route(s) carry NO smoke annotation and were probed with the fallback (GET / -> 200):"
     for entry in "${fallbacks[@]}"; do
         IFS='|' read -r _ _ url _ _ _ origin <<<"$entry"
-        warn "  - $origin ($url) — redeploy the app so its chart stamps the contract"
+        warn "  - $origin ($url): redeploy the app so its chart stamps the contract"
     done
 fi
 
@@ -287,10 +287,10 @@ fi
 
 
 # hazard: curl's %{http_code} is 000 when the connection never completed (DNS failure,
-# refused, timeout). That is always a failure — it can never be in an accepted
-# list — but it is worth naming separately in the output, because "000" and
+# refused, timeout). That is always a failure (it can never be in an accepted
+# list), but it is worth naming separately in the output, because "000" and
 # "503" point at completely different things.
-# Prints "<status> <location>" — the Location header is what makes a redirect
+# Prints "<status> <location>": the Location header is what makes a redirect
 # check meaningful. A 301 to the WRONG place is still a 301, so asserting the
 # status alone proves the host answers, not that it sends anyone anywhere useful.
 http_status() {
@@ -341,7 +341,7 @@ run_http_check() {
 }
 
 # invariant: `openssl x509 -checkend` does the date arithmetic itself and exits non-zero
-# when the certificate expires within the window — no date(1) parsing, which
+# when the certificate expires within the window, with no date(1) parsing, which
 # would need two different incantations for BSD and GNU.
 run_cert_check() {
     local host="$1" chain enddate
@@ -356,7 +356,7 @@ run_cert_check() {
     if printf '%s' "$chain" | openssl x509 -noout -checkend $((CERT_MIN_DAYS * 86400)) >/dev/null 2>&1; then
         record_pass "cert $host -> valid past ${CERT_MIN_DAYS}d (notAfter ${enddate:-unknown})"
     else
-        record_fail "cert $host -> expires within ${CERT_MIN_DAYS}d (notAfter ${enddate:-unknown}) — check cert-manager and the DNS-01 solver"
+        record_fail "cert $host -> expires within ${CERT_MIN_DAYS}d (notAfter ${enddate:-unknown}); check cert-manager and the DNS-01 solver"
     fi
 }
 

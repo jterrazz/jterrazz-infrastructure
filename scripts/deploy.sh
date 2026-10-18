@@ -3,8 +3,8 @@
 #
 # Ansible's secrets are pulled live from Infisical by
 # scripts/infisical-vars.py using the universal-auth credentials in
-# `.env`. Nothing sensitive lands on disk beyond the temp extra-vars file —
-# 0600, deleted on exit by the trap below.
+# `.env`. Nothing sensitive lands on disk beyond the temp extra-vars file,
+# 0600 and deleted on exit by the trap below.
 #
 # Usage:
 #   ./scripts/deploy.sh                 # full: create the VM if absent + site.yml
@@ -46,7 +46,7 @@ secrets_file=""
 trap 'rm -f "${secrets_file:-}"' EXIT
 
 # outside: the whole provisioning layer: one OrbStack VM. Idempotent by probe rather
-# than by state file — `orbctl info` is the question "does this VM exist", and
+# than by state file: `orbctl info` is the question "does this VM exist", and
 # it is the only question, because OrbStack can change neither image nor
 # architecture in place. To repave, `--destroy` then run this again.
 vm_up() {
@@ -54,11 +54,11 @@ vm_up() {
     # directory through OrbStack's /mnt/mac share, and if it does not exist
     # before the VM boots the symlink dangles and every hostPath mount fails at
     # the first pod schedule. Its living on the Mac is also what makes the data
-    # survive `make destroy && make deploy` — the VM goes, the directory stays.
+    # survive `make destroy && make deploy`: the VM goes, the directory stays.
     mkdir -p "$VM_DATA_DIR"
 
     if orbctl info "$VM_NAME" >/dev/null 2>&1; then
-        info "OrbStack VM $VM_NAME exists — skipping create"
+        info "OrbStack VM $VM_NAME exists, skipping create"
         return
     fi
 
@@ -73,7 +73,7 @@ vm_up() {
     #
     # NO `--isolated`: isolated machines run in an unprivileged user namespace
     # where the kernel refuses the `noswap` tmpfs kubelet needs for projected
-    # service-account tokens, so k3s never serves — and it is also what turns
+    # service-account tokens, so k3s never serves, and it is also what turns
     # off the /mnt/mac auto-share the data symlink above resolves through.
     orbctl create -a arm64 debian:trixie "$VM_NAME"
 }
@@ -95,7 +95,7 @@ fetch_secrets_file() {
 
 # hazard: without this a fresh machine silently uses whatever collections the local
 # ansible install happens to bundle, which may not satisfy requirements.yml.
-# Idempotent — ansible-galaxy skips collections already at the pinned version.
+# Idempotent: ansible-galaxy skips collections already at the pinned version.
 install_collections() {
     info "Installing Ansible collections (requirements.yml)"
     ansible-galaxy collection install -r "$PROJECT_DIR/ansible/requirements.yml"

@@ -1,5 +1,5 @@
 #!/bin/bash
-# hazard: trigger every app's CI to redeploy — run after a fresh cluster rebuild, when
+# hazard: trigger every app's CI to redeploy; run after a fresh cluster rebuild, when
 # the registry is empty and no app workload exists yet.
 #
 # THE FLEET IS DISCOVERED, NOT LISTED. Every app Deployment carries
@@ -12,7 +12,7 @@
 # missing from it while smoke.sh probed three of its hostnames, so a repave
 # would silently never have brought it back. A Deployment that carries the app
 # chart's labels but NO repository annotation is reported and makes this script
-# exit non-zero — an app that has not redeployed since the annotation landed is
+# exit non-zero: an app that has not redeployed since the annotation landed is
 # a gap, not an absence.
 #
 # THE REPAVE IS THE ONE CASE DISCOVERY CANNOT SERVE: a rebuilt cluster has no
@@ -22,7 +22,7 @@
 #   ./scripts/trigger-app-deploys.sh --dry-run > /tmp/fleet.txt   # before destroy
 #   ./scripts/trigger-app-deploys.sh --from /tmp/fleet.txt        # after deploy
 #
-# That file is a snapshot of a live cluster, not a list somebody maintains — it
+# That file is a snapshot of a live cluster, not a list somebody maintains; it
 # cannot be stale, because it is written minutes before it is used. The repave
 # procedure in docs/guides/operate.md has both steps in order.
 #
@@ -91,7 +91,7 @@ import json, sys
 
 doc = json.load(sys.stdin)
 if not doc.get("items"):
-    sys.exit("no app-chart Deployments in the cluster — is this the right cluster?")
+    sys.exit("no app-chart Deployments in the cluster; is this the right cluster?")
 
 repos, missing = {}, []
 for item in doc["items"]:
@@ -129,7 +129,7 @@ else
         error "could not read Deployments from the cluster:"
         printf '%s\n' "$deployments" >&2
         cluster_access_hint
-        error "On a freshly repaved cluster there are no app Deployments at all — replay the pre-repave snapshot with --from instead."
+        error "On a freshly repaved cluster there are no app Deployments at all; replay the pre-repave snapshot with --from instead."
         exit 1
     fi
 

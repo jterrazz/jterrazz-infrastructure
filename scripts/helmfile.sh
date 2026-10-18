@@ -10,7 +10,7 @@
 #
 # `make deploy-platform` is what APPLIES; this is the pre-flight for it. That
 # play runs `helmfile apply`, so a bumped chart version or an edited values.yaml
-# lands the moment it runs — this shows what would change first. Nothing here
+# lands the moment it runs; this shows what would change first. Nothing here
 # writes to the cluster unless you pass a subcommand that does.
 #
 # Needs the tailnet: kubeconfig.yaml points at the node's MagicDNS name.
@@ -29,7 +29,7 @@ GROUP_VARS="$PROJECT_DIR/ansible/inventories/group_vars/all.yml"
 HELMFILE="$PROJECT_DIR/kubernetes/helmfile.yaml.gotmpl"
 
 # invariant: both versions come from group_vars, which is where the node's install reads
-# them too — one pin, two machines.
+# them too: one pin, two machines.
 group_var() {
     awk -v key="$1:" '$1 == key { gsub(/"/, "", $2); print $2; exit }' "$GROUP_VARS"
 }
@@ -37,7 +37,7 @@ group_var() {
 : "${KUBECONFIG:=$PROJECT_DIR/kubeconfig.yaml}"
 export KUBECONFIG
 
-# outside: the hostPath PV's nodeAffinity target — the one value the helmfile takes from
+# outside: the hostPath PV's nodeAffinity target, the one value the helmfile takes from
 # its caller rather than a values file. Ansible passes inventory_hostname.
 export NODE_NAME="${NODE_NAME:-jterrazz-infrastructure}"
 
@@ -71,7 +71,7 @@ require_helmfile() {
     exit 1
 }
 
-# outside: helmfile apply/diff IS helm-diff — without the plugin there is no preview and
+# outside: helmfile apply/diff IS helm-diff: without the plugin there is no preview and
 # no deploy.
 require_helm_diff() {
     local want
@@ -79,7 +79,7 @@ require_helm_diff() {
     if helm plugin list 2>/dev/null | awk '{print $1}' | grep -qx diff; then
         return
     fi
-    info "helm-diff plugin missing — installing $want"
+    info "helm-diff plugin missing, installing $want"
     helm_plugin_install https://github.com/databus23/helm-diff "$want"
 }
 

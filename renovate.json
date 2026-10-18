@@ -2,8 +2,8 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": [
     "Boring, weekly-only Renovate config for this repo.",
-    "Watches: GitHub Actions versions in .github/workflows/, and the Helm chart pins in kubernetes/helmfile.yaml.gotmpl (native helmfile manager — it reads the repositories and releases, OCI included).",
-    "Automerge is disabled everywhere — every update lands as a PR for manual review."
+    "Watches: GitHub Actions versions in .github/workflows/, and the Helm chart pins in kubernetes/helmfile.yaml.gotmpl (native helmfile manager; it reads the repositories and releases, OCI included).",
+    "Automerge is disabled everywhere: every update lands as a PR for manual review."
   ],
   "extends": ["config:recommended", "schedule:weekly"],
   "automerge": false,

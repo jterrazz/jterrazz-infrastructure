@@ -19,7 +19,7 @@ DESIGN NOTES
 ------------
 * Stdlib only, on purpose. It has to run on a bare `ubuntu-latest` runner in
   the `scripts` job, which installs nothing (that job is deliberately the fast
-  one) — so no PyYAML, no ruamel. The YAML this reads is a handful of flat
+  one), so no PyYAML, no ruamel. The YAML this reads is a handful of flat
   block lists and scalars, which a ~30-line parser handles exactly; anything
   more exotic than that in those files should fail loudly here rather than be
   silently half-parsed. Hence `block_scalar` raises on a missing key rather
@@ -94,8 +94,8 @@ def block_scalar(text, key, source):
     match = re.search(rf"^{re.escape(key)}\s*:\s*(\S.*)$", text, re.MULTILINE)
     if not match:
         raise SyncError(
-            f"{source}: no top-level `{key}:` scalar. It was renamed or moved "
-            f"— update scripts/assert-sync.py alongside it."
+            f"{source}: no top-level `{key}:` scalar. It was renamed or moved: "
+            f"update scripts/assert-sync.py alongside it."
         )
     return _unquote(_strip_comment(match.group(1)))
 
@@ -110,7 +110,7 @@ def ansible_commands(text):
 
     Handles the three shapes this role uses: an inline `command: helm ...`, a
     folded `command: >` block, and the `argv:` list form (used where a secret
-    must never touch a shell). Everything else is ignored — the caller only
+    must never touch a shell). Everything else is ignored: the caller only
     looks for the `helm pull`/`helm push` of the app chart in the result.
     """
     lines = _collapse_jinja(text).splitlines()
@@ -171,7 +171,7 @@ def check_secret_keys():
     imports platform.yml, and .github/workflows/deploy-platform.yaml runs
     platform.yml alone. The site-only extras (the Tailscale OAuth pair) are
     consumed by roles/tailscale, never by the platform role, so asserting them
-    here would break every CI platform deploy — which is exactly why the scope
+    here would break every CI platform deploy, which is exactly why the scope
     is read out of SCOPES rather than hardcoded.
     """
     problems = []
@@ -190,7 +190,7 @@ def check_secret_keys():
                 if not isinstance(node.value, ast.Dict):
                     raise SyncError(
                         f"{INFISICAL_VARS}: {target.id} is no longer a dict "
-                        f"literal — update scripts/assert-sync.py."
+                        f"literal; update scripts/assert-sync.py."
                     )
                 keys = set()
                 for key in node.value.keys:
@@ -217,7 +217,7 @@ def check_secret_keys():
     if not maps or scopes_node is None:
         raise SyncError(
             f"{INFISICAL_VARS}: no `*_VARS` dict literal and/or no `SCOPES` "
-            f"map found. The secret map was renamed or restructured — update "
+            f"map found. The secret map was renamed or restructured; update "
             f"scripts/assert-sync.py."
         )
     if not isinstance(scopes_node, ast.Dict):
@@ -266,7 +266,7 @@ def check_secret_keys():
     match = re.search(r"^\s*that:\s*$", preflight, re.MULTILINE)
     if not match:
         raise SyncError(
-            f"{PREFLIGHT}: no `that:` block found — the assert task was "
+            f"{PREFLIGHT}: no `that:` block found; the assert task was "
             f"restructured; update scripts/assert-sync.py."
         )
     asserted = set()
@@ -311,7 +311,7 @@ def check_secret_keys():
 def check_traefik_trusted_ips():
     """Entrypoint forwardedHeaders.trustedIPs vs rate-limit excludedIPs.
 
-    Both lists answer the same question — "which addresses are OUR hops" —
+    Both lists answer the same question ("which addresses are OUR hops")
     for two different Traefik features. trustedIPs decides whether Traefik
     KEEPS the X-Forwarded-For header at all; excludedIPs decides which XFF
     element the rate limiter keys on. A range in one and not the other means
@@ -332,8 +332,8 @@ def check_traefik_trusted_ips():
         raise SyncError(
             f"{TRAEFIK_CONFIG}: no "
             f"`--entryPoints.<name>.forwardedHeaders.trustedIPs=` argument. It "
-            f"moved out of additionalArguments (or the entrypoint was renamed) "
-            f"— update scripts/assert-sync.py."
+            f"moved out of additionalArguments (or the entrypoint was renamed): "
+            f"update scripts/assert-sync.py."
         )
     trusted = {cidr.strip() for cidr in match.group(1).split(",") if cidr.strip()}
 
@@ -346,7 +346,7 @@ def check_traefik_trusted_ips():
     if len(rate_limit_docs) != 1:
         raise SyncError(
             f"{MIDDLEWARE}: expected exactly one `name: rate-limit` document, "
-            f"found {len(rate_limit_docs)} — update scripts/assert-sync.py."
+            f"found {len(rate_limit_docs)}; update scripts/assert-sync.py."
         )
     doc = rate_limit_docs[0]
     start = re.search(r"^(\s*)excludedIPs:\s*$", doc, re.MULTILINE)
@@ -354,7 +354,7 @@ def check_traefik_trusted_ips():
         raise SyncError(
             f"{MIDDLEWARE}: the rate-limit middleware has no "
             f"`sourceCriterion.ipStrategy.excludedIPs:` list. If it switched to "
-            f"`depth:`, that is a deliberate behaviour change — read the "
+            f"`depth:`, that is a deliberate behaviour change: read the "
             f"comment in {MIDDLEWARE} and update scripts/assert-sync.py."
         )
     indent = len(start.group(1))
@@ -376,8 +376,8 @@ def check_traefik_trusted_ips():
             f"in forwardedHeaders.trustedIPs ({TRAEFIK_CONFIG}) but NOT in the "
             f"rate-limit excludedIPs ({MIDDLEWARE}): {', '.join(only_trusted)}.\n"
             f"        FIX: add them to `excludedIPs`. Traefik trusts XFF from "
-            f"these peers, so the limiter can end up keying on one of OUR hops "
-            f"— every request through it shares a single bucket."
+            f"these peers, so the limiter can end up keying on one of OUR hops, "
+            f"and every request through it shares a single bucket."
         )
     if only_excluded:
         problems.append(
@@ -446,7 +446,7 @@ def check_helmfile_version():
     release; the node APPLIES it and the `kubernetes` job of validate.yaml
     RENDERS it. helmfile 1.x already changed when a state file is templated at
     all, so a runner on a different minor can render a file the node would
-    refuse — or, worse, render a different one and pass.
+    refuse or, worse, render a different one and pass.
     """
     problems = []
     wanted = block_scalar(read(GROUP_VARS), "helmfile_version", GROUP_VARS)
@@ -454,7 +454,7 @@ def check_helmfile_version():
     match = re.search(r"HELMFILE_VERSION=(\S+)", validate)
     if not match:
         raise SyncError(
-            f"{VALIDATE_WF}: no `HELMFILE_VERSION=` assignment — the install "
+            f"{VALIDATE_WF}: no `HELMFILE_VERSION=` assignment; the install "
             f"step was rewritten; update scripts/assert-sync.py."
         )
     if match.group(1) != wanted:
@@ -472,7 +472,7 @@ def check_ansible_core_version():
 
     validate.yaml lints and syntax-checks the playbooks; deploy-platform.yaml
     APPLIES them. If those two interpreters differ, a green lint proves nothing
-    about the run — and ansible-core minors do change module and templating
+    about the run, and ansible-core minors do change module and templating
     behaviour.
     """
     problems = []
@@ -482,7 +482,7 @@ def check_ansible_core_version():
         if not found:
             raise SyncError(
                 f"{relpath}: no `ansible-core==<version>` pin found. An "
-                f"unpinned install resolves to whatever is latest that day — "
+                f"unpinned install resolves to whatever is latest that day; "
                 f"restore the pin or drop this check."
             )
         if len(found) > 1:
@@ -516,7 +516,7 @@ def check_helm_unittest_version():
     ci = re.search(r"HELM_UNITTEST_VERSION=(\S+)", validate)
     if not ci:
         raise SyncError(
-            f"{VALIDATE_WF}: no `HELM_UNITTEST_VERSION=` assignment — the "
+            f"{VALIDATE_WF}: no `HELM_UNITTEST_VERSION=` assignment; the "
             f"install step was rewritten; update scripts/assert-sync.py."
         )
     # Bounded character class, not \S+: in the Makefile the version sits inside
@@ -596,9 +596,9 @@ def check_busybox_digest():
 def check_chart_publish_guard():
     """The two app-chart publish paths agree on the registry.
 
-    The chart is pulled UNVERSIONED by every app, so both publishers — the
+    The chart is pulled UNVERSIONED by every app, so both publishers (the
     script the workflow runs, and the Ansible task that covers the
-    fresh-cluster case where the node has no checkout — must guard the same
+    fresh-cluster case where the node has no checkout) must guard the same
     coordinates. The node cannot call the script (stage-manifests.yml copies
     only kubernetes/ to it), so the duplication is real; this is what keeps it
     honest.
@@ -617,7 +617,7 @@ def check_chart_publish_guard():
     registry = re.search(r"^REGISTRY=(\S+)$", script, re.MULTILINE)
     if not registry:
         raise SyncError(
-            f"{PUBLISH_SCRIPT}: no `REGISTRY=<host>` assignment — the script "
+            f"{PUBLISH_SCRIPT}: no `REGISTRY=<host>` assignment; the script "
             f"was restructured; update scripts/assert-sync.py."
         )
     want_pull = f"oci://{registry.group(1)}/charts/app"
@@ -637,7 +637,7 @@ def check_chart_publish_guard():
             f"{ANSIBLE_PUBLISH}: expected exactly one `helm pull` and one "
             f"`helm push`, found {len(pulls)} and {len(pushes)}."
         )
-    # `.strip` because the inline `command: "helm push ... oci://…"` form keeps
+    # `.strip` because the inline `command: "helm push ... oci://..."` form keeps
     # its closing quote in the flattened token.
     def _oci(command):
         for token in command.split():
@@ -678,7 +678,7 @@ def check_common_chart_version():
     `common` is a LIBRARY chart pulled through a relative `file://../common`
     repository, and helm resolves a file:// dependency by EXACT version. Bump
     the library without bumping the two `dependencies:` entries and
-    `helm dependency update` fails — on a runner mid-validate, or worse, on the
+    `helm dependency update` fails, on a runner mid-validate, or worse, on the
     node mid-deploy. Nothing else in the tree ties the three numbers together.
     """
     problems = []
@@ -695,7 +695,7 @@ def check_common_chart_version():
             raise SyncError(
                 f"{consumer}: no `- name: common` dependency with a `version:` "
                 f"on the next line. assert-sync.py's parser is deliberately "
-                f"narrow — keep the entry in that shape, or extend it here."
+                f"narrow; keep the entry in that shape, or extend it here."
             )
         got = _unquote(_strip_comment(match.group("version")))
         if got != library:
@@ -733,7 +733,7 @@ def main():
         try:
             problems = check()
         except SyncError as exc:
-            problems = [f"CANNOT CHECK — {exc}"]
+            problems = [f"CANNOT CHECK: {exc}"]
         if problems:
             failed += 1
             print(f"FAIL  {title}")
@@ -747,7 +747,7 @@ def main():
         print(
             f"\n{failed} of {len(CHECKS)} sync assertions failed. Each pair "
             f"above is one fact written in two files on purpose (two different "
-            f"consumers); the comment saying 'keep in sync' is not a check — "
+            f"consumers); the comment saying 'keep in sync' is not a check; "
             f"this script is.",
             file=sys.stderr,
         )

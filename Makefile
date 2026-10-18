@@ -37,7 +37,7 @@ redeploy-apps: ## Trigger every app's CI to rebuild+redeploy (bootstrap after cl
 # kubeconfig.yml); this is the same two steps on their own, for the far more
 # common case of "the file is stale/gone and I only want to look at the
 # cluster". k3s writes a loopback server address, which is useless from the
-# Mac — the rewrite to the MagicDNS name is what makes the fetched file usable.
+# Mac; the rewrite to the MagicDNS name is what makes the fetched file usable.
 kubeconfig: ## Regenerate ./kubeconfig.yaml from the VM (server = MagicDNS name)
 	@test -n "$(NODE_FQDN)" || { echo "✗ no ansible_host in ansible/inventories/ci.yml"; exit 1; }
 	@orb -m $(VM_NAME) -u root cat /etc/rancher/k3s/k3s.yaml > $(KUBECONFIG_FILE).tmp \
@@ -47,8 +47,8 @@ kubeconfig: ## Regenerate ./kubeconfig.yaml from the VM (server = MagicDNS name)
 	@rm -f $(KUBECONFIG_FILE).tmp
 	@chmod 600 $(KUBECONFIG_FILE)
 	@grep -q 'server: https://$(NODE_FQDN):6443' $(KUBECONFIG_FILE) \
-		|| { echo "✗ server address not rewritten — k3s wrote something other than 127.0.0.1/0.0.0.0"; exit 1; }
-	@echo "✓ $(KUBECONFIG_FILE) → https://$(NODE_FQDN):6443 (needs the tailnet)"
+		|| { echo "✗ server address not rewritten: k3s wrote something other than 127.0.0.1/0.0.0.0"; exit 1; }
+	@echo "✓ $(KUBECONFIG_FILE) points at https://$(NODE_FQDN):6443 (needs the tailnet)"
 
 # outside: read-only preview against the LIVE cluster, meant to be run BEFORE
 # `make deploy-platform`: that play runs `helmfile apply` over
@@ -65,16 +65,16 @@ backup: ## Encrypted snapshot of every persistent volume (ARGS=--consistent for 
 
 # invariant: black-box probe of the deployed surfaces. `--public` needs nothing;
 # `--private` and the private half of `--certs` need this machine to be on the
-# tailnet, so they are left out of the default target here — CI
+# tailnet, so they are left out of the default target here; CI
 # (.github/workflows/smoke.yaml) runs the full set from a runner that joins it.
 # The check list is DISCOVERED from the cluster's IngressRoutes (their
-# smoke.jterrazz.com/* annotations), so this needs a kubeconfig — ./kubeconfig.yaml
-# by default, `make kubeconfig` to refresh it. `--list` prints what it found
+# smoke.jterrazz.com/* annotations), so this needs a kubeconfig (./kubeconfig.yaml
+# by default, `make kubeconfig` to refresh it). `--list` prints what it found
 # without probing anything.
 smoke: ## Probe the public surfaces + their TLS expiry (ARGS=--private on the tailnet)
 	./scripts/smoke.sh --public --certs $(ARGS)
 
-# invariant: the deploy tools first, then the four `make check` hard-fails on — a green
+# invariant: the deploy tools first, then the four `make check` hard-fails on: a green
 # check-tools that omits them just moves the failure to the next target.
 check-tools: ## Check required tools
 	@command -v ansible     >/dev/null 2>&1 && echo "✓ Ansible"      || echo "✗ Ansible"
@@ -91,7 +91,7 @@ check-tools: ## Check required tools
 # print all green on a machine where it checked nothing. Install them with:
 #   brew install shellcheck helm actionlint
 #   pip install ansible-core ansible-lint
-# actionlint and helm-unittest are the two soft skips — CI re-runs both
+# actionlint and helm-unittest are the two soft skips: CI re-runs both
 # unconditionally, so a laptop without them is not a gap in the gate.
 check: ## Run the checks CI runs (shellcheck, python, sync assertions, ansible-lint, helm lint + unittest, actionlint, content check)
 	@echo "== shellcheck scripts/ =="
@@ -120,7 +120,7 @@ check: ## Run the checks CI runs (shellcheck, python, sync assertions, ansible-l
 	@echo "✓ ansible-lint clean"
 	@echo ""
 	@echo "== helm lint (common, app, platform-service) =="
-	@# `common` is a LIBRARY chart: no values, no fixture, renders nothing — so
+	@# `common` is a LIBRARY chart: no values, no fixture, renders nothing, so
 	@# it is linted on its own. Its two consumers resolve it through a relative
 	@# file:// repository and nothing is vendored, so `helm dependency update`
 	@# has to run before helm will render either of them at all. It needs no
@@ -129,7 +129,7 @@ check: ## Run the checks CI runs (shellcheck, python, sync assertions, ansible-l
 	@for chart in app platform-service; do \
 		fixture="kubernetes/charts/$$chart/ci/test-values.yaml"; \
 		if [ ! -f "$$fixture" ]; then \
-			echo "✗ $$fixture missing — the fixture IS the validation contract for this chart"; \
+			echo "✗ $$fixture missing: the fixture IS the validation contract for this chart"; \
 			exit 1; \
 		fi; \
 		helm dependency update "kubernetes/charts/$$chart" >/dev/null || exit 1; \
@@ -146,7 +146,7 @@ check: ## Run the checks CI runs (shellcheck, python, sync assertions, ansible-l
 	@if helm plugin list 2>/dev/null | awk '{print $$1}' | grep -qx unittest; then \
 		helm unittest --strict kubernetes/charts/app kubernetes/charts/platform-service || exit 1; \
 	else \
-		echo "⚠ helm-unittest not installed — skipped. Install with:"; \
+		echo "⚠ helm-unittest not installed, skipped. Install with:"; \
 		echo "    helm plugin install https://github.com/helm-unittest/helm-unittest --version v1.1.2"; \
 		echo "    (add --verify=false on helm 4; the plugin ships no signature)"; \
 	fi
@@ -155,7 +155,7 @@ check: ## Run the checks CI runs (shellcheck, python, sync assertions, ansible-l
 	@if command -v actionlint >/dev/null 2>&1; then \
 		actionlint && echo "✓ actionlint clean"; \
 	else \
-		echo "⚠ actionlint not installed (brew install actionlint) — skipped"; \
+		echo "⚠ actionlint not installed (brew install actionlint), skipped"; \
 	fi
 	@echo ""
 	@echo "== content check =="
@@ -165,7 +165,7 @@ check: ## Run the checks CI runs (shellcheck, python, sync assertions, ansible-l
 	@if command -v npx >/dev/null 2>&1; then \
 		$(MAKE) --no-print-directory docs; \
 	else \
-		echo "⚠ npx not installed (node) — skipped"; \
+		echo "⚠ npx not installed (node), skipped"; \
 	fi
 
 # outside: this repository declares itself content (jterrazz.config.ts) and has no
@@ -178,7 +178,7 @@ check: ## Run the checks CI runs (shellcheck, python, sync assertions, ansible-l
 #
 # hazard: `--package` + the bin name, never the short
 # `npx @jterrazz/typescript@11.0.0` form: it makes npm infer the command from
-# the package name, and the name it infers — `typescript` — is also the name of
+# the package name, and the name it infers, `typescript`, is also the name of
 # one of the package's own dependencies; resolving it against the ephemeral tree
 # died on the GitHub runner with `Cannot read properties of null (reading
 # 'edgesOut')` while passing on a laptop. Naming both halves leaves npm nothing

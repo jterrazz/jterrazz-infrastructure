@@ -4,7 +4,7 @@
 #
 # WHY ENCRYPTED AT ALL: the volumes live on the Mac at
 # ~/.jterrazz-infrastructure/data, world-readable, and a `chmod 750` on that
-# tree is NOT the fix — the pods write as uids 70/101/472/999/1000 through
+# tree is NOT the fix: the pods write as uids 70/101/472/999/1000 through
 # virtiofs and lose traversal the moment "other" is dropped. Encryption moves
 # the control to where copies of this data actually travel: Time Machine, an
 # external disk, another machine.
@@ -44,7 +44,7 @@ require_key() {
         fi
     fi
     # outside: still nothing: pull it from Infisical directly. Deliberately NOT routed
-    # through infisical-vars.py — that writes the deploy extra-vars file onto
+    # through infisical-vars.py, which writes the deploy extra-vars file onto
     # the node, and this key has no business there.
     if [ -z "${BACKUP_ENCRYPTION_KEY:-}" ] && [ -n "${INFISICAL_CLIENT_ID:-}" ] \
         && [ -n "${INFISICAL_CLIENT_SECRET:-}" ]; then
@@ -85,7 +85,7 @@ verify() {
     if ! count=$(openssl enc -d -aes-256-cbc -pbkdf2 -iter "$ITER" \
                      -pass env:BACKUP_ENCRYPTION_KEY -in "$archive" \
                  | tar -tzf - | wc -l | tr -d ' '); then
-        error "Archive did not decrypt — wrong BACKUP_ENCRYPTION_KEY or corrupt file"
+        error "Archive did not decrypt: wrong BACKUP_ENCRYPTION_KEY or corrupt file"
         return 1
     fi
     if [ "$count" -lt 1 ]; then
@@ -115,7 +115,7 @@ main() {
     archive="$OUT_DIR/k8s-data-$stamp.tar.gz.enc"
 
     if [ "$consistent" -eq 1 ]; then
-        # outside: `systemctl stop k3s` does NOT stop the containers — they keep writing
+        # outside: `systemctl stop k3s` does NOT stop the containers: they keep writing
         # through the whole tar and the databases land torn. killall is the
         # only thing that actually stops them.
         section "Stopping workloads"
@@ -140,7 +140,7 @@ main() {
     if [ "$consistent" -eq 1 ]; then
         section "Restarting the cluster"
         orb -m "$MACHINE" -u root systemctl start k3s
-        success "k3s restarted — cert-manager may need the restart from docs/guides/operate.md"
+        success "k3s restarted; cert-manager may need the restart from docs/guides/operate.md"
     fi
 
     section "Restore"
@@ -148,7 +148,7 @@ main() {
   openssl enc -d -aes-256-cbc -pbkdf2 -iter $ITER \\
       -pass env:BACKUP_ENCRYPTION_KEY -in <archive> | tar -xzf - -C <target>
 
-  The passphrase is the only thing needed — on this Mac or any future one.
+  The passphrase is the only thing needed, on this Mac or any future one.
 EOF
 }
 

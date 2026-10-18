@@ -11,7 +11,7 @@ Thumbs.db
 kubeconfig.yaml
 
 # Helm dependency resolution. `common` is a LIBRARY CHART in this same tree,
-# pulled by a relative file:// repository — so `helm dependency update`
+# pulled by a relative file:// repository, so `helm dependency update`
 # regenerates both of these from source in a second, with no network. Vendoring
 # them would mean a second copy of the library that can silently go stale.
 kubernetes/charts/*/charts/

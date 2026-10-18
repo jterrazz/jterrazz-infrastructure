@@ -21,7 +21,7 @@ section() { echo -e "\n${GREEN}▶ $1${NC}"; }
 #   CLUSTER_KUBECTL   a full kubectl command to use instead. From the dev Mac
 #                     when Tailscale is down:
 #                       CLUSTER_KUBECTL="orb -m jterrazz-infrastructure -u root kubectl"
-#   CLUSTER_SSH_KEY   path to the CI deploy key — runs kubectl on the node over
+#   CLUSTER_SSH_KEY   path to the CI deploy key; runs kubectl on the node over
 #                     SSH. What .github/workflows/smoke.yaml uses: the keypair
 #                     deploy-platform.yaml already has, and no KUBECONFIG_BASE64
 #                     to refresh after a repave.
@@ -29,7 +29,7 @@ section() { echo -e "\n${GREEN}▶ $1${NC}"; }
 #                     (`make kubeconfig`). Needs the tailnet.
 #
 # The node's MagicDNS name comes out of the CI inventory rather than being
-# written down again — the same source the Makefile reads.
+# written down again, the same source the Makefile reads.
 cluster_kubectl() {
     local repo_dir node
     repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

@@ -2,19 +2,19 @@
 """Fetch the Ansible-bound secrets from Infisical into an extra-vars YAML file.
 
 THE single implementation, shared by scripts/deploy.sh (laptop) and
-.github/workflows/deploy-platform.yaml (CI) — do not fork it back into either.
+.github/workflows/deploy-platform.yaml (CI); do not fork it back into either.
 
 Usage:
     infisical-vars.py <site|platform> <output-path>
 
-    site      — everything site.yml needs, including the Tailscale OAuth
+    site:     everything site.yml needs, including the Tailscale OAuth
                 credentials the tailscale role logs in with.
-    platform  — everything platform.yml needs. No Tailscale OAuth: the
+    platform: everything platform.yml needs. No Tailscale OAuth: the
                 platform play only reads Tailscale *facts* off an
                 already-joined node (roles/tailscale/tasks/facts.yml).
 
 Environment:
-    INFISICAL_CLIENT_ID, INFISICAL_CLIENT_SECRET — universal-auth machine
+    INFISICAL_CLIENT_ID, INFISICAL_CLIENT_SECRET: universal-auth machine
     identity. These are ALSO written into the output file: the Infisical
     operator running in-cluster needs them, and they can't come from
     Infisical itself (chicken-and-egg).
@@ -51,7 +51,7 @@ COMMON_VARS = {
     # The registry ACCOUNT, both halves. The name is fetched rather than
     # hardcoded because a password rotation overlaps two accounts
     # (`deploy` / `deploy-next`) and the htpasswd line Ansible generates has to
-    # follow the one CI and the kubelet authenticate with — see § Rotating the
+    # follow the one CI and the kubelet authenticate with; see § Rotating the
     # registry password in docs/guides/operate.md.
     "registry_username": (ROOT_PATH, "DOCKER_REGISTRY_USERNAME"),
     "registry_password": (ROOT_PATH, "DOCKER_REGISTRY_PASSWORD"),
@@ -77,7 +77,7 @@ def die(message):
 
 
 # eu.infisical.com sits behind Cloudflare, whose bot protection 403s the
-# default "Python-urllib/3.x" User-Agent while letting curl through — every
+# default "Python-urllib/3.x" User-Agent while letting curl through, so every
 # request must carry an explicit UA or login fails with a misleading 403.
 USER_AGENT = "jterrazz-infrastructure-deploy/1.0"
 

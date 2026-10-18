@@ -4,7 +4,7 @@
 #   helm_plugin_install https://github.com/databus23/helm-diff v3.15.13
 #
 # Sourced by scripts/helmfile.sh and by the `kubernetes` job of
-# .github/workflows/validate.yaml — the two places that install a plugin.
+# .github/workflows/validate.yaml, the two places that install a plugin.
 
 # outside: Helm 4 verifies plugin signatures by default and neither plugin this repo
 # uses publishes one; Helm 3 has no --verify flag at all. Pass it only where it
