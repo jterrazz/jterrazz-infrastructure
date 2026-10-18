@@ -1,11 +1,11 @@
 # Every platform Helm release, declared once: name, namespace, chart, pinned
 # version and values file. Nothing else in this repo lists releases or chart
-# versions — not Ansible, not a preview script, not Renovate.
+# versions: not Ansible, not a preview script, not Renovate.
 #
 # Applied ON THE NODE by ansible/roles/platform (which stages this whole
 # kubernetes/ tree to /tmp/k8s-manifests), and read-only from the Mac by
 # `make diff`. Every path below is relative to THIS file, which is why it lives
-# in kubernetes/ rather than at the repo root — the node only ever receives
+# in kubernetes/ rather than at the repo root: the node only ever receives
 # this subtree.
 #
 # ADDING A SERVICE: one release block here, one values file beside it, a
@@ -13,7 +13,7 @@
 # docs/RUNBOOK.md#add-a-new-platform-service.
 #
 # THE RELEASE NAME AND NAMESPACE ARE THE IDENTITY OF LIVE DATA. Renaming either
-# creates a NEW release and orphans the hostPath PV the old one bound — see
+# creates a NEW release and orphans the hostPath PV the old one bound; see
 # "Immutable fields" in CLAUDE.md.
 
 repositories:
@@ -22,14 +22,14 @@ repositories:
   - name: infisical
     url: https://dl.cloudsmith.io/public/infisical/helm-charts/helm/charts/
   # Grafana's OSS charts live here, renumbered; sole consumer is `grafana`. The
-  # OLD `grafana` repo is deliberately absent — nothing pulls from it.
+  # OLD `grafana` repo is deliberately absent; nothing pulls from it.
   - name: grafana-community
     url: https://grafana-community.github.io/helm-charts
-  # The whole VictoriaMetrics family — victoria-metrics-single,
+  # The whole VictoriaMetrics family: victoria-metrics-single,
   # victoria-logs-single, victoria-traces-single.
   - name: vm
     url: https://victoriametrics.github.io/helm-charts/
-  # kube-state-metrics and prometheus-node-exporter, each its own release —
+  # kube-state-metrics and prometheus-node-exporter, each its own release,
   # both dashboards depend on the series they produce.
   - name: prometheus-community
     url: https://prometheus-community.github.io/helm-charts
@@ -44,12 +44,12 @@ helmDefaults:
   # would create an unlabelled one first and win the race.
   createNamespace: false
 
-# `inherit:` rather than a YAML anchor — helmfile 1.x dropped anchor support in
+# `inherit:` rather than a YAML anchor: helmfile 1.x dropped anchor support in
 # the state file.
 templates:
   # The `<name>-platform` releases: Certificate + IngressRoute + hostPath
   # PV/PVCs for a service, from one values file. Always installed BEFORE the
-  # upstream chart that mounts the volume — `helm --wait` otherwise blocks on a
+  # upstream chart that mounts the volume; `helm --wait` otherwise blocks on a
   # pod that cannot schedule for want of a PVC.
   #
   # THE `-platform` SUFFIX IS FROZEN: the chart is `platform-service`, but a
@@ -142,7 +142,7 @@ releases:
     values:
       - services/victoria-logs/values.yaml
 
-  # PRE-1.0, KNOWINGLY — see the boxed note in victoria-traces/values.yaml. Do
+  # PRE-1.0, KNOWINGLY; see the boxed note in victoria-traces/values.yaml. Do
   # NOT extend that tolerance to the two 1.x pins above.
   - name: victoria-traces
     namespace: platform-telemetry
@@ -170,7 +170,7 @@ releases:
       - services/node-exporter/values.yaml
 
   # The collector's Langfuse credentials and its OTLP-ingest NetworkPolicy. No
-  # host, no storage — a `-platform` release can be just the things that must
+  # host, no storage: a `-platform` release can be just the things that must
   # exist BEFORE the workload does.
   - name: otel-collector-platform
     namespace: platform-telemetry
@@ -210,7 +210,7 @@ releases:
 
   # --- networking -----------------------------------------------------------
   # cloudflared's tunnel token. The Deployment itself stays a raw manifest
-  # (`hostNetwork: true`, applied by roles/platform/tasks/raw-manifests.yml) —
+  # (`hostNetwork: true`, applied by roles/platform/tasks/raw-manifests.yml);
   # it is the one workload the app chart deliberately does not own.
   - name: cloudflared-platform
     namespace: platform-networking
@@ -222,7 +222,7 @@ releases:
   # --- OpenPanel ------------------------------------------------------------
   # No upstream chart: six app-chart releases, one values file each, plus the
   # shared non-secret env in services/openpanel/config.yaml (which the three
-  # APPLICATION releases load first — helm merges the two files).
+  # APPLICATION releases load first; helm merges the two files).
   #
   # This release is their storage and the two certificates their routes name:
   # op-api and op-dashboard both answer on openpanel.internal.jterrazz.com, so
@@ -235,7 +235,7 @@ releases:
       - services/openpanel/service.yaml
 
   # The three datastores. Each mounts a claim openpanel-platform owns and is
-  # `isolated:` — reachable only from this namespace, dialling nothing but DNS.
+  # `isolated:`, reachable only from this namespace, dialling nothing but DNS.
   - name: op-postgres
     namespace: platform-analytics
     chart: ./charts/app
@@ -260,7 +260,7 @@ releases:
     values:
       - services/openpanel/op-clickhouse.yaml
 
-  # op-api owns the schema — it runs `migrate:deploy` on boot — so it installs
+  # op-api owns the schema (it runs `migrate:deploy` on boot), so it installs
   # after the datastores and before the two releases that read what it wrote.
   # 10m rather than the 5m default: a first-boot migration is the slow case,
   # and its startupProbe alone allows 300s.
@@ -305,7 +305,7 @@ releases:
       - services/registry/service.yaml
 
   # Every app image and the app chart itself live here, so this release is on
-  # the critical path of every deploy — including publish-app-chart.yml, which
+  # the critical path of every deploy, including publish-app-chart.yml, which
   # runs after this pass and pushes to it.
   - name: registry
     namespace: platform-registry

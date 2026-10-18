@@ -1,9 +1,9 @@
-# outside: app-chart values for op-postgres — orgs, projects, dashboards, users.
+# outside: app-chart values for op-postgres: orgs, projects, dashboards, users.
 #
 # 17-alpine, ABOVE OpenPanel's own pin. OpenPanel pins `postgres:14-alpine` in
 # its self-hosting compose and documents no other version; the only support
-# statement reaching higher is Prisma 6's supported-databases list (PG 9.6-18)
-# — the ORM, not the application. 14 goes EOL on 2026-11-12, which is why the
+# statement reaching higher is Prisma 6's supported-databases list (PG 9.6-18),
+# the ORM, not the application. 14 goes EOL on 2026-11-12, which is why the
 # accept-the-risk migration in docs/guides/operate.md was run on 2026-09-19
 # (pg_dumpall with a 17 client, restore into a fresh 17 cluster; the PG 14
 # directory stays beside it as `pgdata-pg14-<date>`, the rollback). 17 rather
@@ -21,7 +21,7 @@ spec:
   # DATABASE_URL in Infisical, so the Service answers on 5432, not on 80.
   servicePort: 5432
 
-  # outside: uid/gid 70 is the ALPINE image's `postgres` user — the Debian-based
+  # outside: uid/gid 70 is the ALPINE image's `postgres` user; the Debian-based
   # postgres images use 999. The same uid `storage.owner` chowns to: pinning it
   # is what stops the entrypoint chowning PGDATA and su-exec-ing down itself.
   securityContext:

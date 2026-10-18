@@ -1,10 +1,10 @@
-# hazard: app-chart values for op-api — the ingest + tRPC API, and the OWNER OF THE
+# hazard: app-chart values for op-api, the ingest + tRPC API, and the OWNER OF THE
 # DATABASE SCHEMA: it runs `migrate:deploy` before `pnpm start`, so it must
 # reach Ready before op-worker and op-dashboard are useful. Shares
 # config.yaml's env and secrets; both routes it answers on are here.
 #
 # ALLOW_REGISTRATION is "false" here and in op-dashboard.yaml. To add users:
-# flip both to "true", redeploy, invite, flip back — and always keep a password
+# flip both to "true", redeploy, invite, flip back, and always keep a password
 # login, because OAuth-only plus signup-disabled can lock you out entirely
 # (upstream issue #363).
 metadata:
@@ -20,7 +20,7 @@ spec:
 
   # hazard: no uid pin: the lindesvard/openpanel-* images do not document the user they
   # run as, and forcing runAsNonRoot on an image expecting root fails the pod
-  # outright. `runAsRoot` here means only "do not impose 1000" — the container
+  # outright. `runAsRoot` here means only "do not impose 1000"; the container
   # still drops every capability. OPEN: read the uid out of a running container
   # (`id`) and pin it, for all three op-* releases.
   runAsRoot: true
@@ -45,7 +45,7 @@ spec:
     NODE_OPTIONS: "--max-old-space-size=768"
 
   resources:
-    # hazard: the request does NOT have to cover the 768Mi max-old-space-size above —
+    # hazard: the request does NOT have to cover the 768Mi max-old-space-size above:
     # that heap ceiling is bounded by the LIMIT. Do not lower the limit.
     cpu: 50m
     memory: 480Mi
@@ -86,7 +86,7 @@ spec:
       # not. The probe POSTs an empty JSON object, which reaches op-api and is
       # rejected for want of a client id: 401 proves the route is wired end to
       # end AND that ingest is not anonymous. (A body-less POST answers 400 and
-      # a non-JSON one 415 — both prove liveness, only 401 also asserts the
+      # a non-JSON one 415; both prove liveness, only 401 also asserts the
       # auth check runs.)
       smoke:
         method: POST

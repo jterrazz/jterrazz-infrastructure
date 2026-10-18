@@ -11,11 +11,11 @@ access: private
 smoke:
   expect: "302,200"
 storage:
-  # invariant: grafana.db — users, API keys, starred dashboards, alert state. Dashboards
+  # invariant: grafana.db: users, API keys, starred dashboards, alert state. Dashboards
   # themselves are provisioned from ConfigMaps and are not stored here.
   data:
     size: 1Gi
-    # outside: NODE-LOCAL on purpose — Grafana works this volume continuously and
+    # outside: NODE-LOCAL on purpose: Grafana works this volume continuously and
     # virtiofs makes that measurably worse. See the CPU limit note in
     # values.yaml; the cost is that a repave resets logins, annotations and
     # dashboard-version history, all of which are safe to lose because
@@ -32,7 +32,7 @@ network:
     app.kubernetes.io/instance: grafana
   ingress:
     # invariant: 3000, NOT the Service's 80. The Service is `port: 80 -> targetPort:
-    # grafana (3000)`, and a NetworkPolicy only ever sees the POD port —
+    # grafana (3000)`, and a NetworkPolicy only ever sees the POD port:
     # kube-proxy has already rewritten the destination by the time the packet
     # is filtered.
     - from: traefik

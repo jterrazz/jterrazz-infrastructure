@@ -1,10 +1,10 @@
 ---
-# hazard: `manual` — static provisioning against pre-created hostPath PVs under
+# hazard: `manual` means static provisioning against pre-created hostPath PVs under
 # /var/lib/k8s-data (on OrbStack a symlink to the Mac, so the data also
 # survives a `make destroy` repave). Retain, so deleting a PVC keeps the
 # data. ONE exception: a volume with `nodeLocalPath` set leaves that tree and
 # lives in the VM, so it does NOT survive a repave (grafana-data is the only
-# one — see kubernetes/charts/platform-service/values.yaml).
+# one; see kubernetes/charts/platform-service/values.yaml).
 # Every `manual` PV/PVC in the cluster is emitted by one of the two
 # charts: kubernetes/charts/platform-service (the `storage` map in each
 # kubernetes/services/<svc>/service.yaml) or kubernetes/charts/app

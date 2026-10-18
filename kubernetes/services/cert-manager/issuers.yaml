@@ -24,7 +24,7 @@ spec:
             - sig.news
             - spwn.sh
 ---
-# invariant: staging — higher rate limits, untrusted chain. For testing issuance only.
+# invariant: staging, with higher rate limits, untrusted chain. For testing issuance only.
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:

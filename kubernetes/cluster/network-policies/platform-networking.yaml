@@ -1,5 +1,5 @@
 ---
-# outside: platform-networking — cert-manager (+ its webhook/cainjector) and
+# outside: platform-networking holds cert-manager (+ its webhook/cainjector) and
 # cloudflared. Traefik itself runs in kube-system under k3s, not here.
 
 apiVersion: networking.k8s.io/v1
@@ -46,8 +46,8 @@ spec:
           port: 53
     # hazard: cloudflared -> the Cloudflare edge on 7844 (QUIC/UDP and HTTP2/TCP; the
     # deployment forces --protocol http2, so TCP is the one in use). Today
-    # cloudflared runs hostNetwork, so its traffic never traverses this policy
-    # — declared so that dropping hostNetwork does not silently kill the tunnel.
+    # cloudflared runs hostNetwork, so its traffic never traverses this policy;
+    # it is declared so that dropping hostNetwork does not silently kill the tunnel.
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
@@ -71,7 +71,7 @@ spec:
     #
     # NOTE THE MISSING `except` (the 7844 rule above keeps its own). The
     # apiserver is RFC1918 twice over: a pod dials the `kubernetes` ClusterIP
-    # (10.43.0.1:443), which iptables DNATs to the node's own 192.168.x.x:6443 —
+    # (10.43.0.1:443), which iptables DNATs to the node's own 192.168.x.x:6443,
     # and `namespaceSelector` cannot reach it either, because the apiserver is
     # not a pod. Both ports are listed because which one the filter sees depends
     # on whether it runs before or after DNAT.

@@ -5,13 +5,13 @@ persistence:
 # hazard: Grafana's default is `wal = false`, and the knob is inert on this image
 # anyway: the CGO-free modernc.org/sqlite driver silently ignores it
 # (grafana/grafana#127893). WAL is instead a persistent property of the db
-# FILE, flipped offline — the driver honours it from then on:
+# FILE, flipped offline; the driver honours it from then on:
 #   kubectl scale deploy grafana -n platform-telemetry --replicas=0
 #   sqlite3 /var/lib/grafana-node-local/grafana.db "PRAGMA journal_mode=WAL;"
 #   kubectl scale deploy grafana -n platform-telemetry --replicas=1
-# A FRESH grafana.db (a repave) starts in rollback mode — re-run the pragma.
+# A FRESH grafana.db (a repave) starts in rollback mode; re-run the pragma.
 # WAL here is hygiene (fewer fsyncs, readers don't block the writer), NOT the
-# fix for the CPU spiral — that was the memory limit, see resources below.
+# fix for the CPU spiral; that was the memory limit, see resources below.
 grafana.ini:
   database:
     wal: true
@@ -26,12 +26,12 @@ resources:
     cpu: 1500m
     # invariant: 768Mi because 384Mi caused the recurring "Grafana spiral" (pegged at the
     # CPU cap, /api/health 503, SQLite "context deadline exceeded", diagnosed
-    # 2026-07 as a lock bug — it never was one). Grafana 13's unified storage
+    # 2026-07 as a lock bug, which it never was). Grafana 13's unified storage
     # holds ~320Mi anon, which left the grafana.db + bleve-index FILE pages
     # ~60Mi of the same cgroup budget; every periodic index rebuild pinned
     # memory.max and the kernel's direct reclaim burned the whole CPU quota as
     # system time (measured in the spiral: 98% of usage_usec in system, 549M
-    # file refaults, 12.8M memory.max hits — while the Go process itself used
+    # file refaults, 12.8M memory.max hits, while the Go process itself used
     # 5% of one core per pprof). Shrink this back below ~512Mi and the
     # thrashing returns.
     memory: 768Mi
@@ -41,8 +41,8 @@ resources:
 revisionHistoryLimit: 3
 
 sidecar:
-  # hazard: oNE `resources` block covers EVERY sidecar the chart renders (all five
-  # containers interpolate `.Values.sidecar.resources` in _pod.tpl — there is no
+  # hazard: ONE `resources` block covers EVERY sidecar the chart renders (all five
+  # containers interpolate `.Values.sidecar.resources` in _pod.tpl; there is no
   # per-sidecar override). Sized rather than left BestEffort because an evicted
   # sidecar is not a visible outage: dashboards and alert rules silently stop
   # updating while Grafana itself stays green.
@@ -60,18 +60,18 @@ sidecar:
     provider:
       foldersFromFilesStructure: true
   # invariant: rules fire and show in the Alerting UI, but no contact point is wired, so
-  # nothing is delivered anywhere. Deliberate — delivery is a later step.
+  # nothing is delivered anywhere. Deliberate: delivery is a later step.
   #
   # The RULES themselves live with the app that emits the metric: the app chart
   # renders `spec.alerts` into a ConfigMap labelled grafana_alert=1, which this
   # sidecar picks up from any namespace. Nothing in THIS repo applies app alert
-  # rules — one that did would outlive the app it watches.
+  # rules; one that did would outlive the app it watches.
   alerts:
     enabled: true
     searchNamespace: ALL
     labelValue: "1"
 
-# outside: VictoriaLogs is not a core Grafana datasource — it ships as a plugin, signed
+# outside: VictoriaLogs is not a core Grafana datasource: it ships as a plugin, signed
 # by VictoriaMetrics and served from the Grafana catalog, so grafana-cli installs
 # it with no unsigned-plugin allowlisting. Grafana installs plugins at pod start,
 # which means the pod needs egress to grafana.com on every restart.
@@ -89,7 +89,7 @@ datasources:
     # is what frees the uids: rows are matched by NAME, so these three deletes
     # release `prometheus`/`loki`/`tempo` for the entries that follow. Without
     # them the insert collides on the unique uid index and Grafana logs a
-    # provisioning error. Keep them even though the live rows are gone — this
+    # provisioning error. Keep them even though the live rows are gone; this
     # file is also what a from-scratch Grafana on a restored grafana.db reads.
     deleteDatasources:
       - name: Prometheus
@@ -125,7 +125,7 @@ datasources:
         uid: tempo
         url: http://victoria-traces.platform-telemetry.svc:10428/select/jaeger
         jsonData:
-          # invariant: these point at the uids above — the second reason uid stability
+          # invariant: these point at the uids above, the second reason uid stability
           # matters.
           tracesToLogsV2:
             datasourceUid: loki

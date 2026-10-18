@@ -1,11 +1,11 @@
-# hazard: cloudflared (Cloudflare Tunnel) — the only public ingress path; the host has
+# hazard: cloudflared (Cloudflare Tunnel) is the only public ingress path; the host has
 # no open public IP.
 #
 # The tunnel is remote-managed (token-based) and routes PER HOSTNAME, not by
 # wildcard: every public hostname needs its own Public Hostname rule in the
 # Cloudflare Zero Trust dashboard pointing at Traefik. Adding one there
 # auto-creates its CNAME; a bare CNAME with no matching rule 404s. Adding a
-# hostname therefore never touches this manifest — see README.md in this dir.
+# hostname therefore never touches this manifest; see README.md in this dir.
 #
 # Apply secret.yaml (next to this file) FIRST: the pod CrashLoops until the
 # `cloudflared-secrets` Secret it reads exists.
@@ -41,7 +41,7 @@ spec:
       # `connect: connection refused` for cloudflared specifically
       # (curl from the same pod IP connects fine; only cloudflared's
       # tunnel handshake gets RSTed at the edge). Bypassing CNI fixes
-      # it. Safe because cloudflared has no listening ports — it's an
+      # it. Safe because cloudflared has no listening ports: it's an
       # outbound-only QUIC/HTTP2 client.
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet

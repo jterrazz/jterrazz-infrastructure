@@ -1,4 +1,4 @@
-# hazard: app-chart values for op-clickhouse — the event store and the dominant
+# hazard: app-chart values for op-clickhouse, the event store and the dominant
 # resource user.
 #
 # The config below is upstream's self-hosting config verbatim, which is also
@@ -8,8 +8,8 @@
 # for logrotate to break.
 #
 # Runs the default no-auth user (CLICKHOUSE_SKIP_USER_SETUP=1, upstream
-# parity); ClusterIP-only and firewalled to this namespace by `network:` below
-# — that policy is the ONLY thing standing in front of an unauthenticated
+# parity); ClusterIP-only and firewalled to this namespace by `network:` below;
+# that policy is the ONLY thing standing in front of an unauthenticated
 # database.
 metadata:
   name: op-clickhouse
@@ -18,8 +18,8 @@ environment: prod
 
 spec:
   # invariant: EXACTLY what OpenPanel's self-hosting compose pins (26.1.3.52 at the 2.3.0
-  # images) — never newer. Two upstream changes would bite this workload past
-  # it — 26.5 flips `date_time_input_format` to `best_effort` (changes
+  # images), never newer. Two upstream changes would bite this workload past
+  # it: 26.5 flips `date_time_input_format` to `best_effort` (changes
   # event-ingest parsing), and 26.7 rejects the AggregatingMergeTree shape
   # OpenPanel's materialized views use. Follow their pin, not the release page.
   image: clickhouse/clickhouse-server:26.1.3.52
@@ -29,7 +29,7 @@ spec:
   port: 8123
   servicePort: 8123
 
-  # outside: uid/gid 101 is the image's `clickhouse` user — the same uid
+  # outside: uid/gid 101 is the image's `clickhouse` user, the same uid
   # `storage.owner` chowns to. Dropping ALL caps is safe: ClickHouse wants
   # CAP_NET_ADMIN / IPC_LOCK / SYS_NICE only as optional optimisations and
   # merely warns when they are absent.
@@ -83,7 +83,7 @@ spec:
             <session_log remove="remove"/>
             <part_log remove="remove"/>
 
-            <!-- Ours, not upstream's, and not about #324 — this one is about disk
+            <!-- Ours, not upstream's, and not about #324; this one is about disk
                  writes. op-api's keep-alive SELECT 1 pings each emit several
                  processor rows; the table flushes every 7.5s onto the Mac's SSD and
                  had grown to ~370x the row count of the OpenPanel data it profiles.

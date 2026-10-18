@@ -1,5 +1,5 @@
 ---
-# hazard: kube-system — CoreDNS, Traefik, klipper-lb and metrics-server.
+# hazard: kube-system holds CoreDNS, Traefik, klipper-lb and metrics-server.
 #
 # This namespace is last to get a policy on purpose: it is the one where a
 # wrong rule takes the whole cluster down rather than one service. Everything
@@ -12,7 +12,7 @@
 #    and the pod on 8000/8443; a rule naming 80 applies to nothing and the
 #    traffic is dropped by the default-deny with nothing logged.
 # 2. hostNetwork clients are NOT pods to a NetworkPolicy. cloudflared runs
-#    hostNetwork (it has to — see its README) and the apiserver runs on the
+#    hostNetwork (it has to; see its README) and the apiserver runs on the
 #    host, so both arrive as the node address and only an ipBlock matches
 #    them. A podSelector-only rule silently excludes them.
 
@@ -85,7 +85,7 @@ spec:
 # it is invisible to every test that goes through cloudflared: the tunnel
 # dials Traefik's ClusterIP directly, so public traffic keeps working while
 # every tailnet client gets `connection refused` on 443. CI is a tailnet
-# client — it pulls from registry.internal.jterrazz.com — so a deploy fails
+# client (it pulls from registry.internal.jterrazz.com), so a deploy fails
 # with the cluster otherwise green.
 #
 # The source is the node's own address (kube-proxy hands the packet to the

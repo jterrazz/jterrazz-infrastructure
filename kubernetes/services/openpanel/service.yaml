@@ -1,20 +1,20 @@
-# outside: Service-chart values for OpenPanel — the storage and the certificates its six
+# outside: Service-chart values for OpenPanel: the storage and the certificates its six
 # app-chart releases share.
 #
 # `host` is deliberately unset: this service has no single route. Two hostnames
-# with different exposure, path-level routing between two backends — each route
+# with different exposure, path-level routing between two backends; each route
 # is declared by the release that answers it (op-api.yaml, op-dashboard.yaml).
 # The CERTIFICATES cannot be, because op-api and op-dashboard answer on the
 # same hostname and only one object may own it.
 name: openpanel
 
 certificates:
-  # invariant: openpanel.internal.jterrazz.com — routed to op-api under /api and to
+  # invariant: openpanel.internal.jterrazz.com, routed to op-api under /api and to
   # op-dashboard everywhere else. Both routes name this secret.
   openpanel-tls:
     dnsNames:
       - openpanel.internal.jterrazz.com
-  # invariant: analytics.jterrazz.com — public ingest, /api/track and nothing else.
+  # invariant: analytics.jterrazz.com, public ingest, /api/track and nothing else.
   openpanel-analytics-tls:
     dnsNames:
       - analytics.jterrazz.com
@@ -30,7 +30,7 @@ storage:
   redis:
     size: 1Gi
     pathSuffix: redis
-  # invariant: the event store — every analytics event ever received.
+  # invariant: the event store: every analytics event ever received.
   clickhouse:
     size: 10Gi
     pathSuffix: clickhouse

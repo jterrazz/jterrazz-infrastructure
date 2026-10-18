@@ -1,15 +1,15 @@
-# hazard: VictoriaMetrics single-node — the metrics store.
+# hazard: VictoriaMetrics single-node, the metrics store.
 #
 # Chart: vm/victoria-metrics-single, pinned in kubernetes/helmfile.yaml.gotmpl.
-# Two ingest paths, both on :8428 —
+# Two ingest paths, both on :8428:
 #   * it SCRAPES, via `-promscrape.config` (server.scrape below), a
 #     Prometheus-compatible scrape config;
 #   * it RECEIVES Prometheus remote-write at /api/v1/write from the OTel
-#     collector — no receiver flag to enable, the path is always on.
+#     collector; no receiver flag to enable, the path is always on.
 #     https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1write
 #
 # All three Victoria charts ship the server as a StatefulSet whose Service is
-# HEADLESS (`clusterIP: None`) — it doubles as the StatefulSet's governing
+# HEADLESS (`clusterIP: None`): it doubles as the StatefulSet's governing
 # service, so `kubectl get svc` shows no ClusterIP and the name resolves to the
 # pod IP directly. Left at the chart default: giving it a ClusterIP would break
 # the per-pod DNS a StatefulSet guarantees.
@@ -37,7 +37,7 @@ server:
   retentionPeriod: "30d"
 
   # hazard: 60s, against the 5s default. Each flush writes a new part directory, and on
-  # this target a flush is charged per fsync rather than per byte — see the
+  # this target a flush is charged per fsync rather than per byte; see the
   # ~135KB-per-fsync tax in docs/guides/develop.md. What 60s risks is data still in RAM on
   # an UNCLEAN exit (OOM kill, SIGKILL, hard reset); a graceful stop flushes.
   # Upstream documents the flag for this exact trade. victoria-logs matches;
@@ -53,18 +53,18 @@ server:
       memory: 896Mi
 
   # outside: reproduces the scrape surface of prometheus-community/prometheus 29.19.0's
-  # default `serverFiles."prometheus.yml"` — derived by rendering that chart, not
+  # default `serverFiles."prometheus.yml"`, derived by rendering that chart, not
   # hand-approximated. Enabling it also renders the ClusterRole/Binding
   # kubernetes_sd needs and mounts the config at /scrapeconfig/scrape.yml.
   # Two upstream jobs are deliberately absent: `kubernetes-services` (blackbox
   # probe; no Service carries prometheus.io/probe and its targets rewrite to the
   # unresolvable `blackbox`) and `prometheus-pushgateway` (disabled). The
-  # `*-slow` variants stay — the fast jobs' `drop` rules reference them.
+  # `*-slow` variants stay: the fast jobs' `drop` rules reference them.
   scrape:
     enabled: true
     config:
       global:
-        # value: 1m, not the chart's 15s default — Prometheus scraped at 1m here and a
+        # value: 1m, not the chart's 15s default: Prometheus scraped at 1m here and a
         # 4x resolution bump is a 4x sample-rate bump on a memory-bound node.
         scrape_interval: 1m
 
@@ -90,7 +90,7 @@ server:
             ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
           # invariant: CARDINALITY. These per-(verb × resource × subresource × scope × le)
           # histograms grow with the API surface, not with anything this cluster
-          # does, and nothing reads them — no dashboard, no app alert rule.
+          # does, and nothing reads them: no dashboard, no app alert rule.
           # Dropped at INGEST so they cost no index, cache or disk. Only the
           # `_bucket` series match, so _count/_sum survive and averages stay
           # computable. Measure via /api/v1/status/tsdb before re-adding one.
@@ -267,13 +267,13 @@ server:
             # outside: DEDUP. Without this, a MULTI-PORT Service annotated
             # prometheus.io/scrape=true yields one target per endpointslice port,
             # and the __address__ rewrite below collapses them all onto the one
-            # prometheus.io/port — N identical targets, scraped N times
+            # prometheus.io/port, N identical targets, scraped N times
             # (kube-system/kube-dns is the only such Service today). Spelling it
             # as `regex: (\d+);\1` does not work: RE2 has no backreferences, so
             # keep_if_equal (a VictoriaMetrics extension) is the only option.
             # THE `if` GUARD IS LOAD-BEARING: kube-state-metrics and node-exporter
             # set scrape=true with NO prometheus.io/port, and unguarded this rule
-            # compares against an empty label and drops both — i.e. both dashboards.
+            # compares against an empty label and drops both, that is both dashboards.
             - action: keep_if_equal
               if: '{__meta_kubernetes_service_annotation_prometheus_io_port=~".+"}'
               source_labels:
@@ -323,7 +323,7 @@ server:
               regex: true
               source_labels:
                 - __meta_kubernetes_service_annotation_prometheus_io_scrape_slow
-            # invariant: same dedup as the fast job above — see the DEDUP comment there for
+            # invariant: same dedup as the fast job above; see the DEDUP comment there for
             # why it exists and why the `if` guard is not optional. No Service
             # sets prometheus.io/scrape_slow today, so this has no live effect;
             # it is here so the bug does not come back with the first one that

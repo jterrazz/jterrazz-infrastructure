@@ -4,7 +4,7 @@
 # these policies plus the per-workload ones are the only thing keeping another
 # namespace off them.
 #
-# WHAT IS AND IS NOT IN THIS FILE. The namespace BASELINE only — default-deny,
+# WHAT IS AND IS NOT IN THIS FILE. The namespace BASELINE only: default-deny,
 # allow-same-namespace, the namespace-wide DNS egress. Every rule that names
 # one workload is declared with that workload, in the `network:` block of its
 # values file in kubernetes/services/openpanel/.
@@ -43,7 +43,7 @@ spec:
 ---
 # invariant: egress is DEFAULT-DENY for every pod in the namespace (podSelector {} +
 # policyTypes: Egress). This policy grants the namespace-wide minimum and
-# nothing else; each application release declares the rest — which is what
+# nothing else; each application release declares the rest, which is what
 # keeps the three datastores at "DNS and nothing else".
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

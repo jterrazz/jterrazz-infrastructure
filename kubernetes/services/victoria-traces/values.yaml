@@ -1,4 +1,4 @@
-# invariant: VictoriaTraces single-node — the trace store.
+# invariant: VictoriaTraces single-node, the trace store.
 #
 # Chart: vm/victoria-traces-single, pinned in kubernetes/helmfile.yaml.gotmpl.
 #
@@ -11,7 +11,7 @@
 # │ which are both 1.x.                                                      │
 # └──────────────────────────────────────────────────────────────────────────┘
 #
-# Ingest, on :10428 — OTLP/HTTP only in this setup:
+# Ingest, on :10428: OTLP/HTTP only in this setup:
 #   /insert/opentelemetry/v1/traces
 #   https://docs.victoriametrics.com/victoriatraces/data-ingestion/opentelemetry/
 # The path is non-standard for OTLP, so the collector must set the exporter's
@@ -19,7 +19,7 @@
 # The OTLP gRPC listener stays OFF: enabling it needs `-otlpGRPCListenAddr` and
 # nothing here speaks gRPC to the store.
 #
-# Query, same port — Jaeger-compatible API at /select/jaeger, which is what the
+# Query, same port: Jaeger-compatible API at /select/jaeger, which is what the
 # Grafana `jaeger` datasource in grafana/values.yaml points at:
 #   https://docs.victoriametrics.com/victoriatraces/querying/grafana/
 # (v0.9.4 also serves a Tempo-compatible API at /select/tempo. Not used: the
@@ -30,7 +30,7 @@ server:
   # nameOverride is `vt-single`, not the chart name).
   fullnameOverride: victoria-traces
 
-  # hazard: DATA LOSS IF CHANGED — see the matching note in service.yaml. `existingClaim`
+  # hazard: DATA LOSS IF CHANGED; see the matching note in service.yaml. `existingClaim`
   # also makes the chart drop its StatefulSet volumeClaimTemplate and mount this
   # PVC by name, which is why no `claimName` override is needed here.
   persistentVolume:
@@ -39,12 +39,12 @@ server:
   # value: 720h == 30d. The flag takes s/h/d/w/M/y suffixes; minimum retention is 1d.
   retentionPeriod: "720h"
 
-  # invariant: 300s, not the 60s the other two use — rationale in victoria-metrics/values.yaml,
+  # invariant: 300s, not the 60s the other two use; rationale in victoria-metrics/values.yaml,
   # and this store gets the longer interval because it can afford it: the boxed
   # note above already accepts losing trace history outright, and a flush here
   # writes a 32-74 file columnar part (one bloom/values pair per span attribute)
   # holding a few KB. Parts are created per FLUSH, not per span, so the interval
-  # — not the ingest rate — is what sets the file churn.
+  # (not the ingest rate) is what sets the file churn.
   extraArgs:
     inmemoryDataFlushInterval: 300s
 
@@ -56,7 +56,7 @@ server:
       memory: 96Mi
     limits:
       # hazard: a limit that is too tight OOMKills in a loop and makes `helm --wait`
-      # flake — measure before tightening.
+      # flake; measure before tightening.
       memory: 512Mi
 
   # invariant: same reasoning as victoria-logs/values.yaml: uid 1000 / fsGroup 2000 with a

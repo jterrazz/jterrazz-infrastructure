@@ -1,4 +1,4 @@
-# outside: Prometheus node-exporter — the source of every node_* series, i.e. the whole
+# outside: Prometheus node-exporter, the source of every node_* series, that is the whole
 # "VPS - Server Overview" dashboard. Scraping is annotation-driven (the chart
 # annotates its own Service with prometheus.io/scrape=true), so nothing here
 # configures it and this release's install order does not matter.
@@ -7,7 +7,7 @@
 # `node-exporter` renders every object as `node-exporter-prometheus-node-exporter`.
 fullnameOverride: node-exporter
 
-# invariant: 3, not the chart's 10 (ControllerRevisions here) — see grafana/values.yaml.
+# invariant: 3, not the chart's 10 (ControllerRevisions here); see grafana/values.yaml.
 revisionHistoryLimit: 3
 
 resources:

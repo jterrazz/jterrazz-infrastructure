@@ -1,8 +1,8 @@
 ---
-# invariant: platform-telemetry — Grafana, the VictoriaMetrics family (metrics/logs/traces),
+# invariant: platform-telemetry holds Grafana, the VictoriaMetrics family (metrics/logs/traces),
 # kube-state-metrics, node-exporter and the OTel Collector.
 #
-# k3s enforces NetworkPolicy, so this is real isolation — and it is needed here
+# k3s enforces NetworkPolicy, so this is real isolation, and it is needed here
 # for the same reason platform-analytics needs it: NONE of the three Victoria
 # stores authenticates anything, and every write path is always on, with no
 # receiver flag to leave off. VictoriaMetrics takes Prometheus remote-write on
@@ -10,10 +10,10 @@
 # OTLP on :10428. Without this file any pod in the cluster could write junk into
 # all three, or read every series, log line and span back out.
 #
-# WHAT IS AND IS NOT IN THIS FILE. The namespace BASELINE only —
+# WHAT IS AND IS NOT IN THIS FILE. The namespace BASELINE only:
 # default-deny, allow-same-namespace, the namespace-wide egress. Every rule that
 # names one workload is declared by that service, in the `network:` block of its
-# kubernetes/services/<svc>/service.yaml — Grafana's ingress, VictoriaMetrics'
+# kubernetes/services/<svc>/service.yaml: Grafana's ingress, VictoriaMetrics'
 # egress, and the collector's deliberately namespace-wide OTLP ingest.
 
 apiVersion: networking.k8s.io/v1
@@ -44,7 +44,7 @@ spec:
     # scrapes kube-state-metrics:8080. Naming them by pod label instead would be
     # strictly redundant and would drift the day a store moves.
     #
-    # CONSEQUENCE: the three stores get NO cross-namespace ingress at all — the
+    # CONSEQUENCE: the three stores get NO cross-namespace ingress at all; the
     # only ports reachable from outside this namespace are the collector's two
     # OTLP ports (below) and Grafana's 3000 (grafana/service.yaml). node-exporter
     # is not covered and cannot be: `hostNetwork: true` means its pod IP IS the
@@ -57,7 +57,7 @@ spec:
 
 ---
 # invariant: egress is DEFAULT-DENY for every pod in the namespace (podSelector {} +
-# policyTypes: Egress), so each rule below is load-bearing — a telemetry flow
+# policyTypes: Egress), so each rule below is load-bearing: a telemetry flow
 # not listed here stops working.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -89,7 +89,7 @@ spec:
     # on this cluster they are the same destination pattern.
     #
     # NOTE THE MISSING `except`. Copying the `0.0.0.0/0 except <RFC1918>` shape
-    # used for internet-only rules breaks four of six workloads here — the
+    # used for internet-only rules breaks four of six workloads here, because the
     # apiserver is RFC1918 twice over: pods dial the `kubernetes` ClusterIP
     # (10.43.0.1:443), which iptables DNATs to the node's own 192.168.x.x:6443.
     # Both ports are listed for that reason; which one the filter sees depends on

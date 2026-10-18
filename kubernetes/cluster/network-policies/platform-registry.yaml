@@ -60,7 +60,7 @@ spec:
           port: 53
     # invariant: registry -> the internet on 443. Storage is a local hostPath PVC, so in
     # principle DNS alone would do. OPEN: confirm distribution 3.x makes no
-    # outbound call at all before removing this — the namespace is on the
+    # outbound call at all before removing this: the namespace is on the
     # critical path for every app deploy, so the failure would land in CI.
     - ports:
         - protocol: TCP

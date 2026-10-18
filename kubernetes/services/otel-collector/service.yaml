@@ -1,4 +1,4 @@
-# outside: Service-chart values for the OTel Collector — its credentials and the one
+# outside: Service-chart values for the OTel Collector: its credentials and the one
 # NetworkPolicy rule that names it. No host: the collector serves no route.
 #
 # The upstream chart's own values are values.yaml beside this file.
@@ -11,7 +11,7 @@ name: otel-collector
 # extraEnvs.LANGFUSE_BASIC_AUTH.secretKeyRef names `otel-collector-secrets`.
 #
 #   LANGFUSE_BASIC_AUTH   base64("public_key:secret_key") of the Langfuse
-#                         project's API keys — the value lives in Infisical,
+#                         project's API keys; the value lives in Infisical,
 #                         never here: echo -n "pk-lf-x:sk-lf-x" | base64
 secrets:
   path: /jterrazz-infrastructure/otel-collector
@@ -26,11 +26,11 @@ secrets:
 # app namespaces carry are their own names; and the otel-collector catalog entry
 # has no `clientLabel`, so opted-in app pods carry no marker. The narrowing that
 # IS applied is one pod, two ports, and the widest thing granted is "write
-# telemetry". Tightening means adding a clientLabel to that catalog entry — land
+# telemetry". Tightening means adding a clientLabel to that catalog entry; land
 # it only AFTER every app has redeployed carrying it.
 #
-# Everything else the collector does — reading the three stores, the apiserver,
-# cloud.langfuse.com — is covered by the namespace baseline in
+# Everything else the collector does (reading the three stores, the apiserver,
+# cloud.langfuse.com) is covered by the namespace baseline in
 # kubernetes/cluster/network-policies/platform-telemetry.yaml.
 network:
   # outside: the upstream chart's labels, not ours.

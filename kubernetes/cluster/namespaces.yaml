@@ -1,5 +1,5 @@
 ---
-# outside: every platform namespace is declared here — no imperative `kubectl create
+# outside: every platform namespace is declared here: no imperative `kubectl create
 # ns`, no per-service namespace manifest. Applied with the rest of this
 # directory by `kubectl apply -f -R kubernetes/cluster`
 # (ansible/roles/platform/tasks/cluster-manifests.yml).

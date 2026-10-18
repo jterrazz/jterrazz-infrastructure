@@ -1,5 +1,5 @@
 ---
-# hazard: global rate limit — 100 req/s average, burst 200: normal browsing passes,
+# hazard: global rate limit, 100 req/s average, burst 200: normal browsing passes,
 # aggressive scrapers do not. Attached to the websecure entrypoint for every
 # route (kubernetes/services/traefik/helm-chart-config.yaml).
 apiVersion: traefik.io/v1alpha1
@@ -28,7 +28,7 @@ spec:
     # KEEP IN SYNC, entry for entry, with
     # `--entryPoints.websecure.forwardedHeaders.trustedIPs` in
     # kubernetes/services/traefik/helm-chart-config.yaml
-    # (spec.valuesContent additionalArguments) — a range trusted there but
+    # (spec.valuesContent additionalArguments): a range trusted there but
     # missing here becomes the "client IP" this limiter buckets on.
     #
     # Known limitation: direct tailnet traffic carries no XFF and klipper-lb
@@ -37,13 +37,13 @@ spec:
     sourceCriterion:
       ipStrategy:
         excludedIPs:
-          - "10.42.0.0/16" # k3s pod CIDR — cni0 gw + svclb pods, our own hops.
-          - "10.43.0.0/16" # k3s service CIDR — kube-proxy/klipper SNAT.
+          - "10.42.0.0/16" # k3s pod CIDR: cni0 gw + svclb pods, our own hops.
+          - "10.43.0.0/16" # k3s service CIDR: kube-proxy/klipper SNAT.
           - "127.0.0.1/32" # node-local loopback.
           - "100.64.0.0/10" # Tailscale CGNAT (incl. this node's tailnet IP).
-          - "169.254.0.0/16" # link-local — CNI/flannel edge cases.
+          - "169.254.0.0/16" # link-local: CNI/flannel edge cases.
           - "198.19.0.0/16" # OrbStack machine network (node default IPv4).
-          - "172.16.0.0/12" # RFC1918 — the private LAN the node sits on.
+          - "172.16.0.0/12" # RFC1918: the private LAN the node sits on.
           - "192.168.0.0/16"
 
 ---
@@ -85,7 +85,7 @@ spec:
 
 ---
 # invariant: tailnet-only allow-list: platform-service chart `access: private`, app chart
-# `public: false`. 10.42/16 is load-bearing, not slack — klipper-lb DNATs and
+# `public: false`. 10.42/16 is load-bearing, not slack: klipper-lb DNATs and
 # MASQUERADEs inside the svclb pod's netns (the Traefik Service is
 # externalTrafficPolicy: Cluster), so a tailnet request reaches Traefik with an
 # svclb POD source; the tailnet gate on that path is the Service's
@@ -102,9 +102,9 @@ metadata:
 spec:
   ipAllowList:
     sourceRange:
-      - "100.64.0.0/10" # Tailscale CGNAT — humans on the tailnet.
+      - "100.64.0.0/10" # Tailscale CGNAT: humans on the tailnet.
       - "127.0.0.1/32" # node-local (hostPort / host-network clients).
-      - "10.42.0.0/16" # k3s pod CIDR — the svclb SNAT source (see header).
+      - "10.42.0.0/16" # k3s pod CIDR: the svclb SNAT source (see header).
 
 ---
 # invariant: strict superset of `private-access`, for routes that must ALSO be reachable
@@ -112,10 +112,10 @@ spec:
 # route, never both (chained ipAllowLists are ANDed).
 #
 # Flows that need it:
-#   * openpanel-private — the op-dashboard pod SSRs against
+#   * openpanel-private: the op-dashboard pod SSRs against
 #     openpanel.internal.jterrazz.com, which CoreDNS maps to Traefik's ClusterIP, so
 #     the source is a plain pod IP (kubernetes/services/openpanel/op-api.yaml).
-#   * registry — containerd on the NODE pulls registry.internal.jterrazz.com, which
+#   * registry: containerd on the NODE pulls registry.internal.jterrazz.com, which
 #     CoreDNS maps to the node's own tailnet IP; that hairpins through
 #     hostPort -> svclb -> Traefik, so the source is a pod-CIDR or node
 #     address (kubernetes/services/registry/service.yaml, `access:
@@ -131,11 +131,11 @@ metadata:
 spec:
   ipAllowList:
     sourceRange:
-      - "100.64.0.0/10" # Tailscale CGNAT — humans (same as private-access).
+      - "100.64.0.0/10" # Tailscale CGNAT: humans (same as private-access).
       - "127.0.0.1/32" # node-local loopback.
-      - "10.42.0.0/16" # k3s pod CIDR — in-cluster SSR callers + svclb SNAT.
-      - "10.43.0.0/16" # k3s service CIDR — kube-proxy SNAT edge cases.
-      - "198.19.0.0/16" # OrbStack machine network — node default IPv4.
-      - "10.0.0.0/8" # RFC1918 — private LAN the node's default iface sits on.
+      - "10.42.0.0/16" # k3s pod CIDR: in-cluster SSR callers + svclb SNAT.
+      - "10.43.0.0/16" # k3s service CIDR: kube-proxy SNAT edge cases.
+      - "198.19.0.0/16" # OrbStack machine network: node default IPv4.
+      - "10.0.0.0/8" # RFC1918: private LAN the node's default iface sits on.
       - "172.16.0.0/12"
       - "192.168.0.0/16"

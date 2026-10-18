@@ -5,7 +5,7 @@
 # cluster-wide objects in kubernetes/cluster/traefik/ (the middlewares and the
 # TLSOption, which belong to no single release).
 #
-# Applied by roles/platform/tasks/cluster-manifests.yml, explicitly and FIRST —
+# Applied by roles/platform/tasks/cluster-manifests.yml, explicitly and FIRST:
 # `kubectl apply -f kubernetes/cluster -R` no longer reaches it.
 apiVersion: helm.cattle.io/v1
 kind: HelmChartConfig
@@ -27,11 +27,11 @@ spec:
     #
     # Traefik chart v41 schema (k3s 1.37 bundles v41; 1.36 bundled v40, whose
     # only difference from v41 is the `logs.general`/`logs.access` rename to
-    # `log`/`accessLog` — nothing here sets either; v38 used flat
+    # `log`/`accessLog`, and nothing here sets either; v38 used flat
     # `service.type`/`service.loadBalancerSourceRanges` and
     # `ports.web.redirectTo`). The `service.spec.*` nesting is load-bearing:
     # the template renders ONLY `.service.spec`, and `service:` has no
-    # additionalProperties guard — a flat key is silently ignored, which for
+    # additionalProperties guard: a flat key is silently ignored, which for
     # loadBalancerSourceRanges means host ports 80/443 quietly open to any
     # source. Post-deploy gate:
     #   kubectl -n kube-system get svc traefik \
@@ -39,7 +39,7 @@ spec:
     service:
       spec:
         loadBalancerSourceRanges:
-          - 100.64.0.0/10      # Tailscale CGNAT — the only permitted source.
+          - 100.64.0.0/10      # Tailscale CGNAT, the only permitted source.
 
     ports:
       websecure:
@@ -62,8 +62,8 @@ spec:
               to: websecure
               scheme: https
 
-    # The k3s Traefik chart ships NO resources, which puts the pod in BestEffort
-    # — first evicted under node memory pressure. Every public and private
+    # The k3s Traefik chart ships NO resources, which puts the pod in BestEffort,
+    # first evicted under node memory pressure. Every public and private
     # surface terminates here, so an app OOM elsewhere would take grafana, chat,
     # the registry, openpanel and every public site with it. The memory LIMIT is
     # what makes the QoS class Burstable, and is generous versus the request
@@ -83,7 +83,7 @@ spec:
       kubernetesCRD:
         allowCrossNamespace: true
 
-    # forwardedHeaders.trustedIPs — which *direct TCP peer* is allowed to have
+    # forwardedHeaders.trustedIPs: which *direct TCP peer* is allowed to have
     # set X-Forwarded-For. Traefik strips X-Forwarded-* from any peer NOT in
     # this list, so a wrong list silently discards the real client IP and the
     # rate limiter keys every request on one empty bucket.
@@ -91,8 +91,8 @@ spec:
     # Cloudflare's own edge CIDRs must NOT be listed: CF never talks to Traefik
     # directly. The chain is client -> CF edge (sets XFF) -> cloudflared
     # (hostNetwork, on the NODE) -> Traefik ClusterIP, so Traefik's peer is
-    # always an address belonging to this node/cluster. Trusting those is safe
-    # — Traefik's 443 is reachable only from the tailnet
+    # always an address belonging to this node/cluster. Trusting those is safe:
+    # Traefik's 443 is reachable only from the tailnet
     # (loadBalancerSourceRanges), from inside the cluster, and from the node.
     #
     # KEEP IN SYNC, entry for entry, with the excludedIPs list of the
@@ -100,17 +100,17 @@ spec:
     # (spec.rateLimit.sourceCriterion.ipStrategy.excludedIPs): that list walks
     # XFF right-to-left skipping OUR hops, so a range trusted here but not
     # excluded there becomes the "client IP" the limiter buckets on.
-    #   10.42.0.0/16    k3s pod CIDR — cni0 gw (10.42.0.1) sources node->pod
+    #   10.42.0.0/16    k3s pod CIDR: cni0 gw (10.42.0.1) sources node->pod
     #                   traffic (cloudflared -> Traefik); svclb pods source
     #                   all LoadBalancer traffic.
-    #   10.43.0.0/16    k3s service CIDR — kube-proxy/klipper SNAT edge cases.
+    #   10.43.0.0/16    k3s service CIDR: kube-proxy/klipper SNAT edge cases.
     #   127.0.0.1/32    node-local loopback (hostPort / host-network clients).
-    #   100.64.0.0/10   Tailscale CGNAT — tailnet peers and the node's own
+    #   100.64.0.0/10   Tailscale CGNAT: tailnet peers and the node's own
     #                   tailscale0 address (the registry hairpin path).
-    #   169.254.0.0/16  link-local — CNI/flannel edge cases.
+    #   169.254.0.0/16  link-local: CNI/flannel edge cases.
     #   198.19.0.0/16   OrbStack machine network: the node's default IPv4
     #                   lives here (RFC2544 block, never routable).
-    #   172.16.0.0/12   RFC1918 — the private LAN the node's default interface
+    #   172.16.0.0/12   RFC1918: the private LAN the node's default interface
     #   192.168.0.0/16  sits on. No 10.0.0.0/8: the only 10-space addresses here
     #                   are the pod and service CIDRs, both listed above.
     additionalArguments:

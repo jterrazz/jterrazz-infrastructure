@@ -1,15 +1,15 @@
-# hazard: the non-secret env every OpenPanel APPLICATION release shares — op-api,
+# hazard: the non-secret env every OpenPanel APPLICATION release shares: op-api,
 # op-worker and op-dashboard each load this file before their own, which is
 # what the `openpanel-config` ConfigMap and its three `envFrom` blocks used to
 # do. The datastores do not read it; their own values files carry the two
 # Postgres bootstrap variables they need.
 #
-# DASHBOARD_URL / API_URL are the PRIVATE host only — the public ingest host
+# DASHBOARD_URL / API_URL are the PRIVATE host only; the public ingest host
 # analytics.jterrazz.com carries /api/track alone, configured per sending site.
 #
 # THE DASHBOARD SSRs THROUGH API_URL_SSR (below) since 2.3.0. Until 2.2.1 it
 # could only fetch its own public URL server-side, which rested on three
-# workarounds together — the host in `private_hostnames_via_traefik`
+# workarounds together: the host in `private_hostnames_via_traefik`
 # (group_vars/all.yml), a kube-system:8443 egress rule in op-dashboard.yaml,
 # and `access: cluster-internal` on the routes in op-api.yaml /
 # op-dashboard.yaml. All three were retired on 2026-09-19 after SSR was
@@ -40,23 +40,23 @@ spec:
     # outside: browser origins allowed to POST events to /api/track on the public host.
     # jterrazz.com + www.jterrazz.com are LIVE senders (the externally-hosted
     # site posts here directly); the rest are pre-authorised and cost nothing.
-    # There is no shared SDK — each site integrates OpenPanel's browser snippet
+    # There is no shared SDK: each site integrates OpenPanel's browser snippet
     # itself, so adding a sender means adding its apex (and www./sub) here.
     API_CORS_ORIGINS: "https://openpanel.internal.jterrazz.com,https://jterrazz.com,https://www.jterrazz.com,https://spwn.sh,https://sig.news"
 
   # outside: Infisical /jterrazz-infrastructure/openpanel, env prod. Each release syncs
-  # its own copy of the folder and projects only the keys it names — the
+  # its own copy of the folder and projects only the keys it names; the
   # `openpanel-secrets` Secret that all three read wholesale through `envFrom`
   # is gone, and with it the Ansible task that had to create it before any of
   # them started.
   #
   #   DATABASE_URL         postgresql://openpanel:<POSTGRES_PASSWORD>@op-postgres:5432/openpanel
   #   DATABASE_URL_DIRECT  same as DATABASE_URL (no pooler here; used by migrations)
-  #   COOKIE_SECRET        32+ byte random — session/cookie signing
+  #   COOKIE_SECRET        32+ byte random, for session/cookie signing
   #
   # ClickHouse and Redis have NO credential to store: they run unauthenticated
   # and are isolated by their own `network:` blocks. Email
-  # (RESEND_API_KEY/SMTP) is omitted on purpose — no invitations or resets.
+  # (RESEND_API_KEY/SMTP) is omitted on purpose: no invitations or resets.
   secrets:
     path: /jterrazz-infrastructure/openpanel
     env:
