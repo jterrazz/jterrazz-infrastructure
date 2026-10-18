@@ -14,17 +14,17 @@ export KUBECONFIG=./kubeconfig.yaml                         # make kubeconfig
 ```
 
 `kubeconfig.yaml` is fetched by the k3s role at the end of every `make deploy`
-and rewritten to the node's MagicDNS name — it only works from a tailnet
+and rewritten to the node's MagicDNS name, so it only works from a tailnet
 client. `make kubeconfig` regenerates it (fetch + rewrite) without a deploy,
 which is what `make diff` tells you to run when the file is missing or stale. The `orb` SSH alias resolves only with `~/.orbstack/ssh/config` in play
-(which is why `inventories/laptop.yml` passes it explicitly); `orb -m …` needs
+(which is why `inventories/laptop.yml` passes it explicitly); `orb -m ...` needs
 nothing but OrbStack.
 
 ## Secrets inventory
 
-### Infisical — project `jterrazz`, environment `prod`
+### Infisical: project `jterrazz`, environment `prod`
 
-Fetched at deploy time by `scripts/infisical-vars.py` — the single
+Fetched at deploy time by `scripts/infisical-vars.py`, the single
 implementation, shared by `scripts/deploy.sh` and
 `.github/workflows/deploy-platform.yaml`. Each path is fetched **explicitly**,
 never recursively, so short key names can repeat across folders. A missing key
@@ -46,7 +46,7 @@ in the table above: no deploy reads it, only `make backup` does, and it is
 fetched directly rather than through the extra-vars file. See
 [Backups](#backups).
 
-The `platform` scope drops the Tailscale OAuth pair — `platform.yml` only reads
+The `platform` scope drops the Tailscale OAuth pair: `platform.yml` only reads
 Tailscale *facts* off an already-joined node. `infisical_client_id` /
 `infisical_client_secret` are the one exception to all of this: they come from
 `.env` (or the GitHub secrets in CI) and are written into the extra-vars file,
@@ -54,26 +54,26 @@ because the in-cluster operator needs them and they cannot come from Infisical
 itself.
 
 Synced **into the cluster** by the operator from `InfisicalSecret` CRs, which
-are rendered by the release that needs them — a platform service's `secrets:`
+are rendered by the release that needs them: a platform service's `secrets:`
 block (`services/<x>/service.yaml`) or an app-chart release's `spec.secrets`.
 The deploy script never sees these:
 
 | Path                                       | Becomes Secret                | Keys                                                            |
 | ------------------------------------------ | ----------------------------- | --------------------------------------------------------------- |
 | `/jterrazz-infrastructure`                 | `cloudflared-secrets`         | `CLOUDFLARE_TUNNEL_TOKEN`                                        |
-| `/jterrazz-infrastructure/openpanel`       | `op-{api,worker,dashboard,postgres}-secrets` | `POSTGRES_PASSWORD`, `COOKIE_SECRET`, `DATABASE_URL`, `DATABASE_URL_DIRECT` — one Secret per release that needs them, each projecting only the keys it names |
+| `/jterrazz-infrastructure/openpanel`       | `op-{api,worker,dashboard,postgres}-secrets` | `POSTGRES_PASSWORD`, `COOKIE_SECRET`, `DATABASE_URL`, `DATABASE_URL_DIRECT`, one Secret per release that needs them, each projecting only the keys it names |
 | `/jterrazz-infrastructure/otel-collector`  | `otel-collector-secrets`      | `LANGFUSE_BASIC_AUTH`                                            |
-| `/jterrazz-actions`                        | `registry-credentials`        | `.dockerconfigjson` — the pull credential, assembled by the operator's own template from `DOCKER_REGISTRY_USERNAME` + `DOCKER_REGISTRY_PASSWORD`. One per app namespace whose image is on our registry; `charts/app` renders the CR beside the app's own |
-| `/<app>/…`                                 | `<app>-secrets`               | whatever the app's `spec.secrets.env` lists                      |
+| `/jterrazz-actions`                        | `registry-credentials`        | `.dockerconfigjson`: the pull credential, assembled by the operator's own template from `DOCKER_REGISTRY_USERNAME` + `DOCKER_REGISTRY_PASSWORD`. One per app namespace whose image is on our registry; `charts/app` renders the CR beside the app's own |
+| `/<app>/...`                               | `<app>-secrets`               | whatever the app's `spec.secrets.env` lists                      |
 
 There is no `/jterrazz-infrastructure/registry` folder: the registry's account
 is `DOCKER_REGISTRY_USERNAME` + `DOCKER_REGISTRY_PASSWORD` at the root path,
 turned into the one `<user>:<bcrypt>` line of the `registry-auth` Secret by
 `roles/platform/tasks/bootstrap.yml`. **Both halves are read, neither is
-hardcoded** — that is what lets a rotation move the fleet onto a second
+hardcoded**, and that is what lets a rotation move the fleet onto a second
 account and back.
 
-### `/jterrazz-actions` — app CI
+### `/jterrazz-actions`: app CI
 
 The default `infisical-secret-path` of `jterrazz-actions/actions/infra-connect`,
 consumed by every app repo's pipeline: `DOCKER_REGISTRY_USERNAME`,
@@ -96,7 +96,7 @@ base64 -i kubeconfig.yaml | pbcopy
 ```
 
 then paste it into the Infisical UI at `/jterrazz-actions` (env `prod`). The
-`.env` machine identity is **read-only** on that path — this step cannot be
+`.env` machine identity is **read-only** on that path, so this step cannot be
 scripted with the credentials this repo holds.
 
 ### GitHub secrets (repo `jterrazz/jterrazz-infrastructure`)
@@ -105,7 +105,7 @@ scripted with the credentials this repo holds.
 | ------------------------- | ---------------------------------------------- |
 | `INFISICAL_CLIENT_ID`     | `deploy-platform.yaml`, `publish-chart.yaml`   |
 | `INFISICAL_CLIENT_SECRET` | same                                           |
-| `CI_DEPLOY_SSH_PRIVATE`   | `deploy-platform.yaml` — SSH into the VM       |
+| `CI_DEPLOY_SSH_PRIVATE`   | `deploy-platform.yaml`, to SSH into the VM     |
 
 The public half of that keypair is committed as `security_ci_deploy_pubkey` in
 `ansible/roles/security/defaults/main.yml`; the `security` role installs it in
@@ -113,11 +113,11 @@ root's `authorized_keys`.
 
 ### GitHub secrets (every app repo)
 
-`INFISICAL_CLIENT_ID` / `INFISICAL_CLIENT_SECRET` — the same machine identity as
+`INFISICAL_CLIENT_ID` / `INFISICAL_CLIENT_SECRET` are the same machine identity as
 above, which `infra-connect` exchanges for `/jterrazz-actions`. One identity is
 shared by CI, the cluster's Infisical operator and the local `.env`; rotating it
 means updating every deploying repo. A repo that lacks them fails the *Release*
-job at `Missing universal auth credentials` — after a green validate, so a first
+job at `Missing universal auth credentials`, after a green validate, so a first
 deploy looks like it almost worked.
 
 ```bash
@@ -150,7 +150,7 @@ hole, and each names the check that proves it still holds.
 
 **OrbStack machines are not isolated from each other by default.** Every one
 mounts every other's rootfs at `/mnt/machines/<name>/` and reads it **as
-root** — so file permissions are irrelevant there, `0600` included, and the
+root**, so file permissions are irrelevant there, `0600` included, and the
 mode on `kubeconfig.yaml` is defence in depth rather than a fix. A plain
 `orb create` machine can read this cluster's data directory and its
 kubeconfig. Create dev machines with `--isolated` (no `/mnt/machines` at all)
@@ -162,7 +162,7 @@ refuses kubelet's `noswap` tmpfs and k3s restart-loops without ever serving.
 **Test the tailnet path, not just the public one.** cloudflared dials
 Traefik's ClusterIP directly, so a kube-system policy can break every tailnet
 client while smoke stays 11/11 and the cluster looks green. CI is a tailnet
-client — it pulls from the registry — so this surfaces as a failed deploy:
+client (it pulls from the registry), so this surfaces as a failed deploy:
 
 ```bash
 curl -sk -H "Host: registry.internal.jterrazz.com" https://<tailnet-ip>/v2/   # 401
@@ -174,7 +174,7 @@ tailnet address takes the OUTPUT path and never crosses `tailscale0`, so it
 stays green while every real peer is dropped. Seen 2026-09-19: tailscaled
 1.102 started masquerading forwarded tailnet traffic, klipper-lb then saw
 `10.42.0.1` instead of a `100.64.0.0/10` source and its
-`loadBalancerSourceRanges` filter dropped every SYN — the curls above passed
+`loadBalancerSourceRanges` filter dropped every SYN: the curls above passed
 on the node, CI failed at `docker login`, the laptop got nothing. The tell is
 `tcpdump -i any 'tcp port 443 and net 100.64.0.0/10'` on the node showing
 SYNs on `tailscale0` and nothing leaving `cni0` with a tailnet source. The
@@ -194,7 +194,7 @@ make diff
 ./scripts/trigger-app-deploys.sh --dry-run     # which repos would be rebuilt
 ./scripts/helmfile.sh diff -l name=grafana     # one release
 
-# cert-manager after any k3s churn (webhook + cainjector lose the API — the
+# cert-manager after any k3s churn (webhook + cainjector lose the API, the
 # single most common cause of a stuck Certificate; restart all three together)
 kubectl rollout restart -n platform-networking \
   deploy/cert-manager deploy/cert-manager-webhook deploy/cert-manager-cainjector
@@ -207,13 +207,13 @@ curl -s "http://$POD_IP:2000/metrics" | grep '^cloudflared_tunnel_total_requests
 
 # Every pod's stdout is in VictoriaLogs, shipped by the otel-collector's
 # filelog receiver (it tails /var/log/pods off a hostPath; there is no separate
-# log agent any more). Query in Grafana's "VictoriaLogs" datasource — the
+# log agent any more). Query in Grafana's "VictoriaLogs" datasource; the
 # language is LogsQL, NOT LogQL:
 #   {k8s.namespace.name="platform-analytics"}
 #   {app="op-api"} error
 #   {app="op-api"} | stats by (k8s.container.name) count()
 # The four stream fields are k8s.namespace.name / k8s.pod.name /
-# k8s.container.name / app — pinned by the VL-Stream-Fields header on the
+# k8s.container.name / app, pinned by the VL-Stream-Fields header on the
 # collector's exporter. Everything else (node, deployment, pod uid, file path)
 # is a regular field: filter on it, just do not expect it to narrow the scan.
 
@@ -245,8 +245,8 @@ curl -H "Authorization: Bearer $TS_API_KEY" -X POST \
 
 A node that comes back **logged out** after a reboot self-heals through
 `tailscale-autoauth.service` (installed by the `tailscale` role). If it did
-not, check that unit's journal first — the failure chain is registry NXDOMAIN
-→ ImagePullBackOff on every app pod → Cloudflare 503 on every public hostname.
+not, check that unit's journal first. The failure chain runs from a registry NXDOMAIN to an
+ImagePullBackOff on every app pod, then a Cloudflare 503 on every public hostname.
 
 ### DNS on the VM
 
@@ -265,14 +265,14 @@ kubelet pins and therefore the one CoreDNS forwards to:
 
 ```bash
 orb -m jterrazz-infrastructure -u root cat /run/systemd/resolve/resolv.conf
-# want exactly: nameserver 1.1.1.1 / nameserver 9.9.9.9 — no third line
+# want exactly: nameserver 1.1.1.1 / nameserver 9.9.9.9, no third line
 orb -m jterrazz-infrastructure -u root resolvectl status eth0
 # want: "DNS Servers:" absent under Link N (eth0)
 ```
 
 `/etc/resolv.conf` is useless for this: it is symlinked to `stub-resolv.conf`
 and always shows a single `nameserver 127.0.0.53`. `networkctl status eth0 |
-grep 'Network File'` names the file the drop-in must sit beside — the role
+grep 'Network File'` names the file the drop-in must sit beside; the role
 derives it rather than hardcoding `eth0.network`. Which file kubelet is pinned
 to, and why, is [Develop](develop.md#the-vm-is-built-one-way).
 
@@ -283,7 +283,7 @@ to, and why, is [Develop](develop.md#the-vm-is-built-one-way).
 - **Remove finalizers before deleting an `Application` object** when tearing
   down a controller that manages resources through it, or the cascade takes the
   managed resources with it. Learned dismantling ArgoCD, which is long gone from
-  this tree — the lesson is kept because nothing here can teach it again.
+  this tree; the lesson is kept because nothing here can teach it again.
 
 ### `make deploy-platform` from the Mac dies at fact-gathering
 
@@ -308,13 +308,13 @@ id, so there is nothing for a deploy to reconcile. Zone id
 | `analytics`  | CNAME | `8f4157bb-f883-424b-8ccd-8332867cf1b2.cfargotunnel.com` | yes     | auto |
 
 `*.internal` covers every private surface at once, which is why adding a
-private service needs no DNS work — only a line in `private_hostnames`
+private service needs no DNS work, only a line in `private_hostnames`
 (group_vars). DNS-only on purpose: proxied wildcards need a paid plan, and
 tailnet traffic must skip the Cloudflare edge anyway. One label deep, because
 the wildcard TLS certificate covers `svc.internal`, not `a.b.internal`.
 
 `analytics` is the one public hostname whose record is NOT created by the
-tunnel's Public Hostname feature (every other one is — see
+tunnel's Public Hostname feature (every other one is; see
 [cloudflared](../../kubernetes/services/cloudflared/README.md)). Its *route* is in
 Zero Trust, its *record* is this one, so deleting it falls back to nothing and
 OpenPanel's ingest stops resolving. Proxied is mandatory: `cfargotunnel.com`
@@ -325,8 +325,8 @@ answers, and only then delete.
 ### If a record is ever lost
 
 Recreating one needs a Cloudflare API token with **DNS:Edit** on `jterrazz.com`
-— dashboard → My Profile → API Tokens → "Edit zone DNS" template, scoped to
-that zone. Nothing in this repo or in Infisical stores such a token: it is
+(in the dashboard, My Profile, then API Tokens, from the "Edit zone DNS" template, scoped to
+that zone). Nothing in this repo or in Infisical stores such a token: it is
 needed once every few years, and a standing credential that can rewrite the
 zone is a worse trade than making one on the spot and deleting it after.
 
@@ -357,7 +357,7 @@ The sequence as executed on 2026-07-25 (Debian 13 migration):
 ./scripts/trigger-app-deploys.sh --dry-run > ~/fleet-$(date +%F).txt
 
 # 1. Stop the workloads. `systemctl stop k3s` does NOT stop running
-#    containers — they keep writing to /var/lib/k8s-data mid-backup.
+#    containers: they keep writing to /var/lib/k8s-data mid-backup.
 orb -m jterrazz-infrastructure -u root /usr/local/bin/k3s-killall.sh
 
 # 2. Back up the data directory (it lives on the Mac, so tar it there).
@@ -367,7 +367,7 @@ tar -czf ~/k8s-data-$(date +%F).tar.gz -C ~/.jterrazz-infrastructure data
 make destroy
 make deploy
 
-# 4. Refresh KUBECONFIG_BASE64 in Infisical /jterrazz-actions (see above) —
+# 4. Refresh KUBECONFIG_BASE64 in Infisical /jterrazz-actions (see above);
 #    nothing else will deploy until this is done.
 
 # 5. Rebuild + redeploy every app onto the new (empty) registry, from the
@@ -377,19 +377,19 @@ make deploy
 ```
 
 Step 5 is required, not optional: registry blobs are hostPath and do survive,
-but no app's Helm release does — the cluster is new. The script staggers the
+but no app's Helm release does: the cluster is new. The script staggers the
 dispatches by 20s so simultaneous Docker builds don't compete for RAM
 on one node. Post-repave verification items (uid pins, remaining egress narrowing)
 live in the pinned GitHub issue. Every PLATFORM namespace in
 `kubernetes/cluster/namespaces.yaml` has a baseline NetworkPolicy file; an app
 namespace has only what its own chart renders. The OpenPanel
-`API_URL_SSR` rationale lives in `kubernetes/services/openpanel/config.yaml` —
+`API_URL_SSR` rationale lives in `kubernetes/services/openpanel/config.yaml`;
 do not retell it here.
 
 ## Backups
 
 `make backup` writes an AES-256 archive of `~/.jterrazz-infrastructure/data` to
-`~/.jterrazz-infrastructure/backups/` and verifies it by decrypting it back —
+`~/.jterrazz-infrastructure/backups/` and verifies it by decrypting it back:
 an archive nobody has opened is a guess, not a backup.
 
 Most of that tree is the registry's blobs. `registry-gc` (below) keeps them at
@@ -405,11 +405,11 @@ The passphrase is `BACKUP_ENCRYPTION_KEY` in Infisical at
 `/jterrazz-infrastructure` (env `prod`). Nothing local is needed: with
 `INFISICAL_CLIENT_ID` / `INFISICAL_CLIENT_SECRET` in `.env`, `make backup`
 fetches it itself. It is deliberately NOT routed through
-`scripts/infisical-vars.py`, which writes the deploy extra-vars onto the node —
-this key has no business there.
+`scripts/infisical-vars.py`, which writes the deploy extra-vars onto the node,
+and this key has no business there.
 It is **permanent**: rotating it does not re-encrypt existing archives, it
 orphans them, and losing it loses every archive it ever produced. That is the
-whole point — a copy on Time Machine, an external disk or a future machine is
+whole point: a copy on Time Machine, an external disk or a future machine is
 useless without it, and fully restorable with it.
 
 Why encryption and not `chmod`: the data tree has to stay traversable by
@@ -426,7 +426,7 @@ the consumer, replace the directory, start it again.
 
 ```text
 data/
-├── grafana/                    grafana.db — users, API keys, alert state
+├── grafana/                    grafana.db (users, API keys, alert state)
 ├── victoria-metrics/           metrics (30d)
 ├── victoria-logs/              logs (90d)
 ├── victoria-traces/            traces (720h)
@@ -454,12 +454,12 @@ of [openpanel](../../kubernetes/services/openpanel/README.md#backup--restore).
 
 | What                              | How                                                                                                   |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Any Infisical-held secret         | Change it in the Infisical UI, then `make deploy-platform`. No `InfisicalSecret` in this repo sets `spec.syncConfig`, so every one resyncs on the **operator's own default interval** (5 minutes at operator 0.11.9); `kubectl delete pod -n platform-secrets -l control-plane=controller-manager` forces it now. Note the resync only updates the **Secret** — a consumer that reads it as `env` still needs a rollout restart. |
-| `CLOUDFLARE_TUNNEL_TOKEN`         | New connector token in Zero Trust → store at `/jterrazz-infrastructure` → wait for the resync (or force it as above), then `kubectl rollout restart deploy/cloudflared -n platform-networking` (it reads `TUNNEL_TOKEN` once, at startup). |
-| `DOCKER_REGISTRY_PASSWORD`        | Two accounts overlapping, never a single swap — [Rotating the registry password](#rotating-the-registry-password). |
+| Any Infisical-held secret         | Change it in the Infisical UI, then `make deploy-platform`. No `InfisicalSecret` in this repo sets `spec.syncConfig`, so every one resyncs on the **operator's own default interval** (5 minutes at operator 0.11.9); `kubectl delete pod -n platform-secrets -l control-plane=controller-manager` forces it now. Note the resync only updates the **Secret**; a consumer that reads it as `env` still needs a rollout restart. |
+| `CLOUDFLARE_TUNNEL_TOKEN`         | Create a new connector token in Zero Trust, store it at `/jterrazz-infrastructure`, wait for the resync (or force it as above), then `kubectl rollout restart deploy/cloudflared -n platform-networking` (it reads `TUNNEL_TOKEN` once, at startup). |
+| `DOCKER_REGISTRY_PASSWORD`        | Two accounts overlapping, never a single swap: [Rotating the registry password](#rotating-the-registry-password). |
 | CI deploy SSH key                 | `ssh-keygen -t ed25519`, paste the pubkey into `security_ci_deploy_pubkey`, `gh secret set CI_DEPLOY_SSH_PRIVATE -R jterrazz/jterrazz-infrastructure`, then `make deploy` to roll it onto the VM. |
-| `KUBECONFIG_BASE64`               | Regenerated by every repave — see the procedure above.                                                  |
-| The two manual DNS records        | Nothing to rotate — no DNS-editing token is stored anywhere. If a record is lost, recreate it: [DNS records](#dns-records-set-once-survive-everything). |
+| `KUBECONFIG_BASE64`               | Regenerated by every repave; see the procedure above.                                                   |
+| The two manual DNS records        | Nothing to rotate: no DNS-editing token is stored anywhere. If a record is lost, recreate it: [DNS records](#dns-records-set-once-survive-everything). |
 
 ### A deleted managed Secret does not come back
 
@@ -473,8 +473,8 @@ Secrets unchanged (server ETag match), skipping reconciliation
 
 Every CR here leaves `creationPolicy` at its default `Orphan`, which also means
 the operator never re-checks that the Secret it once created still exists. So a
-Secret deleted by hand — or by a `helm upgrade` that used to own a Secret of the
-same name — stays gone: the CR reports `Ready`, the resync interval passes, and
+Secret deleted by hand (or by a `helm upgrade` that used to own a Secret of the
+same name) stays gone: the CR reports `Ready`, the resync interval passes, and
 restarting the operator changes nothing, because the ETag is the state.
 
 Two repairs, and waiting is not one of them: change the value in Infisical, or
@@ -488,7 +488,7 @@ rm -f /tmp/cr.yaml
 
 ### Rotating the registry password
 
-One credential authenticates **every** direction at once — CI's `docker login`
+One credential authenticates **every** direction at once: CI's `docker login`
 and `helm registry login`, containerd's pull through the synced
 `registry-credentials`, and the chart publisher. A single swap therefore breaks
 whichever side has not caught up yet, and one of those sides is the pipeline
@@ -496,20 +496,20 @@ that would fix it. So the two accounts overlap: add the new one, move
 everything onto it, remove the old one.
 
 An account is a NAME and a password, and both move. The name **alternates**:
-`deploy` → `deploy-next` this time, `deploy-next` → `deploy` the next. Nothing
-hardcodes it — `bootstrap.yml` hashes `DOCKER_REGISTRY_USERNAME` from
+from `deploy` to `deploy-next` this time, from `deploy-next` to `deploy` the next. Nothing
+hardcodes it: `bootstrap.yml` hashes `DOCKER_REGISTRY_USERNAME` from
 `/jterrazz-infrastructure` into the htpasswd line, the same key CI and the
-kubelet authenticate with from `/jterrazz-actions` — which is what makes the
+kubelet authenticate with from `/jterrazz-actions`, which is what makes the
 overlap below work as written. Before this was true, step 5 regenerated a line
 for `deploy` while everything else spoke as `deploy-next`, and the fleet went
 ImagePullBackOff (2026-09-06).
 
-Nothing below ever prints a value — read them from the Infisical UI and pass
+Nothing below ever prints a value: read them from the Infisical UI and pass
 them through the environment.
 
 1. **Add a second account to the registry.** `bootstrap.yml` generates exactly
    one htpasswd line, so the second one is by hand, and it lasts only until the
-   next `make deploy` / `make deploy-platform` regenerates the Secret — which is
+   next `make deploy` / `make deploy-platform` regenerates the Secret, which is
    step 5. Which name is live is the server's own answer, and reading it prints
    no hash:
 
@@ -533,7 +533,7 @@ them through the environment.
    kubectl rollout restart deploy/registry -n platform-registry   # the file is a mount
    ```
 
-2. **Store the new pair at BOTH paths** in the Infisical UI — four values, one
+2. **Store the new pair at BOTH paths** in the Infisical UI: four values, one
    account. `/jterrazz-infrastructure` holds `DOCKER_REGISTRY_USERNAME` +
    `DOCKER_REGISTRY_PASSWORD`, which Ansible reads as `registry_username` /
    `registry_password` and hashes into the server's htpasswd;
@@ -550,7 +550,7 @@ them through the environment.
    kubectl delete pod -n platform-secrets -l control-plane=controller-manager
    ```
 
-   No app redeploy is needed — the pull secret is not a chart value.
+   No app redeploy is needed; the pull secret is not a chart value.
 
 4. **Verify every namespace is fresh** before removing anything. The operator
    stamps an etag on what it wrote, so identical values across namespaces mean
@@ -566,19 +566,19 @@ them through the environment.
    chart 2.12.0: deploy it (its CR is what creates the Secret) before step 5.
 
    A namespace whose CR is `Ready` while the Secret is absent is the other
-   case, and no amount of waiting fixes it — the operator is holding an ETag
+   case, and no amount of waiting fixes it: the operator is holding an ETag
    for a value it has already synced, and never looks at the missing object
    ([above](#a-deleted-managed-secret-does-not-come-back)). Recreate that CR
    before continuing.
 
 5. **Drop the old account.** With both new halves already at
    `/jterrazz-infrastructure`, the platform play regenerates a single-line
-   `registry-auth` for the new account — hand-added line and old account gone
+   `registry-auth` for the new account, the hand-added line and the old account gone
    in one pass:
 
    ```bash
    gh workflow run deploy-platform.yaml -R jterrazz/jterrazz-infrastructure
-   # or, as a fallback: make deploy-platform   # from the Mac — see below
+   # or, as a fallback: make deploy-platform   # from the Mac, see below
    kubectl rollout restart deploy/registry -n platform-registry
    ```
 
@@ -592,14 +592,14 @@ them through the environment.
 **Step 5 is `deploy-platform.yaml`; the Mac is the fallback.** That workflow's
 own `infra-connect` logs in to the registry before it can do anything, which is
 the whole reason the rotation overlaps: while both accounts are live on the
-server, the run authenticates with either half and is safe — that is how the
+server, the run authenticates with either half and is safe; that is how the
 2026-09-06 rotation was finished. What is unsafe is starting it *outside* the
 overlap, before step 1 or after the old line is gone but a path still holds the
 old value: it then dies at its first step, the same loop as taking the
 `registry` release down. So the order matters, not the machine.
 
 `make deploy-platform` from the Mac needs only `.env` and `orb`, and it is the
-way in when the workflow cannot run at all — but on this workstation it
+way in when the workflow cannot run at all, but on this workstation it
 currently fails at fact-gathering
 ([above](#make-deploy-platform-from-the-mac-dies-at-fact-gathering), open since
 2026-09-06). Check that before you rely on it mid-rotation.
@@ -647,7 +647,7 @@ is empty, which turns off the registry's in-memory blob cache. With that cache
 on, a layer the job sweeps stays "present" in the running registry's memory,
 and the next push that re-uses it skips the upload and writes a tag that
 cannot be pulled (distribution#1803, still open). At boot the registry logs
-`unknown cache type … caching disabled`, which confirms the setting.
+`unknown cache type ... caching disabled`, which confirms the setting.
 
 Three things not to do:
 
@@ -673,22 +673,22 @@ Three things not to do:
 A "platform service" is a directory under `kubernetes/services/` and one or
 more releases. Which chart renders the workload decides the shape: an UPSTREAM
 chart (`values.yaml`) when one exists and is maintained, otherwise the **app
-chart** — one values file per release, named after it (`op-api.yaml`,
+chart**: one values file per release, named after it (`op-api.yaml`,
 `mongodb.yaml`, or `app.yaml` for a single-workload service). Writing a raw
 Deployment is the last resort, for something no chart can express; cloudflared
 (`hostNetwork: true`) is the only one left.
 
 1. Namespace: add it to `kubernetes/cluster/namespaces.yaml` if it doesn't
-   already have one — never `kubectl create ns`. A NEW namespace also needs a
+   already have one; never `kubectl create ns`. A NEW namespace also needs a
    baseline NetworkPolicy file under `kubernetes/cluster/network-policies/`:
    default-deny, allow-same-namespace, namespace-wide DNS egress, and nothing
    that names one workload.
 2. Values: add `kubernetes/services/<svc>/service.yaml` (the platform-service
    chart: certificate, route, volumes, credentials, per-service NetworkPolicy)
    plus either `values.yaml` for the upstream chart or one app-chart values
-   file per workload. Follow an existing service as a template — `registry/`
+   file per workload. Follow an existing service as a template: `registry/`
    for a single app-chart workload, `openpanel/` for several.
-3. Release: add ONE block to `kubernetes/helmfile.yaml.gotmpl` — name,
+3. Release: add ONE block to `kubernetes/helmfile.yaml.gotmpl` with its name,
    namespace, chart, pinned `version:` and `values:`. Its `<svc>-platform`
    sibling is `inherit: [{template: platform-service}]` and needs no version. That block
    is the whole declaration: Ansible applies it, `make diff` previews it and
@@ -696,16 +696,16 @@ Deployment is the last resort, for something no chart can express; cloudflared
    repository not already listed at the top of the file, add that too.
 4. Ingress: set `access: private` (default) or `access: cluster-internal` in
    `service.yaml`, and add the private hostname to `private_hostnames` in
-   group_vars — CoreDNS needs the name before the route exists, and `smoke.sh`
+   group_vars: CoreDNS needs the name before the route exists, and `smoke.sh`
    fails if the list and the live routes disagree either way. A public service
-   needs a new zone — the three steps are in
+   needs a new zone; the three steps are in
    [Develop](develop.md#dns-has-exactly-three-owners-and-none-of-them-is-this-repos-code).
    Smoke: **nothing**, unless the default (`GET /` -> 200) is wrong for this
    service, in which case add `smoke: { path, expect }` to the same
    `service.yaml`. The chart stamps it on the route and `scripts/smoke.sh`
    discovers it.
 5. Network: for an upstream chart, declare `network:` in the same
-   `service.yaml` — the pod selector (read it off that chart's pods, it cannot
+   `service.yaml`: the pod selector (read it off that chart's pods, it cannot
    be derived) plus the ingress and egress the workload needs. For an app-chart
    workload it is `spec.network` in its own values file, and a datastore wants
    `isolated: true` so the chart derives no Traefik ingress and no internet
@@ -716,18 +716,18 @@ Deployment is the last resort, for something no chart can express; cloudflared
 6. Secrets: `secrets: { path, secretName }` in `service.yaml` for a name an
    upstream chart reads literally, or `spec.secrets` on the app-chart release
    for one that becomes env vars. Nothing is applied by Ansible any more.
-7. `make check` locally, then a PR — `deploy-platform.yaml` deploys on merge.
+7. `make check` locally, then a PR; `deploy-platform.yaml` deploys on merge.
 
    If the release replaces a live object the cluster already has, Helm must
    ADOPT it first: annotate `meta.helm.sh/release-name` +
    `meta.helm.sh/release-namespace` and label
    `app.kubernetes.io/managed-by=Helm`, or the install fails on conflict. A
-   Deployment whose SELECTOR changes cannot be adopted at all — the field is
-   immutable — so it is `kubectl delete deployment <name>` immediately before
+   Deployment whose SELECTOR changes cannot be adopted at all (the field is
+   immutable), so it is `kubectl delete deployment <name>` immediately before
    the deploy, which is a real outage for that workload. Never do that to
    `registry`: the deploy workflow's own setup logs into it, so the run that
    would recreate it cannot start (`make deploy-platform` from the Mac is the
-   way out — and it is itself broken right now,
+   way out, and it is itself broken right now,
    [above](#make-deploy-platform-from-the-mac-dies-at-fact-gathering)).
 
 ## Add a new app
@@ -737,34 +737,34 @@ chart they render through. Full schema and merge semantics:
 [kubernetes/charts/app/README.md](../../kubernetes/charts/app/README.md).
 
 1. Add `.infrastructure/application.yaml` to the app repo, with `tag:` set on
-   every environment — omitting it silently deploys "staging" instead. Smoke
+   every environment; omitting it silently deploys "staging" instead. Smoke
    needs **nothing**: the chart derives each route's probe from the path and
    the `health.path` the app already declares. Add `smoke: { path, expect }`
    to an ingress entry only when that derivation is wrong, `smoke: false` to
    opt a route out.
 2. Set `INFISICAL_CLIENT_ID` / `INFISICAL_CLIENT_SECRET` as GitHub secrets on
-   the app repo — see [GitHub secrets (every app repo)](#github-secrets-every-app-repo)
+   the app repo; see [GitHub secrets (every app repo)](#github-secrets-every-app-repo)
    above.
 3. Expose `make build`, `make lint`, `make test` and call the shared workflow
    in `jterrazz/jterrazz-actions`.
 4. First deploy creates the namespace and Certificate; this repo needs no
-   changes — `make redeploy-apps` picks the repo up from the
+   changes: `make redeploy-apps` picks the repo up from the
    `app.jterrazz.com/repository` annotation its Deployment now carries. A
    tailnet-only hostname is the one exception: add it to `private_hostnames`
    in group_vars, or smoke fails on the mismatch.
 
 ## Version decisions
 
-Pins held below the current upstream release — do not re-open without new
+Pins held below the current upstream release. Do not re-open without new
 evidence.
 
 | Component  | Held at        | Why                                                                                                                                                                                              |
 | ---------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| PostgreSQL | `17-alpine`    | Above OpenPanel's own pin (`postgres:14-alpine`, which it documents nowhere else); Prisma 6 (the ORM) supports 9.6-18. Moved 14 → 17 on 2026-09-19 ahead of 14's 2026-11-12 EOL, by the dump/restore below. Not 18: its image moved the default data layout. `pgdata-pg14-2026-09-19` beside the live dir is the rollback. |
+| PostgreSQL | `17-alpine`    | Above OpenPanel's own pin (`postgres:14-alpine`, which it documents nowhere else); Prisma 6 (the ORM) supports 9.6-18. Moved from 14 to 17 on 2026-09-19 ahead of 14's 2026-11-12 EOL, by the dump/restore below. Not 18: its image moved the default data layout. `pgdata-pg14-2026-09-19` beside the live dir is the rollback. |
 | ClickHouse | `26.1.3.52`    | Exactly what OpenPanel's self-hosting compose pins at the 2.3.0 images (moved with them, 2026-09-19). Newer is uncited and 26.5/26.7 change event-ingest datetime parsing and reject the AggregatingMergeTree schema shape OpenPanel uses. |
 | Redis 8.x  | staying on 7.x | Neither OpenPanel nor BullMQ publishes a Redis 8 support statement.                                                                                                                                |
 
-### The PostgreSQL major migration (14 → 17 was run this way on 2026-09-19)
+### The PostgreSQL major migration (14 to 17 was run this way on 2026-09-19)
 
 Kept as the procedure for the next major. DB was ~26 MB, ~5 minutes of
 dashboard/ingest downtime end to end. **Dump with the *newer* server's
@@ -773,8 +773,8 @@ dashboard/ingest downtime end to end. **Dump with the *newer* server's
 **Step 2 cannot be a throwaway pod.** The namespace's baseline egress policy
 allows DNS only, so a `kubectl run` pod gets `connection refused` from
 `op-postgres` even with the API's labels. Run the newer client as an ephemeral
-container *inside* the Postgres pod instead — it shares the network namespace,
-so `127.0.0.1:5432` needs no policy — and under `--profile=baseline`, because
+container *inside* the Postgres pod instead (it shares the network namespace,
+so `127.0.0.1:5432` needs no policy), and under `--profile=baseline`, because
 the default debug profile adds `SYS_PTRACE`, which PodSecurity rejects:
 
 ```bash
@@ -789,7 +789,7 @@ variant below is what the docs said first and it silently writes a 200-byte
 error instead of a dump.
 
 ```bash
-# 1. Stop the writers (NOT postgres itself — it must serve the dump). A scale
+# 1. Stop the writers (NOT postgres itself: it must serve the dump). A scale
 #    is reverted by the next `helmfile apply`, so do this with the deploy
 #    workflow quiet.
 kubectl scale -n platform-analytics --replicas=0 deploy/op-api deploy/op-worker deploy/op-dashboard
@@ -800,7 +800,7 @@ kubectl run pgdump-17 -n platform-analytics --rm -i --restart=Never \
   pg_dumpall -h op-postgres -U openpanel --quote-all-identifiers > openpanel-all-$(date +%F).sql
 test -s openpanel-all-*.sql && grep -c "CREATE DATABASE" openpanel-all-*.sql   # sanity
 
-# 3. Stop postgres and MOVE the old data dir aside — never delete it; it is the
+# 3. Stop postgres and MOVE the old data dir aside, never delete it: it is the
 #    rollback. A PG 17 server cannot read a PG 14 cluster directory.
 kubectl scale -n platform-analytics --replicas=0 deploy/op-postgres
 #    On the Mac (/var/lib/k8s-data is a symlink to ~/.jterrazz-infrastructure/data):
@@ -823,7 +823,7 @@ kubectl scale -n platform-analytics --replicas=1 deploy/op-api deploy/op-worker 
 kubectl rollout status -n platform-analytics deploy/op-api --timeout=300s
 ```
 
-**Downtime:** dashboard + ingest down for the whole procedure — budget 15-20
+**Downtime:** dashboard + ingest down for the whole procedure; budget 15-20
 min at this data size.
 
 **Verify:** `kubectl exec -n platform-analytics deploy/op-postgres -- psql -U openpanel -d openpanel -c '\dt'`

@@ -1,7 +1,7 @@
 # Testing
 
 What proves a change here, and what nothing proves. There is no test suite in
-the ordinary sense: the evidence is of two kinds — tree-side checks, which read
+the ordinary sense: the evidence is of two kinds: tree-side checks, which read
 files and render templates with no cluster anywhere, and one black-box probe of
 the deployed state. The workflows that carry both are [CI](../reference/ci.md).
 
@@ -12,22 +12,22 @@ Each check answers for one thing:
 
 | Check                                                            | Proves                                                                                          |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `shellcheck scripts/*.sh scripts/lib/*.sh`                       | the shell is not quietly wrong — quoting, unset vars, the classic word-split                    |
+| `shellcheck scripts/*.sh scripts/lib/*.sh`                       | the shell is not quietly wrong: quoting, unset vars, the classic word-split                     |
 | `ast.parse` on `infisical-vars.py` and `assert-sync.py`          | both python scripts parse (and leave no `__pycache__/` behind, which `py_compile` would)        |
-| `python3 scripts/assert-sync.py`                                 | every fact this repo writes down twice still agrees — the roster is [Hand-synced pairs](../reference/hand-synced-pairs.md) |
+| `python3 scripts/assert-sync.py`                                 | every fact this repo writes down twice still agrees; the roster is [Hand-synced pairs](../reference/hand-synced-pairs.md) |
 | `ansible-lint -c ansible/.ansible-lint ansible/`                 | the whole Ansible tree, roles and templates and inventories, not just `playbooks/`               |
 | `ansible-playbook --syntax-check` on both playbooks              | each playbook parses against the inventory that actually runs it                                |
-| `helm lint` on `common` alone, then `app` and `platform-service` against their `ci/test-values.yaml` | the charts render, and render something — see [the fixtures](#the-fixtures-are-the-validation-contract) |
+| `helm lint` on `common` alone, then `app` and `platform-service` against their `ci/test-values.yaml` | the charts render, and render something; see [the fixtures](#the-fixtures-are-the-validation-contract) |
 | `helm unittest --strict app platform-service`                    | what the templates COMPUTED, not merely that the YAML is well-formed                            |
 | `actionlint`                                                     | the workflow files themselves                                                                    |
-| `make docs`                                                      | the repository passes the estate's content check — the manual's shape (the map bijective, the pages in their sections, the three required pages), the Markdown, the comments, the names, the secrets |
+| `make docs`                                                      | the repository passes the estate's content check: the manual's shape (the map bijective, the pages in their sections, the three required pages), the Markdown, the comments, the names, the secrets |
 
 `--strict` on helm-unittest matters: it rejects an unknown key in a test file,
 so a typo'd assertion name is an error rather than an assertion that silently
 never runs.
 
-Three of these are soft skips locally — `actionlint`, the helm-unittest plugin
-and `make docs`, which needs node — because CI runs all three unconditionally,
+Three of these are soft skips locally (`actionlint`, the helm-unittest plugin
+and `make docs`, which needs node) because CI runs all three unconditionally,
 so a laptop without them is not a gap in the gate. `make docs` runs
 `typescript check` of `@jterrazz/typescript` on the repository as a content
 repository (`jterrazz.config.ts`), pinned in the `Makefile`; the rule ids and the
@@ -41,7 +41,7 @@ Four checks have no local half, because each needs a tool `make check` does not
 insist on:
 
 - **kubeconform**, over `kubernetes/cluster`, over each chart rendered with its
-  fixture, and over every raw manifest under `kubernetes/services` — found by
+  fixture, and over every raw manifest under `kubernetes/services`, found by
   the one structural property that separates a manifest from a values file, a
   top-level `apiVersion:` key, which is the same test
   `roles/platform/tasks/raw-manifests.yml` applies. It is deliberately not
@@ -50,7 +50,7 @@ insist on:
 - **`helmfile template`** over `kubernetes/helmfile.yaml.gotmpl`, the only
   declaration of every platform release. It catches a bad chart version, a
   values file that moved, a `needs:` pointing at a release that no longer
-  exists — each of which would otherwise surface mid-deploy, after some releases
+  exists, each of which would otherwise surface mid-deploy, after some releases
   have already been upgraded.
 - **gitleaks**, `--no-git` over the checked-out files. History is never scanned,
   on purpose: this repository predates any secret hygiene and its history holds
@@ -67,7 +67,7 @@ silently picked the wrong ipAllowList are all perfectly valid YAML. That is the
 gap helm-unittest fills.
 
 The plugin embeds its own rendering library, so its output does not depend on
-the helm CLI beside it — which is what keeps the committed `__snapshot__` files
+the helm CLI beside it, which is what keeps the committed `__snapshot__` files
 reproducible between a laptop and a runner, and why the version in
 `validate.yaml` and the one in the `Makefile` are a pair that must not drift.
 
@@ -75,8 +75,8 @@ reproducible between a laptop and a runner, and why the version in
 
 Both charts render near-zero objects with default values, so CI only exercises
 what `ci/test-values.yaml` reaches: a template branch no fixture reaches is a
-branch CI does not check. `charts/common` has no fixture at all — a library
-chart renders nothing on its own — so every branch it holds, each NetworkPolicy
+branch CI does not check. `charts/common` has no fixture at all (a library
+chart renders nothing on its own), so every branch it holds, each NetworkPolicy
 peer form and each middleware, is reached only through those two files.
 
 Nothing can assert this. There is no equality between a fixture and a template
@@ -86,7 +86,7 @@ Adding a branch means adding the values that reach it, in the same change.
 ## What a deploy proves
 
 A green `ansible-playbook` run is not the claim "the site loads". A platform
-apply can succeed and still leave a service unreachable — a broken IngressRoute,
+apply can succeed and still leave a service unreachable: a broken IngressRoute,
 a middleware that no longer resolves, a pod that comes back CrashLooping after
 `--wait` returned. `scripts/smoke.sh` is the check that closes that gap, and
 `smoke.yaml` is the only workflow that reads the deployed state rather than the
@@ -94,7 +94,7 @@ tree.
 
 It probes the front door: public hostnames through the Cloudflare tunnel,
 private hostnames over the tailnet, and TLS expiry from the wire. The question
-LIST is not in this repo — every IngressRoute carries its own contract as
+LIST is not in this repo: every IngressRoute carries its own contract as
 `smoke.jterrazz.com/{path,expect,method,location,probe}` annotations, which the
 charts stamp from facts the service already declares
 (`kubernetes/charts/common/templates/_smoke.tpl`). A surface an app added
@@ -102,7 +102,7 @@ yesterday is probed today with no edit here.
 
 Three things it refuses to read as fine:
 
-- **Zero discovered routes is an error**, never "nothing to check" — that is a
+- **Zero discovered routes is an error**, never "nothing to check"; that is a
   broken cluster or a broken query.
 - **A route with no annotation is probed with the `GET / -> 200` fallback and
   named in the output**, because an unannotated route means an app has not
@@ -116,8 +116,8 @@ signal), on a Monday 07:17 UTC schedule, and on demand. The schedule is the only
 uptime monitor this repo has: nothing else notices a certificate that quietly
 stopped renewing, or an app that died days after its last deploy.
 
-Locally, `make smoke` probes `--public --certs` only — the private half needs
-this machine on the tailnet — and `./scripts/smoke.sh --list` prints what it
+Locally, `make smoke` probes `--public --certs` only (the private half needs
+this machine on the tailnet), and `./scripts/smoke.sh --list` prints what it
 discovered without probing anything.
 
 ## What nothing proves
@@ -125,12 +125,12 @@ discovered without probing anything.
 - **No check here talks to a cluster except smoke.** `make diff` previews what a
   platform apply would change, but it is read-only and it needs a working
   kubeconfig; it is a habit before a deploy, not a gate.
-- **A template branch no fixture reaches** — [above](#the-fixtures-are-the-validation-contract).
+- **A template branch no fixture reaches**: [above](#the-fixtures-are-the-validation-contract).
 - **A stale vendored CRD schema still validates.** `kubernetes/schemas/` overrides
   the public catalog for the one CRD whose catalog copy lags the operator we
   run; bumping the `infisical` release without re-extracting it means CI
   validates against a CRD the cluster no longer has, and the break lands at
-  `kubectl apply`. That pair has no checker — see
+  `kubectl apply`. That pair has no checker; see
   [Hand-synced pairs](../reference/hand-synced-pairs.md).
 - **`private_hostnames` against the live routes** is only ever checked at smoke
   time, both ways. Until a smoke run, a name CoreDNS answers for and nothing

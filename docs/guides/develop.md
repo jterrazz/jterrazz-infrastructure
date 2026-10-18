@@ -15,7 +15,7 @@ none of them can, is [Test](test.md).
 
 A change to a chart template also needs its `version:` bumped in that chart's
 `Chart.yaml`. The app chart is consumed unversioned and both publish guards skip
-rather than overwrite, so a forgotten bump ships nothing, silently — the pair
+rather than overwrite, so a forgotten bump ships nothing, silently; the pair
 and its consequences are in
 [Hand-synced pairs](../reference/hand-synced-pairs.md).
 
@@ -27,12 +27,12 @@ mechanically when editing any values file, manifest or template in this repo.
 1. **Check the upstream default before writing a comment that justifies a
    value** (`helm show values <chart> --version <pin>`, the binary's `--help`,
    the Kubernetes API defaults). If your value equals the default, delete the
-   value and the comment — a restated default is a line that reads as a
+   value and the comment: a restated default is a line that reads as a
    decision and is not one. If it differs, keep it and write one sentence
    naming the default and the reason for diverging.
 2. **A knob nothing sets is dead weight, and its comment is pure cost.** Grep
    before adding a values key; if no consumer sets it, it does not belong in
-   the chart. Never default the same key in two places either — a `| default`
+   the chart. Never default the same key in two places either: a `| default`
    in a template whose key already has a value in `values.yaml` can never fire,
    so `values.yaml` owns defaults and templates read them plainly.
 3. **Prefer the default when it fails faster, uses less memory, or is one fewer
@@ -44,7 +44,7 @@ mechanically when editing any values file, manifest or template in this repo.
    a data-destroying constraint (change this and the volume is orphaned), or a
    silent-failure trap (the wrong spelling applies cleanly and does nothing).
    Delete past measurements, incident narratives, dated right-sizing diaries,
-   completed-migration tables and verification transcripts — git history keeps
+   completed-migration tables and verification transcripts; git history keeps
    them, and a comment nobody can re-verify becomes a comment nobody trusts.
 5. **Say it once.** One file owns each rationale and the others point at it.
    When you delete a value, grep the tree for comments that reference it: a
@@ -57,20 +57,20 @@ mechanically when editing any values file, manifest or template in this repo.
   `storage.<key>.pathSuffix`.
 - **`ansible/inventories/group_vars/all.yml` is the config surface.** It sits
   next to the inventory files, which is the only place Ansible auto-loads it
-  from here — a top-level `ansible/group_vars/` was adjacent to neither
+  from here: a top-level `ansible/group_vars/` was adjacent to neither
   inventory nor playbook and was silently never loaded. Role `defaults/` is for
   values a human should not touch; `k3s_version` is single-sourced in
   group_vars and deliberately absent from `roles/k3s/defaults/`, which is why
   that file does not exist.
 - **Namespaces** are `prod-<app>` / `next-<app>` / `staging-<app>` for apps and
   `platform-*` for infrastructure. All platform namespaces are declared in
-  `kubernetes/cluster/namespaces.yaml` — never `kubectl create ns`.
+  `kubernetes/cluster/namespaces.yaml`, never by `kubectl create ns`.
 
 ## The VM is built one way
 
 - **`orb create debian` gives you bookworm.** Debian is the one distro where
   OrbStack's bare image name resolves to the previous stable, so `vm_up` in
-  `scripts/deploy.sh` spells out `debian:trixie`. Never drop the tag — every
+  `scripts/deploy.sh` spells out `debian:trixie`. Never drop the tag: every
   Ansible role is Debian-13-native (deb822 repositories, socket-activated
   sshd, systemd-resolved as a separate package).
 - **`orbctl create -u root` is broken** since OrbStack 2.2.0: its setup runs
@@ -103,29 +103,29 @@ mechanically when editing any values file, manifest or template in this repo.
 - **`deploy-platform.yaml` never runs the host layer.** The base, security,
   resolved, tailscale and k3s roles restart sshd or tailscaled and would kill
   the runner's own SSH session. Anything below the platform layer is `make
-  deploy` from the laptop — creating the VM most of all, since that is `orbctl`
+  deploy` from the laptop, creating the VM most of all, since that is `orbctl`
   on the Mac, which no runner has.
 
 ## Workloads
 
 - **A workload is an app-chart release or an upstream chart.** The only raw
   Deployment left is cloudflared, and it is an exception on purpose:
-  `hostNetwork: true` (the CNI bridge mangles its tunnel handshake — see
+  `hostNetwork: true` (the CNI bridge mangles its tunnel handshake; see
   [Networking](#networking)) plus `dnsPolicy: ClusterFirstWithHostNet`,
   neither of which the app chart expresses, for the one workload in the cluster
   that needs them. Its `cloudflared-platform` release still carries the
   tunnel-token InfisicalSecret, so the manifest is a Deployment and nothing
   else.
 
-  Everything that used to sit beside it — OpenPanel's six workloads,
-  the registry — now renders through `charts/app`, which is
+  Everything that used to sit beside it (OpenPanel's six workloads,
+  the registry) now renders through `charts/app`, which is
   why that chart grew `command`/`args`, an exec/tcp probe, `storage.claimName`,
   `servicePort` and `network.isolated`. Reach for a new raw manifest only when
   the app chart genuinely cannot express the thing, and say why in this list
   when you do.
 - **Immutable fields mean delete-and-recreate**: Deployment selectors, PV
   `hostPath.type`, PVC `spec.selector`. Changing a `pathSuffix` or a PV name in
-  a `service.yaml` moves live data — the current paths are byte-identical to
+  a `service.yaml` moves live data: the current paths are byte-identical to
   what the pre-chart manifests produced, on purpose. The Helm release names
   `<x>-platform` are frozen for the same class of reason: the chart behind them
   is `platform-service`, but a renamed release is a new release, and the old one
@@ -163,7 +163,7 @@ mechanically when editing any values file, manifest or template in this repo.
   is a strict superset of the first; a route picks one.
 - **buildkit needs `network=host` in CI.** `jterrazz-actions/actions/docker-build`
   sets it so buildkit sees the runner's Tailscale resolver; without it
-  `docker push registry.internal.jterrazz.com/…` NXDOMAINs on the public CNAME
+  `docker push registry.internal.jterrazz.com/...` NXDOMAINs on the public CNAME
   chain.
 
 ## The fsync tax
@@ -172,27 +172,27 @@ mechanically when editing any values file, manifest or template in this repo.
 two paths with different levers.** OrbStack honours a guest `fsync()` with a
 real durable barrier, an APFS journal commit, about 135KB of SSD writes each,
 whatever it commits; macOS' own `fsync()` does not, it only pushes to the drive
-cache. So the tax is per-fsync, not per-byte — sequential writes run 1:1 — and
+cache. So the tax is per-fsync, not per-byte (sequential writes run 1:1), and
 every storage-side tuning in this tree is about issuing fewer fsyncs, never
 fewer bytes. Upstream tracks the symptom in orbstack/orbstack#1332, open and
 undiagnosed; there is no OrbStack setting for it.
 
-- **virtiofs** — `/var/lib/k8s-data`, a symlink into the Mac home, so every PV.
+- **virtiofs**: `/var/lib/k8s-data`, a symlink into the Mac home, so every PV.
   The fsync is a FUSE request the guest cannot suppress, and the workload is
   the only lever: `inmemoryDataFlushInterval` on the three Victoria stores,
   `--appendfsync no` on OpenPanel's Redis. A store that writes 15MB/day can
   cost tens of GB/day of SSD if it fsyncs on a 5s timer. `findmnt` on the
   symlink prints nothing; `readlink -f` first.
-- **The VM disk** — `/dev/vdb`, btrfs: k3s' kine SQLite, containerd,
+- **The VM disk**: `/dev/vdb`, btrfs: k3s' kine SQLite, containerd,
   `/var/log/pods`. The fsync is a virtio-blk FLUSH, and
   `queue/write_cache=write through` makes the block layer stop sending them
-  (300 fsyncs: 99MB → 0MB). `roles/base` installs
+  (300 fsyncs: from 99MB to 0MB). `roles/base` installs
   `virtio-blk-write-through.service` for that, re-applied at every boot
   because the attribute is runtime-only. Two things to know: OrbStack runs ONE
   Linux VM and every "machine" plus Docker is a container in it on the same
   `vdb`, so the setting is OrbStack-wide; and the writes still land in the
   Mac's page cache, so only a macOS panic or hard power-off can lose the last
-  seconds — the contract a native macOS `fsync()` gives every Mac app. It does
+  seconds, the contract a native macOS `fsync()` gives every Mac app. It does
   nothing for virtiofs (verified), so it is not a reason to skip the workload
   tuning above.
 
@@ -202,13 +202,13 @@ tuning.
 
 ## DNS has exactly three owners, and none of them is this repo's code
 
-- **Private** — `<svc>.internal.jterrazz.com`, covered by the single
+- **Private**: `<svc>.internal.jterrazz.com`, covered by the single
   `*.internal` wildcard CNAME. Adding one needs no DNS change at all, only a
   line in `private_hostnames` (group_vars) so in-cluster lookups skip the public
   CNAME chain.
-- **Public** — the Cloudflare Zero Trust tunnel owns the record. Add a Public
+- **Public**: the Cloudflare Zero Trust tunnel owns the record. Add a Public
   Hostname in its UI; nothing lands in this repo.
-- **The machine** — two records made by hand in the Cloudflare dashboard and
+- **The machine**: two records made by hand in the Cloudflare dashboard and
   written down in [Operate](operate.md#dns-records-set-once-survive-everything):
   the `*.internal` wildcard, and `analytics`, which is the exception to "the
   tunnel owns every public record" because its route is a Public Hostname but
@@ -216,7 +216,7 @@ tuning.
 
 Both hand-made records are set once and survive every repave: the VM keeps its
 hostname, the tunnel keeps its id, and nothing a deploy runs ever touches them.
-Never grow that pair into a per-service list — that is what made the hostname
+Never grow that pair into a per-service list; that is what made the hostname
 list live in two files with a CI assertion holding them together.
 
 A new public zone is three steps: add it to both ClusterIssuers in
@@ -227,6 +227,6 @@ zone's SSL mode to Full (Strict).
 ## Absent on purpose
 
 fail2ban and auditd are not installed, and that is a decision, not an omission.
-fail2ban guarded a public SSH port that does not exist — there is no public
-inbound path at all — and auditd needs `CAP_AUDIT_*`, which the OrbStack
+fail2ban guarded a public SSH port that does not exist (there is no public
+inbound path at all), and auditd needs `CAP_AUDIT_*`, which the OrbStack
 hypervisor withholds. Do not restore them.

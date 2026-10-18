@@ -42,8 +42,8 @@ an app owes the cluster is [the deploy contract](docs/reference/deploy-contract.
 ## Quick start
 
 ```bash
-make deploy           # create the VM if absent + ansible site.yml — the whole machine
-make deploy-platform  # ansible platform.yml only — everything above k3s
+make deploy           # create the VM if absent + ansible site.yml: the whole machine
+make deploy-platform  # ansible platform.yml only: everything above k3s
 make diff             # what a deploy would change, without changing it (helmfile diff)
 make redeploy-apps    # trigger every app's CI to rebuild + redeploy
 make destroy          # delete the VM (the Mac-side data directory stays)

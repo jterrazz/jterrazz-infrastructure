@@ -6,8 +6,8 @@ knowledge is in [docs/README.md](docs/README.md).
 ## Mental model
 
 `scripts/deploy.sh` creates an OrbStack VM on the Mac, Ansible configures it,
-Helmfile deploys onto it. Above the machine there are four layers — host,
-cluster, platform services, apps — and three Helm charts, one of them a library
+Helmfile deploys onto it. Above the machine there are four layers (host,
+cluster, platform services, apps) and three Helm charts, one of them a library
 the other two share. Apps are not deployed from here: they render through the
 `app` chart this repo publishes, and the cluster is discovered from annotations
 rather than from a list.
