@@ -1,6 +1,6 @@
 ---
 name: jterrazz-infra
-description: Infrastructure and deployment for jterrazz projects: k3s, Helm, Traefik, CI/CD deploy. Use when deploying apps, configuring Kubernetes, adding domains, or troubleshooting infra.
+description: "Infrastructure and deployment for jterrazz projects: k3s, Helm, Traefik, CI/CD deploy. Use when deploying apps, configuring Kubernetes, adding domains, or troubleshooting infra."
 ---
 
 # @jterrazz Infrastructure
