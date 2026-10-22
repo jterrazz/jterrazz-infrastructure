@@ -98,7 +98,7 @@ spec:
     # Apiserver: grafana's two sidecars, otel-collector's informers,
     # victoria-metrics' kubernetes_sd, kube-state-metrics. 443 outbound:
     # otel-collector -> cloud.langfuse.com, grafana -> grafana.com (plugin
-    # install on EVERY pod start).
+    # install on EVERY pod start) and hooks.slack.com (alert delivery).
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0

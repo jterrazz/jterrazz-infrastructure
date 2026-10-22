@@ -63,6 +63,7 @@ The deploy script never sees these:
 | `/jterrazz-infrastructure`                 | `cloudflared-secrets`         | `CLOUDFLARE_TUNNEL_TOKEN`                                        |
 | `/jterrazz-infrastructure/openpanel`       | `op-{api,worker,dashboard,postgres}-secrets` | `POSTGRES_PASSWORD`, `COOKIE_SECRET`, `DATABASE_URL`, `DATABASE_URL_DIRECT`, one Secret per release that needs them, each projecting only the keys it names |
 | `/jterrazz-infrastructure/otel-collector`  | `otel-collector-secrets`      | `LANGFUSE_BASIC_AUTH`                                            |
+| `/jterrazz-infrastructure/grafana`         | `grafana-alerting`            | `contact-point-slack.yaml`, rendered by the operator from `SLACK_WEBHOOK_URL`, optional: absent, the file provisions nothing (`kubernetes/services/grafana/service.yaml`) |
 | `/jterrazz-actions`                        | `registry-credentials`        | `.dockerconfigjson`: the pull credential, assembled by the operator's own template from `DOCKER_REGISTRY_USERNAME` + `DOCKER_REGISTRY_PASSWORD`. One per app namespace whose image is on our registry; `charts/app` renders the CR beside the app's own |
 | `/<app>/...`                               | `<app>-secrets`               | whatever the app's `spec.secrets.env` lists                      |
 
@@ -625,8 +626,9 @@ comment on `cronJobs:` in `kubernetes/services/registry/app.yaml`.
 - **It skips itself** when any upload was touched in the last 30 minutes, and
   says so in its log. A skip exits 0.
 - **Grafana alerts** (`registry-gc-stale`) when the last success is more than 8
-  days old, or when the CronJob is gone. No contact point is wired, so it shows
-  in the Alerting UI only.
+  days old, or when the CronJob is gone. It is delivered to Slack once the
+  webhook is set, and shows in the Alerting UI either way; delivery is
+  `kubernetes/services/grafana/service.yaml`'s.
 
 Run it now, the same way the schedule does:
 

@@ -10,6 +10,43 @@ access: private
 # serve. Anything else means Grafana is down.
 smoke:
   expect: "302,200"
+
+# outside: alert delivery. The operator renders the Infisical path
+# /jterrazz-infrastructure/grafana into `grafana-alerting`, and the label is what
+# Grafana's alerts sidecar (values.yaml, `sidecar.alerts`) selects: it writes
+# the key into provisioning/alerting and reloads, with no pod restart.
+#
+#   SLACK_WEBHOOK_URL   a Slack incoming-webhook URL. Absent, the file is a bare
+#                       `apiVersion: 1` and Grafana keeps its built-in policy;
+#                       present, every alert routes to the `slack` contact point.
+#
+# hazard: the template is the OPERATOR's (text/template + sprig), not Helm's. A
+# missing key renders an empty `.Value`, never a sync error, which is what makes
+# landing this before the webhook exists safe.
+secrets:
+  path: /jterrazz-infrastructure/grafana
+  secretName: grafana-alerting
+  labels:
+    grafana_alert: "1"
+  template:
+    data:
+      contact-point-slack.yaml: |
+        apiVersion: 1
+        {{- with .SLACK_WEBHOOK_URL.Value }}
+        contactPoints:
+          - orgId: 1
+            name: slack
+            receivers:
+              - uid: slack
+                type: slack
+                settings:
+                  url: {{ quote . }}
+        policies:
+          - orgId: 1
+            receiver: slack
+            group_by: [grafana_folder, alertname]
+        {{- end }}
+
 storage:
   # invariant: grafana.db: users, API keys, starred dashboards, alert state. Dashboards
   # themselves are provisioned from ConfigMaps and are not stored here.

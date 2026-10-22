@@ -59,8 +59,9 @@ sidecar:
     folderAnnotation: grafana_folder
     provider:
       foldersFromFilesStructure: true
-  # invariant: rules fire and show in the Alerting UI, but no contact point is wired, so
-  # nothing is delivered anywhere. Deliberate: delivery is a later step.
+  # invariant: this sidecar also carries DELIVERY: the Slack contact point and the
+  # policy routing every alert to it arrive as the `grafana-alerting` Secret,
+  # declared in service.yaml, which says what is delivered when its key is absent.
   #
   # The RULES themselves live with the app that emits the metric: the app chart
   # renders `spec.alerts` into a ConfigMap labelled grafana_alert=1, which this

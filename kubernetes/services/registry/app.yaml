@@ -158,8 +158,8 @@ spec:
       storage: true
       activeDeadlineSeconds: 1800
 
-  # invariant: prod-only, like every spec.alerts. No contact point is wired (see
-  # kubernetes/services/grafana/values.yaml): it shows in the Alerting UI.
+  # invariant: prod-only, like every spec.alerts. Where it is delivered is
+  # kubernetes/services/grafana/service.yaml's.
   # The age is measured from the last success, or from the CronJob's creation
   # when it has never succeeded: max() picks the later, and a success is
   # always later than the creation. NoData means the CronJob itself is gone,
