@@ -174,6 +174,18 @@ The startupProbe gates liveness and readiness, so a slow boot can't get
 SIGKILLed mid-startup. Everything the chart does not name above (probe periods,
 liveness and readiness failure thresholds) is left at the Kubernetes default.
 
+`health.livenessPath` splits that action. Set, the startup and liveness probes
+GET it while readiness keeps `health.path`: the restart decision then asks only
+whether the process answers, and a failing readiness route pulls the pod from
+the Service without restarting it. Unset, all three use `health.path`. It
+applies to the `httpGet` action only.
+
+```yaml
+health:
+  path: /v1/models        # readiness: the route clients call
+  livenessPath: /healthz  # startup + liveness: the process answers
+```
+
 Two alternatives exist for a server that does not speak HTTP; the first one set
 wins (`exec`, then `tcp`, then `path`):
 

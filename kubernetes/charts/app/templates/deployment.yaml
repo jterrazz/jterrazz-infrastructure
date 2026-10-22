@@ -138,14 +138,14 @@ spec:
           # Only timeoutSeconds is raised: 1s is not enough for a Node app that
           # also runs in-process background work.
           startupProbe:
-            {{- include "app.probe" . | nindent 12 }}
+            {{- include "app.probe" (dict "ctx" . "liveness" true) | nindent 12 }}
             timeoutSeconds: {{ $spec.health.timeoutSeconds }}
             failureThreshold: {{ $spec.health.startupFailureThreshold }}
           livenessProbe:
-            {{- include "app.probe" . | nindent 12 }}
+            {{- include "app.probe" (dict "ctx" . "liveness" true) | nindent 12 }}
             timeoutSeconds: {{ $spec.health.timeoutSeconds }}
           readinessProbe:
-            {{- include "app.probe" . | nindent 12 }}
+            {{- include "app.probe" (dict "ctx" . "liveness" false) | nindent 12 }}
             timeoutSeconds: {{ $spec.health.timeoutSeconds }}
       {{- if or $storage $spec.configFiles $spec.secretMounts }}
       volumes:

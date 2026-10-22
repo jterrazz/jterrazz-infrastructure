@@ -63,6 +63,9 @@ spec:
 
   health:
     path: /health
+    # invariant: set so the split is exercised: startup and liveness on /healthz,
+    # readiness on /health.
+    livenessPath: /healthz
     timeoutSeconds: 5
     # invariant: overridden away from the chart default (30) so the knob is exercised.
     startupFailureThreshold: 60

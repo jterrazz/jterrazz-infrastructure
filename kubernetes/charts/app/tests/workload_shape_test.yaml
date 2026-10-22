@@ -149,6 +149,36 @@ tests:
           path: spec.template.spec.containers[0].livenessProbe.tcpSocket.port
           value: 27017
 
+  - it: probes startup and liveness on livenessPath, readiness on path
+    templates:
+      - templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet.path
+          value: /healthz
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /healthz
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /health
+
+  - it: probes all three on path when no livenessPath is set
+    set:
+      spec.health.livenessPath: ""
+    templates:
+      - templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet.path
+          value: /health
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /health
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /health
+
   - it: mounts a config file where the image wants it, not under /app
     templates:
       - templates/deployment.yaml

@@ -245,7 +245,7 @@ matches the recorded render of the CI fixture:
               imagePullPolicy: Always
               livenessProbe:
                 httpGet:
-                  path: /health
+                  path: /healthz
                   port: 3000
                 timeoutSeconds: 5
               name: ci-test-app
@@ -275,7 +275,7 @@ matches the recorded render of the CI fixture:
               startupProbe:
                 failureThreshold: 60
                 httpGet:
-                  path: /health
+                  path: /healthz
                   port: 3000
                 timeoutSeconds: 5
               volumeMounts:

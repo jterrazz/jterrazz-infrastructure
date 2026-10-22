@@ -260,10 +260,15 @@ alternatives a datastore needs. Exactly one is emitted, in this order:
                          the probe timeout, which crash-loops a healthy mongod.
   health.path  <path>    the default: httpGet on spec.port.
 
-Emits YAML lines at column 0; the caller nindents them.
+`health.livenessPath`, when set, is the httpGet path of the startup and liveness
+probes only; readiness keeps `health.path`, so a failing readiness route pulls
+the pod from the Service without restarting it.
+
+Input dict: ctx (the root context) and liveness (true for the startup and
+liveness probes). Emits YAML lines at column 0; the caller nindents them.
 */}}
 {{- define "app.probe" -}}
-{{- $spec := fromYaml (include "app.merged" .) -}}
+{{- $spec := fromYaml (include "app.merged" .ctx) -}}
 {{- $health := $spec.health -}}
 {{- if $health.exec -}}
 exec:
@@ -276,7 +281,7 @@ tcpSocket:
   port: {{ $spec.port }}
 {{- else -}}
 httpGet:
-  path: {{ $health.path }}
+  path: {{ ternary $health.livenessPath $health.path (and .liveness (not (empty $health.livenessPath))) }}
   port: {{ $spec.port }}
 {{- end -}}
 {{- end -}}

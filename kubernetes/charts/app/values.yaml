@@ -93,6 +93,9 @@ spec:
   platformServices: []
   health:
     path: /health
+    # invariant: empty means the startup and liveness probes use `path` too. Set, it is
+    # their path alone; readiness keeps `path` (app.probe, templates/_helpers.tpl).
+    livenessPath: ""
     # invariant: alternatives to the HTTP path, for a server that does not speak it. The
     # first one set wins: exec, then tcp, then path.
     exec: []
