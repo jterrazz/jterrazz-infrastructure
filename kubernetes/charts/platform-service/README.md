@@ -47,6 +47,31 @@ credential simply never arrives, with no error anywhere.
 The managed Secret's `creationPolicy` is Infisical's default `Orphan`, so it
 outlives the release: `helm uninstall` does not log the service out.
 
+Two optional keys shape the Secret rather than where it comes from:
+
+```yaml
+secrets:
+  labels:
+    grafana_alert: "1"
+  template:
+    data:
+      contact-point-slack.yaml: |
+        apiVersion: 1
+        {{- with .SLACK_WEBHOOK_URL.Value }}
+        ...
+        {{- end }}
+```
+
+- **`labels`** are stamped on the `InfisicalSecret`, and the operator copies a
+  CR's labels onto the Secret it manages. That is how a synced Secret carries a
+  label a watcher selects on: Grafana's alerts sidecar reads every Secret
+  labelled `grafana_alert: "1"`.
+- **`template`** is the operator's own transform, rendered by the operator
+  (text/template with sprig), never by Helm. It replaces the default
+  key-per-secret copy, so the Secret holds only the keys it names. A key
+  missing at the path renders as an empty `.Value` rather than failing the
+  sync, which is what lets a template guard on a secret not yet created.
+
 Declaring this here is what replaced the hand-applied InfisicalSecrets in
 `ansible/roles/platform/tasks/bootstrap.yml`: the operator provides the CRD
 (`needs: platform-secrets/infisical`), and the release that mounts the Secret

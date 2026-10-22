@@ -50,6 +50,11 @@ certificates:
 secrets:
   path: /jterrazz-infrastructure/ci-test-service
   secretName: ci-test-service-credentials
+  labels:
+    ci_test_watcher: "1"
+  template:
+    data:
+      config.yaml: '{{ with .CI_TEST_TOKEN.Value }}token: {{ quote . }}{{ end }}'
 
 # invariant: named volumes. The PV is always <name>-<key>; hostPath is
 # /var/lib/k8s-data/<name>[/<pathSuffix>].

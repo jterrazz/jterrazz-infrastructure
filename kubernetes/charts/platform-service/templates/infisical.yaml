@@ -7,14 +7,25 @@ THE MANAGED SECRET'S NAME IS A CONTRACT, not a derived string: a values file
 reads one key out of it by name (otel-collector-secrets), or an upstream chart
 wires `envFrom` to a literal name it chose. So `secretName` is required and this
 chart invents none.
+
+`labels` are stamped on the CR, and the operator copies a CR's labels onto the
+Secret it manages: that is how a synced Secret carries a label a watcher
+selects on (Grafana's alerts sidecar reads `grafana_alert: "1"`). `template`
+is the operator's own transform, passed through untouched; see
+common.infisicalSecret.
 */ -}}
 {{- if .Values.secrets }}
 {{- $secrets := .Values.secrets }}
+{{- $labels := include "platform-service.labels" . }}
+{{- with $secrets.labels }}
+{{- $labels = printf "%s\n%s" $labels (toYaml .) }}
+{{- end }}
 {{- include "common.infisicalSecret" (dict
       "name" (printf "%s-infisical" (include "platform-service.name" .))
-      "labels" (include "platform-service.labels" .)
+      "labels" $labels
       "envSlug" ($secrets.env | default "prod")
       "secretsPath" ($secrets.path | required "secrets.path is required: the Infisical path this service's credentials live at")
       "secretName" ($secrets.secretName | required "secrets.secretName is required; the consumer reads it by that literal name")
-      "secretNamespace" .Release.Namespace) }}
+      "secretNamespace" .Release.Namespace
+      "template" $secrets.template) }}
 {{- end }}

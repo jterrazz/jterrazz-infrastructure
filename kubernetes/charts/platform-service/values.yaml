@@ -65,6 +65,8 @@ certificates: {}
 #     path: /jterrazz-infrastructure/otel-collector  # Infisical secretsPath
 #     secretName: otel-collector-secrets             # the name the consumer reads
 #     env: prod                                      # Infisical env slug (default)
+#     labels: { grafana_alert: "1" }                 # copied onto the managed Secret
+#     template: { data: { <key>: <operator template> } }  # replaces the key-per-secret copy
 #
 # `secretName` is REQUIRED and is a contract: the collector's values.yaml reads
 # one key out of it by name, and an upstream chart may wire envFrom to it.
