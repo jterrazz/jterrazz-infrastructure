@@ -222,9 +222,12 @@ ingress:
 - `access: private | cluster-internal | public` is the same decision as
   `public:` in `platform-service`'s three-value vocabulary, and exists for the
   one answer a boolean cannot give: **cluster-internal**, i.e. tailnet humans
-  *plus* the cluster's own pods, for a route something inside the cluster must
-  also reach (OpenPanel's dashboard SSRs against its own public URL). Set one or
-  the other, never both; `public:` stays the everyday spelling.
+  *plus* the node and the pod CIDR, for a route something inside the cluster
+  must also reach (the registry's hairpin image pull). A pod still reaches
+  Traefik only once `allow-traefik-ingress`
+  (`kubernetes/cluster/network-policies/kube-system.yaml`) admits its
+  namespace. Set one or the other, never both; `public:` stays the everyday
+  spelling.
 - `path` defaults to `/`. Any other path also emits a `stripPrefix`
   middleware (legacy `/api` behaviour: the backend mounts routes at the
   root). Set `stripPrefix: false` on the entry to keep the prefix visible to

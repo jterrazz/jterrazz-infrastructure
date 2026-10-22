@@ -53,9 +53,18 @@ spec:
           protocol: TCP
 
 ---
-# outside: Traefik is the cluster's front door: klipper-lb DNATs the node's 80/443 into
-# it, cloudflared dials its ClusterIP from the host netns, and in-cluster
-# callers use it for the private hostnames. All three land on 8000/8443.
+# hazard: Traefik is the cluster's front door, and NO POD outside kube-system may dial
+# it. Two sources are legitimate, both landing on 8000/8443: klipper-lb, which
+# DNATs the node's 80/443 into it and MASQUERADEs, so every tailnet request
+# arrives from the svclb POD; and the host netns (cloudflared, node-local
+# clients), which arrives as the cni0 gateway 10.42.0.1 or a node address.
+#
+# The pod CIDR is excepted because `private-access` must admit 10.42.0.0/16 for
+# the svclb source (kubernetes/cluster/traefik/middleware.yaml): a pod that
+# reached Traefik's ClusterIP would pass that allow-list and skip the
+# NetworkPolicy of the private service behind it. A pod that genuinely needs a
+# private hostname through Traefik (private_hostnames_via_traefik, group_vars)
+# gets its namespace added here, by name.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -69,9 +78,15 @@ spec:
     - Ingress
   ingress:
     - from:
-        - namespaceSelector: {}
+        - podSelector:
+            matchLabels:
+              svccontroller.k3s.cattle.io/svcname: traefik
+        - ipBlock:
+            cidr: 10.42.0.1/32
         - ipBlock:
             cidr: 0.0.0.0/0
+            except:
+              - 10.42.0.0/16
       ports:
         - port: 8000
           protocol: TCP

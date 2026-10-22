@@ -197,7 +197,7 @@ spec:
         path: /ready
         expect: "204,200"
     # invariant: the three things `public:` cannot say, on one entry:
-    #   access       cluster-internal: tailnet humans PLUS the cluster's pods.
+    #   access       cluster-internal: tailnet humans PLUS the node and the pod CIDR.
     #   stripPrefix  a STRING: routed on /api/track, the backend serves /track.
     #   tlsSecret    a certificate owned by another release, so this render
     #                emits no Certificate for this host.

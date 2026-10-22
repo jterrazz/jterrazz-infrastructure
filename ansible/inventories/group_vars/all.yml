@@ -97,5 +97,8 @@ private_hostnames:
 # cluster. A pod cannot hairpin to the node's ServiceLB; it times out.
 # Empty since 2026-09-19 (openpanel left once its dashboard could split the
 # SSR URL from the browser URL; kubernetes/services/openpanel/config.yaml
-# keeps the story). The mechanism stays for the next image that cannot.
+# keeps the story). The mechanism stays for the next image that cannot, and
+# that pod also needs its namespace admitted by allow-traefik-ingress
+# (kubernetes/cluster/network-policies/kube-system.yaml), which turns every
+# other pod away from Traefik.
 private_hostnames_via_traefik: []
