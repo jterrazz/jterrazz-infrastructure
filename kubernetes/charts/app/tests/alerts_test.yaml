@@ -98,3 +98,140 @@ tests:
       # invariant: the non-overridden entry survives (maps deep-merge, lists replace).
       - exists:
           path: data["ci-test-app-extra.yaml"]
+
+  - it: passes a rule whose uid is exactly 40 characters
+    values:
+      - ../ci/test-values.yaml
+    set:
+      spec.alerts:
+        ci-test-app: |
+          apiVersion: 1
+          groups:
+            - orgId: 1
+              name: ci-test-app
+              folder: ci-test-app
+              interval: 1m
+              rules:
+                - uid: ci-test-app-a-uid-of-exactly-forty-chars
+                  title: forty
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: fails the render on a rule uid over 40 characters
+    # hazard: Grafana caps a uid at 40 and rejects its whole alerting reload, every
+    # app's rules at once, while one such file is mounted.
+    values:
+      - ../ci/test-values.yaml
+    set:
+      spec.alerts:
+        ci-test-app: |
+          apiVersion: 1
+          groups:
+            - orgId: 1
+              name: ci-test-app
+              folder: ci-test-app
+              interval: 1m
+              rules:
+                - uid: ci-test-app-a-uid-of-forty-one-characters
+                  title: forty-one
+    asserts:
+      - failedTemplate:
+          errorMessage: 'spec.alerts.ci-test-app: rule uid "ci-test-app-a-uid-of-forty-one-characters" is 41 characters; Grafana caps a uid at 40 and rejects the whole alerting reload, for every app, when one exceeds it'
+
+  - it: fails the render in staging too, before the rule reaches prod
+    values:
+      - ../ci/test-values.yaml
+    set:
+      environment: staging
+      spec.alerts:
+        ci-test-app: |
+          apiVersion: 1
+          groups:
+            - orgId: 1
+              name: ci-test-app
+              folder: ci-test-app
+              rules:
+                - uid: ci-test-app-a-uid-of-forty-one-characters
+    asserts:
+      - failedTemplate: {}
+
+  - it: fails the render on a rule with no uid
+    values:
+      - ../ci/test-values.yaml
+    set:
+      spec.alerts:
+        ci-test-app: |
+          apiVersion: 1
+          groups:
+            - name: ci-test-app
+              folder: ci-test-app
+              rules:
+                - title: anonymous
+    asserts:
+      - failedTemplate:
+          errorMessage: 'spec.alerts.ci-test-app: rule 0 of group "ci-test-app" has no `uid`'
+
+  - it: fails the render on a uid outside [a-zA-Z0-9_-]
+    values:
+      - ../ci/test-values.yaml
+    set:
+      spec.alerts:
+        ci-test-app: |
+          apiVersion: 1
+          groups:
+            - name: ci-test-app
+              folder: ci-test-app
+              rules:
+                - uid: ci.test.app
+    asserts:
+      - failedTemplate:
+          errorMessage: 'spec.alerts.ci-test-app: rule uid "ci.test.app" may hold only letters, digits, `-` and `_`'
+
+  - it: fails the render on one uid used by two entries
+    values:
+      - ../ci/test-values.yaml
+    set:
+      spec.alerts:
+        ci-test-app: |
+          apiVersion: 1
+          groups:
+            - name: ci-test-app
+              folder: ci-test-app
+              rules:
+                - uid: ci-test-app-shared
+        ci-test-app-extra: |
+          apiVersion: 1
+          groups:
+            - name: ci-test-app-extra
+              folder: ci-test-app
+              rules:
+                - uid: ci-test-app-shared
+    asserts:
+      - failedTemplate:
+          errorMessage: 'spec.alerts.ci-test-app-extra: rule uid "ci-test-app-shared" is already used by spec.alerts.ci-test-app'
+
+  - it: fails the render on a payload that is not an apiVersion 1 document
+    values:
+      - ../ci/test-values.yaml
+    set:
+      spec.alerts:
+        ci-test-app: |
+          groups: []
+    asserts:
+      - failedTemplate:
+          errorMessage: "spec.alerts.ci-test-app: the payload must be a Grafana provisioning document with `apiVersion: 1`"
+
+  - it: fails the render on a group with no folder
+    values:
+      - ../ci/test-values.yaml
+    set:
+      spec.alerts:
+        ci-test-app: |
+          apiVersion: 1
+          groups:
+            - name: ci-test-app
+              rules: []
+    asserts:
+      - failedTemplate:
+          errorMessage: "spec.alerts.ci-test-app: group 0 must name both `name` and `folder`"

@@ -520,3 +520,55 @@ app.kubernetes.io/name: {{ include "app.name" . }}
 app.kubernetes.io/component: cronjob
 environment: {{ .Values.environment }}
 {{- end -}}
+
+{{/*
+The `spec.alerts` map (name -> provisioning YAML), checked before it reaches
+Grafana. Grafana reloads every file its alerts sidecar collects as one set, so
+one bad file is not one broken app: it fails the reload for every app on the
+cluster until it is removed. The checks are the ones Grafana's provisioning
+applies and a render can apply first:
+
+  * the payload is a YAML map with `apiVersion: 1` and a `groups` list;
+  * each group names its `name` and its `folder`;
+  * each rule carries a `uid` of at most 40 characters from [a-zA-Z0-9_-],
+    unique across every entry of the app.
+
+The payload itself is passed through untouched; this only reads it.
+*/}}
+{{- define "app.alerts" -}}
+{{- $spec := fromYaml (include "app.merged" .) -}}
+{{- $alerts := $spec.alerts | default dict -}}
+{{- $uids := dict -}}
+{{- range $name, $payload := $alerts -}}
+{{- $doc := fromYaml (toString $payload) -}}
+{{- if or (hasKey $doc "Error") (ne (toString $doc.apiVersion) "1") -}}
+{{- fail (printf "spec.alerts.%s: the payload must be a Grafana provisioning document with `apiVersion: 1`" $name) -}}
+{{- end -}}
+{{- if not (kindIs "slice" $doc.groups) -}}
+{{- fail (printf "spec.alerts.%s: `groups` must be a list of rule groups" $name) -}}
+{{- end -}}
+{{- range $gi, $group := $doc.groups -}}
+{{- if not (and (kindIs "map" $group) $group.name $group.folder) -}}
+{{- fail (printf "spec.alerts.%s: group %d must name both `name` and `folder`" $name $gi) -}}
+{{- end -}}
+{{- range $ri, $rule := $group.rules | default list -}}
+{{- $uid := "" -}}
+{{- if kindIs "map" $rule -}}{{- $uid = toString ($rule.uid | default "") -}}{{- end -}}
+{{- if not $uid -}}
+{{- fail (printf "spec.alerts.%s: rule %d of group %q has no `uid`" $name $ri $group.name) -}}
+{{- end -}}
+{{- if gt (len $uid) 40 -}}
+{{- fail (printf "spec.alerts.%s: rule uid %q is %d characters; Grafana caps a uid at 40 and rejects the whole alerting reload, for every app, when one exceeds it" $name $uid (len $uid)) -}}
+{{- end -}}
+{{- if not (regexMatch "^[a-zA-Z0-9_-]+$" $uid) -}}
+{{- fail (printf "spec.alerts.%s: rule uid %q may hold only letters, digits, `-` and `_`" $name $uid) -}}
+{{- end -}}
+{{- if hasKey $uids $uid -}}
+{{- fail (printf "spec.alerts.%s: rule uid %q is already used by spec.alerts.%s" $name $uid (get $uids $uid)) -}}
+{{- end -}}
+{{- $_ := set $uids $uid $name -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- $alerts | toYaml -}}
+{{- end -}}

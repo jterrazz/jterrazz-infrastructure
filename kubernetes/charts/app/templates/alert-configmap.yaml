@@ -4,11 +4,13 @@ kubernetes/services/grafana/values.yaml watches `grafana_alert: "1"` in ALL
 namespaces, so no platform-side edit is needed. NO folder annotation: each rule
 group names its own `folder:`. ONE ConfigMap with a key per entry, so a rename
 cannot orphan one. prod-only because rule UIDs are global in Grafana: three
-environments provisioning the same `uid:` would fight over one rule.
+environments provisioning the same `uid:` would fight over one rule. The rules
+are validated (app.alerts) in every environment, so a bad uid fails the first
+deploy that carries it rather than reaching prod.
 */}}
-{{- if and (eq (include "app.envExists" .) "true") (eq .Values.environment "prod") -}}
-{{- $spec := fromYaml (include "app.merged" .) -}}
-{{- if $spec.alerts }}
+{{- if eq (include "app.envExists" .) "true" -}}
+{{- $alerts := fromYaml (include "app.alerts" .) -}}
+{{- if and $alerts (eq .Values.environment "prod") }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -17,7 +19,7 @@ metadata:
     {{- include "app.labels" . | nindent 4 }}
     grafana_alert: "1"
 data:
-  {{- range $name, $rules := $spec.alerts }}
+  {{- range $name, $rules := $alerts }}
   {{ $name }}.yaml: |
     {{- $rules | nindent 4 }}
   {{- end }}

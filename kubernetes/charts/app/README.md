@@ -448,6 +448,14 @@ spec:
 dashboards: a rule `uid:` is global in Grafana, so a staging copy of a rule
 would not sit beside the prod one; it would provision *over* it.
 
+**The rules are checked in every environment, and a bad one fails the
+render.** Grafana reloads every app's rule files as one set, so one file it
+refuses stops alerting for the whole cluster, not for one app. The chart
+refuses first: each payload must be an `apiVersion: 1` document with a `groups`
+list, each group must name its `name` and `folder`, and each rule must carry a
+`uid` of at most 40 characters from `[a-zA-Z0-9_-]`, unique across the app's
+entries. The payload itself still passes through byte for byte.
+
 Two deliberate differences from `spec.dashboards`:
 
 - **No `grafana_folder` annotation.** The alerts sidecar has no
