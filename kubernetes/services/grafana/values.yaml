@@ -78,6 +78,8 @@ sidecar:
 # 2026-10-24: `can-i list secrets -A` answered yes). The sidecars need only
 # ConfigMaps (both are `resource: configmap` above), so the binding points at
 # this narrower ClusterRole instead, and the chart renders none of its own.
+# A binding's roleRef is immutable: changing this name means deleting
+# `grafana-clusterrolebinding` first, or the upgrade fails (it did, 2026-10-24).
 rbac:
   useExistingClusterRole: grafana-sidecar-configmaps
 extraObjects:

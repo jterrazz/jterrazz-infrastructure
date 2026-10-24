@@ -43,7 +43,10 @@
       - --timeout=480s
   register: traefik_wait
   changed_when: false
-  retries: 6
+  # value: 30 x 10s of NotFound tolerance. 6 tries were not enough on 2026-10-24: the
+  # helm-controller recreated the job after the last one and the deploy failed
+  # on a Traefik that upgraded fine.
+  retries: 30
   delay: 10
   until: traefik_wait.rc == 0
 

@@ -30,3 +30,18 @@
   register: helmfile_apply
   changed_when: helmfile_apply.rc == 2
   failed_when: helmfile_apply.rc not in [0, 2]
+
+# hazard: a release left `failed` is invisible to the next apply. helm-diff compares
+# the desired manifest with the LAST revision, failed or not, so the retry sees
+# no difference, skips the release and exits 0 while the old objects keep
+# running (2026-10-24: grafana stuck on revision 23, a ClusterRoleBinding
+# roleRef change refused as immutable, two deploys green). So the pass is not
+# done until no release is failed; the fix is the error helm recorded
+# (`helm history <release> -n <ns>`), then a `helmfile sync -l name=<release>`,
+# which does not diff.
+- name: "Assert no Helm release is left failed ({{ helmfile_tier | default('every release') }})"
+  ansible.builtin.command:
+    argv: [helm, list, --all-namespaces, --failed, --short]
+  register: helm_failed_releases
+  changed_when: false
+  failed_when: helm_failed_releases.rc != 0 or (helm_failed_releases.stdout | trim | length > 0)
