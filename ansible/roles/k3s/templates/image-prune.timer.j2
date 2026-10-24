@@ -1,0 +1,11 @@
+# Managed by Ansible (roles/k3s).
+[Unit]
+Description=Weekly prune of unused container images
+
+[Timer]
+OnCalendar=Sun *-*-* 04:30:00
+Persistent=true
+RandomizedDelaySec=10m
+
+[Install]
+WantedBy=timers.target

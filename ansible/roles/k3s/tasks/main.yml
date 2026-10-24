@@ -219,3 +219,22 @@
 - name: Publish the kubeconfig to the machine that ran the playbook
   ansible.builtin.import_tasks: kubeconfig.yml
   tags: [k3s, kubeconfig]
+
+# invariant: unused images are pruned by the node itself, weekly; see
+# templates/image-prune.service.j2 for why this is not in app CI any more.
+- name: Install the image-prune service and timer
+  ansible.builtin.template:
+    src: "image-prune.{{ item }}.j2"
+    dest: "/etc/systemd/system/image-prune.{{ item }}"
+    mode: "0644"
+  loop: [service, timer]
+  register: image_prune_units
+  tags: [k3s]
+
+- name: Enable the image-prune timer
+  ansible.builtin.systemd_service:
+    name: image-prune.timer
+    enabled: true
+    state: started
+    daemon_reload: "{{ image_prune_units.changed }}"
+  tags: [k3s]
