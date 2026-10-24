@@ -1,9 +1,10 @@
 # Testing
 
-What proves a change here, and what nothing proves. There is no test suite in
-the ordinary sense: the evidence is of two kinds: tree-side checks, which read
-files and render templates with no cluster anywhere, and one black-box probe of
-the deployed state. The workflows that carry both are [CI](../reference/ci.md).
+What proves a change here, and what nothing proves. The evidence is of three
+kinds: tree-side checks, which read files and render templates with no cluster
+anywhere; the upgrade test, which runs the real deploy against a throwaway
+cluster; and one black-box probe of the deployed state. The workflows that
+carry them are [CI](../reference/ci.md).
 
 ## The tree-side checks
 
@@ -81,6 +82,25 @@ Nothing can assert this. There is no equality between a fixture and a template
 to check, so a new branch that went unfixtured looks exactly like a green run.
 Adding a branch means adding the values that reach it, in the same change.
 
+## The upgrade test runs the deploy itself
+
+`upgrade-test.yaml` creates a k3d cluster at the production k3s version and
+runs the real `platform.yml` twice: from the base tree (the PR's base, or the
+commit before a push), then from this one. It is the one check that executes
+the deploy code rather than reading it, and it has no copy of that code:
+`ansible/inventories/k3d.yml` points the play at the throwaway cluster, the
+secrets are dummy extra vars, and `dns-records` and `chart-publish` are skipped
+because they reach the real zone and the real registry.
+
+It proves every release APPLIES on top of the previous tree: schemas, Pod
+Security, the app-deployer-ownership policy, immutable fields (the
+ClusterRoleBinding roleRef that left grafana failed on 2026-10-24 would have
+stopped here), and a task that breaks on a re-run. Each pass ends on the play's
+own `helm list --failed` gate. It does not prove pods start: with no real
+secrets most of them cannot, so `platform_helm_wait: false` keeps helm from
+waiting on them (cert-manager and the Infisical operator wait regardless). To
+test a re-run of one tree, dispatch it with `base` set to `HEAD`.
+
 ## What a deploy proves
 
 A green `ansible-playbook` run is not the claim "the site loads". A platform
@@ -120,9 +140,10 @@ discovered without probing anything.
 
 ## What nothing proves
 
-- **No check here talks to a cluster except smoke.** `make diff` previews what a
-  platform apply would change, but it is read-only and it needs a working
-  kubeconfig; it is a habit before a deploy, not a gate.
+- **Only smoke talks to the real cluster.** The upgrade test talks to a throwaway
+  one. `make diff` previews what a platform apply would change, but it is
+  read-only and it needs a working kubeconfig; it is a habit before a deploy,
+  not a gate.
 - **A template branch no fixture reaches**: [above](#the-fixtures-are-the-validation-contract).
 - **A stale vendored CRD schema still validates.** `kubernetes/schemas/` overrides
   the public catalog for the one CRD whose catalog copy lags the operator we
