@@ -21,8 +21,6 @@ on:
 
 permissions:
   contents: read
-  # invariant: `environment: production` writes a Deployment record, which needs this.
-  deployments: write
 
 concurrency:
   group: deploy-platform
@@ -32,8 +30,9 @@ jobs:
   deploy:
     name: Apply platform via Ansible
     runs-on: ubuntu-latest
-    # outside: keeps the repo's Deployments view live for this job.
-    environment: production
+    # hazard: no `environment:`. It carried no protection rule, only a Deployments view,
+    # and it rewrites the job's OIDC subject to `...:environment:production`, which
+    # the Tailscale trust credential (`...:ref:refs/heads/main`) does not match.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
