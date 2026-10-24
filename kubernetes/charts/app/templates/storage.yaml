@@ -16,7 +16,7 @@
 {{- include "common.volume" (dict
       "name" (printf "%s-%s-data" $appName .Values.environment)
       "claimName" (printf "%s-data" $appName)
-      "labels" (include "app.labels" .)
+      "labels" (include "app.volumeLabels" .)
       "size" $size
       "path" (printf "/var/lib/k8s-data/%s-%s" $appName .Values.environment)
       "nodeName" "") }}

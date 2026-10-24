@@ -1,0 +1,31 @@
+# Managed by Ansible (roles/k3s).
+#
+# invariant: the DEFAULT Pod Security level, for every namespace that carries no
+# `pod-security.kubernetes.io/*` label of its own. The platform namespaces label
+# themselves (kubernetes/cluster/namespaces.yaml); the app namespaces are
+# created by each app's CI and label nothing, so before this file they ran
+# with no admission check at all (audit 2026-10-24).
+#
+# baseline is enforced: every app pod passed it in a server-side dry run on
+# 2026-10-24. restricted is only audited: the app chart's fix-permissions init
+# container runs as root with CHOWN/FOWNER/DAC_OVERRIDE, which restricted
+# refuses and baseline allows.
+apiVersion: apiserver.config.k8s.io/v1
+kind: AdmissionConfiguration
+plugins:
+  - name: PodSecurity
+    configuration:
+      apiVersion: pod-security.admission.config.k8s.io/v1
+      kind: PodSecurityConfiguration
+      defaults:
+        enforce: baseline
+        enforce-version: latest
+        audit: restricted
+        audit-version: latest
+        warn: baseline
+        warn-version: latest
+      exemptions:
+        usernames: []
+        runtimeClasses: []
+        # outside: k3s' own svclb and helm-install pods live here and need NET_ADMIN.
+        namespaces: [kube-system]

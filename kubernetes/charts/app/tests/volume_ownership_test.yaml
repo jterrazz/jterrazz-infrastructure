@@ -1,0 +1,29 @@
+suite: the PersistentVolume names the repository that owns it
+# invariant: a PV is cluster-scoped, so the infrastructure's app-deployer-ownership
+# admission policy decides who may create, change or delete one from this
+# label alone. Without it an app's first deploy of a new environment is
+# refused at the PV, and with the full `owner/name` it would not even be a
+# valid label value.
+values:
+  - ../ci/test-values.yaml
+templates:
+  - templates/storage.yaml
+tests:
+  - it: labels the PV with the bare repository name
+    documentSelector:
+      path: kind
+      value: PersistentVolume
+    asserts:
+      - equal:
+          path: metadata.labels["app.jterrazz.com/repository"]
+          value: ci-test-app
+
+  - it: leaves the label off when CI passes no repository
+    set:
+      meta.repository: ""
+    documentSelector:
+      path: kind
+      value: PersistentVolume
+    asserts:
+      - notExists:
+          path: metadata.labels["app.jterrazz.com/repository"]

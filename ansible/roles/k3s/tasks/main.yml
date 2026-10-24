@@ -104,6 +104,15 @@
     mode: "0700"
   tags: [k3s]
 
+- name: Generate the Pod Security defaults and the OIDC authentication config
+  ansible.builtin.template:
+    src: "{{ item }}.yaml.j2"
+    dest: "/etc/rancher/k3s/{{ item }}.yaml"
+    mode: "0640"
+  loop: [pod-security, authentication]
+  notify: Restart k3s
+  tags: [k3s]
+
 - name: Generate the k3s config
   ansible.builtin.template:
     src: config.yaml.j2

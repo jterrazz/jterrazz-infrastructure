@@ -14,6 +14,18 @@ table inet jterrazz_guard {
   chain input {
     type filter hook input priority -10; policy accept;
 
+    # The NodePort range, from EVERY source on this interface, the Mac included.
+    # Traefik allocates none any more (allocateLoadBalancerNodePorts: false),
+    # but a NodePort answers on the node address and bypasses the tailnet gate
+    # (audit 2026-10-24), so any Service that grows one stays unreachable here.
+    iif "{{ security_guard_interface }}" tcp dport 30000-32767 drop
+    iif "{{ security_guard_interface }}" udp dport 30000-32767 drop
+
+    # Metrics endpoints that bind 0.0.0.0 (node-exporter, cloudflared): their
+    # scrapers reach them over the pod network, never over the tailnet, and
+    # both answer without authentication.
+    iifname "tailscale0" tcp dport { 9100, 2000 } drop
+
     # The hypervisor host. It is how `orb`, Ansible and every Mac-side tool
     # reach this machine; dropping it locks the VM out of its own operator.
     iif "{{ security_guard_interface }}" ip saddr {{ security_guard_host_ip }} accept

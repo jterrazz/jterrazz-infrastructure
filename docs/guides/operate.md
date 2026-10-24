@@ -293,15 +293,15 @@ to, and why, is [Develop](develop.md#the-vm-is-built-one-way).
   managed resources with it. Learned dismantling ArgoCD, which is long gone from
   this tree; the lesson is kept because nothing here can teach it again.
 
-### `make deploy-platform` from the Mac dies at fact-gathering
+### `make deploy-platform` from the Mac died at fact-gathering
 
-**OPEN since 2026-09-06.** `ansible.legacy.setup` over the `orb` connection
-returns an empty `module_stdout` and the play fails with `Module result
-deserialization failed: No start of json char found`. The same playbook is green
-from `deploy-platform.yaml` (which reaches the VM over SSH on the tailnet), so
-the suspect is the local `orb` connection, not the play. Not fixed, not worked
-around: the workflow is the way in until it is. Every procedure below that names
-the Mac as a fallback is subject to this.
+**Resolved by 2026-10-24.** From 2026-09-06, `ansible.legacy.setup` over the
+`orb` connection returned an empty `module_stdout` (`Module result
+deserialization failed: No start of json char found`). On 2026-10-24 the same
+setup module answered from the Mac and `site.yml --tags k3s,security` ran
+green through it, with no change in this repo; the likeliest fix is the
+ansible-core / OrbStack versions moving underneath. If it returns, the
+workflow is still the way in for the platform layer.
 
 ## DNS records (converged by the platform deploy)
 
@@ -614,7 +614,7 @@ old value: it then dies at its first step, the same loop as taking the
 `make deploy-platform` from the Mac needs only `.env` and `orb`, and it is the
 way in when the workflow cannot run at all, but on this workstation it
 currently fails at fact-gathering
-([above](#make-deploy-platform-from-the-mac-dies-at-fact-gathering), open since
+([above](#make-deploy-platform-from-the-mac-died-at-fact-gathering), open since
 2026-09-06). Check that before you rely on it mid-rotation.
 
 **The old value outlives the rotation in Helm history.** Every release deployed
@@ -741,7 +741,7 @@ Deployment is the last resort, for something no chart can express; cloudflared
    `registry`: the deploy workflow's own setup logs into it, so the run that
    would recreate it cannot start (`make deploy-platform` from the Mac is the
    way out, and it is itself broken right now,
-   [above](#make-deploy-platform-from-the-mac-dies-at-fact-gathering)).
+   [above](#make-deploy-platform-from-the-mac-died-at-fact-gathering)).
 
 ## Add a new app
 

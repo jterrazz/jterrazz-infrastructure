@@ -55,6 +55,10 @@ helm_diff_version: "v3.15.13"
 #   kubectl -n kube-system get svc traefik \
 #     -o jsonpath='{.spec.loadBalancerSourceRanges}'   # must be non-empty
 k3s_version: "v1.37.0+k3s1"
+# value: the audience a GitHub Actions job asks its OIDC token for; the apiserver
+# accepts no other (roles/k3s/templates/authentication.yaml.j2). Hand-synced
+# with `audience:` in jterrazz-actions/actions/docker-deploy.
+k3s_oidc_audience: "jterrazz-infrastructure"
 # outside: k3s' own default data-dir, repeated here only because tasks/main.yml and the
 # apiserver's audit-log-path need the path as a value.
 k3s_data_dir: "/var/lib/rancher/k3s"

@@ -572,3 +572,17 @@ The payload itself is passed through untouched; this only reads it.
 {{- end -}}
 {{- $alerts | toYaml -}}
 {{- end -}}
+
+{{/*
+The PersistentVolume's labels: the app's, plus `app.jterrazz.com/repository` set
+to the bare repository name of meta.repository. A PV is cluster-scoped, so this
+label is how the app-deployer-ownership admission policy
+(kubernetes/cluster/app-deployers/policy.yaml in jterrazz-infrastructure) knows
+which repository may create, change or delete it; a value cannot hold the `/`.
+*/}}
+{{- define "app.volumeLabels" -}}
+{{ include "app.labels" . }}
+{{- with .Values.meta.repository }}
+app.jterrazz.com/repository: {{ splitList "/" . | last | quote }}
+{{- end }}
+{{- end }}

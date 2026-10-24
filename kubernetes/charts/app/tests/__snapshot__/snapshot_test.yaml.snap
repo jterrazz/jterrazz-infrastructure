@@ -895,6 +895,7 @@ matches the recorded render of the CI fixture:
     metadata:
       labels:
         app: ci-test-app
+        app.jterrazz.com/repository: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
@@ -916,6 +917,7 @@ matches the recorded render of the CI fixture:
     metadata:
       labels:
         app: ci-test-app
+        app.jterrazz.com/repository: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app

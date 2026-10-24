@@ -48,6 +48,12 @@ kube-apiserver-arg:
   - "audit-log-maxbackup=3"
   - "audit-log-maxsize=64"
   - "audit-policy-file=/etc/rancher/k3s/audit-policy.yaml"
+  # GitHub Actions OIDC as an identity source: authentication.yaml.j2.
+  - "authentication-config=/etc/rancher/k3s/authentication.yaml"
+  # Default Pod Security level for unlabelled namespaces: pod-security.yaml.j2.
+  # The plain apiserver flag: `pod-security-admission-config-file` is RKE2's
+  # key, and k3s accepts it in this file and silently ignores it.
+  - "admission-control-config-file=/etc/rancher/k3s/pod-security.yaml"
 
 # Encrypts Secrets in the datastore with AES-CBC. WITHOUT this, every Secret
 # sits in plaintext in state.db, and that file is readable by any other

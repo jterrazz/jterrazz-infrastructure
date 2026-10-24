@@ -1,0 +1,73 @@
+---
+# invariant: the ownership rule rbac.yaml cannot express. For any write by a
+# `github:<owner>/<repo>` identity:
+#   - a namespaced object: its namespace must carry
+#     app.jterrazz.com/repository=<repo>, the bare repository name: a label
+#     value cannot hold a `/`, and the owner is always `jterrazz` because the
+#     apiserver accepts no other (authentication.yaml.j2);
+#   - a Namespace or a PersistentVolume: it must carry that label (on CREATE),
+#     must already carry it (UPDATE, DELETE), and the label cannot move;
+#   - a Namespace may not opt out of Pod Security (no `privileged` level);
+#   - a PersistentVolume is a hostPath at /var/lib/k8s-data/<name minus -data>,
+#     so a repo cannot point a volume at the node's root or at another app's
+#     directory;
+#   - a RoleBinding binds app-namespace-admin to the requester and nobody else.
+# The existing namespaces and volumes were labelled once by hand on
+# 2026-10-24, from each Deployment's app.jterrazz.com/repository annotation.
+#
+# hazard: residual risk, written down rather than hidden: nothing here owns a HOST.
+# A repository can declare an IngressRoute or a Certificate for any name in
+# our zones from inside its own namespace. Closing that needs a cross-object
+# lookup (who already serves this host), which CEL admission cannot do.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: app-deployer-ownership
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["*"]
+        apiVersions: ["*"]
+        operations: [CREATE, UPDATE, DELETE]
+        resources: ["*/*"]
+        scope: "*"
+  matchConditions:
+    - name: github-actions-identity
+      expression: "request.userInfo.username.startsWith('github:')"
+  variables:
+    - name: repo
+      expression: "request.userInfo.username.substring(request.userInfo.username.indexOf('/') + 1)"
+    - name: key
+      expression: "'app.jterrazz.com/repository'"
+    - name: newOwner
+      expression: "object == null || !has(object.metadata.labels) || !(variables.key in object.metadata.labels) ? '' : object.metadata.labels[variables.key]"
+    - name: oldOwner
+      expression: "oldObject == null || !has(oldObject.metadata.labels) || !(variables.key in oldObject.metadata.labels) ? '' : oldObject.metadata.labels[variables.key]"
+    - name: namespaceOwner
+      expression: "namespaceObject == null || !has(namespaceObject.metadata.labels) || !(variables.key in namespaceObject.metadata.labels) ? '' : namespaceObject.metadata.labels[variables.key]"
+    - name: isNamespace
+      expression: "request.resource.group == '' && request.resource.resource == 'namespaces'"
+    - name: isVolume
+      expression: "request.resource.group == '' && request.resource.resource == 'persistentvolumes'"
+    - name: owned
+      expression: "variables.isNamespace || variables.isVolume"
+  validations:
+    - expression: "variables.owned || variables.namespaceOwner == variables.repo"
+      messageExpression: "'namespace ' + request.namespace + ' is not owned by ' + variables.repo"
+    - expression: "!variables.owned || (request.operation == 'CREATE' ? variables.newOwner == variables.repo : request.operation == 'DELETE' ? variables.oldOwner == variables.repo : variables.oldOwner == variables.repo && variables.newOwner == variables.repo)"
+      messageExpression: "request.resource.resource + ' ' + request.name + ' must carry ' + variables.key + '=' + variables.repo"
+    - expression: "!variables.isNamespace || object == null || !has(object.metadata.labels) || object.metadata.labels.all(k, !(k.startsWith('pod-security.kubernetes.io/') && object.metadata.labels[k] == 'privileged'))"
+      message: a namespace created by an app may not opt out of Pod Security
+    - expression: "!variables.isVolume || object == null || (object.metadata.name.endsWith('-data') && has(object.spec.hostPath) && object.spec.hostPath.path == '/var/lib/k8s-data/' + object.metadata.name.substring(0, size(object.metadata.name) - 5))"
+      message: an app volume is a hostPath at /var/lib/k8s-data/<name minus -data>
+    - expression: "!(request.resource.group == 'rbac.authorization.k8s.io' && request.resource.resource == 'rolebindings') || object == null || (object.roleRef.kind == 'ClusterRole' && object.roleRef.name == 'app-namespace-admin' && has(object.subjects) && object.subjects.all(s, s.kind == 'User' && s.name == request.userInfo.username))"
+      message: an app RoleBinding binds app-namespace-admin to its own identity only
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: app-deployer-ownership
+spec:
+  policyName: app-deployer-ownership
+  validationActions: [Deny]
