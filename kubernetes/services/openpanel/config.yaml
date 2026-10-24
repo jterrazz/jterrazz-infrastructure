@@ -14,8 +14,12 @@
 # and `access: cluster-internal` on the routes in op-api.yaml /
 # op-dashboard.yaml. All three were retired on 2026-09-19 after SSR was
 # verified on the new path (/onboarding 200, no `[tRPC SSR Error]`). If a
-# future image drops API_URL_SSR, /onboarding fails with `fetch failed` and
-# the three come back together, never one at a time.
+# future image drops API_URL_SSR, /onboarding fails with `fetch failed`, and
+# the way back is the host in `private_hostnames_via_traefik`, the egress
+# rule, and platform-analytics admitted by allow-traefik-ingress
+# (kubernetes/cluster/network-policies/kube-system.yaml), together, never one
+# at a time. The routes keep `access: private`, since private-access admits
+# the pod CIDR.
 
 environment: prod
 

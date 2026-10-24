@@ -9,19 +9,12 @@ port: 80
 # `host`, not a place to park unrelated hostnames.
 aliases: []
 
-# invariant: network visibility of the IngressRoute. Chooses which Traefik ipAllowList
-# middleware is attached (the two are never chained: Traefik ANDs chained
-# ipAllowLists, so chaining allows strictly less, not more):
+# invariant: network visibility of the IngressRoute:
 #
-#   private          -> private-access           tailnet humans only. The default.
-#   cluster-internal -> cluster-internal-access  strict superset of private:
-#                       tailnet humans PLUS the pod/service CIDRs and the
-#                       node. For routes something inside the cluster must
-#                       also reach (the registry is the one route that
-#                       asks for it).
-#   public           -> no access middleware. The route is still behind the
-#                       rate-limit / compress / security-headers chain that
-#                       the websecure entrypoint attaches globally.
+#   private -> private-access        tailnet humans only. The default.
+#   public  -> no access middleware. The route is still behind the rate-limit /
+#              compress / security-headers chain that the websecure
+#              entrypoint attaches globally.
 #
 # A leftover boolean `private:` key hard-fails the render
 # (templates/ingress-route.yaml).

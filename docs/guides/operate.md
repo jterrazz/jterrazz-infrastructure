@@ -696,9 +696,8 @@ Deployment is the last resort, for something no chart can express; cloudflared
    is the whole declaration: Ansible applies it, `make diff` previews it and
    Renovate bumps it, with nothing to keep in sync. If the chart comes from a
    repository not already listed at the top of the file, add that too.
-4. Ingress: set `access: private` (default) or `access: cluster-internal` in
-   `service.yaml`, and add the private hostname to `private_hostnames` in
-   group_vars: CoreDNS needs the name before the route exists, and `smoke.sh`
+4. Ingress: `access` in `service.yaml` defaults to `private` (`public` is the
+   other value); add the private hostname to `private_hostnames` in group_vars: CoreDNS needs the name before the route exists, and `smoke.sh`
    fails if the list and the live routes disagree either way. A public service
    needs a new zone; the three steps are in
    [Develop](develop.md#dns-has-exactly-three-owners-and-none-of-them-is-this-repos-code).

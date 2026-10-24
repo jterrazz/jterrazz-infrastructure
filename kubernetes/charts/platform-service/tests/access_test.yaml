@@ -1,8 +1,5 @@
 suite: access -> Traefik ipAllowList middleware selection
-# invariant: `access` picks exactly ONE of the two Traefik ipAllowList middlewares, or
-# none. Never both: Traefik ANDs chained ipAllowLists, so chaining allows
-# strictly LESS, not more, and cluster-internal-access is already a strict
-# superset of private-access.
+# invariant: `access` picks the Traefik ipAllowList middleware, or none.
 #
 # This is the chart's network-exposure switch, so every arm is pinned,
 # including the two that must fail the render rather than pick a default.
@@ -11,16 +8,6 @@ templates:
 values:
   - ../ci/test-values.yaml
 tests:
-  - it: "attaches cluster-internal-access for `access: cluster-internal`"
-    # outside: the fixture's value, and the registry's: the arm the pre-2.1 boolean
-    # could not express at all.
-    asserts:
-      - equal:
-          path: spec.routes[0].middlewares
-          value:
-            - name: cluster-internal-access
-              namespace: platform-networking
-
   - it: "attaches private-access for `access: private`"
     set:
       access: private
@@ -34,8 +21,6 @@ tests:
   - it: attaches private-access when `access` is omitted entirely
     # invariant: the default must be the NARROW list. A values file that forgets the key
     # gets tailnet-only, never public.
-    set:
-      access: null
     asserts:
       - equal:
           path: spec.routes[0].middlewares
@@ -57,7 +42,7 @@ tests:
       access: privat
     asserts:
       - failedTemplate:
-          errorMessage: access must be one of private|cluster-internal|public, got "privat"
+          errorMessage: access must be one of private|public, got "privat"
 
   - it: "hard-fails on the legacy boolean `private:` key"
     # hazard: a leftover `private: false` would otherwise fall through to the `private`
@@ -68,14 +53,14 @@ tests:
       private: false
     asserts:
       - failedTemplate:
-          errorMessage: "`private` was replaced by `access: private|cluster-internal|public`; remove it from this values file"
+          errorMessage: "`private` was replaced by `access: private|public`; remove it from this values file"
 
   - it: "hard-fails on `private: true` just the same"
     set:
       private: true
     asserts:
       - failedTemplate:
-          errorMessage: "`private` was replaced by `access: private|cluster-internal|public`; remove it from this values file"
+          errorMessage: "`private` was replaced by `access: private|public`; remove it from this values file"
 
   - it: "ORs the canonical host with every alias, never the v2 Host(a, b)"
     # outside: Traefik v3 dropped multi-value matchers. `Host(a, b)` passes the CRD

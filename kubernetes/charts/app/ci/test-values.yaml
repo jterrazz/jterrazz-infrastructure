@@ -196,8 +196,8 @@ spec:
       smoke:
         path: /ready
         expect: "204,200"
-    # invariant: the three things `public:` cannot say, on one entry:
-    #   access       cluster-internal: tailnet humans PLUS the node and the pod CIDR.
+    # invariant: the openpanel ingest shape, on one entry:
+    #   access       platform-service's spelling of `public: true`.
     #   stripPrefix  a STRING: routed on /api/track, the backend serves /track.
     #   tlsSecret    a certificate owned by another release, so this render
     #                emits no Certificate for this host.
@@ -206,7 +206,7 @@ spec:
     # opts back in with the one verb the route answers.
     - host: ci-test-app-ingest.jterrazz.com
       path: /api/track
-      access: cluster-internal
+      access: public
       stripPrefix: /api
       tlsSecret: ci-test-shared-tls
       smoke:

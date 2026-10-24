@@ -79,7 +79,7 @@ matches the recorded render of the CI fixture:
         - kind: Rule
           match: Host(`ci-test-service.jterrazz.com`) || Host(`ci-test-alias.example`)
           middlewares:
-            - name: cluster-internal-access
+            - name: private-access
               namespace: platform-networking
           services:
             - name: ci-test-service

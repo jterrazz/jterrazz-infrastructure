@@ -38,9 +38,8 @@
 {{- end }}
 {{- $hostSlug := include "app.hostSlug" $entry.host }}
 {{- /* `public: true|false` is the everyday spelling and covers every app.
-       `access:` is the same decision in platform-service's three-value
-       vocabulary, and exists for the one answer a boolean cannot give:
-       cluster-internal, i.e. tailnet humans PLUS the node and the pod CIDR. */ -}}
+       `access: private|public` is the same decision in platform-service's
+       vocabulary. */ -}}
 {{- $access := $entry.access | default (ternary "public" "private" (eq (toString $entry.public) "true")) }}
 {{- $isPublic := eq $access "public" }}
 {{- $path := $entry.path | default "/" }}

@@ -70,7 +70,7 @@ spec:
   ingress:
     # invariant: private (tailnet only) since 2026-09-19: op-dashboard's server-side
     # fetches go to this Service directly (API_URL_SSR), so no pod IP has to
-    # reach this route any more. It was cluster-internal before that.
+    # reach this route any more.
     - host: openpanel.internal.jterrazz.com
       path: /api
       access: private

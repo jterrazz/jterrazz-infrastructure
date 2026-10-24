@@ -139,7 +139,6 @@ DISCOVER_PY='
 import json, re, sys
 
 HOST = re.compile(r"Host\(`([^`]+)`\)")
-ACCESS = {"private-access", "cluster-internal-access"}
 A = "smoke.jterrazz.com/"
 
 doc = json.load(sys.stdin)
@@ -157,7 +156,7 @@ for item in doc.get("items", []):
             if h not in hosts:
                 hosts.append(h)
         for mw in route.get("middlewares") or []:
-            if mw.get("name") in ACCESS:
+            if mw.get("name") == "private-access":
                 gated = True
     if not hosts:
         print("!%s matches no Host(), nothing to probe" % origin)

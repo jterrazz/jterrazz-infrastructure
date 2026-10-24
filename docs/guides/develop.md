@@ -158,9 +158,6 @@ mechanically when editing any values file, manifest or template in this repo.
   never covers them. Miss it and public traffic keeps working (cloudflared dials
   Traefik's ClusterIP) while every tailnet client, CI included, gets
   `connection refused` on 443.
-- **Never chain `private-access` and `cluster-internal-access`.** Traefik ANDs
-  chained ipAllowLists, so chaining allows strictly less, not more. The second
-  is a strict superset of the first; a route picks one.
 - **buildkit needs `network=host` in CI.** `jterrazz-actions/actions/docker-build`
   sets it so buildkit sees the runner's Tailscale resolver; without it
   `docker push registry.internal.jterrazz.com/...` NXDOMAINs on the public CNAME

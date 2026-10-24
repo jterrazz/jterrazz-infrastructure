@@ -741,8 +741,6 @@ matches the recorded render of the CI fixture:
         - kind: Rule
           match: Host(`ci-test-app-ingest.jterrazz.com`) && PathPrefix(`/api/track`)
           middlewares:
-            - name: cluster-internal-access
-              namespace: platform-networking
             - name: ci-test-app-6-strip-prefix
           services:
             - name: ci-test-app

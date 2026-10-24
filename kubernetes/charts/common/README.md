@@ -12,7 +12,7 @@ Nothing is vendored: `charts/` and `Chart.lock` are gitignored.
 
 | Template | Emits | `app` | `platform-service` |
 | --- | --- | --- | --- |
-| `common.accessMiddleware` | the ipAllowList middleware name, or `""` | `public: true\|false` per ingress entry | `access: private\|cluster-internal\|public` |
+| `common.accessMiddleware` | the ipAllowList middleware name, or `""` | `public: true\|false` per ingress entry | `access: private\|public` |
 | `common.ingressRoute` | one Traefik `IngressRoute` | one per ingress entry, `<app>-<idx>` | one, `<name>` |
 | `common.middleware.stripPrefix` | a `stripPrefix` Middleware | `<app>-<idx>-strip-prefix` | none |
 | `common.middleware.redirect` | a `redirectRegex` Middleware | `<app>-<idx>-redirect` | none |

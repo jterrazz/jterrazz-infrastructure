@@ -65,9 +65,6 @@ cd ansible && ansible-playbook playbooks/platform.yml \
 
 - **Never unpin trixie** in `scripts/deploy.sh`: `orb create debian` defaults
   to bookworm, and every Ansible role is Debian-13-native.
-- **Never chain the two ipAllowList middlewares** (`private-access`,
-  `cluster-internal-access`). Traefik ANDs them, so chaining allows strictly
-  less, not more. Pick one per route.
 - **Never pin a chart below the version its data was migrated by.** On-disk
   formats are one-way doors (mongod's featureCompatibilityVersion, Postgres
   majors, BoltDB).

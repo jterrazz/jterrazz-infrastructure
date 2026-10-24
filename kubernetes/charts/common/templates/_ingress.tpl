@@ -5,20 +5,12 @@ so every name is an input and this file invents none.
 */}}
 
 {{/*
-`access` -> the ONE Traefik ipAllowList middleware for a route, or "" for none.
+`access` -> the Traefik ipAllowList middleware for a route, or "" for none.
 
-NEVER chain the two allow-lists: Traefik ANDs chained ipAllowLists, so the
-source would have to satisfy BOTH and chaining allows strictly LESS, not more.
-cluster-internal-access is already a strict superset of private-access.
-
-  private          tailnet humans only. The default, and the narrow one: a
-                   values file that forgets the key gets tailnet-only.
-  cluster-internal tailnet humans PLUS the pod/service CIDRs and the node. For
-                   routes something inside the cluster must also reach
-                   (the registry is the one route that asks for it).
-  public           no ipAllowList. The route is still behind the rate-limit /
-                   compress / security-headers chain the websecure entrypoint
-                   attaches globally.
+  private  tailnet humans only. The default, and the narrow one: a values file
+           that forgets the key gets tailnet-only.
+  public   no ipAllowList. The route is still behind the rate-limit / compress
+           / security-headers chain the websecure entrypoint attaches globally.
 
 Input: the access string. Output: the middleware name, or "".
 */}}
@@ -26,10 +18,8 @@ Input: the access string. Output: the middleware name, or "".
 {{- $access := . | default "private" -}}
 {{- if eq $access "private" -}}
 private-access
-{{- else if eq $access "cluster-internal" -}}
-cluster-internal-access
 {{- else if ne $access "public" -}}
-{{- fail (printf "access must be one of private|cluster-internal|public, got %q" $access) -}}
+{{- fail (printf "access must be one of private|public, got %q" $access) -}}
 {{- end -}}
 {{- end -}}
 
