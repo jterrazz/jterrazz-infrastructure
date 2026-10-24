@@ -21,9 +21,6 @@ on:
 
 permissions:
   contents: read
-  # invariant: infra-connect joins the tailnet with this job's GitHub OIDC token
-  # (Tailscale workload identity); there is no Tailscale secret any more.
-  id-token: write
   # invariant: `environment: production` writes a Deployment record, which needs this.
   deployments: write
 
@@ -43,7 +40,7 @@ jobs:
       # outside: fetches the CI secrets and joins the tailnet as tag:ci, after which
       # the runner reaches the VM by its MagicDNS name.
       - name: Setup infrastructure
-        uses: jterrazz/jterrazz-actions/actions/infra-connect@60c1159ab9137685d21d2e66b8d1875017d4d420 # main, 2026-10-24
+        uses: jterrazz/jterrazz-actions/actions/infra-connect@796f105597d23e266df4f12f99afbd481428c6e2 # main, 2026-10-24
         with:
           infisical-client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           infisical-client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
