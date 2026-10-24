@@ -1,0 +1,7 @@
+# invariant: THE Python pins of the Ansible toolchain, installed by both workflows
+# (validate.yaml lints with them, deploy-platform.yaml applies with them, and
+# the thing that lints a playbook must be the thing that runs it). Exact pins:
+# ansible-core, not the `ansible` bundle, whose own copies of the collections
+# would shadow requirements.yml. Renovate's pip manager bumps them.
+ansible-core==2.21.4
+ansible-lint==26.8.0

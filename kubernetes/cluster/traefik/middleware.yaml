@@ -14,37 +14,18 @@ spec:
   rateLimit:
     average: 100
     burst: 200
-    # invariant: key the limiter on the REAL client IP.
+    # invariant: key the limiter on the REAL client IP, which for public traffic is
+    # `Cf-Connecting-Ip`: Cloudflare's edge sets it on every request it
+    # forwards and overwrites a value the client sent, so it cannot be spoofed
+    # from the internet. It replaced an XFF walk with an `excludedIPs` list that
+    # had to repeat the entrypoint's trustedIPs entry for entry (and a script
+    # that checked it did).
     #
-    # excludedIPs, NOT `depth: N`: `depth` counts from the right of XFF and
-    # hard-codes how many hops appended a value (whether cloudflared appends
-    # its own is a version-dependent detail), and it reads XFF positionally
-    # regardless of the entrypoint's trustedIPs decision. `excludedIPs` walks
-    # XFF right-to-left and returns the first address that is not one of OUR
-    # hops, which lands on the client IP either way and is spoof-resistant: a
-    # client-supplied XFF value always sits LEFT of the address CF appended,
-    # so it is never reached.
-    #
-    # KEEP IN SYNC, entry for entry, with
-    # `--entryPoints.websecure.forwardedHeaders.trustedIPs` in
-    # kubernetes/services/traefik/helm-chart-config.yaml
-    # (spec.valuesContent additionalArguments): a range trusted there but
-    # missing here becomes the "client IP" this limiter buckets on.
-    #
-    # Known limitation: direct tailnet traffic carries no XFF and klipper-lb
-    # MASQUERADEs it, so private hosts cannot be rate limited per client. That
-    # population is small and authenticated by the tailnet itself.
+    # Tailnet traffic carries no such header and shares one bucket, as it did
+    # before: klipper-lb MASQUERADEs it, so it never had a per-client address
+    # here. That population is small and authenticated by the tailnet itself.
     sourceCriterion:
-      ipStrategy:
-        excludedIPs:
-          - "10.42.0.0/16" # k3s pod CIDR: cni0 gw + svclb pods, our own hops.
-          - "10.43.0.0/16" # k3s service CIDR: kube-proxy/klipper SNAT.
-          - "127.0.0.1/32" # node-local loopback.
-          - "100.64.0.0/10" # Tailscale CGNAT (incl. this node's tailnet IP).
-          - "169.254.0.0/16" # link-local: CNI/flannel edge cases.
-          - "198.19.0.0/16" # OrbStack machine network (node default IPv4).
-          - "172.16.0.0/12" # RFC1918: the private LAN the node sits on.
-          - "192.168.0.0/16"
+      requestHeaderName: Cf-Connecting-Ip
 
 ---
 apiVersion: traefik.io/v1alpha1

@@ -108,8 +108,9 @@ spec:
 
     # forwardedHeaders.trustedIPs: which *direct TCP peer* is allowed to have
     # set X-Forwarded-For. Traefik strips X-Forwarded-* from any peer NOT in
-    # this list, so a wrong list silently discards the real client IP and the
-    # rate limiter keys every request on one empty bucket.
+    # this list, so a wrong list silently discards the real client IP from the
+    # apps' X-Forwarded-For (the rate limiter keys on Cf-Connecting-Ip instead,
+    # kubernetes/cluster/traefik/middleware.yaml).
     #
     # Cloudflare's own edge CIDRs must NOT be listed: CF never talks to Traefik
     # directly. The chain is client -> CF edge (sets XFF) -> cloudflared
@@ -118,11 +119,6 @@ spec:
     # Traefik's 443 is reachable only from the tailnet
     # (loadBalancerSourceRanges), from inside the cluster, and from the node.
     #
-    # KEEP IN SYNC, entry for entry, with the excludedIPs list of the
-    # `rate-limit` Middleware in kubernetes/cluster/traefik/middleware.yaml
-    # (spec.rateLimit.sourceCriterion.ipStrategy.excludedIPs): that list walks
-    # XFF right-to-left skipping OUR hops, so a range trusted here but not
-    # excluded there becomes the "client IP" the limiter buckets on.
     #   10.42.0.0/16    k3s pod CIDR: cni0 gw (10.42.0.1) sources node->pod
     #                   traffic (cloudflared -> Traefik); svclb pods source
     #                   all LoadBalancer traffic.

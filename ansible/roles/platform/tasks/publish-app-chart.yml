@@ -1,8 +1,9 @@
 ---
-# invariant: deliberately DUPLICATES .github/workflows/publish-chart.yaml. That workflow
-# is the normal path; this exists for the fresh-cluster case, where the
-# registry is empty and no app can pull the chart at all until someone
-# hand-runs it. Skip with `--skip-tags chart-publish` when the chart is there.
+# invariant: THE publisher of the app chart. Every platform deploy runs it, and a
+# change under kubernetes/charts/ triggers one, so there is no second publisher
+# (the publish-chart workflow and its script were folded into this on
+# 2026-10-24). It also covers the fresh cluster, whose registry is empty until
+# this runs. Skip with `--skip-tags chart-publish`.
 
 # outside: `helm registry login` below talks HTTPS, and on a fresh cluster DNS-01
 # issuance lags the registry pod by a minute or two; without this the login
@@ -40,7 +41,7 @@
   ansible.builtin.set_fact:
     app_chart_version: "{{ (app_chart_yaml.content | b64decode | from_yaml).version }}"
 
-# invariant: mirrors the guard in .github/workflows/publish-chart.yaml: the chart is
+# invariant: the chart is
 # pulled UNVERSIONED by every app deploy, so overwriting a published version
 # means two different template sets answer to one tag depending on when an app
 # pulled. It SKIPS rather than fails, to keep a routine redeploy green, which

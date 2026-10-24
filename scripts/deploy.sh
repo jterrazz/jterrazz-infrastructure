@@ -1,10 +1,9 @@
 #!/bin/bash
 # hazard: create the cluster's VM with orbctl and configure it with Ansible.
 #
-# Ansible's secrets are pulled live from Infisical by
-# scripts/infisical-vars.py using the universal-auth credentials in
-# `.env`. Nothing sensitive lands on disk beyond the temp extra-vars file,
-# 0600 and deleted on exit by the trap below.
+# Ansible's secrets are pulled live from Infisical by the play itself
+# (ansible/roles/secrets), with the universal-auth credentials this script
+# exports from `.env`. Nothing sensitive lands on disk.
 #
 # Usage:
 #   ./scripts/deploy.sh                 # full: create the VM if absent + site.yml
@@ -38,12 +37,6 @@ set -a
 # shellcheck disable=SC1091
 source "$PROJECT_DIR/.env"
 set +a
-
-# hazard: script-scope and declared BEFORE the trap so cleanup sees it however the
-# script exits, including a failure partway through the fetch. `${var:-}` keeps
-# `rm -f` from tripping `set -u` if the path was never populated.
-secrets_file=""
-trap 'rm -f "${secrets_file:-}"' EXIT
 
 # outside: the whole provisioning layer: one OrbStack VM. Idempotent by probe rather
 # than by state file: `orbctl info` is the question "does this VM exist", and
@@ -83,16 +76,6 @@ vm_destroy() {
     orbctl delete --force "$VM_NAME"
 }
 
-# hazard: sets the script-scope $secrets_file instead of echoing the path: command
-# substitution would run this in a SUBSHELL, so the assignment made right after
-# `mktemp` would never reach the parent and the EXIT trap would leak the
-# tempfile whenever the fetch failed partway.
-fetch_secrets_file() {
-    local scope="$1"
-    secrets_file=$(mktemp -t jterrazz-infrastructure-vars-XXXXXX.yml)
-    "$SCRIPT_DIR/infisical-vars.py" "$scope" "$secrets_file"
-}
-
 # hazard: without this a fresh machine silently uses whatever collections the local
 # ansible install happens to bundle, which may not satisfy requirements.yml.
 # Git sources (requirements.yml says why) are rebuilt on every run, a few seconds.
@@ -102,20 +85,18 @@ install_collections() {
 }
 
 run_site() {
-    fetch_secrets_file site
     # invariant: ansible.cfg has a relative roles_path, so this must run from ansible/.
     cd "$PROJECT_DIR/ansible"
     install_collections
     info "ansible-playbook site.yml"
-    ansible-playbook playbooks/site.yml -i "$INVENTORY" -e "@$secrets_file"
+    ansible-playbook playbooks/site.yml -i "$INVENTORY"
 }
 
 run_platform() {
-    fetch_secrets_file platform
     cd "$PROJECT_DIR/ansible"
     install_collections
     info "ansible-playbook platform.yml"
-    ansible-playbook playbooks/platform.yml -i "$INVENTORY" -e "@$secrets_file"
+    ansible-playbook playbooks/platform.yml -i "$INVENTORY"
 }
 
 case "${1:-}" in

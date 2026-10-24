@@ -130,10 +130,7 @@ ingressroutes_json() {
 # <namespace>/<name>. Also emits `!<message>` lines for the private-hostname
 # cross-check, which replaces the static assertion this script used to need.
 #
-# Inline rather than a scripts/*.py of its own: it has exactly one caller, and a
-# separate file would need adding to the two python-syntax lists (Makefile and
-# validate.yaml), one more pair to keep in sync, which is what this whole
-# change is removing.
+# Inline rather than a scripts/*.py of its own: it has exactly one caller.
 # shellcheck disable=SC2016  # this is a Python program, not a shell string
 DISCOVER_PY='
 import json, re, sys

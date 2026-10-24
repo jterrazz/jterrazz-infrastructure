@@ -53,8 +53,8 @@ make kubeconfig       # regenerate ./kubeconfig.yaml from the VM (needs the tail
 ```
 
 `scripts/deploy.sh` is the entry point behind all of them. It sources the
-tokens in `.env`, pulls the Ansible-bound secrets from Infisical through
-`scripts/infisical-vars.py` into a 0600 tempfile, and runs the playbook. A
+Infisical identity in `.env` and runs the playbook, whose first role
+(`ansible/roles/secrets`) fetches every secret it needs from Infisical. A
 missing secret hard-fails the run; there are no fallback defaults.
 
 ## Documentation

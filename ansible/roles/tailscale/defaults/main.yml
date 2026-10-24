@@ -1,6 +1,5 @@
 ---
-# invariant: supplied as extra-vars by scripts/deploy.sh (via
-# scripts/infisical-vars.py). Empty here so a run without them SKIPS the
-# login block rather than failing.
+# invariant: set by ansible/roles/secrets in a site.yml run (scope `site`). Empty here
+# so a run without them SKIPS the login block rather than failing.
 tailscale_oauth_client_id: ""
 tailscale_oauth_client_secret: ""

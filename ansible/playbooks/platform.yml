@@ -14,6 +14,10 @@
   gather_facts: true
 
   roles:
+    # invariant: skipped when site.yml already fetched the wider `site` scope on this run.
+    - role: secrets
+      when: cloudflare_api_token is not defined
+      tags: [always]
     # hazard: KUBECONFIG once, here, instead of on ~36 individual tasks: every
     # kubectl/helm command in the role runs on the node against the k3s
     # kubeconfig, and a task that forgot the block silently talked to

@@ -13,8 +13,6 @@ Each check answers for one thing:
 | Check                                                            | Proves                                                                                          |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | `shellcheck scripts/*.sh scripts/lib/*.sh`                       | the shell is not quietly wrong: quoting, unset vars, the classic word-split                     |
-| `ast.parse` on `infisical-vars.py` and `assert-sync.py`          | both python scripts parse (and leave no `__pycache__/` behind, which `py_compile` would)        |
-| `python3 scripts/assert-sync.py`                                 | every fact this repo writes down twice still agrees; the roster is [Hand-synced pairs](../reference/hand-synced-pairs.md) |
 | `ansible-lint -c ansible/.ansible-lint ansible/`                 | the whole Ansible tree, roles and templates and inventories, not just `playbooks/`               |
 | `ansible-playbook --syntax-check` on both playbooks              | each playbook parses against the inventory that actually runs it                                |
 | `helm lint` on `common` alone, then `app` and `platform-service` against their `ci/test-values.yaml` | the charts render, and render something; see [the fixtures](#the-fixtures-are-the-validation-contract) |

@@ -43,9 +43,9 @@ require_key() {
             set +a
         fi
     fi
-    # outside: still nothing: pull it from Infisical directly. Deliberately NOT routed
-    # through infisical-vars.py, which writes the deploy extra-vars file onto
-    # the node, and this key has no business there.
+    # outside: still nothing: pull it from Infisical directly. Deliberately NOT in
+    # the deploy's `infisical_secrets`: those become variables of every deploy,
+    # and this key has no business there.
     if [ -z "${BACKUP_ENCRYPTION_KEY:-}" ] && [ -n "${INFISICAL_CLIENT_ID:-}" ] \
         && [ -n "${INFISICAL_CLIENT_SECRET:-}" ]; then
         info "Fetching BACKUP_ENCRYPTION_KEY from Infisical"

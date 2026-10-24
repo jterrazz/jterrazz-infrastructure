@@ -163,8 +163,7 @@ kubernetes/
                       cert-manager's ClusterIssuers.
 
 scripts/      deploy.sh (creates the VM, then runs Ansible) · backup.sh ·
-              infisical-vars.py · helmfile.sh · smoke.sh · assert-sync.py ·
-              trigger-app-deploys.sh · publish-app-chart.sh · lib/common.sh ·
+              helmfile.sh · smoke.sh · trigger-app-deploys.sh · lib/common.sh ·
               lib/helm-plugin.sh
               (smoke.sh and trigger-app-deploys.sh discover their targets from
               the cluster; the charts stamp the expectations as annotations)

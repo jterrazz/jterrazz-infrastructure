@@ -24,12 +24,11 @@ nothing but OrbStack.
 
 ### Infisical: project `jterrazz`, environment `prod`
 
-Fetched at deploy time by `scripts/infisical-vars.py`, the single
-implementation, shared by `scripts/deploy.sh` and
-`.github/workflows/deploy-platform.yaml`. Each path is fetched **explicitly**,
-never recursively, so short key names can repeat across folders. A missing key
-aborts the run; `roles/platform/tasks/preflight.yml` asserts the same set again
-on the host.
+Fetched at deploy time by `ansible/roles/secrets`, the first role of both
+playbooks, from the list `infisical_secrets` in group_vars, on the controller
+(the laptop or the CI runner). Each path is fetched **explicitly**, never
+recursively, so short key names can repeat across folders. A missing key aborts
+the run before anything deploys.
 
 | Path                               | Key                             | Ansible var                     | Scope         |
 | ---------------------------------- | ------------------------------- | ------------------------------- | ------------- |
@@ -101,7 +100,7 @@ the repository that owns them.
 
 | Secret                    | Used by                                        |
 | ------------------------- | ---------------------------------------------- |
-| `INFISICAL_CLIENT_ID`     | `deploy-platform.yaml`, `publish-chart.yaml`   |
+| `INFISICAL_CLIENT_ID`     | `deploy-platform.yaml`, `smoke.yaml`           |
 | `INFISICAL_CLIENT_SECRET` | same                                           |
 | `CI_DEPLOY_SSH_PRIVATE`   | `deploy-platform.yaml`, to SSH into the VM     |
 
@@ -411,9 +410,8 @@ containers, which is how two earlier backups came out torn.
 The passphrase is `BACKUP_ENCRYPTION_KEY` in Infisical at
 `/jterrazz-infrastructure` (env `prod`). Nothing local is needed: with
 `INFISICAL_CLIENT_ID` / `INFISICAL_CLIENT_SECRET` in `.env`, `make backup`
-fetches it itself. It is deliberately NOT routed through
-`scripts/infisical-vars.py`, which writes the deploy extra-vars onto the node,
-and this key has no business there.
+fetches it itself. It is deliberately NOT in `infisical_secrets`: those become
+variables of every deploy, and this key has no business there.
 It is **permanent**: rotating it does not re-encrypt existing archives, it
 orphans them, and losing it loses every archive it ever produced. That is the
 whole point: a copy on Time Machine, an external disk or a future machine is

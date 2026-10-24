@@ -27,6 +27,10 @@
   become: true
   gather_facts: true
   roles:
+    - role: secrets
+      vars:
+        secrets_scope: site
+      tags: [always]
     - role: base
       tags: [base]
     - role: security

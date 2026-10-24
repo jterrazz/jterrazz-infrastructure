@@ -135,8 +135,7 @@ mechanically when editing any values file, manifest or template in this repo.
   every IngressRoute and probes what its
   `smoke.jterrazz.com/{path,expect,method,location,probe}` annotations say;
   `scripts/trigger-app-deploys.sh` reads `app.jterrazz.com/repository` off every
-  app Deployment. Neither holds a list of hostnames, status codes or repos, and
-  `assert-sync.py` no longer needs a check to hold two such lists together. Add
+  app Deployment. Neither holds a list of hostnames, status codes or repos. Add
   a surface and it is probed with no edit here; the contract is
   `kubernetes/charts/common/templates/_smoke.tpl`.
 

@@ -2,9 +2,9 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": [
     "Boring, weekly-only Renovate config for this repo.",
-    "Watches: GitHub Actions versions in .github/workflows/, the Helm chart pins in kubernetes/helmfile.yaml.gotmpl (native helmfile manager), and, through the customManagers below, every other hand-held pin: bare `image:` lines in kubernetes/services/ (app-chart values the native managers never parse), k3s / helm / helmfile / helm-diff / helm-unittest, ansible-core and ansible-lint, and the Ansible collections' git tags.",
-    "A hand-synced pair (docs/reference/hand-synced-pairs.md) shares one depName, so both copies move in the same PR.",
-    "Not watched: kubeconform and gitleaks (their SHA256 pins cannot be bumped by Renovate), the busybox digest (held in sync by scripts/assert-sync.py), Debian and Tailscale (unattended-upgrades and apt).",
+    "Watches: GitHub Actions in .github/workflows/, the Helm chart pins in kubernetes/helmfile.yaml.gotmpl (native helmfile manager), ansible/requirements.txt (native pip manager), and through the customManagers below every other pin: bare `image:` lines in kubernetes/services/, the busybox digest wherever it is copied, k3s / helm / helmfile / helm-diff (group_vars), helm-unittest (Makefile), and the Ansible collections' git tags.",
+    "Every pin has one home; CI reads it from there rather than holding a copy.",
+    "Not watched: kubeconform and gitleaks (their SHA256 pins cannot be bumped by Renovate), Debian and Tailscale (unattended-upgrades and apt).",
     "Automerge is disabled everywhere: every update lands as a PR for manual review."
   ],
   "extends": [
@@ -39,28 +39,24 @@
     },
     {
       "customType": "regex",
-      "description": "helm: group_vars and the azure/setup-helm input in validate.yaml (a hand-synced pair).",
+      "description": "helm, pinned in group_vars (validate.yaml reads it from there).",
       "managerFilePatterns": [
-        "/^ansible/inventories/group_vars/all\\.yml$/",
-        "/^\\.github/workflows/validate\\.yaml$/"
+        "/^ansible/inventories/group_vars/all\\.yml$/"
       ],
       "matchStrings": [
-        "helm_version:\\s+\"(?<currentValue>v[^\"]+)\"",
-        "uses: azure/setup-helm@\\S+.*\\n\\s+with:\\n\\s+version: (?<currentValue>v\\S+)"
+        "helm_version:\\s+\"(?<currentValue>v[^\"]+)\""
       ],
       "depNameTemplate": "helm/helm",
       "datasourceTemplate": "github-releases"
     },
     {
       "customType": "regex",
-      "description": "helmfile: group_vars and HELMFILE_VERSION in validate.yaml (a hand-synced pair).",
+      "description": "helmfile, pinned in group_vars (validate.yaml reads it from there).",
       "managerFilePatterns": [
-        "/^ansible/inventories/group_vars/all\\.yml$/",
-        "/^\\.github/workflows/validate\\.yaml$/"
+        "/^ansible/inventories/group_vars/all\\.yml$/"
       ],
       "matchStrings": [
-        "helmfile_version:\\s+\"(?<currentValue>v[^\"]+)\"",
-        "HELMFILE_VERSION=(?<currentValue>v\\S+)"
+        "helmfile_version:\\s+\"(?<currentValue>v[^\"]+)\""
       ],
       "depNameTemplate": "helmfile/helmfile",
       "datasourceTemplate": "github-releases"
@@ -79,26 +75,15 @@
     },
     {
       "customType": "regex",
-      "description": "helm-unittest, installed by validate.yaml.",
+      "description": "helm-unittest, pinned in the Makefile (validate.yaml reads it from there).",
       "managerFilePatterns": [
-        "/^\\.github/workflows/validate\\.yaml$/"
+        "/^Makefile$/"
       ],
       "matchStrings": [
-        "HELM_UNITTEST_VERSION=(?<currentValue>v\\S+)"
+        "HELM_UNITTEST_VERSION := (?<currentValue>v\\S+)"
       ],
       "depNameTemplate": "helm-unittest/helm-unittest",
       "datasourceTemplate": "github-releases"
-    },
-    {
-      "customType": "regex",
-      "description": "ansible-core and ansible-lint pip pins in both workflows (ansible-core is a hand-synced pair).",
-      "managerFilePatterns": [
-        "/^\\.github/workflows/.+\\.ya?ml$/"
-      ],
-      "matchStrings": [
-        "(?<depName>ansible-core|ansible-lint)==(?<currentValue>[0-9][0-9.]*)"
-      ],
-      "datasourceTemplate": "pypi"
     },
     {
       "customType": "regex",
@@ -110,6 +95,17 @@
         "name: https://github\\.com/(?<depName>[^/\\s]+/[^\\s]+?)\\.git\\n\\s+type: git\\n\\s+version: \"(?<currentValue>[^\"]+)\""
       ],
       "datasourceTemplate": "github-tags"
+    },
+    {
+      "customType": "regex",
+      "description": "The busybox init image, pinned by digest in the app chart, two values files and the chart's snapshot: one PR moves every copy.",
+      "managerFilePatterns": [
+        "/^kubernetes/.+\\.(ya?ml|snap)$/"
+      ],
+      "matchStrings": [
+        "(?<depName>busybox):(?<currentValue>[0-9][0-9.]*)@(?<currentDigest>sha256:[a-f0-9]{64})"
+      ],
+      "datasourceTemplate": "docker"
     }
   ],
   "packageRules": [

@@ -30,7 +30,6 @@ on:
       - 'kubernetes/charts/app/**'
       - 'kubernetes/charts/common/**'
       - 'kubernetes/helmfile.yaml.gotmpl'
-      - 'scripts/infisical-vars.py'
   workflow_dispatch:
 
 permissions:
@@ -81,14 +80,7 @@ jobs:
       - name: Install Ansible + collections
         working-directory: ansible
         run: |
-          # Pinned exact, and ansible-CORE rather than the `ansible` community
-          # bundle, for the same reasoning as validate.yaml: the bundle ships its own
-          # copies of the collections that requirements.yml pins explicitly,
-          # so the version that actually runs would depend on install order.
-          # KEEP IN SYNC with the pin in validate.yaml's `ansible` job: the
-          # thing that lints a playbook and the thing that APPLIES it must be
-          # the same interpreter.
-          pip install ansible-core==2.21.4
+          pip install -r requirements.txt
           ansible-galaxy collection install -r requirements.yml
 
       # outside: materialise the deploy private key in a 0600 tempfile so ansible
@@ -106,35 +98,24 @@ jobs:
           printf '%s\n' "$CI_DEPLOY_SSH_PRIVATE" > "$KEY_FILE"
           echo "CI_DEPLOY_KEY_FILE=$KEY_FILE" >> "$GITHUB_ENV"
 
-      # outside: same script scripts/deploy.sh uses, in its `platform` scope: one
-      # implementation of the Infisical fetch, the missing-key hard-fail and
-      # the YAML escaping instead of two hand-synced copies. `platform` omits
-      # the Tailscale OAuth credentials: platform.yml only reads Tailscale
-      # facts off an already-joined node.
-      - name: Build extra-vars file
-        env:
-          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
-          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-        run: |
-          set -euo pipefail
-          EXTRA="$(mktemp -t platform-vars-XXXXXX.yml)"
-          python3 scripts/infisical-vars.py platform "$EXTRA"
-          echo "EXTRA_VARS_FILE=$EXTRA" >> "$GITHUB_ENV"
-
       # outside: scope: platform.yml only (Helm-managed services + manifests).
       # Skips the base/security/resolved/tailscale/k3s roles because those can restart
       # sshd or tailscaled and would kill the runner's SSH session mid-run.
       # Use `make deploy` from the laptop when you need to apply changes
       # outside the platform layer.
+      # invariant: the play fetches its own secrets from Infisical (ansible/roles/secrets)
+      # with this identity; nothing is written to disk.
       - name: Run ansible-playbook (platform layer only)
         working-directory: ansible
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
         run: |
           ansible-playbook playbooks/platform.yml \
             -i inventories/ci.yml \
-            -e "@$EXTRA_VARS_FILE" \
             -e "ansible_ssh_private_key_file=$CI_DEPLOY_KEY_FILE"
 
       - name: Wipe temp secrets
         if: always()
         run: |
-          rm -f "${CI_DEPLOY_KEY_FILE:-}" "${EXTRA_VARS_FILE:-}" || true
+          rm -f "${CI_DEPLOY_KEY_FILE:-}" || true

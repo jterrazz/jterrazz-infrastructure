@@ -6,10 +6,9 @@
 
 timezone: UTC
 
-# hazard: kEEP IN SYNC with the `azure/setup-helm` version in BOTH
-# .github/workflows/validate.yaml and .github/workflows/publish-chart.yaml.
-# Three machines, one Helm: a chart packaged by one version and rendered by
-# another is a silent behaviour difference.
+# invariant: THE Helm version: the node installs it and validate.yaml reads it from
+# here for azure/setup-helm. A chart packaged by one version and rendered by
+# another is a silent behaviour difference, so there is no second copy.
 #
 # v4 since 2026-09-19. What held it at v3 was checked before moving: helm-diff
 # 3.15.10+ and helmfile 1.4+ speak v4's flags, helm-unittest embeds its own
@@ -24,9 +23,8 @@ helm_version: "v4.3.0"
 # performs; the releases themselves are declared in kubernetes/helmfile.yaml.gotmpl
 # and the chart versions live THERE, not here.
 #
-# KEEP IN SYNC with the helmfile version installed by the `kubernetes` job of
-# .github/workflows/validate.yaml: that job renders the same state file, and a
-# renderer that is not the applier proves nothing.
+# validate.yaml's `kubernetes` job reads this value to install the helmfile that
+# renders the same state file: a renderer that is not the applier proves nothing.
 helmfile_version: "v1.8.0"
 
 # value: helm-diff is not optional tooling: `helmfile apply` is diff-then-sync, so
@@ -139,3 +137,24 @@ dns_records:
   - record: analytics
     value: "{{ (cloudflare_tunnel_token | b64decode | from_json).t }}.cfargotunnel.com"
     proxied: true
+
+# invariant: every secret a deploy reads, once. roles/secrets fetches exactly this list
+# from Infisical (project `jterrazz`, environment `prod`) on the controller and
+# fails on a missing key before anything deploys; nothing else holds a copy.
+# Each folder is fetched EXPLICITLY, never recursively, so short key names can
+# repeat across folders. `scope: site` entries are fetched by site.yml only.
+infisical_api: https://eu.infisical.com
+infisical_project: jterrazz
+infisical_environment: prod
+infisical_secrets:
+  - { var: cloudflare_api_token, path: /jterrazz-infrastructure, key: CLOUDFLARE_API_TOKEN }
+  - { var: cloudflare_tunnel_token, path: /jterrazz-infrastructure, key: CLOUDFLARE_TUNNEL_TOKEN }
+  # outside: both halves of the registry ACCOUNT: a password rotation overlaps two
+  # accounts (`deploy` / `deploy-next`), and the htpasswd line bootstrap.yml
+  # generates follows the name CI and the kubelet authenticate with
+  # (docs/guides/operate.md, Rotating the registry password).
+  - { var: registry_username, path: /jterrazz-infrastructure, key: DOCKER_REGISTRY_USERNAME }
+  - { var: registry_password, path: /jterrazz-infrastructure, key: DOCKER_REGISTRY_PASSWORD }
+  - { var: grafana_admin_password, path: /jterrazz-infrastructure/grafana, key: ADMIN_PASSWORD }
+  - { var: tailscale_oauth_client_id, path: /jterrazz-infrastructure, key: TAILSCALE_OAUTH_CLIENT_ID, scope: site }
+  - { var: tailscale_oauth_client_secret, path: /jterrazz-infrastructure, key: TAILSCALE_OAUTH_CLIENT_SECRET, scope: site }

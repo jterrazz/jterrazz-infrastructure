@@ -683,26 +683,24 @@ For a declared environment, namespace `<environment>-<app>`:
 
 ## Versioning and publishing
 
-`kubernetes/charts/app/Chart.yaml` carries the chart `version:`. Push to
-`main` touching `kubernetes/charts/app/**` and
-`.github/workflows/publish-chart.yaml` packages and pushes it to
-`oci://registry.internal.jterrazz.com/charts/app`.
+`kubernetes/charts/app/Chart.yaml` carries the chart `version:`. A push to
+`main` touching `kubernetes/charts/**` runs a platform deploy, whose last step
+(`ansible/roles/platform/tasks/publish-app-chart.yml`) packages and pushes it
+to `oci://registry.internal.jterrazz.com/charts/app`.
 
 Two rules follow from apps pulling the chart **unversioned**:
 
-1. **Bump `version:` in the same commit as any template change.** The workflow
+1. **Bump `version:` in the same commit as any template change.** The publisher
    `helm pull`s the version first and, if it resolves, publishes **nothing**
-   (a green no-op with a `::notice::`, not a failure: a routine push right
+   (a green no-op, not a failure: a routine push right
    after `make deploy` would otherwise go red on an already-current registry).
    The guard's only job is to prevent an *overwrite*, so two template sets can
    never answer to the same tag. The corollary is that a forgotten bump ships
    nothing at all, quietly.
 2. **Every behavioural change reaches every app on its next deploy**: there
    is no per-app opt-in window. Additive and defaulted changes only, unless
-   you're prepared to redeploy the fleet. (`ansible/roles/platform/tasks/publish-app-chart.yml`
-   publishes the same chart from the host during a fresh-cluster build,
-   because until it exists in the registry no app can deploy at all. It carries
-   the same guard: already-published is a skip, not a failure.)
+   you're prepared to redeploy the fleet. On a fresh cluster the same step
+   is what makes the chart exist at all; until then no app can deploy.
 
 ## Upgrading from 2.11
 

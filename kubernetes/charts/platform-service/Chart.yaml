@@ -9,8 +9,8 @@ version: 2.14.0
 # invariant: the one implementation of every concern this chart shares with `app`
 # (IngressRoute, Certificate, PV/PVC, NetworkPolicy, InfisicalSecret). A
 # relative file:// repository, so `helm dependency update` resolves it from the
-# working tree with no registry and no network. KEEP THE VERSION IN SYNC with
-# kubernetes/charts/common/Chart.yaml, asserted by scripts/assert-sync.py.
+# working tree with no registry and no network. The version is common's exactly;
+# a mismatch fails `helm dependency update` in validate.yaml.
 dependencies:
   - name: common
     version: 1.5.0

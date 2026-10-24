@@ -5,7 +5,7 @@
 # entry point.
 
 .DEFAULT_GOAL := help
-.PHONY: help deploy deploy-platform destroy redeploy-apps check-tools check docs lint diff smoke backup kubeconfig
+.PHONY: help deploy deploy-platform destroy redeploy-apps check-tools check docs lint diff smoke backup kubeconfig print-helm-unittest-version
 
 GREEN := \033[32m
 YELLOW := \033[33m
@@ -17,6 +17,10 @@ NC := \033[0m
 # inventories/ci.yml are the other two places it appears).
 VM_NAME := jterrazz-infrastructure
 KUBECONFIG_FILE := kubeconfig.yaml
+# invariant: THE helm-unittest version: the plugin embeds its own renderer, so the
+# committed chart snapshots reproduce only against the version that wrote them.
+# validate.yaml reads it through `make print-helm-unittest-version`.
+HELM_UNITTEST_VERSION := v1.1.2
 NODE_FQDN := $(shell awk '/ansible_host:/ {print $$2; exit}' ansible/inventories/ci.yml)
 
 
@@ -93,27 +97,10 @@ check-tools: ## Check required tools
 #   pip install ansible-core ansible-lint
 # actionlint and helm-unittest are the two soft skips: CI re-runs both
 # unconditionally, so a laptop without them is not a gap in the gate.
-check: ## Run the checks CI runs (shellcheck, python, sync assertions, ansible-lint, helm lint + unittest, actionlint, content check)
+check: ## Run the checks CI runs (shellcheck, ansible-lint, helm lint + unittest, actionlint, content check)
 	@echo "== shellcheck scripts/ =="
 	shellcheck scripts/*.sh scripts/lib/*.sh
 	@echo "✓ shellcheck clean"
-	@echo ""
-	@echo "== python syntax scripts/ =="
-	@# ast.parse rather than py_compile: same syntax check, no __pycache__/ left
-	@# behind in the working tree.
-	@for f in scripts/infisical-vars.py scripts/assert-sync.py; do \
-		python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read(), sys.argv[1])" "$$f" || exit 1; \
-	done
-	@echo "✓ python clean"
-	@echo ""
-	@echo "== cross-file sync assertions =="
-	@# Facts this repo has to write down twice (the Infisical var map vs the
-	@# Ansible preflight assert, the Traefik trustedIPs vs the rate-limit
-	@# excludedIPs, the four Helm/helmfile/ansible-core/helm-unittest version
-	@# pins, the busybox digest, the two app-chart publish guards, the library
-	@# chart version vs its two pins). Each pair carries a "keep in sync"
-	@# comment; this is what actually checks them.
-	python3 scripts/assert-sync.py
 	@echo ""
 	@echo "== ansible-lint ansible/ =="
 	ansible-lint -c ansible/.ansible-lint ansible/
@@ -147,7 +134,7 @@ check: ## Run the checks CI runs (shellcheck, python, sync assertions, ansible-l
 		helm unittest --strict kubernetes/charts/app kubernetes/charts/platform-service || exit 1; \
 	else \
 		echo "⚠ helm-unittest not installed, skipped. Install with:"; \
-		echo "    helm plugin install https://github.com/helm-unittest/helm-unittest --version v1.1.2"; \
+		echo "    helm plugin install https://github.com/helm-unittest/helm-unittest --version $(HELM_UNITTEST_VERSION)"; \
 		echo "    (add --verify=false on helm 4; the plugin ships no signature)"; \
 	fi
 	@echo ""
@@ -195,3 +182,6 @@ help:
 	@printf "$(GREEN)jterrazz infrastructure$(NC)\n"
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z0-9_-]+:.*##/ { printf "  $(YELLOW)%-16s$(NC) %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 	@echo ""
+
+print-helm-unittest-version:
+	@echo $(HELM_UNITTEST_VERSION)

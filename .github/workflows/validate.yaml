@@ -2,7 +2,7 @@ name: Validate
 
 # invariant: runs on PRs (pre-merge gate) AND on push to main (a direct push, such as a
 # merge commit made outside a PR or an admin bypass, would otherwise reach
-# main, and therefore deploy-platform.yaml/publish-chart.yaml, unvalidated).
+# main, and therefore deploy-platform.yaml, unvalidated).
 #
 # No `workflow_call:` here: nothing in this repo (or known to reference it
 # externally) invokes this workflow as a reusable one: grepped for
@@ -35,23 +35,6 @@ jobs:
       # shellcheck preinstalled, so there is nothing to set up.
       - name: ShellCheck
         run: shellcheck scripts/*.sh scripts/lib/*.sh
-
-      - name: Python syntax check
-        # invariant: ast.parse rather than py_compile: same check, no __pycache__ artifact.
-        run: |
-          set -euo pipefail
-          for f in scripts/infisical-vars.py scripts/assert-sync.py; do
-            python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read(), sys.argv[1])" "$f"
-          done
-
-      # invariant: several facts in this repo are necessarily written down twice, in two
-      # languages, because two different machines consume them (a Traefik
-      # entrypoint argument vs a Traefik Middleware CRD; a Python secret map vs
-      # an Ansible assert). Each pair carries a "KEEP IN SYNC" comment, and a
-      # comment is not a check. This step is the check. Stdlib-only, so this
-      # job still installs nothing.
-      - name: Cross-file sync assertions
-        run: python3 scripts/assert-sync.py
 
   docs:
     name: Validate Docs
@@ -90,12 +73,8 @@ jobs:
           # tested matrix.
           python-version: "3.13"
 
-      # outside: pinned exact (not `ansible ansible-lint`, which pulls whatever the
-      # latest ansible-core/ansible-lint happen to be that day, and pulls in
-      # the full `ansible` community package's bundled collections instead
-      # of the explicit set in requirements.yml below).
       - name: Install Ansible
-        run: pip install ansible-core==2.21.4 ansible-lint==26.8.0
+        run: pip install -r ansible/requirements.txt
 
       - name: Install Ansible collections
         working-directory: ansible
@@ -153,10 +132,21 @@ jobs:
       - name: Setup kubectl
         uses: azure/setup-kubectl@829323503d1be3d00ca8346e5391ca0b07a9ab0d # v5.1.0
 
+      # invariant: the tool versions the node runs, read from where the node reads them,
+      # so a renderer here is the applier there without a second copy to drift.
+      - name: Read the pinned tool versions
+        id: versions
+        run: |
+          {
+            echo "helm=$(yq '.helm_version' ansible/inventories/group_vars/all.yml)"
+            echo "helmfile=$(yq '.helmfile_version' ansible/inventories/group_vars/all.yml)"
+            echo "helm_unittest=$(make -s print-helm-unittest-version)"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Setup Helm
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
-          version: v4.3.0
+          version: ${{ steps.versions.outputs.helm }}
 
       - name: Install kubeconform
         run: |
@@ -222,7 +212,7 @@ jobs:
         # this and scripts/helmfile.sh install plugins the same way.
         run: |
           set -euo pipefail
-          HELM_UNITTEST_VERSION=v1.1.2
+          HELM_UNITTEST_VERSION=${{ steps.versions.outputs.helm_unittest }}
           source scripts/lib/helm-plugin.sh
           helm_plugin_install https://github.com/helm-unittest/helm-unittest "$HELM_UNITTEST_VERSION"
           helm plugin list
@@ -238,15 +228,11 @@ jobs:
       # here catches a bad chart version, a values file that moved, a `needs:`
       # pointing at a release that no longer exists, all of which would
       # otherwise surface mid-deploy, after some releases have already been
-      # upgraded.
-      #
-      # KEEP IN SYNC with `helmfile_version` in
-      # ansible/inventories/group_vars/all.yml (asserted by
-      # scripts/assert-sync.py).
+      # upgraded. The version is the node's own (`helmfile_version`, read above).
       - name: Install helmfile
         run: |
           set -euo pipefail
-          HELMFILE_VERSION=v1.8.0
+          HELMFILE_VERSION=${{ steps.versions.outputs.helmfile }}
           curl -sSL -o /tmp/helmfile.tar.gz \
             "https://github.com/helmfile/helmfile/releases/download/${HELMFILE_VERSION}/helmfile_${HELMFILE_VERSION#v}_linux_amd64.tar.gz"
           tar -xzf /tmp/helmfile.tar.gz -C /tmp helmfile
