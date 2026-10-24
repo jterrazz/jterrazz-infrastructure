@@ -236,9 +236,7 @@ and losing it loses them all.
 
 Encryption, not `chmod`, because the pods write through virtiofs as uids 70,
 101, 472, 999 and 1000, so the tree must stay traversable by "other"; what can
-be protected is the copy that leaves it. Most of the tree is the registry, and
-distribution's old store (`registry/docker`, ADR-014) is in every archive until
-it is deleted.
+be protected is the copy that leaves it. Most of the tree is the registry.
 
 ## Restoring from backup
 
@@ -249,7 +247,7 @@ replace its directory, and start it again.
 ```text
 data/
 ├── victoria-metrics/ · victoria-logs/ · victoria-traces/
-├── registry/            zot/ (live) and docker/ (distribution's rollback)
+├── registry/zot/        Zot's OCI store
 ├── openpanel/           postgres/ · clickhouse/ · redis/
 └── <app>-<env>/         one per app volume, from the app chart
 ```

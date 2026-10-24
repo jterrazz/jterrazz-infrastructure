@@ -13,6 +13,23 @@ kind: Policy
 omitStages:
   - RequestReceived
 rules:
+  # invariant: FIRST, so no rule below can silence it: every get or list of a Secret,
+  # by anyone, a controller or the local admin included. A `watch` is the kubelet
+  # and the operators keeping mounted Secrets fresh, all day, and is no evidence.
+  - level: Metadata
+    verbs: ["get", "list"]
+    resources:
+      - group: ""
+        resources: ["secrets"]
+
+  # Kubernetes events are the cluster narrating itself.
+  - level: None
+    resources:
+      - group: ""
+        resources: ["events"]
+      - group: events.k8s.io
+        resources: ["events"]
+
   # Controller chatter: leader-election leases rewrite every couple of seconds.
   - level: None
     resources:
@@ -38,10 +55,24 @@ rules:
       - system:kube-scheduler
       - system:kube-controller-manager
       - system:kube-proxy
+      - k3s-cloud-controller-manager
+      - system:k3s-supervisor
     verbs: ["get", "list", "watch"]
   - level: None
-    userGroups: ["system:nodes"]
+    userGroups: ["system:nodes", "system:serviceaccounts"]
     verbs: ["get", "list", "watch"]
+  # value: k3s' own supervisor and helm-controller read as system:admin all day; a read
+  # is no evidence, and its writes still land below. These two groups were 80%
+  # of the log, which then held a day and a half instead of 30 days.
+  - level: None
+    users: ["system:admin"]
+    verbs: ["get", "list", "watch"]
+
+  # Permission questions (the platform suite asks dozens per run) change nothing.
+  - level: None
+    resources:
+      - group: authorization.k8s.io
+        resources: ["subjectaccessreviews", "selfsubjectaccessreviews", "selfsubjectrulesreviews"]
 
   # Everything else: every write, and every read of a Secret by anyone.
   - level: Metadata

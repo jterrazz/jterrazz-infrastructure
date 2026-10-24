@@ -465,6 +465,27 @@ shape is identical to what `--set-file` produces, so generalising that loop to
 also scan `alerts/*.yaml` is a jterrazz-actions-only change; this chart needs
 no edit when it happens.
 
+**Removing a rule takes one more step.** Grafana keeps a provisioned rule in
+its database when the file that declared it disappears, so a rule dropped from
+`spec.alerts` (or an app removed) stays, and with `noDataState: Alerting` it
+fires on its own. Delete it once with a `deleteRules` file, then remove the
+ConfigMap:
+
+```bash
+kubectl apply -f - <<'YAML'
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: delete-rule, namespace: platform-telemetry, labels: { grafana_alert: "1" } }
+data:
+  delete.yaml: |
+    apiVersion: 1
+    deleteRules: [{ orgId: 1, uid: <rule uid> }]
+YAML
+sleep 60 && kubectl -n platform-telemetry delete configmap delete-rule
+```
+
+The registry's `registry-gc-stale` outlived distribution this way until 2026-10-25.
+
 ### `spec.cronJobs`
 
 Map of `name -> job`. Each entry renders a CronJob `<app>-<name>` that runs

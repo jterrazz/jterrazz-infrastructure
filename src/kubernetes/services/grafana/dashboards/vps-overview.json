@@ -7,7 +7,7 @@
       "gridPos": { "h": 6, "w": 4, "x": 0, "y": 1 },
       "id": 1,
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
-      "targets": [{ "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)", "refId": "A" }],
+      "targets": [{ "expr": "100 * sum(rate(node_cpu_seconds_total{mode!=\"idle\"}[5m])) / sum(rate(node_cpu_seconds_total[5m]))", "refId": "A" }],
       "title": "CPU Usage",
       "type": "gauge"
     },
@@ -25,10 +25,10 @@
       "gridPos": { "h": 6, "w": 10, "x": 4, "y": 1 },
       "id": 2,
       "targets": [
-        { "expr": "avg(rate(node_cpu_seconds_total{mode=\"user\"}[5m])) * 100", "legendFormat": "user", "refId": "A" },
-        { "expr": "avg(rate(node_cpu_seconds_total{mode=\"system\"}[5m])) * 100", "legendFormat": "system", "refId": "B" },
-        { "expr": "avg(rate(node_cpu_seconds_total{mode=\"iowait\"}[5m])) * 100", "legendFormat": "iowait", "refId": "C" },
-        { "expr": "avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100", "legendFormat": "idle", "refId": "D" }
+        { "expr": "100 * sum(rate(node_cpu_seconds_total{mode=\"user\"}[5m])) / sum(rate(node_cpu_seconds_total[5m]))", "legendFormat": "user", "refId": "A" },
+        { "expr": "100 * sum(rate(node_cpu_seconds_total{mode=\"system\"}[5m])) / sum(rate(node_cpu_seconds_total[5m]))", "legendFormat": "system", "refId": "B" },
+        { "expr": "100 * sum(rate(node_cpu_seconds_total{mode=\"iowait\"}[5m])) / sum(rate(node_cpu_seconds_total[5m]))", "legendFormat": "iowait", "refId": "C" },
+        { "expr": "100 * sum(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) / sum(rate(node_cpu_seconds_total[5m]))", "legendFormat": "idle", "refId": "D" }
       ],
       "title": "CPU Breakdown",
       "type": "timeseries"

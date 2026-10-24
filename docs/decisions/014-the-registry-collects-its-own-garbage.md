@@ -59,8 +59,7 @@ against distribution's 13G.
   an app's environments to the new digest in one run, so this only bites if a
   deploy fails between two environments and a pod of the stale one restarts a
   day later with the image gone from the node's cache: redeploy the app.
-- distribution's store stays at `/var/lib/k8s-data/registry/docker` (PV
-  `registry-data`, unmounted) as the rollback: revert 26ff18c. Delete both once
-  Zot has run clean for a while.
+- distribution's store and its PV were deleted on 2026-10-25, a day after the
+  move: there is no rollback to distribution.
 - A leaked pull secret (any app namespace's `registry-credentials`) can read
   images, never push or delete one.

@@ -152,3 +152,6 @@ record: about 411k a month projected. A filter processor on
   [the storage record](008-storage-on-orbstack-spends-fsyncs-not-bytes.md)'s.
 - Trace history may be lost outright on a VictoriaTraces upgrade; that is
   accepted.
+- Node CPU is a ratio of summed mode rates, never `avg` over CPUs: OrbStack's
+  hot-plugged vCPUs advance less than a second per second, so the average read
+  38% busy when the node used 0.7 cores, about 10% (2026-10-25).

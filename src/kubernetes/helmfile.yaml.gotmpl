@@ -22,6 +22,8 @@ helmDefaults:
   timeout: 300
   # hazard: helm would create a namespace without its Pod Security labels.
   createNamespace: false
+  # value: 3 release revisions, not helm's 10: each is a Secret in k3s' SQLite.
+  historyMax: 3
 
 templates:
   platform-service:

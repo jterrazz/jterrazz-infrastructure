@@ -8,9 +8,6 @@ smoke:
   expect: "401"
 
 storage:
-  # value: distribution's old store, unmounted, kept as the rollback of the move to Zot (ADR-014).
-  data:
-    size: 10Gi
   zot:
     size: 20Gi
     pathSuffix: zot
