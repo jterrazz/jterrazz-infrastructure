@@ -145,7 +145,7 @@ hole, and each names the check that proves it still holds.
 | Secrets encrypted at rest | `secrets-encryption: true` in the k3s config | `k3s secrets-encrypt status` -> Enabled; then grep a real Secret value in `state.db` and find nothing |
 | API audit log | `audit-policy.yaml.j2`, Metadata level | `wc -l <data-dir>/server/logs/audit.log` grows |
 | Pod Security Admission | `cluster/namespaces.yaml` | `kubectl get ns -L pod-security.kubernetes.io/enforce` |
-| kube-system NetworkPolicy | `cluster/network-policies/kube-system.yaml` | DNS from a fresh pod, `kubectl top nodes`, and a tailnet curl (see below) |
+| kube-system NetworkPolicy | `cluster/network-policies/kube-system.yaml` | DNS from a fresh pod, `kubectl top nodes`, a tailnet curl (see below), and a fresh unlabelled kube-system pod timing out on Traefik's pod IP `:8443` |
 
 ### The two things that will bite
 

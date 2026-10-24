@@ -90,8 +90,9 @@ spec:
 # externalTrafficPolicy: Cluster), so a tailnet request reaches Traefik with an
 # svclb POD source; the tailnet gate on that path is the Service's
 # loadBalancerSourceRanges. What keeps every OTHER pod off private hosts is
-# Traefik's own ingress policy, which admits no pod outside kube-system but the
-# svclb one (allow-traefik-ingress, kubernetes/cluster/network-policies/kube-system.yaml).
+# Traefik's own ingress policy, which admits no pod but the svclb one, kube-system's
+# own included (allow-traefik-ingress and allow-same-namespace,
+# kubernetes/cluster/network-policies/kube-system.yaml).
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
