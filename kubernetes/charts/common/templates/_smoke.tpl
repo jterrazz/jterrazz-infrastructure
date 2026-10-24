@@ -1,5 +1,5 @@
 {{/*
-THE SMOKE CONTRACT: what the platform contract (harness/specs/deployment in the
+THE SMOKE CONTRACT: what the platform contract (harness/specs/api in the
 infrastructure repo) probes, written on the route itself.
 
 The suite holds no table of hostnames or status codes: it lists every

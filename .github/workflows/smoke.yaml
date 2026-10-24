@@ -122,7 +122,7 @@ jobs:
 
       - name: Routes, certificates, cluster invariants, private_hostnames
         working-directory: harness
-        run: npx vitest --run specs/deployment/routes specs/deployment/certificates specs/cluster specs/routes
+        run: npx vitest --run specs/api/routes specs/api/certificates specs/cluster specs/routes
 
   internet:
     name: Boundary from the internet
@@ -151,4 +151,4 @@ jobs:
         working-directory: harness
         env:
           INGRESSROUTES_FILE: ${{ runner.temp }}/ingressroutes.json
-        run: npx vitest --run specs/deployment/routes/public specs/deployment/boundary
+        run: npx vitest --run specs/api/routes/public specs/api/boundary

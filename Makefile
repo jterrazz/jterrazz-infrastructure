@@ -31,8 +31,8 @@ export CLUSTER_KUBECTL HOST_SHELL
 # internet unless its Tailscale is up; VANTAGE=tailnet adds the private routes and drops
 # the boundary negatives, which would then fail for the right reason.
 VANTAGE ?= internet
-SPECS_internet := specs/deployment/routes/public specs/deployment/certificates/public specs/deployment/boundary specs/cluster specs/routes
-SPECS_tailnet := specs/deployment/routes specs/deployment/certificates specs/cluster specs/routes
+SPECS_internet := specs/api/routes/public specs/api/certificates/public specs/api/boundary specs/cluster specs/routes
+SPECS_tailnet := specs/api/routes specs/api/certificates specs/cluster specs/routes
 
 
 deploy: ## Provision + configure the cluster (orbctl + Ansible site.yml)

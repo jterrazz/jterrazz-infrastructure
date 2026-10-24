@@ -660,7 +660,7 @@ Deployment is the last resort, for something no chart can express; cloudflared
    Smoke: **nothing**, unless the default (`GET /` -> 200) is wrong for this
    service, in which case add `smoke: { path, expect }` to the same
    `service.yaml`. The chart stamps it on the route and the platform
-   contract (`harness/specs/deployment`) discovers it.
+   contract (`harness/specs/api`) discovers it.
 5. Network: for an upstream chart, declare `network:` in the same
    `service.yaml`: the pod selector (read it off that chart's pods, it cannot
    be derived) plus the ingress and egress the workload needs. For an app-chart

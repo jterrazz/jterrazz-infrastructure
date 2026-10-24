@@ -131,7 +131,7 @@ address a live secret Traefik reads by name.
 
 ## `smoke:`, what the route must answer
 
-The platform contract (`harness/specs/deployment`) holds no table of hostnames or
+The platform contract (`harness/specs/api`) holds no table of hostnames or
 status codes. It lists every IngressRoute in the cluster and probes what these
 two annotations say:
 

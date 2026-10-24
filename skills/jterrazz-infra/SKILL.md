@@ -82,7 +82,7 @@ cd ansible && ansible-playbook playbooks/platform.yml \
   `Retain`, and a stale `claimRef` blocks rebinding.
 - **Never skip Cloudflare Full (Strict)** SSL mode on a new zone.
 - **Never re-add a hostname table to the platform contract
-  (`harness/specs/deployment`).** It lists every IngressRoute in the cluster and probes what each one's
+  (`harness/specs/api`).** It lists every IngressRoute in the cluster and probes what each one's
   `smoke.jterrazz.com/{path,expect}` annotations say; the charts stamp them
   from facts the service already declares. A wrong expectation is fixed in the
   values file or `application.yaml` that owns the route, never here.

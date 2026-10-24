@@ -18,9 +18,10 @@ also listed the IngressRoutes by SSH as root, with the deploy key, to read
 four annotations.
 
 Every other repository of the estate writes its tests on `@jterrazz/test`,
-whose 18.2 added a specification for an already running target (one exchange
-compared whole, a redirect never followed, `unreachable: <reason>` as a
-result rather than an exception, the certificate as a fact of the result).
+whose 18.3 meets an already deployed api at its `url`
+(`specification.api({ url })`: one exchange compared whole, a redirect never
+followed, `unreachable: <reason>` as a result rather than an exception, the
+certificate as a fact of the result).
 
 ## Decision
 
@@ -28,7 +29,7 @@ The platform contract is a suite under `harness/specs/`, on `@jterrazz/test`,
 read from the live objects and never from a list, and run from the vantage
 each claim needs.
 
-- **Routes, certificates and the boundary are HTTP specs** (`harness/specs/deployment/`):
+- **Routes, certificates and the boundary are HTTP specs** (`harness/specs/api/`):
   each discovered route answers its annotated contract, each host presents
   a trusted certificate that covers it with 15 days or more left, and from
   the internet every private host never answers while every public host

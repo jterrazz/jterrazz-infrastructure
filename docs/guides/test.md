@@ -134,10 +134,10 @@ its lockfile); its specs sit under `harness/specs/`:
 
 | Specs                                  | Proves                                                                                                                         | Runs from                     |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------- |
-| `deployment/routes/public.spec.ts`            | every public route answers its contract through the tunnel: a status the contract accepts, the `Location` a redirect names     | either vantage                |
-| `deployment/routes/private.spec.ts`           | every tailnet-only route answers its contract                                                                                  | the tailnet                   |
-| `deployment/certificates/{public,private}`    | every host presents a trusted certificate that covers it, 15 days or more from expiry                                          | the host's vantage            |
-| `deployment/boundary/internet.spec.ts`        | every private host never answers (unresolvable or unreachable), and every public host refuses a request naming a private one (Cloudflare's 403) | the internet only |
+| `api/routes/public.spec.ts`            | every public route answers its contract through the tunnel: a status the contract accepts, the `Location` a redirect names     | either vantage                |
+| `api/routes/private.spec.ts`           | every tailnet-only route answers its contract                                                                                  | the tailnet                   |
+| `api/certificates/{public,private}`    | every host presents a trusted certificate that covers it, 15 days or more from expiry                                          | the host's vantage            |
+| `api/boundary/internet.spec.ts`        | every private host never answers (unresolvable or unreachable), and every public host refuses a request naming a private one (Cloudflare's 403) | the internet only |
 | `cluster/rbac/secrets.test.ts`         | the service accounts that may list Secrets cluster-wide are exactly the allow-listed ones, each with its reason (SubjectAccessReview) | the API server          |
 | `cluster/rbac/github-actions.test.ts`  | the `github-actions:jterrazz` group may create namespaces, and may neither list Secrets nor exec into a pod in any namespace    | the API server                |
 | `cluster/traefik/service.test.ts`      | no Service holds a nodePort, and Traefik's LoadBalancer admits `100.64.0.0/10` alone with node ports off                        | the API server                |
@@ -160,7 +160,7 @@ it), and a private host that answers the internet with any status at all.
   `platform-reader` ClusterRole; no key is stored. It snapshots the
   IngressRoutes for the second job.
 - **The internet** (the second job, which never joins the tailnet): public
-  routes and `deployment/boundary`, against that snapshot, since the internet
+  routes and `api/boundary`, against that snapshot, since the internet
   cannot reach the apiserver.
 
 The host specs run from `deploy-platform.yaml` after the play, over its SSH

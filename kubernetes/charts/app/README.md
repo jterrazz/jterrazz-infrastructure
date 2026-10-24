@@ -269,7 +269,7 @@ ingress:
 
 #### `smoke:` names what the probe should get back
 
-The platform contract in the infrastructure repo (`harness/specs/deployment`) lists
+The platform contract in the infrastructure repo (`harness/specs/api`) lists
 every IngressRoute in the cluster and probes what these annotations say. **You almost never write this
 block**: the chart already knows where the route lives and where the app says
 it is healthy, so it derives the contract per entry.
