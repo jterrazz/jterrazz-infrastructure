@@ -54,10 +54,11 @@ spec:
 
 ---
 # hazard: Traefik is the cluster's front door, and no pod but klipper-lb's may dial
-# it, kube-system's included (allow-same-namespace excludes Traefik). Two sources are legitimate, both landing on 8000/8443: klipper-lb, which
-# DNATs the node's 80/443 into it and MASQUERADEs, so every tailnet request
-# arrives from the svclb POD; and the host netns (cloudflared, node-local
-# clients), which arrives as the cni0 gateway 10.42.0.1 or a node address.
+# it, kube-system's included. Two sources are legitimate, both landing on
+# 8000/8443: klipper-lb, which DNATs the node's 80/443 into it and
+# MASQUERADEs, so every tailnet request arrives from the svclb POD; and the
+# host netns (cloudflared, node-local clients), which arrives as the cni0
+# gateway 10.42.0.1 or a node address.
 #
 # The pod CIDR is excepted because `private-access` must admit 10.42.0.0/16 for
 # the svclb source (kubernetes/cluster/traefik/middleware.yaml): a pod that
@@ -104,8 +105,7 @@ spec:
 # with the cluster otherwise green.
 #
 # The source is the node's own address (kube-proxy hands the packet to the
-# svclb pod after DNAT), never a pod, so allow-same-namespace does not cover
-# it and only an ipBlock matches.
+# svclb pod after DNAT), never a pod, so only an ipBlock matches.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -174,30 +174,3 @@ spec:
           protocol: TCP
         - port: 9100
           protocol: TCP
-
----
-# hazard: the namespace baseline every platform namespace carries, minus Traefik. A
-# kube-system pod that reached Traefik would arrive from the pod CIDR, pass
-# `private-access`, and skip the NetworkPolicy of the private service behind
-# it; Traefik's one kube-system client, klipper-lb, is admitted by
-# allow-traefik-ingress above. Widen this selector back to `{}` and every
-# kube-system pod reaches every internal-only host again.
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-same-namespace
-  namespace: kube-system
-spec:
-  podSelector:
-    matchExpressions:
-      - key: app.kubernetes.io/name
-        operator: NotIn
-        values:
-          - traefik
-  policyTypes:
-    - Ingress
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system

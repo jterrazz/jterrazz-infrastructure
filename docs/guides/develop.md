@@ -154,8 +154,8 @@ mechanically when editing any values file, manifest or template in this repo.
   RSTed, while plain `curl` from the same pod IP works fine. `--protocol http2`
   is set for the same class of reason: OrbStack's NAT eats outbound UDP/443.
 - **A kube-system NetworkPolicy must allow klipper-lb explicitly.** The svclb
-  pods receive the node's own address after DNAT, so `allow-same-namespace`
-  never covers them. Miss it and public traffic keeps working (cloudflared dials
+  pods receive the node's own address after DNAT, so no pod or namespace
+  selector ever covers them. Miss it and public traffic keeps working (cloudflared dials
   Traefik's ClusterIP) while every tailnet client, CI included, gets
   `connection refused` on 443.
 - **buildkit needs `network=host` in CI.** `jterrazz-actions/actions/docker-build`

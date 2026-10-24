@@ -93,7 +93,7 @@ spec:
 # (hostPort -> svclb -> Traefik), so the registry's request log records them as
 # http.request.remoteaddr=<svclb pod IP>. What keeps every OTHER pod off private hosts is
 # Traefik's own ingress policy, which admits no pod but the svclb one, kube-system's
-# own included (allow-traefik-ingress and allow-same-namespace,
+# own included (allow-traefik-ingress,
 # kubernetes/cluster/network-policies/kube-system.yaml).
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
