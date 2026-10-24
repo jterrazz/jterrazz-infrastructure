@@ -197,7 +197,7 @@ Moving `k8s-data` onto `vdb` would make its fsyncs free too, but the Mac dir
 is what lets the data survive `make destroy`; that trade is a decision, not a
 tuning.
 
-## DNS has exactly three owners, and none of them is this repo's code
+## DNS has exactly three owners
 
 - **Private**: `<svc>.internal.jterrazz.com`, covered by the `*.internal`
   wildcard CNAME, and `<app>.staging.jterrazz.com`, covered by `*.staging`: the
@@ -206,16 +206,16 @@ tuning.
   lookups skip the public CNAME chain, and `public: false` on the route.
 - **Public**: the Cloudflare Zero Trust tunnel owns the record. Add a Public
   Hostname in its UI; nothing lands in this repo.
-- **The machine**: three records made by hand in the Cloudflare dashboard and
-  written down in [Operate](operate.md#dns-records-set-once-survive-everything):
-  the `*.internal` and `*.staging` wildcards, and `analytics`, which is the exception to "the
-  tunnel owns every public record" because its route is a Public Hostname but
-  its record is manual, so deleting it falls back to nothing.
+- **The platform deploy**: the records nothing else creates, `dns_records` in
+  group_vars, converged on every run and written down in
+  [Operate](operate.md#dns-records-converged-by-the-platform-deploy): the
+  `*.internal` and `*.staging` wildcards, and `analytics`, which is the
+  exception to "the tunnel owns every public record" because its route is a
+  Public Hostname but its record is not.
 
-The hand-made records are set once and survive every repave: the VM keeps its
-hostname, the tunnel keeps its id, and nothing a deploy runs ever touches them.
-Never grow them into a per-service list (one wildcard per private zone is the ceiling); that is what made the hostname
-list live in two files with a CI assertion holding them together.
+Never grow `dns_records` into a per-service list (one wildcard per private zone
+is the ceiling); that is what made the hostname list live in two files with a
+CI assertion holding them together.
 
 A new public zone is three steps: add it to both ClusterIssuers in
 `kubernetes/services/cert-manager/issuers.yaml`, add a Public Hostname in the

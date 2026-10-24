@@ -95,7 +95,7 @@ fetch_secrets_file() {
 
 # hazard: without this a fresh machine silently uses whatever collections the local
 # ansible install happens to bundle, which may not satisfy requirements.yml.
-# Idempotent: ansible-galaxy skips collections already at the pinned version.
+# Git sources (requirements.yml says why) are rebuilt on every run, a few seconds.
 install_collections() {
     info "Installing Ansible collections (requirements.yml)"
     ansible-galaxy collection install -r "$PROJECT_DIR/ansible/requirements.yml"

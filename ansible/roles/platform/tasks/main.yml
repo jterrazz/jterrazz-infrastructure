@@ -31,6 +31,10 @@
   ansible.builtin.import_tasks: cluster-manifests.yml
   tags: [cluster-manifests, namespaces]
 
+- name: Converge the DNS records no other owner creates
+  ansible.builtin.import_tasks: dns-records.yml
+  tags: [dns-records, dns]
+
 - name: Configure CoreDNS split-DNS for private hostnames
   ansible.builtin.import_tasks: coredns.yml
   tags: [coredns, dns]

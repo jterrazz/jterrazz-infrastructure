@@ -303,18 +303,27 @@ the suspect is the local `orb` connection, not the play. Not fixed, not worked
 around: the workflow is the way in until it is. Every procedure below that names
 the Mac as a fallback is subject to this.
 
-## DNS records (set once, survive everything)
+## DNS records (converged by the platform deploy)
 
-Three records in the `jterrazz.com` zone are made **by hand** and then never
-touched: the VM keeps its hostname across every repave and the tunnel keeps its
-id, so there is nothing for a deploy to reconcile. Zone id
-`ca5eefcd2d8b1d8895fc255f26141d46`.
+Three records in the `jterrazz.com` zone (zone id
+`ca5eefcd2d8b1d8895fc255f26141d46`) have no other owner, so the platform deploy
+owns them: `dns_records` in `ansible/inventories/group_vars/all.yml`, applied
+by `roles/platform/tasks/dns-records.yml` on every run (tag `dns-records`).
+Each name is held to exactly that one record (`solo`), so a record deleted or
+edited in the dashboard comes back on the next deploy, and neither target is a
+literal: both follow the VM and the tunnel.
 
-| Name         | Type  | Content                                                 | Proxied | TTL  |
-| ------------ | ----- | ------------------------------------------------------- | ------- | ---- |
-| `*.internal` | CNAME | `jterrazz-infrastructure.tail77a797.ts.net`             | no      | auto |
-| `*.staging`  | CNAME | `jterrazz-infrastructure.tail77a797.ts.net`             | no      | auto |
-| `analytics`  | CNAME | `8f4157bb-f883-424b-8ccd-8332867cf1b2.cfargotunnel.com` | yes     | auto |
+| Name         | Type  | Content (derived from)                                         | Proxied |
+| ------------ | ----- | -------------------------------------------------------------- | ------- |
+| `*.internal` | CNAME | the node's tailnet name (`tailscale_dns_hostname`)             | no      |
+| `*.staging`  | CNAME | the node's tailnet name (`tailscale_dns_hostname`)             | no      |
+| `analytics`  | CNAME | `<tunnel id>.cfargotunnel.com`, the tunnel token's `t` field   | yes     |
+
+The credential is `cloudflare_api_token` (Infisical,
+`/jterrazz-infrastructure/CLOUDFLARE_API_TOKEN`), the same DNS:Edit token
+cert-manager solves DNS-01 with; no second credential exists for this.
+
+### The private wildcards
 
 `*.internal` covers every private surface at once, and `*.staging` every
 staging environment (`<app>.staging.jterrazz.com`), which is why adding a
@@ -330,39 +339,21 @@ The record only makes the name resolve to a `100.x` address; the `private-access
 ipAllowList on the route is the enforcement. A staging host on the public
 tunnel, or a staging route with `public: true`, is the mistake to look for.
 
+### `analytics`
+
 `analytics` is the one public hostname whose record is NOT created by the
 tunnel's Public Hostname feature (every other one is; see
 [cloudflared](../../kubernetes/services/cloudflared/README.md)). Its *route* is in
-Zero Trust, its *record* is this one, so deleting it falls back to nothing and
-OpenPanel's ingest stops resolving. Proxied is mandatory: `cfargotunnel.com`
-only resolves at the edge. To retire it, add `analytics.jterrazz.com` as a
-Public Hostname in Zero Trust FIRST (it adopts the record), confirm `dig` still
-answers, and only then delete.
+Zero Trust, its *record* is this one. Proxied is mandatory: `cfargotunnel.com`
+only resolves at the edge. To hand it to the tunnel, remove its `dns_records`
+entry first, then add `analytics.jterrazz.com` as a Public Hostname in Zero
+Trust (it adopts the record), and confirm `dig` still answers.
 
-### If a record is ever lost
+### Retiring a record, verifying them all
 
-Recreating one needs a Cloudflare API token with **DNS:Edit** on `jterrazz.com`
-(in the dashboard, My Profile, then API Tokens, from the "Edit zone DNS" template, scoped to
-that zone). Nothing in this repo or in Infisical stores such a token: it is
-needed once every few years, and a standing credential that can rewrite the
-zone is a worse trade than making one on the spot and deleting it after.
-
-```bash
-ZONE=ca5eefcd2d8b1d8895fc255f26141d46
-TOKEN=<a fresh DNS:Edit token, deleted again afterwards>
-
-curl -sS -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE/dns_records" \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"type":"CNAME","name":"*.internal","content":"jterrazz-infrastructure.tail77a797.ts.net","proxied":false,"ttl":1}'
-
-curl -sS -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE/dns_records" \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"type":"CNAME","name":"*.staging","content":"jterrazz-infrastructure.tail77a797.ts.net","proxied":false,"ttl":1}'
-
-curl -sS -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE/dns_records" \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"type":"CNAME","name":"analytics","content":"8f4157bb-f883-424b-8ccd-8332867cf1b2.cfargotunnel.com","proxied":true,"ttl":1}'
-```
+A record is never removed by deleting its entry: the task only ensures what is
+listed. Retiring one is the entry out of the list, then the record out of the
+dashboard.
 
 Verify: `dig +short grafana.internal.jterrazz.com` and
 `dig +short signews.staging.jterrazz.com` answer the tailnet name,
@@ -481,7 +472,7 @@ of [openpanel](../../kubernetes/services/openpanel/README.md#backup--restore).
 | `DOCKER_REGISTRY_PASSWORD`        | Two accounts overlapping, never a single swap: [Rotating the registry password](#rotating-the-registry-password). |
 | CI deploy SSH key                 | `ssh-keygen -t ed25519`, paste the pubkey into `security_ci_deploy_pubkey`, `gh secret set CI_DEPLOY_SSH_PRIVATE -R jterrazz/jterrazz-infrastructure`, then `make deploy` to roll it onto the VM. |
 | `KUBECONFIG_BASE64`               | Regenerated by every repave; see the procedure above.                                                   |
-| The three manual DNS records      | Nothing to rotate: no DNS-editing token is stored anywhere. If a record is lost, recreate it: [DNS records](#dns-records-set-once-survive-everything). |
+| The three owned DNS records       | Nothing to rotate in the records: they follow `cloudflare_api_token`, the token cert-manager uses. A lost record comes back on the next platform deploy: [DNS records](#dns-records-converged-by-the-platform-deploy). |
 
 ### A deleted managed Secret does not come back
 
@@ -721,7 +712,7 @@ Deployment is the last resort, for something no chart can express; cloudflared
    other value); add the private hostname to `private_hostnames` in group_vars: CoreDNS needs the name before the route exists, and `smoke.sh`
    fails if the list and the live routes disagree either way. A public service
    needs a new zone; the three steps are in
-   [Develop](develop.md#dns-has-exactly-three-owners-and-none-of-them-is-this-repos-code).
+   [Develop](develop.md#dns-has-exactly-three-owners).
    Smoke: **nothing**, unless the default (`GET /` -> 200) is wrong for this
    service, in which case add `smoke: { path, expect }` to the same
    `service.yaml`. The chart stamps it on the route and `scripts/smoke.sh`

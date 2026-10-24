@@ -5,11 +5,11 @@ cax21 VPS (`jterrazz/production`) or the OrbStack VM (`jterrazz/local`). The
 Hetzner half was removed, unused since the May 2026 swap to OrbStack, and it
 cost a `deployment_target` branch in every role plus an inventory nobody ran.
 
-**Pulumi itself is gone too.** One VM and two never-changing DNS records did not
-pay for a language, a lockfile, a CI job, a state backend and a token: today
-`scripts/deploy.sh` runs the single `orbctl create` (`vm_up` / `vm_destroy`) and
-the records are hand-made facts written down in
-[Operate](operate.md#dns-records-set-once-survive-everything). The last commit
+**Pulumi itself is gone too.** One VM and a handful of never-changing DNS
+records did not pay for a language, a lockfile, a CI job, a state backend and a
+token: today `scripts/deploy.sh` runs the single `orbctl create` (`vm_up` /
+`vm_destroy`) and the platform deploy converges the records
+([Operate](operate.md#dns-records-converged-by-the-platform-deploy)). The last commit
 that still contained a `pulumi/` directory is **`487f370`**, so every file named
 below is readable with `git show 487f370:pulumi/src/dns.ts` and friends: the
 tree is in history, not in the working copy.
@@ -53,10 +53,12 @@ pulumi config set --secret cloudflare:apiToken <cloudflare-dns-edit-token>
 pulumi up
 ```
 
-**DNS**: without Pulumi this is a one-record edit: repoint the `*.internal`
-CNAME at the new host's tailnet name in the Cloudflare dashboard
-([Operate](operate.md#dns-records-set-once-survive-everything)) and there is
-nothing to guard. If you DO restore `pulumi/`, restore the `manageDns` guard
+**DNS**: without Pulumi there is nothing to edit: the wildcards target
+`tailscale_dns_hostname`, so the host whose platform deploy runs points them at
+itself ([Operate](operate.md#dns-records-converged-by-the-platform-deploy)).
+That is also the hazard: with two hosts deployed, whichever ran last owns
+`*.internal` and `*.staging`, so the host that must NOT own them runs its
+platform deploy with `--skip-tags dns-records`. If you DO restore `pulumi/`, restore the `manageDns` guard
 with it: only ONE stack may have `jterrazz-infrastructure:manageDns: "true"` at
 a time, or whichever ran `pulumi up` last silently owns every private CNAME.
 Either way, after a swap run `make redeploy-apps`: every app image lives in the

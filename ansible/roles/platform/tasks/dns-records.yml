@@ -1,0 +1,38 @@
+---
+# outside: the records in the `jterrazz.com` zone that no other owner creates: the
+# private-zone wildcards (`*.internal`, `*.staging`) and `analytics`. Every
+# other public record belongs to the Cloudflare tunnel's Public Hostnames, and
+# every ACME TXT record to cert-manager. Converged on every platform deploy with
+# the token cert-manager already holds (DNS:Edit on the zone), so a lost or
+# edited record comes back on the next run; the list is `dns_records` in
+# group_vars.
+#
+# invariant: `solo: true` makes each name hold exactly this one record, so a changed
+# target REPLACES the old one instead of sitting next to it.
+
+- name: Require the node's tailnet name, the private wildcards' target
+  ansible.builtin.assert:
+    that:
+      - tailscale_dns_hostname | default('') | length > 0
+    fail_msg: >-
+      No tailnet DNS name for this node, so the private wildcards would point at
+      nothing. Join the tailnet first: `make deploy` (the tailscale role).
+    quiet: true
+
+- name: Converge the DNS records
+  community.general.cloudflare_dns:
+    api_token: "{{ cloudflare_api_token }}"
+    zone: "{{ dns_zone }}"
+    record: "{{ item.record }}"
+    type: CNAME
+    value: "{{ item.value }}"
+    proxied: "{{ item.proxied }}"
+    ttl: 1
+    solo: true
+    # invariant: compared like every other field, so it also says who owns the record
+    # to whoever opens the Cloudflare dashboard (the Pulumi-era ones still claimed
+    # Pulumi, years after it was gone).
+    comment: "Managed by jterrazz-infrastructure: dns_records in ansible/inventories/group_vars/all.yml"
+  loop: "{{ dns_records }}"
+  loop_control:
+    label: "{{ item.record }}"
