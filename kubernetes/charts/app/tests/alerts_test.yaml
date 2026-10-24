@@ -1,19 +1,11 @@
 suite: spec.alerts -> Grafana alert-rule ConfigMap
-# hazard: the label is the whole feature: Grafana's alerts sidecar
-# (kubernetes/services/grafana/values.yaml) selects `grafana_alert: "1"` across
-# ALL namespaces, so a ConfigMap that loses the label is not a broken alert;
-# it is inert data nobody notices until an outage goes unannounced. Everything
-# below exists because that failure is silent.
-#
-# Gating (prod-only, undeclared env) lives in environment_gating_test.yaml,
-# next to the same assertions for dashboards.
+# hazard: Grafana's alerts sidecar selects `grafana_alert: "1"` cluster-wide; a ConfigMap
+# that loses the label is silently inert. Gating lives in environment_gating_test.yaml.
 templates:
   - templates/alert-configmap.yaml
 tests:
   - it: renders nothing when the app declares no alerts
-    # invariant: not a no-op assertion: the template must not emit an empty-`data`
-    # ConfigMap. The alerts sidecar treats one as a provisioning file set and
-    # an app that simply has no rules would churn Grafana on every deploy.
+    # invariant: no empty-`data` ConfigMap, or a rule-less app churns Grafana every deploy.
     values:
       - ../ci/test-values.yaml
     set:
@@ -23,8 +15,7 @@ tests:
           count: 0
 
   - it: puts every entry in ONE ConfigMap named <app>-alerts
-    # invariant: one object, N keys: the fixture carries two entries precisely so a
-    # template that overwrote `data` per iteration would fail here.
+    # invariant: one object, N keys: a per-iteration overwrite of `data` fails here.
     values:
       - ../ci/test-values.yaml
     asserts:
@@ -41,8 +32,7 @@ tests:
             app: ci-test-app
             environment: prod
             grafana_alert: "1"
-      # invariant: no grafana_folder annotation, unlike dashboards: the alerts sidecar has
-      # no folderAnnotation configured, and each group names its own `folder:`.
+      # invariant: no grafana_folder annotation: each group names its own `folder:`.
       - notExists:
           path: metadata.annotations
       - exists:
@@ -51,9 +41,7 @@ tests:
           path: data["ci-test-app-extra.yaml"]
 
   - it: keys each entry <name>.yaml and passes the payload through verbatim
-    # hazard: byte-for-byte: these rule files are copied from a working Grafana
-    # provisioning file, so any re-indent or re-quote the chart applies is a
-    # rule that silently fails to provision.
+    # hazard: byte-for-byte: any re-indent or re-quote is a rule that silently fails to provision.
     values:
       - ../ci/test-values.yaml
     asserts:
@@ -79,9 +67,7 @@ tests:
                 rules: []
 
   - it: takes alerts from an environment override like any other spec key
-    # value: spec.alerts is a plain map, so app.merged's deep-merge applies: an
-    # environment may add or replace an entry. Pinned because the prod gate
-    # makes this the one key whose override is only ever exercised in prod.
+    # value: maps deep-merge, so an environment may add or replace an entry (only ever in prod).
     values:
       - ../ci/test-values.yaml
     set:
@@ -95,7 +81,6 @@ tests:
           value: |
             apiVersion: 1
             groups: []
-      # invariant: the non-overridden entry survives (maps deep-merge, lists replace).
       - exists:
           path: data["ci-test-app-extra.yaml"]
 
@@ -119,8 +104,7 @@ tests:
           count: 1
 
   - it: fails the render on a rule uid over 40 characters
-    # hazard: Grafana caps a uid at 40 and rejects its whole alerting reload, every
-    # app's rules at once, while one such file is mounted.
+    # hazard: Grafana caps a uid at 40 and rejects every app's rules while one such file is mounted.
     values:
       - ../ci/test-values.yaml
     set:

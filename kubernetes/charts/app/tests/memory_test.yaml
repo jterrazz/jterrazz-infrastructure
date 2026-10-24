@@ -1,8 +1,5 @@
 suite: memory quantity parsing (app.memMi / app.memoryLimit)
-# invariant: app.memMi is the chart's only quantity parser and it is deliberately partial:
-# it understands `<n>Mi` and `<n>Gi` and nothing else, returning "" otherwise so
-# both callers (app.memoryLimit, app.nodeMaxOldSpace) can fall back to
-# "can't reason about this, leave it alone". These tests pin all three arms.
+# invariant: app.memMi understands `<n>Mi` and `<n>Gi` only, else "" (leave it alone).
 templates:
   - templates/deployment.yaml
 values:
@@ -21,8 +18,7 @@ tests:
           value: 1024Mi
 
   - it: converts a Gi request to Mi for the derived limit
-    # invariant: 1Gi request -> 2048Mi limit, NOT 2Gi. Identical quantity; the chart emits
-    # every DERIVED limit in Mi so the unit never depends on the input's unit.
+    # invariant: derived limits are always in Mi, whatever the input unit.
     set:
       spec.resources.memory: 1Gi
       spec.resources.memoryLimit: null
@@ -35,8 +31,7 @@ tests:
           value: 2048Mi
 
   - it: uses an explicit memoryLimit verbatim, without unit conversion
-    # value: the explicit value short-circuits the parser entirely: a `1Gi` limit
-    # stays `1Gi`, so an app can pin the exact string k8s will show.
+    # value: an explicit limit bypasses the parser and stays verbatim.
     set:
       spec.resources.memory: 512Mi
       spec.resources.memoryLimit: 1Gi
@@ -46,9 +41,7 @@ tests:
           value: 1Gi
 
   - it: leaves an unparseable request alone rather than guessing
-    # hazard: neither Mi nor Gi -> app.memMi returns "" -> the limit is the request
-    # itself. The alternative (doubling a number whose unit we misread) would
-    # silently ship a 1000x-wrong limit.
+    # hazard: an unknown unit falls back to the request, never a 1000x-wrong doubled limit.
     set:
       spec.resources.memory: 1000000Ki
       spec.resources.memoryLimit: null
@@ -57,7 +50,4 @@ tests:
           path: spec.template.spec.containers[0].resources.limits.memory
           value: 1000000Ki
 
-# outside: there is deliberately no "falls back when no request is declared" case: the
-# request/limit defaults live in values.yaml (spec.resources.cpu/memory), which
-# Helm merges in, exactly like spec.port and health.path. The template carries
-# no second copy of them to test.
+# outside: no no-request case: the defaults live in values.yaml, not the template.

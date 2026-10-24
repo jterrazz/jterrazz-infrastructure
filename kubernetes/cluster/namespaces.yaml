@@ -1,16 +1,12 @@
 ---
-# outside: every platform namespace is declared here: no imperative `kubectl create
-# ns`, no per-service namespace manifest. Applied with the rest of this
-# directory by `kubectl apply -f -R kubernetes/cluster`
-# (ansible/roles/platform/tasks/cluster-manifests.yml).
+# outside: every platform namespace is declared here, never by `kubectl create ns`.
 
 apiVersion: v1
 kind: Namespace
 metadata:
   name: platform-networking
   labels:
-    # invariant: hostNetwork/hostPath workloads live here (cloudflared, node-exporter);
-    # baseline forbids both, so enforcing it would evict them.
+    # invariant: cloudflared and node-exporter need hostNetwork/hostPath, which baseline forbids.
     pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
@@ -63,10 +59,8 @@ metadata:
     app.kubernetes.io/component: analytics
 
 ---
-# outside: the gateway app's namespace, pre-declared here (not by its CI) for the Pod
-# Security Admission labels below: Helm's --create-namespace would create an
-# unlabelled namespace first and win the race, and PSA enforcement is a cluster
-# concern, not an app's. Helm adopts an existing namespace as-is.
+# hazard: pre-declared so PSA labels exist before the app's first `helm --create-namespace`,
+# which would create it unlabelled; docs/decisions/018-pod-security-baseline-is-enforced-by-default.md
 apiVersion: v1
 kind: Namespace
 metadata:

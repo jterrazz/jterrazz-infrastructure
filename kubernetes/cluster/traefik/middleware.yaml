@@ -1,7 +1,5 @@
 ---
-# hazard: global rate limit, 100 req/s average, burst 200: normal browsing passes,
-# aggressive scrapers do not. Attached to the websecure entrypoint for every
-# route (kubernetes/services/traefik/helm-chart-config.yaml).
+# value: 100 req/s, burst 200: browsing passes, scrapers do not. Global, on websecure.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -14,16 +12,9 @@ spec:
   rateLimit:
     average: 100
     burst: 200
-    # invariant: key the limiter on the REAL client IP, which for public traffic is
-    # `Cf-Connecting-Ip`: Cloudflare's edge sets it on every request it
-    # forwards and overwrites a value the client sent, so it cannot be spoofed
-    # from the internet. It replaced an XFF walk with an `excludedIPs` list that
-    # had to repeat the entrypoint's trustedIPs entry for entry (and a script
-    # that checked it did).
-    #
-    # Tailnet traffic carries no such header and shares one bucket, as it did
-    # before: klipper-lb MASQUERADEs it, so it never had a per-client address
-    # here. That population is small and authenticated by the tailnet itself.
+    # invariant: keyed on Cf-Connecting-Ip, which Cloudflare's edge always overwrites (not
+    # spoofable); tailnet traffic, MASQUERADEd by klipper-lb, shares one bucket;
+    # docs/decisions/003-traefiks-service-is-the-tailnet-gate.md
     sourceCriterion:
       requestHeaderName: Cf-Connecting-Ip
 
@@ -65,17 +56,9 @@ spec:
       Server: ""
 
 ---
-# invariant: tailnet-only allow-list: platform-service chart `access: private`, app chart
-# `public: false`. 10.42/16 is load-bearing, not slack: klipper-lb DNATs and
-# MASQUERADEs inside the svclb pod's netns (the Traefik Service is
-# externalTrafficPolicy: Cluster), so a tailnet request reaches Traefik with an
-# svclb POD source; the tailnet gate on that path is the Service's
-# loadBalancerSourceRanges. The node's own image pulls hairpin the same way
-# (hostPort -> svclb -> Traefik), so the registry's request log records them as
-# http.request.remoteaddr=<svclb pod IP>. What keeps every OTHER pod off private hosts is
-# Traefik's own ingress policy, which admits no pod but the svclb one, kube-system's
-# own included (allow-traefik-ingress,
-# kubernetes/cluster/network-policies/kube-system.yaml).
+# hazard: 10.42/16 is load-bearing: klipper-lb MASQUERADEs every tailnet request to an svclb
+# pod source. The tailnet gate is loadBalancerSourceRanges, and allow-traefik-ingress keeps
+# every other pod off Traefik; docs/decisions/003-traefiks-service-is-the-tailnet-gate.md
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:

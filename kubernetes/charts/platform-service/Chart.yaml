@@ -2,15 +2,10 @@ apiVersion: v2
 name: platform-service
 description: Shared chart for platform service ingress, certificates, and storage
 type: application
-# invariant: not published to any registry and has no out-of-repo consumers, so this
-# version is bookkeeping only: nothing pulls the chart by version.
+# invariant: bookkeeping only: never published, nothing pulls it by version.
 version: 2.14.0
 
-# invariant: the one implementation of every concern this chart shares with `app`
-# (IngressRoute, Certificate, PV/PVC, NetworkPolicy, InfisicalSecret). A
-# relative file:// repository, so `helm dependency update` resolves it from the
-# working tree with no registry and no network. The version is common's exactly;
-# a mismatch fails `helm dependency update` in validate.yaml.
+# invariant: common's exact version (file:// resolves by exact version).
 dependencies:
   - name: common
     version: 1.5.0

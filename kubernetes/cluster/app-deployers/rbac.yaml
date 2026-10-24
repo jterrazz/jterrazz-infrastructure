@@ -1,20 +1,7 @@
 ---
-# invariant: how an app repository deploys itself, with no credential stored anywhere.
-# Its CI job authenticates with its GitHub OIDC token as user
-# `github:jterrazz/<repo>`, group `github-actions:jterrazz`
-# (ansible/roles/k3s/templates/authentication.yaml.j2), and gets exactly two
-# things cluster-wide: this ClusterRole, and the right to bind
-# `app-namespace-admin` to itself inside a namespace. Everything else it does
-# happens inside its own namespaces, through the RoleBinding it creates there.
-#
-# There is no list of apps: a repository creates its namespaces on its first
-# deploy and owns them from then on. Ownership is the
-# `app.jterrazz.com/repository` label (the bare repository name), enforced by the policy in policy.yaml;
-# RBAC alone cannot express "only namespaces you created".
-#
-# hazard: admission sees writes, never reads. That is why nothing here grants a read
-# across namespaces: a `list secrets` granted cluster-wide would leak every
-# Secret no matter what the policy says.
+# invariant: an app CI job authenticates by GitHub OIDC (group github-actions:jterrazz) and
+# owns the namespaces it creates, enforced by policy.yaml. hazard: admission never sees
+# reads, so grant no cross-namespace read here; docs/decisions/017-app-repositories-deploy-as-their-github-oidc-identity.md
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -23,8 +10,7 @@ rules:
   - apiGroups: [""]
     resources: [namespaces]
     verbs: [get, create, update, patch]
-  # outside: the app chart renders its hostPath PersistentVolume (cluster-scoped);
-  # policy.yaml pins its path to /var/lib/k8s-data/<pv name minus -data>.
+  # outside: the app chart's hostPath PV is cluster-scoped; policy.yaml pins its path.
   - apiGroups: [""]
     resources: [persistentvolumes]
     verbs: [get, create, update, patch, delete]
@@ -49,10 +35,7 @@ subjects:
     kind: Group
     name: github-actions:jterrazz
 ---
-# invariant: what an app may do INSIDE a namespace it owns, granted by a RoleBinding
-# it creates there itself (docker-deploy does it before `helm upgrade`). The
-# kinds are the app chart's, plus Helm's own release Secrets and the reads
-# `--wait` needs. No pods/exec, no RBAC, no Pod Security labels (policy.yaml).
+# invariant: bound by the app itself inside a namespace it owns; no exec, RBAC or PSA labels.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:

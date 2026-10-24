@@ -1,8 +1,6 @@
 suite: what the cluster records about the app repo and its clients
-# invariant: two stamps this chart makes so that nothing outside the cluster has to keep a
-# list: the repository annotation scripts/trigger-app-deploys.sh rebuilds the
-# fleet from, and the `exposeTo` ingress rule that lets an app declare its own
-# clients instead of a hand-written NetworkPolicy in cluster/.
+# invariant: the stamps that spare a list outside the cluster: the repository annotation and
+# the `exposeTo` ingress rule; docs/decisions/016-every-fact-has-one-home.md
 tests:
   - it: annotates the Deployment with the repo CI passed
     templates:
@@ -15,8 +13,7 @@ tests:
           value: jterrazz/ci-test-app
 
   - it: stamps nothing when CI passed no repository
-    # hazard: an app whose CI predates `--set meta.repository` must be REPORTED as
-    # missing by the discovery script, not silently given a wrong value.
+    # hazard: a missing meta.repository must be reported missing, never guessed.
     templates:
       - templates/deployment.yaml
     values:
@@ -54,8 +51,7 @@ tests:
               - port: 8317
 
   - it: hard-fails an exposeTo peer outside the vocabulary
-    # hazard: a typo'd peer would otherwise render a policy that admits nothing, and a
-    # NetworkPolicy that grants nothing fails silently at runtime.
+    # hazard: a typo'd peer would render a policy that silently admits nothing.
     templates:
       - templates/network-policy.yaml
     set:

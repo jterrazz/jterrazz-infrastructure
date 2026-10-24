@@ -1,20 +1,13 @@
 suite: network -> NetworkPolicy peer vocabulary
-# invariant: the `network:` block is how a platform service declares the rules that used
-# to be hand-written in kubernetes/cluster/network-policies/<ns>.yaml. Every
-# peer form lowers to a different selector shape, and a wrong one is the
-# quietest failure in this repo: it applies cleanly, reads as if it allows the
-# traffic, and the packet is dropped by the namespace default-deny with nothing
-# logged anywhere.
-#
-# So each arm is pinned by its RENDERED shape, not by "a rule exists".
+# hazard: a wrong peer shape applies cleanly and drops the packet with nothing logged, so
+# each arm is pinned by its RENDERED shape; docs/decisions/011-every-namespace-is-default-deny.md
 templates:
   - templates/network-policy.yaml
 values:
   - ../ci/test-values.yaml
 tests:
   - it: names the policy after the service and selects the declared pods
-    # hazard: the workload is rendered by the UPSTREAM chart, so its labels are that
-    # chart's: the selector is an input and can never be derived from `name`.
+    # hazard: the selector is the upstream chart's labels, never derived from `name`.
     asserts:
       - isKind:
           of: NetworkPolicy
@@ -46,8 +39,7 @@ tests:
               - port: 8080
 
   - it: "`any-namespace-pods:` ANDs a namespace-wide selector with a pod label"
-    # invariant: one peer element, not two: two elements would be an OR: any pod in any
-    # namespace, label or no label.
+    # invariant: one peer element; two would be an OR admitting any pod anywhere.
     asserts:
       - equal:
           path: spec.ingress[1].from
@@ -58,8 +50,7 @@ tests:
                   platform-client.jterrazz.com/ci-test: "true"
 
   - it: "`<port>/<PROTO>` spells a protocol out; a bare port is TCP by default"
-    # invariant: left unwritten rather than defaulted to `protocol: TCP` here, so the
-    # rendered object matches byte-for-byte what the API server stores.
+    # invariant: protocol left unwritten so the object matches what the API server stores.
     asserts:
       - equal:
           path: spec.egress[0]
@@ -100,10 +91,7 @@ tests:
                   - 169.254.0.0/16
 
   - it: "`anywhere` does NOT except RFC1918, and carries no ports"
-    # invariant: the distinction is load-bearing: the apiserver is RFC1918 twice over on
-    # this cluster (ClusterIP 10.43.0.1:443 DNATs to the node's own
-    # 192.168.x.x:6443), so `internet` would cut off anything that must reach
-    # it. Never "tidy" one into the other.
+    # invariant: never tidy `anywhere` into `internet`: the apiserver is RFC1918 twice over.
     asserts:
       - equal:
           path: spec.egress[3]
@@ -113,9 +101,7 @@ tests:
                   cidr: 0.0.0.0/0
 
   - it: renders one direction only when only one is declared
-    # outside: grafana's shape: ingress from Traefik, and egress left to the namespace
-    # baseline. An unasked-for `policyTypes: [Egress]` here would turn the
-    # baseline's allow into a deny for these pods.
+    # outside: no unasked-for `policyTypes: [Egress]`, or the baseline's allow becomes a deny.
     set:
       network.egress: null
     asserts:

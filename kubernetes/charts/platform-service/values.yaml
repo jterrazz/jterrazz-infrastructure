@@ -1,135 +1,41 @@
 
+# invariant: every key's shape, recipe and trap is README.md beside this file; this file
+# owns the defaults.
 name: ""
 host: ""
 port: 80
 
-# hazard: extra hostnames answered by the same IngressRoute and carried as SANs on the
-# same certificate. Transitional ONLY, and the point is a rename: a service serves
-# its old and new name at once so no consumer breaks. One service, one canonical
-# `host`, not a place to park unrelated hostnames.
+# hazard: transitional SANs for a rename only (old and new name served at once), never a
+# place to park unrelated hostnames.
 aliases: []
 
-# invariant: network visibility of the IngressRoute:
-#
-#   private -> private-access        tailnet humans only. The default.
-#   public  -> no access middleware. The route is still behind the rate-limit /
-#              compress / security-headers chain that the websecure
-#              entrypoint attaches globally.
-#
-# A leftover boolean `private:` key hard-fails the render
-# (templates/ingress-route.yaml).
+# invariant: private -> the private-access ipAllowList (tailnet only); public -> none, the
+# websecure chain still applies. A leftover boolean `private:` hard-fails the render.
 access: private
 
-# hazard: what scripts/smoke.sh must get back from `host` for this service to count as
-# serving. Stamped on the IngressRoute as smoke.jterrazz.com/{path,expect}, so
-# smoke discovers it instead of holding a second copy of this table; the
-# annotation contract is kubernetes/charts/common/templates/_smoke.tpl.
-#
-# The default is the weakest useful claim: the root answers 200. Override it
-# where the service genuinely answers something else to an unauthenticated
-# caller (a redirect to its login page, an auth challenge), and keep the list
-# as narrow as the service allows. A 502/503/000 must never be in it.
-#
-#   smoke:
-#     path: /v2/
-#     expect: "401"
+# hazard: what scripts/smoke.sh must get back from `host`, stamped as smoke.jterrazz.com/*
+# annotations (contract: common/templates/_smoke.tpl). Never accept a 5xx or 000.
 smoke:
   path: /
   expect: "200"
 
-# invariant: extra certificates, <name> -> { dnsNames: [...] }, where <name> is BOTH the
-# Certificate and the TLS Secret it writes, a name that addresses live data,
-# so this chart derives neither. The service's own `host` (plus `aliases`) does
-# not belong here; it already gets `<name>-tls` above.
-#
-# The one case for it: a service split across several app-chart releases, whose
-# routes therefore live on those releases. Two of them answering on one
-# hostname cannot each own its certificate, so the service does, and the routes
-# name it with `ingress[].tlsSecret`. OpenPanel is the sole user.
-#
-#   certificates:
-#     openpanel-tls:            { dnsNames: [openpanel.internal.jterrazz.com] }
-#     openpanel-analytics-tls:  { dnsNames: [analytics.jterrazz.com] }
+# invariant: <name> -> { dnsNames }; <name> is both the Certificate and its TLS Secret, so
+# it is never derived. For a host several app-chart releases share (OpenPanel only).
 certificates: {}
 
-# outside: the service's credentials, synced from Infisical by the operator into a
-# Secret an upstream chart or values file reads by name:
-#
-#   secrets:
-#     path: /jterrazz-infrastructure/otel-collector  # Infisical secretsPath
-#     secretName: otel-collector-secrets             # the name the consumer reads
-#     env: prod                                      # Infisical env slug (default)
-#     labels: { grafana_alert: "1" }                 # copied onto the managed Secret
-#     template: { data: { <key>: <operator template> } }  # replaces the key-per-secret copy
-#
-# `secretName` is REQUIRED and is a contract: the collector's values.yaml reads
-# one key out of it by name, and an upstream chart may wire envFrom to it.
-# Renders InfisicalSecret `<name>-infisical`; the managed Secret outlives it
-# (creationPolicy Orphan), so deleting the release does not log the service out.
+# outside: Infisical -> InfisicalSecret `<name>-infisical` -> Secret `secretName`, a
+# REQUIRED name its consumer reads literally; the Secret outlives the release (Orphan).
 secrets: {}
 
-# invariant: named volumes: <key> -> { size, pathSuffix?, claimName?, nodeLocalPath? }.
-# Names and paths address live data; see templates/storage.yaml before
-# changing any of them.
-#
-#   size           required; the PV capacity and the PVC request.
-#   pathSuffix     nests the hostPath under <name>/ (one directory per app).
-#   claimName      overrides the PVC name only, never the PV or the binding.
-#   nodeLocalPath  absolute hostPath OUTSIDE /var/lib/k8s-data, i.e. in the VM
-#                  rather than on the Mac share. For data a service works
-#                  continuously; it does NOT survive a repave, so point it only
-#                  at something reconstructible (grafana-data is the one user).
-#
-#   storage:
-#     data:      { size: 3Gi, pathSuffix: mongo, claimName: storage-svc-0 }
-#     uploads:   { size: 5Gi, pathSuffix: uploads }
+# hazard: <key> -> { size, pathSuffix?, claimName?, nodeLocalPath? }; names and paths
+# address live data (templates/storage.yaml). nodeLocalPath lives in the VM, lost on repave.
 storage: {}
 
-# hazard: NetworkPolicy for the workload this release fronts, the per-service half of
-# what kubernetes/cluster/network-policies/<ns>.yaml used to hold by hand. The
-# namespace BASELINE (default-deny, allow-same-namespace, the namespace-wide
-# DNS egress) stays there; anything that names one workload belongs here.
-#
-# Unset renders no policy at all. Set, it renders ONE policy named after the
-# service, carrying both directions; NetworkPolicies union, so it is additive
-# to the baseline.
-#
-#   podSelector  REQUIRED, and it cannot be derived: the pods are rendered by
-#                the UPSTREAM chart, so the labels are that chart's, not ours.
-#                `kubectl get pod -n <ns> --show-labels` is the source.
-#   ingress      list of { from: <peer>, ports?: [...] }
-#   egress       list of { to:   <peer>, ports?: [...] }
-#
-# PEERS: the same vocabulary the app chart speaks, defined once in
-# kubernetes/charts/common/templates/_network-policy.tpl:
-#
-#   traefik                    kube-system, where k3s runs Traefik.
-#   namespace:<ns>             one namespace, by its kubernetes.io/metadata.name.
-#   any-namespace              every namespace (what DNS egress needs).
-#   any-namespace-pods:<k>=<v> pods carrying a label, in any namespace.
-#   internet                   0.0.0.0/0 EXCEPT RFC1918.
-#   anywhere                   0.0.0.0/0, no exception; the apiserver is
-#                              RFC1918 twice over on this cluster, so anything
-#                              that must reach it needs this and not `internet`.
-#
-# PORTS ARE POD PORTS, NEVER SERVICE PORTS. A policy is evaluated after
-# kube-proxy's DNAT, so a rule naming Grafana's Service port 80 (pod 3000)
-# applies to nothing and the traffic is dropped by the default-deny with
-# nothing logged. A bare number is TCP; `53/UDP` spells a protocol out.
-#
-#   network:
-#     podSelector:
-#       app.kubernetes.io/name: grafana
-#     ingress:
-#       - from: traefik
-#         ports: [3000]
-#     egress:
-#       - to: internet
-#         ports: [443]
+# hazard: the per-service NetworkPolicy, additive to the namespace baseline. podSelector is
+# REQUIRED (upstream chart's labels); ports are POD ports, never Service ports.
 network: {}
 
-# invariant: injected at deploy time: the `platform-service` release template in
-# kubernetes/helmfile.yaml.gotmpl sets it from $NODE_NAME. Used as the hostPath
-# PV's nodeAffinity match.
+# invariant: set from $NODE_NAME by the `platform-service` release template in
+# kubernetes/helmfile.yaml.gotmpl; the hostPath PV's nodeAffinity.
 infrastructure:
   nodeName: ""

@@ -1,6 +1,5 @@
 ---
-# outside: platform-networking holds cert-manager (+ its webhook/cainjector) and
-# cloudflared. Traefik itself runs in kube-system under k3s, not here.
+# outside: cert-manager (+ webhook, cainjector) and cloudflared; Traefik is in kube-system.
 
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -13,19 +12,15 @@ spec:
     - Ingress
   ingress:
     - ports:
-        # outside: kube-apiserver -> cert-manager's admission webhook on 10250. Omit it
-        # and every Certificate/Issuer write fails with "no endpoints
-        # available for service cert-manager-webhook".
+        # outside: apiserver -> cert-manager's webhook; without it every Certificate write fails.
         - protocol: TCP
           port: 10250
-        # outside: VictoriaMetrics (platform-telemetry) -> cert-manager controller +
-        # webhook metrics on 9402.
+        # outside: VictoriaMetrics -> cert-manager metrics.
         - protocol: TCP
           port: 9402
 
 ---
-# invariant: egress is DEFAULT-DENY for every pod in the namespace (podSelector {} +
-# policyTypes: Egress), so each rule below is load-bearing.
+# invariant: egress is default-deny here; each rule below is load-bearing.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -36,7 +31,6 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # outside: cert-manager -> CoreDNS (kube-system) on 53 for in-cluster names.
     - to:
         - namespaceSelector:
             matchLabels:
@@ -44,10 +38,8 @@ spec:
       ports:
         - protocol: UDP
           port: 53
-    # hazard: cloudflared -> the Cloudflare edge on 7844 (QUIC/UDP and HTTP2/TCP; the
-    # deployment forces --protocol http2, so TCP is the one in use). Today
-    # cloudflared runs hostNetwork, so its traffic never traverses this policy;
-    # it is declared so that dropping hostNetwork does not silently kill the tunnel.
+    # hazard: cloudflared -> the Cloudflare edge; unused while it runs hostNetwork, declared so
+    # dropping hostNetwork does not silently kill the tunnel.
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
@@ -60,27 +52,14 @@ spec:
           port: 7844
         - protocol: TCP
           port: 7844
-    # outside: cloudflared -> Traefik and any in-cluster backend, TCP any port.
+    # outside: cloudflared -> Traefik and any in-cluster backend.
     - to:
         - namespaceSelector: {}
       ports:
         - protocol: TCP
-    # hazard: cert-manager -> Let's Encrypt ACME and the Cloudflare API on 443, AND
-    # -> the kube-apiserver: one rule, because on this cluster the two are the
-    # same destination shape.
-    #
-    # NOTE THE MISSING `except` (the 7844 rule above keeps its own). The
-    # apiserver is RFC1918 twice over: a pod dials the `kubernetes` ClusterIP
-    # (10.43.0.1:443), which iptables DNATs to the node's own 192.168.x.x:6443,
-    # and `namespaceSelector` cannot reach it either, because the apiserver is
-    # not a pod. Both ports are listed because which one the filter sees depends
-    # on whether it runs before or after DNAT.
-    #
-    # Every cert-manager process needs this: controller, cainjector and webhook
-    # all exit at startup on `failed to get server groups: dial tcp
-    # 10.43.0.1:443: connect: connection refused`. The trap is that a running
-    # pod keeps working through conntrack, so denying it looks harmless until
-    # the next time a pod is RECREATED.
+    # hazard: NO `except`: covers the apiserver (10.43.0.1:443 -> node:6443) as well as ACME
+    # and the Cloudflare API. Denied, pods die only when RECREATED (conntrack hides it);
+    # docs/decisions/011-every-namespace-is-default-deny.md
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
@@ -89,8 +68,7 @@ spec:
           port: 443
         - protocol: TCP
           port: 6443
-    # outside: cert-manager -> public DNS on 53, to self-check its own DNS-01 challenge
-    # records before asking Let's Encrypt to validate them.
+    # outside: cert-manager self-checks its DNS-01 records against public DNS.
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0

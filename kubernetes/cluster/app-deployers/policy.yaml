@@ -1,24 +1,7 @@
 ---
-# invariant: the ownership rule rbac.yaml cannot express. For any write by a
-# `github:<owner>/<repo>` identity:
-#   - a namespaced object: its namespace must carry
-#     app.jterrazz.com/repository=<repo>, the bare repository name: a label
-#     value cannot hold a `/`, and the owner is always `jterrazz` because the
-#     apiserver accepts no other (authentication.yaml.j2);
-#   - a Namespace or a PersistentVolume: it must carry that label (on CREATE),
-#     must already carry it (UPDATE, DELETE), and the label cannot move;
-#   - a Namespace may not opt out of Pod Security (no `privileged` level);
-#   - a PersistentVolume is a hostPath at /var/lib/k8s-data/<name minus -data>,
-#     so a repo cannot point a volume at the node's root or at another app's
-#     directory;
-#   - a RoleBinding binds app-namespace-admin to the requester and nobody else.
-# The existing namespaces and volumes were labelled once by hand on
-# 2026-10-24, from each Deployment's app.jterrazz.com/repository annotation.
-#
-# hazard: residual risk, written down rather than hidden: nothing here owns a HOST.
-# A repository can declare an IngressRoute or a Certificate for any name in
-# our zones from inside its own namespace. Closing that needs a cross-object
-# lookup (who already serves this host), which CEL admission cannot do.
+# invariant: the ownership rule RBAC cannot express, keyed on the app.jterrazz.com/repository
+# label (bare repo name); each validation's message states its rule. hazard: nothing owns
+# a HOST: any repo may route any name in our zones; docs/decisions/017-app-repositories-deploy-as-their-github-oidc-identity.md
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicy
 metadata:

@@ -1,15 +1,6 @@
 ---
-# outside: platform-registry (the private Docker registry).
-#
-# The registry holds every application image and its push credentials are
-# htpasswd-only, so it is the crown jewel of the cluster. Nothing but Traefik
-# legitimately reaches port 5000: containerd on the node and CI runners on the
-# tailnet both resolve registry.internal.jterrazz.com and terminate at Traefik, which
-# then dials the registry Service.
-#
-# WHAT IS AND IS NOT IN THIS FILE. The namespace BASELINE only. The Traefik
-# -> :5000 rule belongs to the workload and is declared with it, in the
-# `network:` block of kubernetes/services/registry/app.yaml.
+# invariant: the namespace BASELINE only; the Traefik -> :5000 rule is the workload's, in
+# kubernetes/services/registry/app.yaml. Nothing but Traefik reaches the registry.
 
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -32,7 +23,6 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    # invariant: Pods in platform-registry -> each other; sourced by the namespace label.
     - from:
         - namespaceSelector:
             matchLabels:
@@ -49,8 +39,6 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # invariant: registry -> CoreDNS on 53; namespace-wide because a pod resolves before
-    # it can know which namespace answered.
     - to:
         - namespaceSelector: {}
       ports:
@@ -58,10 +46,8 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    # invariant: registry -> the internet on 443. Storage is a local hostPath PVC, so in
-    # principle DNS alone would do. OPEN: confirm distribution 3.x makes no
-    # outbound call at all before removing this: the namespace is on the
-    # critical path for every app deploy, so the failure would land in CI.
+    # outside: OPEN: confirm distribution 3.x makes no outbound call before removing this;
+    # storage is local, but a wrong guess breaks every app deploy in CI.
     - ports:
         - protocol: TCP
           port: 443

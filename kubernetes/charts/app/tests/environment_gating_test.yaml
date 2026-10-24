@@ -1,23 +1,10 @@
 suite: undeclared environment renders NOTHING (chart 2.x behaviour)
-# invariant: READ BEFORE "FIXING" A FAILURE HERE
-# Every template is gated on app.envExists, so `--set environment=prd` against
-# a chart that declares `prod` renders an EMPTY RELEASE instead of failing.
-# A `helm upgrade --install` of an empty release does not error: it deletes
-# every object the previous revision owned. That is the whole point of pinning
-# it here.
-#
-# This is deliberately NOT asserted as "good". Turning the typo into a hard
-# failure is a breaking change owned by a coordinated chart 3.0, and when that
-# lands this suite MUST be rewritten to expect `failedTemplate`. The test
-# exists so that change is a conscious edit to a file that says so, rather than
-# a silent behaviour flip nobody notices.
-#
-# (`hasDocuments` is evaluated per selected template, so "count: 0" with no
-# `templates:` filter means "every template in the chart rendered nothing".)
+# hazard: READ BEFORE "FIXING": an undeclared environment renders an EMPTY release, which
+# `helm upgrade` applies by deleting everything. Pinned, not endorsed: chart 3.0 makes it a
+# failedTemplate and rewrites this suite; docs/decisions/010-every-workload-renders-through-two-charts.md
 tests:
   - it: renders zero manifests with the chart's own default values
-    # outside: no `values:` at all; this is why plain `helm lint`/`helm template`
-    # validates nothing here, and why ci/test-values.yaml IS the contract.
+    # outside: no values at all, which is why ci/test-values.yaml IS the contract.
     asserts:
       - hasDocuments:
           count: 0
@@ -32,9 +19,7 @@ tests:
           count: 0
 
   - it: drops the prod-only dashboard ConfigMap in another environment
-    # outside: dashboard-configmap.yaml is additionally gated on environment == prod:
-    # Grafana has one folder per app, and three environments' worth of the same
-    # dashboard would collide in it.
+    # outside: prod-only: one Grafana folder per app, three environments would collide.
     values:
       - ../ci/test-values.yaml
     templates:
@@ -61,9 +46,7 @@ tests:
           value: ci-test-app
 
   - it: drops the prod-only alert ConfigMap in another environment
-    # outside: alert-configmap.yaml is gated on environment == prod for a stricter
-    # reason than dashboards: Grafana rule `uid:`s are global, so a staging
-    # copy would not sit beside the prod rule; it would provision over it.
+    # hazard: prod-only: rule uids are global, a staging copy would provision over prod's.
     values:
       - ../ci/test-values.yaml
     templates:

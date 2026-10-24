@@ -1,20 +1,8 @@
 ---
-# invariant: platform-telemetry holds Grafana, the VictoriaMetrics family (metrics/logs/traces),
-# kube-state-metrics, node-exporter and the OTel Collector.
-#
-# k3s enforces NetworkPolicy, so this is real isolation, and it is needed here
-# for the same reason platform-analytics needs it: NONE of the three Victoria
-# stores authenticates anything, and every write path is always on, with no
-# receiver flag to leave off. VictoriaMetrics takes Prometheus remote-write on
-# :8428, VictoriaLogs takes OTLP *and* Loki push on :9428, VictoriaTraces takes
-# OTLP on :10428. Without this file any pod in the cluster could write junk into
-# all three, or read every series, log line and span back out.
-#
-# WHAT IS AND IS NOT IN THIS FILE. The namespace BASELINE only:
-# default-deny, allow-same-namespace, the namespace-wide egress. Every rule that
-# names one workload is declared by that service, in the `network:` block of its
-# kubernetes/services/<svc>/service.yaml: Grafana's ingress, VictoriaMetrics'
-# egress, and the collector's deliberately namespace-wide OTLP ingest.
+# invariant: the namespace BASELINE only (default-deny, same-namespace, namespace-wide
+# egress); per-workload rules live in each service.yaml's `network:`. None of the three
+# Victoria stores authenticates, so this is their only access control;
+# docs/decisions/011-every-namespace-is-default-deny.md
 
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -37,28 +25,15 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    # invariant: Pods in platform-telemetry -> each other, any port, sourced by the namespace
-    # label. This ONE rule carries every store-facing flow, because every
-    # legitimate client of a store lives here: grafana queries all three stores
-    # (8428/9428/10428), otel-collector writes to all three, victoria-metrics
-    # scrapes kube-state-metrics:8080. Naming them by pod label instead would be
-    # strictly redundant and would drift the day a store moves.
-    #
-    # CONSEQUENCE: the three stores get NO cross-namespace ingress at all; the
-    # only ports reachable from outside this namespace are the collector's two
-    # OTLP ports (below) and Grafana's 3000 (grafana/service.yaml). node-exporter
-    # is not covered and cannot be: `hostNetwork: true` means its pod IP IS the
-    # node IP, so NetworkPolicy never filters traffic to it (it is scraped via
-    # victoria-metrics' own egress, in victoria-metrics/service.yaml).
+    # invariant: carries every store-facing flow (all clients live here); the stores get NO
+    # cross-namespace ingress. node-exporter (hostNetwork) is never filtered.
     - from:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: platform-telemetry
 
 ---
-# invariant: egress is DEFAULT-DENY for every pod in the namespace (podSelector {} +
-# policyTypes: Egress), so each rule below is load-bearing: a telemetry flow
-# not listed here stops working.
+# invariant: egress is default-deny here; a telemetry flow not listed below stops working.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -69,8 +44,6 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # invariant: everything here -> CoreDNS on 53; namespace-wide because a pod resolves
-    # before it can know which namespace answered.
     - to:
         - namespaceSelector: {}
       ports:
@@ -78,27 +51,14 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    # outside: everything here -> anything else in platform-telemetry: the mirror of
-    # allow-same-namespace above (grafana and the collector to the three
-    # stores, VictoriaMetrics to kube-state-metrics).
+    # outside: the mirror of allow-same-namespace.
     - to:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: platform-telemetry
-    # hazard: -> the kube-apiserver, and -> the public internet on 443: one rule, because
-    # on this cluster they are the same destination pattern.
-    #
-    # NOTE THE MISSING `except`. Copying the `0.0.0.0/0 except <RFC1918>` shape
-    # used for internet-only rules breaks four of six workloads here, because the
-    # apiserver is RFC1918 twice over: pods dial the `kubernetes` ClusterIP
-    # (10.43.0.1:443), which iptables DNATs to the node's own 192.168.x.x:6443.
-    # Both ports are listed for that reason; which one the filter sees depends on
-    # whether it runs before or after DNAT, a CNI detail rather than a contract.
-    #
-    # Apiserver: grafana's two sidecars, otel-collector's informers,
-    # victoria-metrics' kubernetes_sd, kube-state-metrics. 443 outbound:
-    # otel-collector -> cloud.langfuse.com, grafana -> grafana.com (plugin
-    # install on EVERY pod start) and hooks.slack.com (alert delivery).
+    # hazard: NO `except` RFC1918: the apiserver is 10.43.0.1:443 DNATed to the node's
+    # 192.168.x.x:6443, so the internet-only shape breaks four of six workloads here.
+    # docs/decisions/011-every-namespace-is-default-deny.md
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0

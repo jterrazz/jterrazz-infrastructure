@@ -1,8 +1,5 @@
 suite: access -> Traefik ipAllowList middleware selection
-# invariant: `access` picks the Traefik ipAllowList middleware, or none.
-#
-# This is the chart's network-exposure switch, so every arm is pinned,
-# including the two that must fail the render rather than pick a default.
+# invariant: the chart's network-exposure switch: every arm pinned, two must fail the render.
 templates:
   - templates/ingress-route.yaml
 values:
@@ -19,8 +16,7 @@ tests:
               namespace: platform-networking
 
   - it: attaches private-access when `access` is omitted entirely
-    # invariant: the default must be the NARROW list. A values file that forgets the key
-    # gets tailnet-only, never public.
+    # invariant: the default is the narrow list: a forgotten key means tailnet-only.
     asserts:
       - equal:
           path: spec.routes[0].middlewares
@@ -29,8 +25,7 @@ tests:
               namespace: platform-networking
 
   - it: "attaches no access middleware for `access: public`"
-    # invariant: still behind the global rate-limit / compress / security-headers chain
-    # the websecure entrypoint attaches, just no ipAllowList.
+    # invariant: no ipAllowList; the websecure chain still applies.
     set:
       access: public
     asserts:
@@ -45,10 +40,7 @@ tests:
           errorMessage: access must be one of private|public, got "privat"
 
   - it: "hard-fails on the legacy boolean `private:` key"
-    # hazard: a leftover `private: false` would otherwise fall through to the `private`
-    # DEFAULT and silently NARROW a route that was meant to be public: a
-    # change in network exposure made by omission, which is the one class of
-    # change that must never happen quietly.
+    # hazard: a leftover `private: false` would silently fall to the private default.
     set:
       private: false
     asserts:
@@ -63,9 +55,7 @@ tests:
           errorMessage: "`private` was replaced by `access: private|public`; remove it from this values file"
 
   - it: "ORs the canonical host with every alias, never the v2 Host(a, b)"
-    # outside: Traefik v3 dropped multi-value matchers. `Host(a, b)` passes the CRD
-    # schema and then fails to build the router: 404 on every name, no error
-    # on apply and nothing in `kubectl get` to say so.
+    # outside: Traefik v3 dropped `Host(a, b)`: it passes the CRD, then 404s every name.
     asserts:
       - equal:
           path: spec.routes[0].match

@@ -1,18 +1,7 @@
 suite: full fixture render (snapshot)
-# hazard: pins the ENTIRE manifest set the chart produces from ci/test-values.yaml,
-# byte for byte, in __snapshot__/snapshot_test.yaml.snap.
-#
-# What this catches that the targeted suites do not: a hostPath that moves, a
-# reclaim policy that flips from Retain to Delete, a storageClassName that
-# stops being `manual`. Those are one-word edits with a data-loss blast radius:
-# the PVs here are hostPath volumes holding Grafana, the three VictoriaMetrics
-# stores, OpenPanel and registry state. Plus the InfisicalSecret,
-# whose `secretName` is read by a literal string in someone else's chart.
-#
-# Reviewing a failure: read the diff. If every changed line is intended,
-#   helm unittest -u kubernetes/charts/platform-service
-# regenerates the .snap, and that diff is what the change review should
-# actually look at. Never regenerate without reading it.
+# hazard: pins the ENTIRE manifest set: a moved hostPath, Retain flipped to Delete, a lost
+# `manual` class are one-word data-loss edits. Read the diff before `helm unittest -u`;
+# docs/decisions/010-every-workload-renders-through-two-charts.md
 values:
   - ../ci/test-values.yaml
 tests:

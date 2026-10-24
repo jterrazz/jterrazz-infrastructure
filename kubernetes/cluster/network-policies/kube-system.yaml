@@ -1,20 +1,7 @@
 ---
-# hazard: kube-system holds CoreDNS, Traefik, klipper-lb and metrics-server.
-#
-# This namespace is last to get a policy on purpose: it is the one where a
-# wrong rule takes the whole cluster down rather than one service. Everything
-# below is ingress-only, and every allow is here because a real path needs it.
-#
-# TWO TRAPS, both already paid for elsewhere in this directory:
-#
-# 1. Policies are evaluated AFTER kube-proxy's DNAT, so every port here is a
-#    containerPort, never a Service port. Traefik's Service listens on 80/443
-#    and the pod on 8000/8443; a rule naming 80 applies to nothing and the
-#    traffic is dropped by the default-deny with nothing logged.
-# 2. hostNetwork clients are NOT pods to a NetworkPolicy. cloudflared runs
-#    hostNetwork (it has to; see its README) and the apiserver runs on the
-#    host, so both arrive as the node address and only an ipBlock matches
-#    them. A podSelector-only rule silently excludes them.
+# hazard: a wrong rule here takes the whole cluster down. Ports are containerPorts (post
+# DNAT: Traefik pod 8000/8443, not 80/443); hostNetwork clients (cloudflared, apiserver)
+# match only an ipBlock; docs/decisions/011-every-namespace-is-default-deny.md
 
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -27,9 +14,7 @@ spec:
     - Ingress
 
 ---
-# hazard: DNS from everywhere, and this rule is why the rest is safe to write. Every
-# pod in every namespace resolves through here; scoping it to known namespaces
-# would break the next namespace anyone creates.
+# hazard: DNS from every namespace; scoping it would break the next namespace created.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -53,19 +38,10 @@ spec:
           protocol: TCP
 
 ---
-# hazard: Traefik is the cluster's front door, and no pod but klipper-lb's may dial
-# it, kube-system's included. Two sources are legitimate, both landing on
-# 8000/8443: klipper-lb, which DNATs the node's 80/443 into it and
-# MASQUERADEs, so every tailnet request arrives from the svclb POD; and the
-# host netns (cloudflared, node-local clients), which arrives as the cni0
-# gateway 10.42.0.1 or a node address.
-#
-# The pod CIDR is excepted because `private-access` must admit 10.42.0.0/16 for
-# the svclb source (kubernetes/cluster/traefik/middleware.yaml): a pod that
-# reached Traefik's ClusterIP would pass that allow-list and skip the
-# NetworkPolicy of the private service behind it. A pod that genuinely needs a
-# private hostname through Traefik (private_hostnames_via_traefik, group_vars)
-# gets its namespace added here, by name.
+# hazard: only klipper-lb's svclb pods and the host netns may dial Traefik. The pod CIDR is
+# excepted so a pod cannot pass private-access's 10.42.0.0/16 allowance; a pod needing a
+# private hostname via Traefik gets its namespace added by name;
+# docs/decisions/003-traefiks-service-is-the-tailnet-gate.md
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -97,15 +73,8 @@ spec:
           protocol: UDP
 
 ---
-# hazard: klipper-lb. THIS IS THE RULE THAT BREAKS THE TAILNET IF IT IS MISSING, and
-# it is invisible to every test that goes through cloudflared: the tunnel
-# dials Traefik's ClusterIP directly, so public traffic keeps working while
-# every tailnet client gets `connection refused` on 443. CI is a tailnet
-# client (it pulls from registry.internal.jterrazz.com), so a deploy fails
-# with the cluster otherwise green.
-#
-# The source is the node's own address (kube-proxy hands the packet to the
-# svclb pod after DNAT), never a pod, so only an ipBlock matches.
+# hazard: missing, every tailnet client (CI included) gets `connection refused` on 443 while
+# public traffic via cloudflared keeps working. Source is the node address: ipBlock only.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -130,8 +99,7 @@ spec:
           protocol: UDP
 
 ---
-# outside: the apiserver's metrics API (`kubectl top`, HPA) dials metrics-server from
-# the host, so this is an ipBlock and not a namespaceSelector.
+# outside: the apiserver dials metrics-server from the host, hence an ipBlock.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -152,9 +120,7 @@ spec:
           protocol: TCP
 
 ---
-# outside: VictoriaMetrics (platform-telemetry) scrapes CoreDNS on 9153 (kube-dns
-# Service annotation) and Traefik on 9100 (pod annotation). It is the only
-# scraper, so the namespaceSelector is the whole source set.
+# outside: VictoriaMetrics scrapes CoreDNS on 9153 and Traefik on 9100; the only scraper.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

@@ -1,8 +1,6 @@
 suite: an app container cannot be made privileged, and carries no API token
-# invariant: the chart's securityContext defaults may be loosened by an app (runAsRoot,
-# a uid), never past what the cluster's baseline Pod Security admits. Failing at
-# render tells the app repo why in its own CI log, instead of an admission error
-# deep inside a `helm --atomic` rollback.
+# invariant: an app may loosen the defaults, never past baseline Pod Security; failing at
+# render explains it in the app's CI rather than inside a `helm --atomic` rollback.
 values:
   - ../ci/test-values.yaml
 templates:

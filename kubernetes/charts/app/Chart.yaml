@@ -2,20 +2,12 @@ apiVersion: v2
 name: app
 description: Standard application chart for jterrazz infrastructure
 type: application
-# outside: BUMP THIS in the same commit as any template change. App CI pulls the chart
-# UNVERSIONED (oci://registry.internal.jterrazz.com/charts/app), and its publisher
-# (ansible/roles/platform/tasks/publish-app-chart.yml) refuses to overwrite an
-# already-published version, so an unbumped template change publishes nothing
-# and every app keeps rendering the old templates.
+# hazard: BUMP with any template change: apps pull it unversioned and the publisher never
+# overwrites a version, so an unbumped change ships nothing; docs/decisions/010-every-workload-renders-through-two-charts.md
 version: 2.19.0
 appVersion: "1.17.1"
 
-# invariant: the one implementation of every concern this chart shares with
-# `platform-service`. A relative file:// repository so `helm dependency update`
-# resolves it from the working tree with no registry and no network, and
-# `helm package` bundles it into the .tgz every app pulls, so an app repo needs
-# nothing new. The version is common's exactly: a file:// dependency resolves by
-# exact version, so a mismatch fails `helm dependency update` in validate.yaml.
+# invariant: common's exact version (file:// resolves by exact version); bundled into the .tgz.
 dependencies:
   - name: common
     version: 1.5.0

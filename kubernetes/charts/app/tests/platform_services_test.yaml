@@ -1,16 +1,11 @@
 suite: platformServices catalog opt-in and its typo guard
-# invariant: `spec.platformServices: [name, ...]` resolves against app.platformCatalog and
-# wires a whole bundle per name: env injection, an egress NetworkPolicy hole,
-# and (for a name that is itself a catalog target) a client pod label the
-# target's ingress rule selects on. The validation lives in app.platformServices
-# (the single accessor all three consumers call), so an unknown name can never
-# reach a rendered manifest.
+# invariant: each name resolves against app.platformCatalog into env, an egress hole and
+# (for a catalog target) a client label; validated in the one accessor all consumers call.
 values:
   - ../ci/test-values.yaml
 tests:
   - it: hard-fails the render on an unknown service name
-    # invariant: a typo must be a build error, not an app that deploys with telemetry
-    # quietly disabled and no egress hole to notice it by.
+    # invariant: a typo is a build error, never telemetry quietly off.
     set:
       spec.platformServices:
         - otel-colector
@@ -28,8 +23,7 @@ tests:
           errorMessage: 'spec.platformServices: unknown service "nope" (valid: gateway-intelligence, otel-collector)'
 
   - it: hard-fails on a name introduced by an environment override
-    # invariant: lists REPLACE on merge, so an environment can swap the whole list, so the
-    # check must run on the resolved list, not on spec's.
+    # invariant: checked on the resolved list, since an environment replaces it.
     set:
       environments.prod.platformServices:
         - gateway-inteligence
@@ -70,9 +64,7 @@ tests:
             value: "http://otel-collector.platform-telemetry:4318"
 
   - it: stamps the client pod label only for a catalog entry that has one
-    # invariant: gateway-intelligence's own ingress rule selects on this label, so a new
-    # consumer needs zero edit on the target. otel-collector has no clientLabel
-    # and must contribute nothing here.
+    # invariant: the target selects on this label, so a new consumer needs no edit there.
     templates:
       - templates/deployment.yaml
     asserts:
@@ -93,9 +85,7 @@ tests:
             environment: prod
 
   - it: opens one egress rule per declared service, on the POD ports
-    # hazard: ports are the catalog's pod ports, never the Service port: a NetworkPolicy
-    # matches the destination pod's port, so using 4318-the-Service-port would
-    # produce a policy that silently drops everything.
+    # hazard: the catalog's POD ports; the Service port would yield a policy that drops all.
     templates:
       - templates/network-policy.yaml
     asserts:
@@ -120,8 +110,7 @@ tests:
               - port: 8317
 
   - it: opts out completely when the list is empty
-    # invariant: OTel is opt-in as of chart 2.0. It used to be an unconditional default,
-    # which was inert anyway because no egress hole accompanied it.
+    # invariant: OTel is opt-in since chart 2.0.
     templates:
       - templates/deployment.yaml
     set:
@@ -139,15 +128,13 @@ tests:
           any: true
 
   - it: renders the server-side ingress rule when the app IS a catalog target
-    # invariant: metadata.name == a catalog key carrying a clientLabel: the app's own
-    # NetworkPolicy admits every pod, in any namespace, stamped with that label.
+    # invariant: an app named after a clientLabel target admits every pod stamped with it.
     templates:
       - templates/network-policy.yaml
     set:
       metadata.name: gateway-intelligence
       spec.platformServices: []
-    # value: the app's own policy, by name: the fixture declares a cron job, so the
-    # template also renders `<app>-cronjobs`, which admits nothing by design.
+    # value: selects the app's own policy; `<app>-cronjobs` also renders.
     documentSelector:
       path: metadata.name
       value: gateway-intelligence

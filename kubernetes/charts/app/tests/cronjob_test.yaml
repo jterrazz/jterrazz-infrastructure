@@ -1,12 +1,6 @@
 suite: spec.cronJobs, the app's container run on a schedule
-# hazard: a cron job runs the APP'S OWN container with another command, so most of
-# what is pinned here is inheritance: the same env, secrets and mounts as the
-# Deployment. The rest is the scheduling defaults (Kubernetes' own are wrong
-# for a scheduled job) and one isolation rule that is easy to break and silent
-# when broken: a job pod must never carry the Service's selector labels.
-#
-# The fixture's prod environment declares `report` (every default); staging
-# merges in `vacuum` (every default overridden, the data volume mounted).
+# hazard: a job runs the app's own container, so this pins inheritance, the scheduling
+# defaults, and that a job pod never carries the Service's selector labels.
 values:
   - ../ci/test-values.yaml
 templates:
@@ -37,9 +31,7 @@ tests:
           count: 0
 
   - it: never stamps the Service selector on a job pod
-    # outside: the Service selects `app` + `environment`. A job pod carrying both would
-    # become an endpoint (ready at once, having no readiness probe), and
-    # Traefik would send live requests to a process that is not listening.
+    # outside: a job pod with `app` + `environment` would become a live endpoint.
     asserts:
       - notExists:
           path: spec.jobTemplate.spec.template.metadata.labels.app
@@ -178,9 +170,7 @@ tests:
             value: --max-old-space-size=768
 
   - it: derives the memory limit from the job's own request
-    # value: the app's explicit 1Gi limit was sized for the app's 512Mi request.
-    # Inherited by a job asking for 1Gi, it would sit at the request; for a job
-    # asking for more, the API server would reject the object outright.
+    # value: the app's limit was sized for its own request; inherited it could undercut a job.
     asserts:
       - equal:
           path: spec.jobTemplate.spec.template.spec.containers[0].resources

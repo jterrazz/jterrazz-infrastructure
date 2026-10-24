@@ -1,20 +1,7 @@
 ---
-# hazard: `manual` means static provisioning against pre-created hostPath PVs under
-# /var/lib/k8s-data (on OrbStack a symlink to the Mac, so the data also
-# survives a `make destroy` repave). Retain, so deleting a PVC keeps the
-# data. ONE exception: a volume with `nodeLocalPath` set leaves that tree and
-# lives in the VM, so it does NOT survive a repave (grafana-data is the only
-# one; see kubernetes/charts/platform-service/values.yaml).
-# Every `manual` PV/PVC in the cluster is emitted by one of the two
-# charts: kubernetes/charts/platform-service (the `storage` map in each
-# kubernetes/services/<svc>/service.yaml) or kubernetes/charts/app
-# (<app>-<env>-data, for any app that sets spec.storage).
-#
-# k3s's built-in `local-path` SC stays available for ephemeral data; its
-# volumes live under /var/lib/rancher/k3s/storage/ and are wiped on a repave.
-#
-# On-disk layout: one directory per app; a multi-component app nests its
-# volumes under <app>/ (e.g. openpanel/{postgres,redis,clickhouse}).
+# hazard: static hostPath PVs under /var/lib/k8s-data (the Mac share, so data survives a
+# repave), Retain on PVC delete; only the two charts emit `manual` PVs. A nodeLocalPath
+# volume lives in the VM and does not survive; docs/decisions/008-storage-on-orbstack-spends-fsyncs-not-bytes.md
 
 apiVersion: storage.k8s.io/v1
 kind: StorageClass

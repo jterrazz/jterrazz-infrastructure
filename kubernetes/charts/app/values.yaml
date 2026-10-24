@@ -1,109 +1,56 @@
-# invariant: every key the templates read is declared here with its default, so a template
-# never re-defaults one (`values.yaml` owns defaults; templates read them
-# plainly). An empty string / map / list means "unset" for the branch that
-# reads it.
+# invariant: every key the templates read is defaulted here and nowhere else; empty means
+# unset. Each field's shape and semantics is README.md beside this file.
 
 metadata:
   name: ""
 
-# invariant: facts about the app REPO, not the workload, set by CI, never by
-# application.yaml. Empty means "CI did not pass it", and the chart stamps
-# nothing rather than guessing.
+# invariant: set by app CI only. meta.repository becomes the app.jterrazz.com/repository
+# annotation, the only way scripts/trigger-app-deploys.sh learns the app exists.
 meta:
-  # invariant: set by app CI: --set meta.repository=${{ github.repository }}, i.e.
-  # `<owner>/<name>`. Stamped as the `app.jterrazz.com/repository` annotation on
-  # the Deployment, which is the ONLY place scripts/trigger-app-deploys.sh
-  # learns that this app exists and which repo rebuilds it.
   repository: ""
 
 spec:
-  # invariant: set by app CI: --set spec.image=registry.internal.jterrazz.com/<app>:<tag>.
-  # Empty falls back to <registry>/<app>:latest (_helpers.tpl app.image).
+  # invariant: set by app CI; empty falls back to <registry>/<app>:latest.
   image: ""
   port: 3000
-  # invariant: what the Service listens on. 80 keeps the app port out of every
-  # IngressRoute; a workload whose clients dial it by name and port (a database
-  # in a connection string) sets its own port here instead.
   servicePort: 80
   replicas: 1
-  # invariant: entrypoint overrides. Empty means "whatever the image does".
   command: []
   args: []
-  # invariant: empty derives it: Recreate when storage is mounted (never two writers on
-  # one RWO hostPath volume), the Kubernetes default otherwise. Set it to
-  # Recreate for a workload that must not run twice for a reason storage
-  # cannot express, such as a migration on boot.
+  # invariant: empty derives it: Recreate when storage is mounted (never two writers).
   strategy: ""
   resources:
     cpu: 100m
     memory: 256Mi
     memoryLimit: ""
-  # invariant: { size, mountPath, claimName?, owner? }. `claimName` mounts a PVC another
-  # release owns (and renders no PV/PVC here, so `size` is then unused);
-  # `owner` is the uid:gid the chown initContainer hands the volume to,
-  # defaulting to 1000:1000 and skipped entirely when set empty.
   storage: {}
-  # invariant: filename -> content, or filename -> { path, content } to mount it at an
-  # absolute path the image dictates rather than under /app.
   configFiles: {}
-  # invariant: [{ secretName, mountPath }]: an existing Secret mounted read-only as
-  # files. For a credential an image reads from disk rather than from env.
   secretMounts: []
   dashboards: {}
-  # outside: name -> Grafana unified-alerting provisioning YAML. prod-only, like dashboards.
   alerts: {}
-  # invariant: name -> { schedule, command, args?, timeZone?, resources?, storage?,
-  # suspend?, concurrencyPolicy?, startingDeadlineSeconds?, backoffLimit?,
-  # activeDeadlineSeconds? }. Each entry is a CronJob `<app>-<name>` running the
-  # app's own container with `command` instead of the server. `schedule` and
-  # `command` are required; the per-entry defaults (Forbid, UTC, no blind
-  # retry, a one-hour deadline) are in templates/cronjob.yaml. `storage: true`
-  # mounts spec.storage.
   cronJobs: {}
-  # value: merged OVER the chart's hardened container defaults
-  # (app.containerSecurityContext in templates/_helpers.tpl), for the
-  # Deployment and every cron job alike.
+  # value: merged OVER the hardened defaults (app.containerSecurityContext).
   securityContext: {}
-  # invariant: drops runAsNonRoot and the pod-level uid/gid/fsGroup block.
   runAsRoot: false
   env: {}
-  # outside: { path, env[] }; an empty path renders no InfisicalSecret.
   secrets: {}
-  # outside: Infisical env slug; empty means "the deploy environment's own name".
   secretsEnv: ""
-  # invariant: list of { host, path?, public, stripPrefix?, redirectTo?, preservePath?,
-  # smoke? }.
   ingress: []
-  # outside: Ingress this app grants beyond Traefik and the platformServices catalogue:
-  # `exposeTo` is a list of common.networkPolicy peers, each opened on
-  # spec.port. For a client that cannot stamp the catalogue's clientLabel
-  # because a third-party chart renders its pods.
   network:
-    # outside: drops the two rules this chart derives for an application (Traefik
-    # ingress on spec.port, egress to the internet), leaving DNS plus exactly
-    # what `exposeTo` and `egress` declare below. What a datastore is.
     isolated: false
     exposeTo: []
-    # invariant: extra egress rules in the common.networkPolicy vocabulary:
-    # [{ to: <peer>, ports?: [...] }]. Additive.
     egress: []
-  # invariant: opt-in in-cluster platform services, resolved against the catalog in
-  # templates/_helpers.tpl (app.platformCatalog). Valid: otel-collector,
-  # gateway-intelligence. Unknown names hard-fail the render.
+  # invariant: resolved against app.platformCatalog; an unknown name hard-fails the render.
   platformServices: []
   health:
     path: /health
-    # invariant: empty means the startup and liveness probes use `path` too. Set, it is
-    # their path alone; readiness keeps `path` (app.probe, templates/_helpers.tpl).
     livenessPath: ""
-    # invariant: alternatives to the HTTP path, for a server that does not speak it. The
-    # first one set wins: exec, then tcp, then path.
+    # invariant: the first one set wins: exec, then tcp, then path.
     exec: []
     tcp: false
-    # value: raised from Kubernetes' 1s: a Node app doing in-process background work
-    # exceeds it on a trivial route. Everything else uses the k8s defaults.
+    # value: Kubernetes' 1s is too tight for a Node app doing in-process background work.
     timeoutSeconds: 5
-    # value: 30 × the k8s default 10s period = 300s of boot grace before liveness/readiness.
+    # value: 30 x the default 10s period = 300s of boot grace.
     startupFailureThreshold: 30
 
 environments: {}
@@ -111,10 +58,7 @@ environments: {}
 # outside: set by app CI during helm upgrade --install
 environment: ""
 
-# invariant: our own registry, and NO credential: the pull secret is synced from Infisical
-# by the operator (templates/infisical.yaml), never passed in as a value. The
-# hostname decides two things: which images get the pull secret and
-# `imagePullPolicy: Always` (app.privateImage), and which server the synced
-# dockerconfigjson authenticates.
+# invariant: NO credential here: the pull secret is synced from Infisical. The hostname
+# picks which images get it plus `Always`, and what the dockerconfigjson authenticates.
 registry:
   server: registry.internal.jterrazz.com

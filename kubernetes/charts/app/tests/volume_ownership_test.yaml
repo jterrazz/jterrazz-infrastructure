@@ -1,9 +1,6 @@
 suite: the PersistentVolume names the repository that owns it
-# invariant: a PV is cluster-scoped, so the infrastructure's app-deployer-ownership
-# admission policy decides who may create, change or delete one from this
-# label alone. Without it an app's first deploy of a new environment is
-# refused at the PV, and with the full `owner/name` it would not even be a
-# valid label value.
+# invariant: the cluster's ownership policy judges a PV by this label alone, and the value is
+# the bare repo name (`owner/name` is no valid label value).
 values:
   - ../ci/test-values.yaml
 templates:

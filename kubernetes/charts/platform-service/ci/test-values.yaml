@@ -1,46 +1,26 @@
-# outside: CI fixture for the platform-service chart.
-#
-# Purpose: make `helm template`/`helm lint` render REAL objects. Every
-# template is gated (`if .Values.host`, `range .Values.storage`), so linting
-# with default values renders ZERO objects. This file is the contract the CI
-# kubeconform step renders against.
-#
-#   helm template ci-test kubernetes/charts/platform-service \
-#     -f kubernetes/charts/platform-service/ci/test-values.yaml
-#
-# Exercises the multi-volume storage map (the openpanel shape) plus
-# `storage.<key>.claimName` and the populated-nodeName path that the app
-# chart's fixture deliberately leaves empty. `access` is left to its default,
-# the private arm; tests/access_test.yaml pins every arm.
+# invariant: the chart's validation contract: every template is gated on a value, so
+# defaults render nothing. `access` stays default; tests/access_test.yaml pins each arm.
 
 name: ci-test-service
 host: ci-test-service.jterrazz.com
 port: 8080
 
-# invariant: second name on the same route + a SAN on the same certificate: the rename
-# path. `Host(a) || Host(b)`, never the v2 `Host(a, b)`.
+# invariant: the rename path: `Host(a) || Host(b)`, never the v2 `Host(a, b)`.
 aliases:
   - ci-test-alias.example
 
-# invariant: both halves overridden away from the values.yaml defaults (`/`, 200): the
-# registry shape, and the only way to tell a stamped contract from an inherited
-# one in the snapshot.
+# invariant: both halves away from the defaults, so a stamped contract shows in the snapshot.
 smoke:
   path: /v2/
   expect: "401"
 
-# invariant: a certificate for a hostname whose ROUTES live on another release: the
-# openpanel shape, where two app-chart releases answer on one host and neither
-# can own its certificate without the other duplicating it. The key is both the
-# Certificate and the TLS Secret name.
+# invariant: a host whose routes live on another release (the openpanel shape).
 certificates:
   ci-test-shared-tls:
     dnsNames:
       - ci-test-shared.jterrazz.com
 
-# invariant: the service's credentials, synced from Infisical. `secretName` is a contract
-# with the consumer (an upstream chart's envFrom, a values file's secretKeyRef),
-# so it is required and never derived.
+# invariant: `secretName` is a consumer contract, required and never derived.
 secrets:
   path: /jterrazz-infrastructure/ci-test-service
   secretName: ci-test-service-credentials
@@ -50,39 +30,29 @@ secrets:
     data:
       config.yaml: '{{ with .CI_TEST_TOKEN.Value }}token: {{ quote . }}{{ end }}'
 
-# invariant: named volumes. The PV is always <name>-<key>; hostPath is
-# /var/lib/k8s-data/<name>[/<pathSuffix>].
+# invariant: PV is always <name>-<key>; hostPath /var/lib/k8s-data/<name>[/<pathSuffix>].
 storage:
-  # invariant: no pathSuffix -> /var/lib/k8s-data/ci-test-service
-  # PV/PVC: ci-test-service-data (reproduces the historical <name>-data name).
+  # invariant: reproduces the historical <name>-data name.
   data:
     size: 3Gi
-  # invariant: with pathSuffix -> /var/lib/k8s-data/ci-test-service/uploads
-  # PV/PVC: ci-test-service-uploads.
   uploads:
     size: 5Gi
     pathSuffix: uploads
-  # invariant: claimName override: the PVC is named storage-ci-test-0 while the PV keeps
-  # its <name>-<key> identity; see templates/storage.yaml for why that matters.
+  # invariant: claimName renames the PVC only; the PV keeps <name>-<key>.
   metrics:
     size: 1Gi
     pathSuffix: metrics
     claimName: storage-ci-test-0
-  # invariant: nodeLocalPath override: the hostPath leaves /var/lib/k8s-data entirely, so
-  # the data lives in the VM and does NOT survive a repave (grafana-data is the
-  # one live user; see templates/storage.yaml).
+  # invariant: nodeLocalPath leaves /var/lib/k8s-data: in the VM, lost on repave.
   node-local:
     size: 1Gi
     nodeLocalPath: /var/lib/ci-test-node-local
 
-# invariant: populated so the PV nodeAffinity block renders. With this empty the block
-# must be omitted entirely rather than emit `values: [""]`.
+# invariant: populated so nodeAffinity renders; empty must omit it, never `values: [""]`.
 infrastructure:
   nodeName: ci-test-node
 
-# invariant: the `network:` block, exercising every peer form in the vocabulary and both
-# port spellings: an unreached peer is an unvalidated peer, and each one
-# lowers to a different selector shape.
+# invariant: every peer form and both port spellings: an unreached peer is unvalidated.
 network:
   podSelector:
     app.kubernetes.io/name: ci-test-service
@@ -93,12 +63,12 @@ network:
     - from: any-namespace-pods:platform-client.jterrazz.com/ci-test=true
       ports: [8080]
   egress:
-    # outside: bare 53 alongside 53/UDP: the bare form is TCP, the Kubernetes default.
+    # outside: bare 53 is TCP, the Kubernetes default.
     - to: any-namespace
       ports: ["53/UDP", 53]
     - to: namespace:platform-telemetry
       ports: [4317, 4318]
     - to: internet
       ports: [443]
-    # invariant: no ports at all, the unrestricted-egress shape victoria-metrics needs.
+    # invariant: no ports, the unrestricted-egress shape victoria-metrics needs.
     - to: anywhere

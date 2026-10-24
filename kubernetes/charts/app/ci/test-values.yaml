@@ -1,61 +1,34 @@
-# outside: CI fixture for the app chart.
-#
-# Purpose: make `helm template`/`helm lint` render REAL objects. The chart
-# gates every template behind `app.envExists` (metadata.name + environment +
-# a matching entry in `environments`), so linting with default values renders
-# ZERO objects and validates nothing. This file is the contract the CI
-# kubeconform step renders against.
-#
-# Modelled on a realistic app (signews-api shape): two environments, a public
-# + a private ingress surface, storage, secrets, and both platform services.
-#
-#   helm template app kubernetes/charts/app \
-#     -f kubernetes/charts/app/ci/test-values.yaml
-#
-# Keep this exercising the widest reasonable surface: if a template branch is
-# not reachable from here, CI is not checking it. The branches that are
-# MUTUALLY EXCLUSIVE with the app shape above (an existing `claimName` instead
-# of a rendered PV, an exec probe instead of an HTTP one, an isolated
-# NetworkPolicy instead of the derived one) live in the `staging` environment
-# at the bottom, which the unit tests render, since one fixture cannot be both
-# shapes at once.
+# invariant: the chart's validation contract. Every template is gated on app.envExists, so
+# default values render nothing; `prod` is the realistic app shape kubeconform renders,
+# `staging` the mutually exclusive arm of every switch, rendered by the unit tests.
 
 metadata:
   name: ci-test-app
 
-# value: set by app CI from ${{ github.repository }}, pinned here so the Deployment
-# renders the app.jterrazz.com/repository annotation branch.
+# value: pinned so the app.jterrazz.com/repository annotation branch renders.
 meta:
   repository: jterrazz/ci-test-app
 
-# invariant: which of `environments` below is rendered. Everything is gated on this.
 environment: prod
 
 spec:
-  # value: set by app CI in real deploys; pinned here so app.image renders the
-  # explicit branch rather than the <registry>/<app>:latest fallback.
+  # value: pinned so app.image renders the explicit branch, not the :latest fallback.
   image: registry.internal.jterrazz.com/ci-test-app:ci
 
   port: 3000
 
-  # invariant: entrypoint overrides. Rendered verbatim; the image's own are used when
-  # unset, which is the case for every app in the fleet.
   command: ["node", "server.js"]
   args: ["--enable-source-maps"]
 
-  # invariant: merged OVER the chart's hardened container defaults, which is the whole
-  # point of the key: one capability back, everything else still dropped.
+  # invariant: one capability back over the hardened defaults.
   securityContext:
     capabilities:
       drop: ["ALL"]
       add: ["NET_BIND_SERVICE"]
 
-  # invariant: false here so prod renders the runAsNonRoot + uid/gid/fsGroup branch; the
-  # `true` branch is exercised by the staging environment below.
   runAsRoot: false
 
-  # value: >= 512Mi so the NODE_OPTIONS heap-cap branch in _helpers.tpl is exercised
-  # (below that floor the chart deliberately injects nothing).
+  # value: >= 512Mi so the NODE_OPTIONS heap-cap branch renders (nothing below the floor).
   resources:
     cpu: 100m
     memory: 512Mi
@@ -63,30 +36,23 @@ spec:
 
   health:
     path: /health
-    # invariant: set so the split is exercised: startup and liveness on /healthz,
-    # readiness on /health.
+    # invariant: startup + liveness on /healthz, readiness on /health.
     livenessPath: /healthz
     timeoutSeconds: 5
-    # invariant: overridden away from the chart default (30) so the knob is exercised.
+    # invariant: away from the chart default (30) so the knob is exercised.
     startupFailureThreshold: 60
 
-  # hazard: renders the PV + PVC and the root `fix-permissions` initContainer.
-  # Both keys are `required` as of chart 2.2; dropping either must fail the
-  # render rather than produce an unbindable PV.
+  # hazard: size and mountPath are both `required`; dropping either must fail the render.
   storage:
     size: 2Gi
     mountPath: /data
 
-  # invariant: exercises env injection + egress NetworkPolicy for both catalog entries,
-  # and the client-label path (gateway-intelligence carries a clientLabel, so
-  # the pod template gets `platform-client.jterrazz.com/gateway-intelligence`).
+  # invariant: both catalog entries; gateway-intelligence also stamps its clientLabel.
   platformServices:
     - otel-collector
     - gateway-intelligence
 
-  # invariant: a client that cannot stamp the catalogue's clientLabel (its pods come from
-  # a third-party chart), so it is named as a peer instead, plus one declared
-  # egress rule on top of the derived DNS + internet.
+  # invariant: a peer that cannot stamp the clientLabel, plus one declared egress rule.
   network:
     exposeTo:
       - namespace:platform-telemetry
@@ -103,9 +69,7 @@ spec:
   env:
     LOG_LEVEL: info
 
-  # invariant: renders the ConfigMap + its volume/volumeMount. Two forms: a plain string
-  # is content mounted at /app/<filename>; a { path, content } map puts the
-  # file where the IMAGE wants it instead.
+  # invariant: both forms: content at /app/<filename>, and { path, content }.
   configFiles:
     ci-test.json: |
       { "fixture": true }
@@ -114,20 +78,17 @@ spec:
       content: |
         <fixture/>
 
-  # invariant: an existing Secret mounted read-only as files, for a credential an image
-  # reads from disk rather than from env.
   secretMounts:
     - secretName: ci-test-app-files
       mountPath: /etc/ci-test-files
 
-  # invariant: only rendered when environment == prod.
+  # invariant: prod-only.
   dashboards:
     overview: |
       { "title": "ci-test-app overview", "panels": [] }
 
-  # hazard: also prod-only. Two entries because the alerts ConfigMap is ONE object with
-  # one data key per entry (dashboards are one object each); a single entry
-  # would not catch a template that silently emits only the last key.
+  # hazard: two entries: the alerts ConfigMap is ONE object with a key per entry, so one
+  # entry would not catch a template emitting only the last key.
   alerts:
     ci-test-app: |
       apiVersion: 1
@@ -146,12 +107,7 @@ spec:
           interval: 5m
           rules: []
 
-  # invariant: a scheduled job: the app's own container with another command. `args`
-  # and a memory-only `resources` override (cpu is inherited, and the >=512Mi
-  # request derives the job's OWN NODE_OPTIONS cap); no `storage`, so the data
-  # volume stays unmounted while the config files and secret mounts follow the
-  # app. Every other key takes the chart's default here; the staging
-  # environment below overrides them.
+  # invariant: args + memory-only resources (cpu inherited, own NODE_OPTIONS); no storage.
   cronJobs:
     report:
       schedule: "0 6 * * *"
@@ -161,49 +117,37 @@ spec:
         memory: 1Gi
 
   ingress:
-    # invariant: public surface, sub-path -> exercises the stripPrefix middleware.
+    # invariant: public sub-path -> stripPrefix.
     - host: ci-test-app.jterrazz.com
       path: /api
       public: true
-    # invariant: private surface -> exercises the private-access middleware attachment.
+    # invariant: private -> the private-access middleware.
     - host: ci-test-app-internal.jterrazz.com
       path: /
       public: false
-    # invariant: sub-path WITHOUT stripPrefix -> the app serves the literal path, so no
-    # stripPrefix Middleware may be emitted for this entry, and the smoke
-    # contract opts the route out (nothing can derive a health URL under a
-    # prefix the app routes itself).
+    # invariant: stripPrefix false -> no strip Middleware, and smoke opts the route out.
     - host: ci-test-app-mcp.jterrazz.com
       path: /mcp
       public: true
       stripPrefix: false
-    # invariant: canonical-host redirect -> the <app>-<idx>-redirect Middleware, with
-    # preservePath defaulting TRUE (deep links survive).
+    # invariant: redirect, preservePath defaulting TRUE.
     - host: ci-test-app-old.jterrazz.com
       public: true
       redirectTo: https://ci-test-app.jterrazz.com
-    # invariant: same, with preservePath false -> one fixed landing page.
+    # invariant: redirect, preservePath false -> one fixed landing page.
     - host: ci-test-app-legacy.jterrazz.com
       public: true
       redirectTo: https://ci-test-app.jterrazz.com/moved
       preservePath: false
-    # invariant: explicit smoke override -> the derived `/health` path and 200 are both
-    # replaced. This is the escape hatch for a surface whose healthy answer is
-    # not what the chart would guess.
+    # invariant: an explicit smoke override replaces the derived /health and 200.
     - host: ci-test-app-probe.jterrazz.com
       path: /
       public: false
       smoke:
         path: /ready
         expect: "204,200"
-    # invariant: the openpanel ingest shape, on one entry:
-    #   access       platform-service's spelling of `public: true`.
-    #   stripPrefix  a STRING: routed on /api/track, the backend serves /track.
-    #   tlsSecret    a certificate owned by another release, so this render
-    #                emits no Certificate for this host.
-    # The derived smoke contract opts out (the stripped prefix is not the
-    # route's own path, so no health URL is derivable) and the explicit block
-    # opts back in with the one verb the route answers.
+    # invariant: the openpanel ingest shape: `access`, a string stripPrefix, a foreign
+    # tlsSecret (no Certificate rendered), and an explicit smoke block with its verb.
     - host: ci-test-app-ingest.jterrazz.com
       path: /api/track
       access: public
@@ -218,39 +162,28 @@ environments:
   prod:
     tag: main
     replicas: 1
-  # invariant: THE DATASTORE SHAPE. Not a realistic staging environment: it is the other
-  # arm of every switch the prod render above takes, in the only place a
-  # single fixture can hold it. Rendered by the unit tests, not by the CI
-  # kubeconform step (which renders `prod`).
+  # invariant: THE DATASTORE SHAPE: the other arm of every switch prod takes.
   staging:
     tag: main
     replicas: 1
     secretsEnv: prod
-    # invariant: the other arm of the securityContext switch: no runAsNonRoot on the
-    # container and no pod-level uid/gid/fsGroup block at all.
     runAsRoot: true
     resources:
       memory: 256Mi
-    # invariant: a public image: no imagePullSecret (the credential authenticates our
-    # registry alone) and no imagePullPolicy override.
+    # invariant: public image: no pull secret, no imagePullPolicy override.
     image: postgres:14-alpine
-    # invariant: clients dial this one by name and port, so the Service carries the real
-    # port rather than 80.
     servicePort: 5432
-    # invariant: recreate without storage, the migration-on-boot case.
+    # invariant: Recreate without storage (migration on boot).
     strategy: Recreate
-    # invariant: an existing claim another release owns: no PV/PVC is rendered, and
-    # `owner` hands the volume to the uid the image runs as.
+    # invariant: a claim another release owns: no PV/PVC; `owner` chowns to the image uid.
     storage:
       mountPath: /var/lib/postgresql/data
       claimName: ci-test-existing-claim
       owner: "70:70"
-    # invariant: an exec probe: this server does not speak HTTP at all.
     health:
       exec: ["sh", "-c", "pg_isready"]
-    # invariant: the maintenance-job shape: the data volume mounted (through the claim
-    # above), a root pod, no args, and every scheduling default overridden.
-    # Merged INTO spec's `cronJobs` map, so `report` renders here too.
+    # invariant: storage mounted, root pod, no args, every scheduling default overridden;
+    # merged INTO spec's cronJobs, so `report` renders here too.
     cronJobs:
       vacuum:
         schedule: "30 3 * * 0"
@@ -262,8 +195,7 @@ environments:
         startingDeadlineSeconds: 120
         backoffLimit: 2
         activeDeadlineSeconds: 600
-    # invariant: nothing reaches it, it dials nothing, which is the entire security
-    # model of an unauthenticated datastore.
+    # invariant: isolated: the whole security model of an unauthenticated datastore.
     network:
       isolated: true
       exposeTo:

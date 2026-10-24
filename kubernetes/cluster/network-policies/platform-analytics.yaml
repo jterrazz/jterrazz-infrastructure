@@ -1,13 +1,7 @@
 ---
-# outside: platform-analytics (OpenPanel). k3s enforces NetworkPolicy, so this is real
-# isolation: ClickHouse and Redis run WITHOUT passwords (upstream design), and
-# these policies plus the per-workload ones are the only thing keeping another
-# namespace off them.
-#
-# WHAT IS AND IS NOT IN THIS FILE. The namespace BASELINE only: default-deny,
-# allow-same-namespace, the namespace-wide DNS egress. Every rule that names
-# one workload is declared with that workload, in the `network:` block of its
-# values file in kubernetes/services/openpanel/.
+# invariant: the namespace BASELINE only; per-workload rules live in the `network:` blocks
+# of kubernetes/services/openpanel/. ClickHouse and Redis run passwordless: this is their
+# only access control.
 
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -30,21 +24,15 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    # outside: OpenPanel's own pods -> each other (apps to datastores); sourced by the
-    # namespace label, so nothing outside platform-analytics matches. This is
-    # the whole of what the three datastores admit: their own policies grant
-    # nothing, and Traefik reaches only op-api and op-dashboard, which say so
-    # themselves.
+    # invariant: the whole of what the three datastores admit; Traefik reaches op-api and
+    # op-dashboard through their own policies.
     - from:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: platform-analytics
 
 ---
-# invariant: egress is DEFAULT-DENY for every pod in the namespace (podSelector {} +
-# policyTypes: Egress). This policy grants the namespace-wide minimum and
-# nothing else; each application release declares the rest, which is what
-# keeps the three datastores at "DNS and nothing else".
+# invariant: egress default-deny with the namespace-wide minimum; apps declare the rest.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -55,8 +43,6 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # invariant: all op-* pods -> CoreDNS on 53; namespace-wide because a pod resolves
-    # before it can know which namespace answered.
     - to:
         - namespaceSelector: {}
       ports:
