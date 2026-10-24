@@ -45,9 +45,10 @@ the HelmChartConfig, applied before Traefik's install job is awaited.
   10.42.0.1, which `private-access` admits, so every private route answered
   the Mac and every other OrbStack machine (audit 2026-10-24: grafana,
   openpanel, the keyless gateway). klipper-lb never used them. Turning
-  allocation off frees no port already allocated, so the existing ones were
-  removed by hand; `{.spec.ports[*].nodePort}` must stay empty, and the host
-  guard drops the NodePort range regardless.
+  allocation off frees no port already allocated, and k3s creates the Service
+  with them, so the play removes any it finds right after Traefik installs
+  (`roles/platform/tasks/cluster-manifests.yml`); the harness asserts none
+  remain, and the host guard drops the NodePort range regardless.
 - **`readTimeout` 10m**, not v3's 60s: an image layer pushed over the
   tailnet (often DERP-relayed from a runner) takes longer, Traefik cut the
   body and answered 499, and buildx reported a failed push (jterrazz-os,

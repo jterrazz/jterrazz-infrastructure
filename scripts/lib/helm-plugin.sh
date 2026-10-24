@@ -11,7 +11,9 @@
 # exists, so this survives the next helm bump in either direction.
 helm_plugin_install() {
     local url="$1" version="$2"
-    if helm plugin install --help 2>&1 | grep -q -- '--verify'; then
+    local help
+    help=$(helm plugin install --help 2>&1)
+    if [[ $help == *--verify* ]]; then
         helm plugin install "$url" --version "$version" --verify=false
     else
         helm plugin install "$url" --version "$version"

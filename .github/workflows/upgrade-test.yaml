@@ -113,24 +113,6 @@ jobs:
         working-directory: harness
         run: npm ci
 
-      # hazard: k3s installs Traefik before the play's HelmChartConfig lands, and turning
-      # allocateLoadBalancerNodePorts off frees no port already allocated: the live cluster's
-      # were removed by hand (docs/decisions/003-traefiks-service-is-the-tailnet-gate.md).
-      # This repeats that manual step, so the contract below judges what the play owns;
-      # the live cluster's own nodePorts are judged by every smoke run.
-      - name: Remove the nodePorts Traefik was born with, as on the live cluster
-        env:
-          KUBECONFIG: ${{ runner.temp }}/kubeconfig
-        run: |
-          set -euo pipefail
-          # value: only the ports that hold one: a JSON patch removing an absent field fails whole.
-          patch=$(kubectl -n kube-system get svc traefik -o json | jq -c \
-            '[.spec.ports | to_entries[] | select(.value.nodePort) | {op: "remove", path: "/spec/ports/\(.key)/nodePort"}]')
-          if [ "$patch" != "[]" ]; then
-            kubectl -n kube-system patch svc traefik --type=json -p "$patch"
-          fi
-          kubectl -n kube-system get svc traefik -o jsonpath='{.spec.ports[*].nodePort}'; echo
-
       # invariant: the upgraded cluster holds the cluster contract, and the ownership policy
       # admits and refuses what it says; the admission specs impersonate app identities,
       # which only an admin kubeconfig can, so they run here and never on the live cluster.

@@ -53,12 +53,14 @@
       failed_when: false
 
     # outside: Helm 4 verifies signatures (helm-diff ships none), Helm 3 has no
-    # --verify; same feature test as scripts/lib/helm-plugin.sh.
+    # --verify; same feature test as scripts/lib/helm-plugin.sh. hazard: never
+    # `| grep -q` under pipefail: grep exits on the first match, helm takes a
+    # SIGPIPE, the test reads false and Helm 4 refuses the unsigned plugin.
     - name: Install the pinned helm-diff plugin
       ansible.builtin.shell:
         cmd: |
-          set -o pipefail
-          if helm plugin install --help 2>&1 | grep -q -- '--verify'; then
+          help=$(helm plugin install --help 2>&1)
+          if [[ $help == *--verify* ]]; then
             helm plugin install https://github.com/databus23/helm-diff --version {{ helm_diff_version }} --verify=false
           else
             helm plugin install https://github.com/databus23/helm-diff --version {{ helm_diff_version }}

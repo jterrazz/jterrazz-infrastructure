@@ -35,6 +35,22 @@
   delay: 10
   until: traefik_wait.rc == 0
 
+# hazard: `allocateLoadBalancerNodePorts: false` stops new NodePorts but frees none the
+# Service was created with, and k3s creates it with them: on a fresh cluster
+# every private route would answer on <node-ip>:<nodePort> again (ADR-003).
+- name: Free the NodePorts Traefik's Service was created with
+  ansible.builtin.shell:
+    cmd: |
+      set -euo pipefail
+      ops=$(kubectl -n kube-system get svc traefik -o json | python3 -c 'import json, sys
+      ports = json.load(sys.stdin)["spec"]["ports"]
+      print(json.dumps([{"op": "remove", "path": f"/spec/ports/{i}/nodePort"} for i, p in enumerate(ports) if "nodePort" in p]))')
+      if [ "$ops" = "[]" ]; then echo "no nodePorts"; exit 0; fi
+      kubectl -n kube-system patch svc traefik --type=json -p "$ops"
+    executable: /bin/bash
+  register: traefik_nodeports
+  changed_when: "'no nodePorts' not in traefik_nodeports.stdout"
+
 # hazard: a Released PV with a stale claimRef never rebinds. Never `failed_when:
 # false`: a failure here would resurface later as an unexplained Pending pod.
 - name: Clear claimRef from released PVs
