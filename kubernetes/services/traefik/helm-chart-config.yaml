@@ -57,6 +57,15 @@ spec:
 
     ports:
       websecure:
+        # value: 10m, not Traefik v3's 60s default readTimeout: an image layer pushed
+        # to the registry over the tailnet (often DERP-relayed from a CI runner)
+        # takes longer than a minute to upload, and Traefik then cuts the request
+        # body and answers 499, which buildx reports as a failed push (jterrazz-os,
+        # twice on 2026-10-24). Every public request reaches here through the
+        # Cloudflare tunnel, whose edge already bounds a slow client.
+        transport:
+          respondingTimeouts:
+            readTimeout: 10m
         http:
           middlewares:
             - platform-networking-rate-limit@kubernetescrd
