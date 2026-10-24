@@ -123,9 +123,12 @@ jobs:
           KUBECONFIG: ${{ runner.temp }}/kubeconfig
         run: |
           set -euo pipefail
-          count=$(kubectl -n kube-system get svc traefik -o json | jq '.spec.ports | length')
-          patch=$(jq -nc --argjson n "$count" '[range(0; $n) | {op: "remove", path: "/spec/ports/\(.)/nodePort"}]')
-          kubectl -n kube-system patch svc traefik --type=json -p "$patch" || true
+          # value: only the ports that hold one: a JSON patch removing an absent field fails whole.
+          patch=$(kubectl -n kube-system get svc traefik -o json | jq -c \
+            '[.spec.ports | to_entries[] | select(.value.nodePort) | {op: "remove", path: "/spec/ports/\(.key)/nodePort"}]')
+          if [ "$patch" != "[]" ]; then
+            kubectl -n kube-system patch svc traefik --type=json -p "$patch"
+          fi
           kubectl -n kube-system get svc traefik -o jsonpath='{.spec.ports[*].nodePort}'; echo
 
       # invariant: the upgraded cluster holds the cluster contract, and the ownership policy
