@@ -14,9 +14,9 @@ here; the workflows that execute the contract are
   branch that deploys "staging" and leaves prod silently stale.
 - **One universal CI interface**: `make build`, `make lint`, `make test`,
   whatever the toolchain.
-- **Two GitHub secrets**, `INFISICAL_CLIENT_ID` and `INFISICAL_CLIENT_SECRET`,
-  set on the repo before its first deploy; see
-  [Operate](../guides/operate.md#github-secrets-every-app-repo).
+- **No secret at all.** The calling job grants
+  `permissions: { contents: read, id-token: write }`; Infisical, Tailscale and
+  the cluster each accept the job's GitHub OIDC token.
 
 ## How a deploy authenticates
 

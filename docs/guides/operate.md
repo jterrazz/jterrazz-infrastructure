@@ -63,38 +63,35 @@ The deploy script never sees these:
 | `/jterrazz-infrastructure/openpanel`       | `op-{api,worker,dashboard,postgres}-secrets` | `POSTGRES_PASSWORD`, `COOKIE_SECRET`, `DATABASE_URL`, `DATABASE_URL_DIRECT`, one Secret per release that needs them, each projecting only the keys it names |
 | `/jterrazz-infrastructure/otel-collector`  | `otel-collector-secrets`      | `LANGFUSE_BASIC_AUTH`                                            |
 | `/jterrazz-infrastructure/grafana`         | `grafana-alerting`            | `contact-point-slack.yaml`, rendered by the operator from `SLACK_WEBHOOK_URL`, optional: absent, the file provisions nothing (`kubernetes/services/grafana/service.yaml`) |
-| `/jterrazz-actions`                        | `registry-credentials`        | `.dockerconfigjson`: the pull credential, assembled by the operator's own template from `DOCKER_REGISTRY_USERNAME` + `DOCKER_REGISTRY_PASSWORD`. One per app namespace whose image is on our registry; `charts/app` renders the CR beside the app's own |
+| project `jterrazz-ci`, `/`                 | `registry-credentials`        | `.dockerconfigjson`: the pull credential, assembled by the operator's own template from `DOCKER_REGISTRY_USERNAME` + `DOCKER_REGISTRY_PASSWORD`. One per app namespace whose image is on our registry; `charts/app` renders the CR beside the app's own |
 | `/<app>/...`                               | `<app>-secrets`               | whatever the app's `spec.secrets.env` lists                      |
 
-There is no `/jterrazz-infrastructure/registry` folder: the registry's account
-is `DOCKER_REGISTRY_USERNAME` + `DOCKER_REGISTRY_PASSWORD` at the root path,
-turned into the one `<user>:<bcrypt>` line of the `registry-auth` Secret by
-`roles/platform/tasks/bootstrap.yml`. **Both halves are read, neither is
-hardcoded**, and that is what lets a rotation move the fleet onto a second
-account and back.
+### Project `jterrazz-ci`: the registry account, alone
 
-### `/jterrazz-actions`: app CI
+`DOCKER_REGISTRY_USERNAME` + `DOCKER_REGISTRY_PASSWORD`, environment `prod`,
+path `/`, and nothing else. It is the ONE stored copy of the account, read by
+three parties: Ansible (`registry_username` / `registry_password`, hashed into
+the `registry-auth` htpasswd by `roles/platform/tasks/bootstrap.yml`), the
+operator (each app namespace's `registry-credentials`), and app CI
+(`jterrazz-actions/actions/infra-connect`, for `docker login`).
 
-The default `infisical-secret-path` of `jterrazz-actions/actions/infra-connect`,
-consumed by every app repo's pipeline: `DOCKER_REGISTRY_USERNAME`,
-`DOCKER_REGISTRY_PASSWORD`, `TAILSCALE_OAUTH_CLIENT_ID`,
-`TAILSCALE_OAUTH_CLIENT_SECRET`. `KUBECONFIG_BASE64` is still stored there but
-no longer read by anything: since 2026-10-24 an app deploy authenticates to the
-cluster with its own GitHub OIDC token (see
-[Deploy contract](../reference/deploy-contract.md#how-a-deploy-authenticates)).
-Delete it from Infisical; it is an admin client certificate.
+It is a project of its own because CI reads it with **GitHub OIDC**: the
+machine identity `github-actions` (OIDC auth, subject
+`repo:jterrazz@18480834/*:ref:refs/heads/main`, audience
+`https://github.com/jterrazz`) holds the built-in Viewer role on this project
+and on nothing else; a path-scoped role in the main project is a paid
+Infisical feature. The universal-auth identity of `.env` is a Viewer here too.
+Both halves of the account are read, neither is hardcoded, which is what lets a
+rotation move the fleet onto a second account and back.
 
-The **cluster** reads the registry pair from here too (the table above): the app
-chart renders an `InfisicalSecret` per app namespace and the operator writes the
-`registry-credentials` dockerconfigjson from it, so CI's `docker login` and the
-kubelet's pull authenticate against ONE stored copy. Nothing carries that
-password in a Helm value any more, which is what makes the rotation below a
-runbook rather than a fleet redeploy.
+`/jterrazz-actions` in the main project is empty and can go: its Tailscale
+OAuth pair and `KUBECONFIG_BASE64` were replaced by OIDC, its registry pair by
+this project.
 
-A repave needs nothing in Infisical any more for app deploys: the CA a job
-trusts comes from k3s' `/cacerts` at deploy time, and its identity from GitHub.
-The namespaces and volumes come back on each app's first deploy, labelled with
-the repository that owns them.
+A repave needs nothing in Infisical for app deploys: the CA a job trusts comes
+from k3s' `/cacerts` at deploy time, and every identity from GitHub. The
+namespaces and volumes come back on each app's first deploy, labelled with the
+repository that owns them.
 
 ### GitHub secrets (repo `jterrazz/jterrazz-infrastructure`)
 
@@ -110,18 +107,8 @@ root's `authorized_keys`.
 
 ### GitHub secrets (every app repo)
 
-`INFISICAL_CLIENT_ID` / `INFISICAL_CLIENT_SECRET` are the same machine identity as
-above, which `infra-connect` exchanges for `/jterrazz-actions`. One identity is
-shared by CI, the cluster's Infisical operator and the local `.env`; rotating it
-means updating every deploying repo. A repo that lacks them fails the *Release*
-job at `Missing universal auth credentials`, after a green validate, so a first
-deploy looks like it almost worked.
-
-```bash
-set -a; . ./.env; set +a
-gh secret set INFISICAL_CLIENT_ID     -R jterrazz/<repo> --body "$INFISICAL_CLIENT_ID"
-gh secret set INFISICAL_CLIENT_SECRET -R jterrazz/<repo> --body "$INFISICAL_CLIENT_SECRET"
-```
+None. An app's deploy authenticates to Infisical, Tailscale and the cluster
+with its job's GitHub OIDC token; the calling job only grants `id-token: write`.
 
 ### Local `.env` (gitignored, repo root)
 
@@ -501,10 +488,9 @@ everything onto it, remove the old one.
 
 An account is a NAME and a password, and both move. The name **alternates**:
 from `deploy` to `deploy-next` this time, from `deploy-next` to `deploy` the next. Nothing
-hardcodes it: `bootstrap.yml` hashes `DOCKER_REGISTRY_USERNAME` from
-`/jterrazz-infrastructure` into the htpasswd line, the same key CI and the
-kubelet authenticate with from `/jterrazz-actions`, which is what makes the
-overlap below work as written. Before this was true, step 5 regenerated a line
+hardcodes it: `bootstrap.yml` hashes `DOCKER_REGISTRY_USERNAME` from the
+`jterrazz-ci` project into the htpasswd line, the same key CI and the kubelet
+authenticate with, which is what makes the overlap below work as written. Before this was true, step 5 regenerated a line
 for `deploy` while everything else spoke as `deploy-next`, and the fleet went
 ImagePullBackOff (2026-09-06).
 
@@ -537,14 +523,9 @@ them through the environment.
    kubectl rollout restart deploy/registry -n platform-registry   # the file is a mount
    ```
 
-2. **Store the new pair at BOTH paths** in the Infisical UI: four values, one
-   account. `/jterrazz-infrastructure` holds `DOCKER_REGISTRY_USERNAME` +
-   `DOCKER_REGISTRY_PASSWORD`, which Ansible reads as `registry_username` /
-   `registry_password` and hashes into the server's htpasswd;
-   `/jterrazz-actions` holds the same two keys, which CI and the cluster
-   authenticate with. They are one hand-synced pair, name included; a value
-   moved at one path only is a half-rotation that passes every check here.
-   Generate the password **without whitespace**:
+2. **Store the new pair in the `jterrazz-ci` project** in the Infisical UI
+   (`DOCKER_REGISTRY_USERNAME` + `DOCKER_REGISTRY_PASSWORD`, the one copy every
+   party reads). Generate the password **without whitespace**:
    `jterrazz-actions/actions/docker-cleanup` authenticates curl from a netrc
    file it writes one line at a time, and that format cannot carry a space.
 
@@ -746,9 +727,8 @@ chart they render through. Full schema and merge semantics:
    the `health.path` the app already declares. Add `smoke: { path, expect }`
    to an ingress entry only when that derivation is wrong, `smoke: false` to
    opt a route out.
-2. Set `INFISICAL_CLIENT_ID` / `INFISICAL_CLIENT_SECRET` as GitHub secrets on
-   the app repo; see [GitHub secrets (every app repo)](#github-secrets-every-app-repo)
-   above.
+2. Nothing to set on the repo: the deploy authenticates with GitHub OIDC (see
+   [GitHub secrets (every app repo)](#github-secrets-every-app-repo)).
 3. Expose `make build`, `make lint`, `make test` and call the shared workflow
    in `jterrazz/jterrazz-actions`.
 4. The calling job grants `permissions: { contents: read, id-token: write }`:

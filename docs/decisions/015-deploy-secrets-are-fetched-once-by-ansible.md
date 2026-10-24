@@ -43,7 +43,7 @@ release Secrets and `helm get values`.
   into a Secret whose name is a contract (`secretName` is required; managed
   Secrets are `Orphan`, so deleting a release does not log a service out).
 - **The registry pull secret carries no credential in the chart.**
-  `registry-credentials` is written by the operator from `/jterrazz-actions`
+  `registry-credentials` is written by the operator from the `jterrazz-ci` project
   (env `prod`), the same path CI reads its own `docker login` from. Four
   things hold, and only the unit tests check them: the type is
   `kubernetes.io/dockerconfigjson` (an `Opaque` one named in

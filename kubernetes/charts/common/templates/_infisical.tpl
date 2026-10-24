@@ -11,8 +11,11 @@ field always did: the managed Secret outlives the CR rather than being
 garbage-collected with it.
 
 Input dict: name, labels (rendered lines), envSlug, secretsPath, secretName,
-secretNamespace, and two optional ones:
+secretNamespace, and three optional ones:
 
+  projectSlug the Infisical project, `jterrazz` unless given. The registry
+              account alone lives in its own project (`jterrazz-ci`) so that
+              CI's OIDC identity can view it and nothing else.
   secretType  the Kubernetes Secret type, `Opaque` unless given. The operator
               copies it straight into the managed Secret's `type:`, which is
               the only way a synced Secret can be the dockerconfigjson an
@@ -36,7 +39,7 @@ spec:
   authentication:
     universalAuth:
       secretsScope:
-        projectSlug: jterrazz
+        projectSlug: {{ .projectSlug | default "jterrazz" }}
         envSlug: {{ .envSlug }}
         secretsPath: {{ .secretsPath }}
       credentialsRef:

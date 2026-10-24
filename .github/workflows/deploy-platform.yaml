@@ -42,10 +42,7 @@ jobs:
       # outside: fetches the CI secrets and joins the tailnet as tag:ci, after which
       # the runner reaches the VM by its MagicDNS name.
       - name: Setup infrastructure
-        uses: jterrazz/jterrazz-actions/actions/infra-connect@b499f0d6ae8aad31c8335b8b976103b726bc5574 # main, 2026-10-24
-        with:
-          infisical-client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
-          infisical-client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+        uses: jterrazz/jterrazz-actions/actions/infra-connect@a56e32078360198f0262f9d6bacd0594ac310237 # main, 2026-10-24
 
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0

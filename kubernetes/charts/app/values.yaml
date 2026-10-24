@@ -62,3 +62,5 @@ environment: ""
 # picks which images get it plus `Always`, and what the dockerconfigjson authenticates.
 registry:
   server: registry.internal.jterrazz.com
+  # invariant: the Infisical project holding the registry account, alone.
+  infisicalProject: jterrazz-ci-v-nh-8

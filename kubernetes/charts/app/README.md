@@ -626,8 +626,8 @@ registry decides two more things, with no knob for either:
   in the namespace earns a `FailedToRetrieveImagePullSecret` warning on every
   pod start. That Secret is not built from values: the chart renders a second
   `InfisicalSecret` (`<app>-registry-infisical`) and the operator syncs
-  `DOCKER_REGISTRY_USERNAME` / `DOCKER_REGISTRY_PASSWORD` from
-  `/jterrazz-actions` (the same path CI reads its own `docker login` from)
+  `DOCKER_REGISTRY_USERNAME` / `DOCKER_REGISTRY_PASSWORD` from the
+  `jterrazz-ci` Infisical project (the one copy, which CI also reads over OIDC)
   into a `kubernetes.io/dockerconfigjson`. The password is never a chart value,
   so it never lands in a release Secret or on a runner's argv, and rotating it
   needs no app deploy at all (`docs/guides/operate.md`, § Rotating the registry

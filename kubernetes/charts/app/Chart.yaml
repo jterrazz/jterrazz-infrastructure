@@ -4,11 +4,11 @@ description: Standard application chart for jterrazz infrastructure
 type: application
 # hazard: BUMP with any template change: apps pull it unversioned and the publisher never
 # overwrites a version, so an unbumped change ships nothing; docs/decisions/010-every-workload-renders-through-two-charts.md
-version: 2.19.0
+version: 2.20.0
 appVersion: "1.17.1"
 
 # invariant: common's exact version (file:// resolves by exact version); bundled into the .tgz.
 dependencies:
   - name: common
-    version: 1.5.0
+    version: 1.6.0
     repository: file://../common

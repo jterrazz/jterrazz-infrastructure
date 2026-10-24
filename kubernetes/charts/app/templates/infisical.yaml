@@ -15,9 +15,10 @@
 {{- /*
 The pull credential for OUR registry, synced by the operator like every other
 secret; it is never a chart value, so it never reaches a Helm release Secret,
-`helm get values -a`, or a runner's argv. Path and env are CI's own
-(`jterrazz-actions/actions/infra-connect` reads its `docker login` from exactly
-there), so the cluster and CI share ONE stored copy. `registry-credentials` is
+`helm get values -a`, or a runner's argv. It is the ONE stored copy of the
+registry account: the `jterrazz-ci` project, which CI
+(`jterrazz-actions/actions/infra-connect`, over OIDC) and the platform deploy
+read too. `registry-credentials` is
 the literal name the `imagePullSecrets` of deployment.yaml and cronjob.yaml
 use: a contract between templates, not a derived string.
 
@@ -35,8 +36,9 @@ that field in preference to the username/password pair.
 {{ include "common.infisicalSecret" (dict
      "name" (printf "%s-registry-infisical" $appName)
      "labels" (include "app.labels" .)
+     "projectSlug" .Values.registry.infisicalProject
      "envSlug" "prod"
-     "secretsPath" "/jterrazz-actions"
+     "secretsPath" "/"
      "secretName" "registry-credentials"
      "secretNamespace" .Release.Namespace
      "secretType" "kubernetes.io/dockerconfigjson"

@@ -73,8 +73,8 @@ infisical_secrets:
   - { var: cloudflare_tunnel_token, path: /jterrazz-infrastructure, key: CLOUDFLARE_TUNNEL_TOKEN }
   # outside: both halves of the registry account; see docs/guides/operate.md, Rotating
   # the registry password.
-  - { var: registry_username, path: /jterrazz-infrastructure, key: DOCKER_REGISTRY_USERNAME }
-  - { var: registry_password, path: /jterrazz-infrastructure, key: DOCKER_REGISTRY_PASSWORD }
+  - { var: registry_username, project: jterrazz-ci-v-nh-8, path: /, key: DOCKER_REGISTRY_USERNAME }
+  - { var: registry_password, project: jterrazz-ci-v-nh-8, path: /, key: DOCKER_REGISTRY_PASSWORD }
   - { var: grafana_admin_password, path: /jterrazz-infrastructure/grafana, key: ADMIN_PASSWORD }
   - { var: tailscale_oauth_client_id, path: /jterrazz-infrastructure, key: TAILSCALE_OAUTH_CLIENT_ID, scope: site }
   - { var: tailscale_oauth_client_secret, path: /jterrazz-infrastructure, key: TAILSCALE_OAUTH_CLIENT_SECRET, scope: site }

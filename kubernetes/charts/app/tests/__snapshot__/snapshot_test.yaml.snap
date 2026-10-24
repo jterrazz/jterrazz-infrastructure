@@ -378,8 +378,8 @@ matches the recorded render of the CI fixture:
             secretNamespace: platform-secrets
           secretsScope:
             envSlug: prod
-            projectSlug: jterrazz
-            secretsPath: /jterrazz-actions
+            projectSlug: jterrazz-ci-v-nh-8
+            secretsPath: /
       hostAPI: https://eu.infisical.com
       managedKubeSecretReferences:
         - secretName: registry-credentials
