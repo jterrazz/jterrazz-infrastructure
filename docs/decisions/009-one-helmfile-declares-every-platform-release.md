@@ -66,7 +66,7 @@ node, and `make diff` reads it from the Mac.
 ## Consequences
 
 - Adding a platform service is one release block, one values file, a
-  namespace and a NetworkPolicy ([Operate](../guides/operate.md#add-a-new-platform-service)).
+  namespace and a NetworkPolicy ([Operate](../guides/operate.md#add-a-platform-service)).
 - The release name and namespace are the identity of live data: renaming
   either creates a new release and orphans the hostPath PV the old one bound,
   which is why the `-platform` suffix is frozen.

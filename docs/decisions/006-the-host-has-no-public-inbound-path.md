@@ -76,6 +76,6 @@ answered a neighbouring machine.
   `noswap` tmpfs is refused and k3s restart-loops).
 - Tailnet reachability must be tested from a peer, never from the node,
   whose own traffic takes the OUTPUT path
-  ([Operate](../guides/operate.md#the-two-things-that-will-bite)).
+  ([Operate](../guides/operate.md#test-the-tailnet-path-from-a-peer)).
 - Comments inside the rendered host files (nftables, k3s config) are file
   content: editing them re-renders the file and fires its handler.

@@ -58,5 +58,5 @@ block is the only thing in front of an unauthenticated database.
   kept rollback directory are what stand in for that.
 - A ClickHouse minor bump, or any move past 26.4, needs a fresh test on a copy
   of the data, and is a decision rather than a Renovate merge.
-- The table of held pins lives in
-  [Operate](../guides/operate.md#version-decisions).
+- Renovate holds ClickHouse to 26.3, PostgreSQL to manual majors and Redis
+  below 8 (`renovate.json`).
