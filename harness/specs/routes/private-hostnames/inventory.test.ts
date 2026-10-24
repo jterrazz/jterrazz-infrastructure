@@ -6,24 +6,20 @@ import { REPOSITORY_ROOT } from '../../../src/cluster/kubectl.ts';
 import { discoverRoutes } from '../../__setup__/routes.ts';
 
 // outside: the one private-hostname fact the cluster cannot supply: CoreDNS needs the name
-// before any route exists (docs/decisions/012-private-hostnames-are-wildcard-zones.md).
+// before any route exists (ADR-012).
 function configuredPrivateHostnames(): string[] {
     const groupVars: unknown = parse(
         readFileSync(`${REPOSITORY_ROOT}ansible/inventories/group_vars/all.yml`, 'utf8'),
     );
-    const read = (key: string): string[] => {
-        const value: unknown =
-            typeof groupVars === 'object' && groupVars !== null
-                ? Reflect.get(groupVars, key)
-                : undefined;
-        if (!Array.isArray(value)) {
-            throw new TypeError(`group_vars/all.yml holds no \`${key}:\` list`);
-        }
+    const value: unknown =
+        typeof groupVars === 'object' && groupVars !== null
+            ? Reflect.get(groupVars, 'private_hostnames')
+            : undefined;
+    if (!Array.isArray(value)) {
+        throw new TypeError('group_vars/all.yml holds no `private_hostnames:` list');
+    }
 
-        return value.map(String);
-    };
-
-    return [...read('private_hostnames'), ...read('private_hostnames_via_traefik')];
+    return value.map(String);
 }
 
 describe('inventory', () => {
