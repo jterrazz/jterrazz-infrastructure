@@ -30,7 +30,7 @@ spec:
   # schema1 manifests, the oss/swift storage drivers, the `reporting:` config
   # block, and TLS 1.0/1.1 as selectable minimums. None are used here (buildkit
   # pushes schema2/OCI, storage is filesystem, TLS terminates at Traefik).
-  image: registry:3.1.1
+  image: registry:3.1.2
   port: 5000
   # outside: containerd and CI both dial `registry.internal.jterrazz.com` and terminate at
   # Traefik, whose IngressRoute (service.yaml) names port 5000.
@@ -122,8 +122,9 @@ spec:
   #
   # `--delete-untagged` is safe on what buildkit pushes: each tag points at an
   # OCI index whose image and attestation manifests carry no tag of their own,
-  # and 3.1.1 marks an index's children before it sweeps (verified against the
-  # dry run on every live tag). RE-VERIFY with `--dry-run` before bumping
+  # and 3.1.x marks an index's children before it sweeps (verified against the
+  # dry run on every live tag; 3.1.2's dry run on 2026-10-24 decided exactly
+  # what 3.1.1's did, line for line). RE-VERIFY with `--dry-run` before bumping
   # `image:`: an older distribution swept those children and broke the tag.
   #
   # THE RACE, and why this is a guard and not the textbook answer. A collection

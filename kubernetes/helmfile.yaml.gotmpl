@@ -79,7 +79,7 @@ releases:
   - name: cert-manager
     namespace: platform-networking
     chart: jetstack/cert-manager
-    version: v1.21.2
+    version: v1.21.3
     labels:
       tier: bootstrap
     values:
@@ -199,7 +199,7 @@ releases:
   - name: grafana
     namespace: platform-telemetry
     chart: grafana-community/grafana
-    version: 13.2.5
+    version: 13.7.0
     needs:
       - platform-telemetry/grafana-platform
     values:
