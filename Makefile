@@ -81,7 +81,7 @@ smoke: harness/node_modules/.install ## Probe the live platform contract from th
 	cd harness && npx vitest --run $(SPECS_$(VANTAGE))
 
 test-host: harness/node_modules/.install ## Check the node itself: sshd, the nft guard, upgrades, k3s encryption, Pod Security
-	cd harness && npx vitest --run specs/host
+	cd harness && npx vitest --run --no-file-parallelism specs/host
 
 test: smoke test-host ## Everything this machine can prove of the live platform
 

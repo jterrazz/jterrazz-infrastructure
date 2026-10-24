@@ -94,13 +94,15 @@ jobs:
       # unattended-upgrades, k3s' secret encryption and Pod Security default, read as root
       # over the SSH connection the play just used. The host roles run only from the Mac
       # (site.yml), so this is where CI sees what they left.
+      # hazard: sshd drops unauthenticated connections past MaxStartups 3 (roles/security), so
+      # the files run one at a time over one multiplexed connection.
       - name: Host contract
         working-directory: harness
         run: |
           set -euo pipefail
           node=$(awk '/ansible_host:/ {print $2; exit}' ../ansible/inventories/ci.yml)
-          export HOST_SHELL="ssh -i $CI_DEPLOY_KEY_FILE -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -o LogLevel=ERROR root@$node"
-          npx vitest --run specs/host
+          export HOST_SHELL="ssh -i $CI_DEPLOY_KEY_FILE -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -o LogLevel=ERROR -o ControlMaster=auto -o ControlPath=$RUNNER_TEMP/ssh-%C -o ControlPersist=120 root@$node"
+          npx vitest --run --no-file-parallelism specs/host
 
       - name: Wipe temp secrets
         if: always()
