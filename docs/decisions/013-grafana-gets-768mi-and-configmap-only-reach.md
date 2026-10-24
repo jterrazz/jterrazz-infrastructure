@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-09-19
 
-Written 2026-10-24 from the comments in `kubernetes/services/grafana/`
+Written 2026-10-24 from the comments in `src/kubernetes/services/grafana/`
 (commit d91f722 for the memory limit, a43327c for the RBAC) that this record
 replaces.
 
@@ -21,10 +21,12 @@ which at a 384Mi limit left the `grafana.db` and bleve-index file pages about
 
 Two neighbouring facts were found the same way:
 
-- **The SQLite `wal` knob is inert on this image.** Grafana's default is
-  `wal = false`, and the CGO-free modernc.org/sqlite driver ignores the
-  setting anyway (grafana/grafana#127893). WAL is a property of the database
-  FILE, flipped offline, which the driver then honours.
+- **The SQLite `wal` knob does not fix the spiral.** Grafana's default is
+  `wal = false`, and WAL is a property of the database FILE, flipped offline,
+  which the CGO-free modernc.org/sqlite driver then honours
+  (grafana/grafana#127893). The setting is still load-bearing: removed on
+  2026-10-25, the rolled pod failed its migration check on `SQLITE_BUSY` behind
+  the running one and the release failed, so it stays.
 - **The chart's own ClusterRole** granted get/list/watch on ConfigMaps AND
   Secrets in every namespace, with the service-account token mounted in the
   Grafana container too: a Grafana RCE read every Secret in the cluster
