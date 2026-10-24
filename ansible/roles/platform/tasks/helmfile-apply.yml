@@ -26,6 +26,7 @@
     # target, and Grafana's admin password (an inline values map, so it never
     # reaches a command line).
     NODE_NAME: "{{ inventory_hostname }}"
+    PLATFORM_HELM_WAIT: "{{ platform_helm_wait | default(true) | string | lower }}"
     GRAFANA_ADMIN_PASSWORD: "{{ grafana_admin_password }}"
   register: helmfile_apply
   changed_when: helmfile_apply.rc == 2

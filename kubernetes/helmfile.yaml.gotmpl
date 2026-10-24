@@ -37,7 +37,13 @@ repositories:
     url: https://open-telemetry.github.io/opentelemetry-helm-charts
 
 helmDefaults:
-  wait: true
+  # invariant: true in every real deploy. The upgrade test
+  # (.github/workflows/upgrade-test.yaml) sets PLATFORM_HELM_WAIT=false: its
+  # throwaway cluster has no real secrets, so most pods never start, and what it
+  # proves is that every release APPLIES (schemas, admission, immutable fields),
+  # which `helm list --failed` then judges. cert-manager and the Infisical
+  # operator wait regardless: the passes after them need their webhooks.
+  wait: {{ env "PLATFORM_HELM_WAIT" | default "true" }}
   timeout: 300
   # Namespaces are declared in cluster/namespaces.yaml with their Pod Security
   # Admission labels; helm's own `--create-namespace` (helmfile's default)
@@ -80,6 +86,7 @@ releases:
     namespace: platform-networking
     chart: jetstack/cert-manager
     version: v1.21.3
+    wait: true
     labels:
       tier: bootstrap
     values:
@@ -89,6 +96,7 @@ releases:
     namespace: platform-secrets
     chart: infisical/secrets-operator
     version: 0.11.9
+    wait: true
     labels:
       tier: bootstrap
     values:

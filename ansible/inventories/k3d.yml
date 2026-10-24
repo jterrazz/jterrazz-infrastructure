@@ -1,0 +1,14 @@
+---
+# invariant: the upgrade test's target (.github/workflows/upgrade-test.yaml): a
+# throwaway k3d cluster on the CI runner, deployed by the REAL platform play,
+# run locally against the cluster's kubeconfig. The host name is the k3d
+# server node's, because the play hands it to the helmfile as NODE_NAME and the
+# hostPath volumes pin their nodeAffinity to it. Everything this target lacks
+# (secrets, a tailnet) is supplied as dummy extra vars by the workflow.
+all:
+  children:
+    cluster:
+      hosts:
+        k3d-ci-server-0:
+          ansible_connection: local
+          ansible_python_interpreter: "{{ ansible_playbook_python }}"

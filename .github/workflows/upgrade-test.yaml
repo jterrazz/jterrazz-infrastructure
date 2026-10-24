@@ -1,0 +1,125 @@
+name: Upgrade test
+
+# invariant: the one check that runs the platform DEPLOY itself, before it reaches the
+# real cluster. A throwaway k3d cluster at the production k3s version is
+# deployed by the real `platform.yml` from the BASE tree (the PR's base, or the
+# commit before a push), then upgraded by the same play from this tree.
+# What only this catches: an object the API server refuses on UPGRADE (an
+# immutable field such as a ClusterRoleBinding's roleRef, which left grafana
+# failed on 2026-10-24), an admission refusal (Pod Security, the
+# app-deployer-ownership policy), a manifest the cluster's schemas reject, a
+# task that breaks a re-run. Each pass ends on the play's own
+# `helm list --failed` assertion.
+#
+# What it cannot prove, by design: that pods START. The cluster has no real
+# secrets, so most workloads wait on a Secret that never comes;
+# PLATFORM_HELM_WAIT=false keeps helm from waiting on them. Starting is the
+# post-deploy smoke's job, on the real cluster.
+#
+# Nothing here reaches outside the runner: the play's secrets are dummies
+# (roles/secrets is skipped when they are defined), `dns-records` would edit
+# the real Cloudflare zone and `chart-publish` the real registry, so both are
+# skipped.
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['ansible/**', 'kubernetes/**', '.github/workflows/upgrade-test.yaml']
+  push:
+    branches: [main]
+    paths: ['ansible/**', 'kubernetes/**', '.github/workflows/upgrade-test.yaml']
+  workflow_dispatch:
+    inputs:
+      base:
+        description: Revision to deploy first (default HEAD^; HEAD gives a re-run test)
+        required: false
+
+concurrency:
+  group: upgrade-test-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  upgrade:
+    name: Deploy base, then upgrade to this tree
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Check out the base tree
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          DISPATCH_BASE: ${{ inputs.base }}
+        run: |
+          set -euo pipefail
+          base="${DISPATCH_BASE:-${PR_BASE:-${PUSH_BEFORE:-}}}"
+          base=$(git rev-parse "$base" 2>/dev/null || echo "$base")
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            base=$(git rev-parse HEAD^)
+          fi
+          echo "base: $base"
+          git worktree add "$RUNNER_TEMP/base" "$base"
+          # value: the inventory comes from THIS tree in both passes (the base may
+          # predate it); group_vars still resolve from each tree's own inventories/.
+          cp ansible/inventories/k3d.yml "$RUNNER_TEMP/base/ansible/inventories/k3d.yml"
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Install Ansible and its collections
+        run: |
+          pip install -r ansible/requirements.txt
+          ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: Create the k3d cluster at the production k3s version
+        run: |
+          set -euo pipefail
+          curl -sSfL https://raw.githubusercontent.com/k3d-io/k3d/v5.9.0/install.sh | TAG=v5.9.0 bash
+          k3s=$(yq '.k3s_version' ansible/inventories/group_vars/all.yml | tr '+' '-')
+          k3d cluster create ci --image "rancher/k3s:$k3s" \
+            --k3s-arg "--disable=local-storage@server:0" --wait
+          k3d kubeconfig get ci > "$RUNNER_TEMP/kubeconfig"
+          chmod 644 "$RUNNER_TEMP/kubeconfig"
+          kubectl --kubeconfig "$RUNNER_TEMP/kubeconfig" get nodes
+
+      - name: Write the dummy deploy variables
+        run: |
+          cat > "$RUNNER_TEMP/k3d-vars.yml" <<EOF
+          kubeconfig: $RUNNER_TEMP/kubeconfig
+          platform_helm_wait: false
+          tailscale_ip: 127.0.0.1
+          tailscale_dns_hostname: k3d.invalid
+          cloudflare_api_token: ci-dummy
+          cloudflare_tunnel_token: ci-dummy
+          registry_username: ci
+          registry_password: ci-dummy
+          grafana_admin_password: ci-dummy
+          infisical_client_id: ci-dummy
+          infisical_client_secret: ci-dummy
+          EOF
+
+      - name: Deploy the base tree
+        working-directory: ${{ runner.temp }}/base/ansible
+        run: >-
+          ansible-playbook playbooks/platform.yml -i inventories/k3d.yml
+          -e "@$RUNNER_TEMP/k3d-vars.yml" --skip-tags dns-records,chart-publish
+
+      - name: Upgrade to this tree
+        working-directory: ansible
+        run: >-
+          ansible-playbook playbooks/platform.yml -i inventories/k3d.yml
+          -e "@$RUNNER_TEMP/k3d-vars.yml" --skip-tags dns-records,chart-publish
+
+      - name: What the cluster holds
+        if: always()
+        run: |
+          export KUBECONFIG="$RUNNER_TEMP/kubeconfig"
+          sudo -E helm list -A || true
+          kubectl get pods -A -o wide || true
