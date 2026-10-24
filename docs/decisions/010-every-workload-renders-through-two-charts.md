@@ -108,7 +108,7 @@ since 2.3.0 validates the body before the client headers.
 ## Consequences
 
 - A raw manifest is the exception, justified in
-  [Develop](../guides/develop.md#workloads); today only cloudflared.
+  [Develop](../guides/develop.md#conventions-the-layout-implies); today only cloudflared.
 - Changing a `pathSuffix`, a PV name or a `<name>-platform` release name moves
   or orphans live data: the paths are byte-identical to what the pre-chart
   manifests produced, on purpose.

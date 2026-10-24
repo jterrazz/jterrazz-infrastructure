@@ -54,9 +54,11 @@ each claim needs.
   `github:jterrazz/jterrazz-infrastructure`, bound to the read-only
   `platform-reader` ClusterRole (`src/kubernetes/cluster/platform-reader.yaml`);
   the smoke workflow holds no SSH key any more.
-- **The harness is a project of its own.** `specs/` is a private `cli` on
-  node, the kind `@jterrazz/typescript` gives a TypeScript harness of a
-  product written in another language; it also holds `make redeploy-apps`.
+- **The suite is a project of its own.** `specs/` is a private `cli` on
+  node, the kind `@jterrazz/typescript` gives a TypeScript suite of a
+  product written in another language, its specs under `specs/specs/`.
+  (It held `make redeploy-apps` too until 2026-10-25, when that became
+  `src/scripts/redeploy-apps.sh`.)
   The root stays `content`: a root `package.json` would make the whole
   repository a code project, whose formatter rewrites every values file and
   page, and the toolchain has no door for a content repository with a suite.
@@ -67,10 +69,10 @@ each claim needs.
   the next audit, and each probe that fails says which host and why
   (`unreachable: dns`, a status outside the contract, a margin in days).
 - Two runs of `npm ci` and a Node toolchain join the workflows; the
-  harness's lockfile pins it, and Renovate's npm manager watches it.
+  suite's lockfile pins it, and Renovate's npm manager watches it.
 - The live Pod Security default is proven on the node with its admin
   `kubectl`, not by `platform-reader`, which may not create pods even in a
   dry run.
 - `specs/` sits outside the content gate's reach and is judged by its own
-  `typescript check` (`make harness-check`, `validate.yaml`); a content root
+  `typescript check` (`make specs-check`, `validate.yaml`); a content root
   that could hold a suite member would fold the two gates back into one.

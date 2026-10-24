@@ -18,7 +18,7 @@ all (audit 2026-10-24).
 ## Decision
 
 - **A cluster default** (`pod-security.yaml.j2`, wired with
-  `admission-control-config-file`): enforce `baseline`, audit and warn
+  `admission-control-config-file`): enforce and warn `baseline`, audit
   `restricted`, for every namespace without labels of its own. Every app pod
   passed baseline in a server-side dry run on 2026-10-24. Restricted is only
   audited, because the app chart's fix-permissions init container runs as

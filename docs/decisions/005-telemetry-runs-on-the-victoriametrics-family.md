@@ -69,7 +69,8 @@ reads all three through core or signed datasources.
 - **Metrics arrive two ways on :8428**: VictoriaMetrics scrapes a
   Prometheus-compatible config that reproduces prometheus-community/prometheus
   29.19.0's default jobs (derived by rendering that chart, minus the
-  blackbox `kubernetes-services` probe and the disabled pushgateway), and it
+  blackbox `kubernetes-services` probe, the disabled pushgateway and the two
+  `-slow` jobs no target opts into), and it
   receives the collector's remote-write on `/api/v1/write`, kept rather than
   OTLP because it changes nothing (same wire format and label semantics).
   `resource_to_telemetry_conversion` promotes `service.name` and

@@ -1,48 +1,29 @@
 # Platform services
 
-What runs on the cluster that is not an app. Each service with more than one
-moving part keeps its own README beside its values files, with versions, data
-paths, secrets and quirks.
+What runs on the cluster that is not an app. Every release, with its chart,
+version and values, is declared in `src/kubernetes/helmfile.yaml.gotmpl`; a
+service with several moving parts keeps a README beside its values.
 
-- **OpenPanel**: product analytics; private dashboard at
-  `openpanel.internal.jterrazz.com`, public ingest at
-  `analytics.jterrazz.com/api/track`, namespace `platform-analytics`. Six
-  app-chart releases (`op-postgres`, `op-redis`, `op-clickhouse`, `op-api`,
-  `op-worker`, `op-dashboard`) plus `openpanel-platform`, which owns the volumes
-  and the two certificates its routes share.
-  [README](../../src/kubernetes/services/openpanel/README.md)
-- **cloudflared**: the public-traffic tunnel, namespace `platform-networking`.
-  The one raw Deployment in the tree, deliberately (`hostNetwork: true`).
-  [README](../../src/kubernetes/services/cloudflared/README.md)
-- **Telemetry** (`platform-telemetry`): the VictoriaMetrics family:
-  VictoriaMetrics (metrics, 30d, scrapes via `-promscrape.config` and receives
-  Prometheus remote-write), VictoriaLogs (logs, 90d) and VictoriaTraces (traces,
-  720h, pre-1.0 on purpose), plus Grafana, kube-state-metrics, node-exporter and
-  the OTel Collector. Prometheus, Loki, Tempo and Alloy are gone; do not
-  resurrect them when editing lists. The collector does double duty: OTLP from
-  instrumented apps, and a `filelog` receiver tailing `/var/log/pods` for every
-  pod's stdout, which is the job Alloy used to do, so `kubectl logs` is never
-  the only copy. Grafana's datasource UIDs are still `prometheus` / `loki` /
-  `tempo`, because dashboards and app-shipped alert rules reference them; only
-  the names, URLs and two of the types changed.
-- **Registry**: `registry.internal.jterrazz.com`, namespace
-  `platform-registry`. Its IngressRoute uses `private-access`: the node's
-  containerd pulls hairpin through svclb and arrive from the svclb pod address,
-  which that allow-list admits. Note the loop: the deploy
-  workflow's own setup logs into this registry, so taking the `registry`
-  release down means the deploy that would restore it cannot start. Recover with `make deploy-platform` from the Mac.
-  It is Zot, which collects untagged manifests itself;
-  [Operate](../guides/operate.md#registry-garbage-collection).
-- **gateway-intelligence**: an app-chart workload deployed by its own repo. It
-  runs CLIProxyAPI with `api-keys: []`, which leaves its auth middleware
-  allowing everything. The security boundary is NetworkPolicy plus private-only
-  ingress, not a bearer token; consumers pass the non-secret placeholder
-  `gateway-noauth` only because the OpenAI and Anthropic SDKs require a
-  non-empty string. There is no gateway API key in Infisical.
+| Service | Namespace | What it is |
+| ------- | --------- | ---------- |
+| cert-manager | `platform-networking` | certificates over DNS-01 for every route ([ADR-001](../decisions/001-certificates-are-issued-over-dns-01.md)) |
+| cloudflared | `platform-networking` | the public tunnel, the one raw Deployment ([README](../../src/kubernetes/services/cloudflared/README.md)) |
+| Infisical operator | `platform-secrets` | syncs every workload Secret from Infisical ([ADR-015](../decisions/015-deploy-secrets-are-fetched-once-by-ansible.md)) |
+| Zot | `platform-registry` | `registry.internal.jterrazz.com`, every image and the app chart; collects its own garbage ([ADR-014](../decisions/014-the-registry-collects-its-own-garbage.md)) |
+| VictoriaMetrics, VictoriaLogs, VictoriaTraces | `platform-telemetry` | metrics 30d, logs 90d, traces 30d ([ADR-005](../decisions/005-telemetry-runs-on-the-victoriametrics-family.md)) |
+| OTel Collector | `platform-telemetry` | OTLP from the apps and every pod's log file, into the three stores and Langfuse |
+| Grafana | `platform-telemetry` | `grafana.internal.jterrazz.com`; dashboards and alerts provisioned, apps ship their own ([ADR-013](../decisions/013-grafana-gets-768mi-and-configmap-only-reach.md)) |
+| kube-state-metrics, node-exporter | `platform-telemetry` | the `kube_*` and `node_*` series, scraped by annotation |
+| OpenPanel | `platform-analytics` | product analytics, six app-chart releases ([README](../../src/kubernetes/services/openpanel/README.md)) |
+| Traefik | `kube-system` | k3s' bundled ingress, shaped by its HelmChartConfig ([ADR-003](../decisions/003-traefiks-service-is-the-tailnet-gate.md)) |
 
-n8n, Portainer and LibreChat were removed, and so was the `platform-ai`
-namespace LibreChat was the only tenant of. Everything went with them:
-manifests, CNAME entry, PVs and the data directories, which unlike the earlier
-two removals were deleted rather than kept. `gateway-intelligence` is
-unaffected: LibreChat was a client of it, not the other way round. Do not
-resurrect any of them by accident when editing lists.
+The deploy workflow logs in to the registry before anything else, so a
+`registry` release taken down cannot be restored by CI: recover it with
+`make deploy-platform` from the Mac.
+
+`gateway-intelligence` is an app, deployed by its own repository, but a
+platform client of the others: it enforces no API key (`api-keys: []`), so its
+boundary is its NetworkPolicy and its private-only route, and consumers pass
+the non-secret placeholder `gateway-noauth` that the OpenAI and Anthropic SDKs
+require. Prometheus, Loki, Tempo, Alloy, n8n, Portainer and LibreChat were
+removed with their data; do not resurrect them when editing lists.

@@ -47,7 +47,7 @@ the HelmChartConfig, applied before Traefik's install job is awaited.
   openpanel, the keyless gateway). klipper-lb never used them. Turning
   allocation off frees no port already allocated, and k3s creates the Service
   with them, so the play removes any it finds right after Traefik installs
-  (`roles/platform/tasks/cluster-manifests.yml`); the harness asserts none
+  (`roles/platform/tasks/cluster-manifests.yml`); the platform contract asserts none
   remain, and the host guard drops the NodePort range regardless.
 - **`readTimeout` 10m**, not v3's 60s: an image layer pushed over the
   tailnet (often DERP-relayed from a runner) takes longer, Traefik cut the
@@ -87,9 +87,7 @@ the HelmChartConfig, applied before Traefik's install job is awaited.
   schema to reconcile at all, and wait-then-apply deadlocked for 8 minutes.
   The wait tolerates NotFound for 30 x 10s because a config change makes
   helm-controller delete and recreate the job asynchronously; 6 tries failed
-  a deploy on a Traefik that had upgraded fine (2026-10-24). CoreDNS waits on
-  `svc/traefik` only after, so Traefik never installs without its source
-  range.
+  a deploy on a Traefik that had upgraded fine (2026-10-24).
 
 ## Consequences
 

@@ -1,65 +1,29 @@
 # Resurrecting a Hetzner target
 
-This repo used to be dual-mode: the same `site.yml` configured either a Hetzner
-cax21 VPS (`jterrazz/production`) or the OrbStack VM (`jterrazz/local`). The
-Hetzner half was removed, unused since the May 2026 swap to OrbStack, and it
-cost a `deployment_target` branch in every role plus an inventory nobody ran.
+This repository used to drive a Hetzner cax21 VPS beside the OrbStack VM, and
+Pulumi created both. Both are gone
+([ADR-004](../decisions/004-one-orbstack-vm-is-the-only-target.md)), and both
+are in git history:
 
-**Pulumi itself is gone too.** One VM and a handful of never-changing DNS
-records did not pay for a language, a lockfile, a CI job, a state backend and a
-token: today `src/scripts/deploy.sh` runs the single `orbctl create` (`vm_up` /
-`vm_destroy`) and the platform deploy converges the records
-([Operate](operate.md#dns-records-converged-by-the-platform-deploy)). The last commit
-that still contained a `pulumi/` directory is **`487f370`**, so every file named
-below is readable with `git show 487f370:pulumi/src/dns.ts` and friends: the
-tree is in history, not in the working copy.
+- `dfc3c78^` is the last tree with both targets: the `deployment_target`
+  branches, the Hetzner inventory, `deploy.sh`'s positional target. Verify the
+  commit with `git log --diff-filter=D --name-only -- pulumi/src/targets/hetzner.ts`.
+- `487f370` is the last tree with `pulumi/`; read any file of it with
+  `git show 487f370:pulumi/src/targets/hetzner.ts`.
 
-So a resurrection starts with a choice: restore `pulumi/` whole from `487f370`
-and re-add the target removed below, or skip Pulumi entirely and drive the
-`hcloud` CLI from `src/scripts/deploy.sh` the way `vm_up`/`vm_destroy` drive
-`orbctl`: one server, one SSH key, one firewall, three commands.
+A resurrection is the smaller of two moves: drive the `hcloud` CLI from
+`src/scripts/deploy.sh` the way it drives `orbctl` (one server, one SSH key,
+one firewall, `image: debian-13`, never Hetzner's default, which is the
+previous stable), or restore `pulumi/` whole. Either way it needs:
 
-Nothing was deleted destructively. The last tree with both targets is the parent
-of the single-target restructure commit, `dfc3c78^`. Verify rather than trust
-that SHA: `git log --diff-filter=D --name-only -- pulumi/src/targets/hetzner.ts`
-finds the removal, `git show <sha>^:<path>` prints any file as it was. What you
-would restore:
+- a second inventory beside `laptop.yml`, group `cluster`, with the host's
+  address and key;
+- the OrbStack-only steps made conditional again: the `/dev/kmsg` backfill and
+  the `/var/lib/k8s-data` symlink, which becomes a plain directory;
+- the host's public address back among the k3s TLS SANs.
 
-- `pulumi/src/targets/hetzner.ts` (hcloud Server + SSH key + firewall,
-  `image: debian-13`, the genericcloud arm64 image; do **not** take Hetzner's
-  default, it is the previous stable), the `MachineOutputs` interface
-  (`targets/types.ts`), the `target` dispatch in `src/index.ts`, and the
-  `@pulumi/hcloud` + `@pulumi/tls` dependencies.
-- A second inventory, `src/ansible/inventories/hetzner.yml` in today's flat layout
-  (it was `inventories/production/hosts.yml`): group `cluster`, host
-  `jterrazz-vps`, `ansible_host` + `ansible_ssh_private_key_file` from the
-  Pulumi outputs (`sshHost`, `sshPrivateKey --show-secrets`).
-- The `deployment_target` var and its `when:` branches (the `/dev/kmsg`
-  backfill and the `/var/lib/k8s-data` Mac symlink are OrbStack-only; plain
-  `mkdir /var/lib/k8s-data` is the Hetzner path), plus `ansible_host` back in
-  the k3s TLS SAN list (on Hetzner it is a real public IP).
-- `src/scripts/deploy.sh`'s positional target, its SSH-key tempfile helper, and the
-  `manageDns` guard below, which is not optional.
-
-Stack init, once `pulumi/` is restored (its `Pulumi.local.yaml` came back
-with it; `production` never had a committed one):
-
-```bash
-cd pulumi
-pulumi stack init jterrazz/production
-pulumi config set jterrazz-infrastructure:target hetzner
-pulumi config set --secret hcloud:token <hetzner-api-token>
-pulumi config set --secret cloudflare:apiToken <cloudflare-dns-edit-token>
-pulumi up
-```
-
-**DNS**: without Pulumi there is nothing to edit: the wildcards target
-`tailscale_dns_hostname`, so the host whose platform deploy runs points them at
-itself ([Operate](operate.md#dns-records-converged-by-the-platform-deploy)).
-That is also the hazard: with two hosts deployed, whichever ran last owns
-`*.internal` and `*.staging`, so the host that must NOT own them runs its
-platform deploy with `--skip-tags dns-records`. If you DO restore `pulumi/`, restore the `manageDns` guard
-with it: only ONE stack may have `jterrazz-infrastructure:manageDns: "true"` at
-a time, or whichever ran `pulumi up` last silently owns every private CNAME.
-Either way, after a swap run `make redeploy-apps`: every app image lives in the
-old cluster's registry and has to be re-pushed.
+**DNS is the hazard.** The private wildcards follow `tailscale_dns_hostname`,
+so with two hosts deployed, whichever ran its platform deploy last owns
+`*.internal` and `*.staging`: run the other with `--skip-tags dns-records`.
+After a swap, `make redeploy-apps`: every image lives in the old cluster's
+registry.

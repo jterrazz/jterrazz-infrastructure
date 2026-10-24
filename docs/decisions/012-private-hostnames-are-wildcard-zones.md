@@ -47,11 +47,11 @@ registry.
   any route exists), so smoke checks it against the live IngressRoutes in
   both directions. CoreDNS reloads it only on restart, so the handler is
   flushed at once: everything after needs the records.
-- **`private_hostnames_via_traefik`** maps a name to Traefik's ClusterIP
-  instead, for a pod that fetches its own public URL (a pod cannot hairpin to
-  the node's ServiceLB). Traefik's ClusterIP is looked up at deploy time, never
-  hardcoded. The list is empty since OpenPanel stopped needing it
-  (2026-09-19); its next user also needs its namespace admitted by
+- **A pod that fetches its own public URL** cannot hairpin to the node's
+  ServiceLB. That case once had `private_hostnames_via_traefik`, mapping a
+  name to Traefik's ClusterIP; it was deleted on 2026-10-25, empty since
+  OpenPanel stopped needing it (2026-09-19). Its next user restores it with
+  the ClusterIP looked up at deploy time, and admits its namespace in
   `allow-traefik-ingress`.
 - **The deploy stops before an empty tailnet IP** reaches the template: a
   one-field hosts entry crashloops CoreDNS.

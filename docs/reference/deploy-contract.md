@@ -22,9 +22,10 @@ here; the workflows that execute the contract are
 
 With nothing stored. The deploy job's GitHub OIDC token, audience
 `jterrazz-infrastructure`, is accepted by the apiserver for any
-`jterrazz/<repo>` workflow running on `main`, as user
-`github:jterrazz/<repo>` ([authentication.yaml.j2](../../src/ansible/roles/k3s/templates/authentication.yaml.j2)).
-That is why a calling job grants `permissions: id-token: write`.
+`jterrazz/<repo>` workflow running on `main` or a `v*` tag, as user
+`github:jterrazz/<repo>`
+([authentication.yaml.j2](../../src/ansible/roles/k3s/templates/authentication.yaml.j2),
+[ADR-017](../decisions/017-app-repositories-deploy-as-their-github-oidc-identity.md)).
 
 What the identity may do is
 [src/kubernetes/cluster/app-deployers/](../../src/kubernetes/cluster/app-deployers/), and
@@ -53,12 +54,11 @@ in our zones from inside its own namespace.
   `oci://registry.internal.jterrazz.com/charts/app`. An app never pins a chart
   version, which is why a template edit must bump `version:` in
   `charts/app/Chart.yaml`; see [Hand-synced pairs](hand-synced-pairs.md).
-- **Discovery instead of registration.** Smoke probes and redeploys read the
-  live cluster: the platform contract (`specs/specs/api`) probes what each
-  IngressRoute's `smoke.jterrazz.com/*` annotations say, and
-  `make redeploy-apps` reads `app.jterrazz.com/repository` off every app
-  Deployment. No list of
-  hostnames, status codes or repos lives here.
+- **Discovery instead of registration.** The platform contract
+  (`specs/specs/api`) probes what each IngressRoute's `smoke.jterrazz.com/*`
+  annotations say, and `make redeploy-apps` reads `app.jterrazz.com/repository`
+  off every app Deployment; no list of hostnames, status codes or repositories
+  lives here.
 
 ## Consequences worth knowing
 

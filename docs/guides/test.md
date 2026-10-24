@@ -1,213 +1,130 @@
 # Testing
 
 What proves a change here, and what nothing proves. The evidence is of three
-kinds: tree-side checks, which read files and render templates with no cluster
-anywhere; the upgrade test, which runs the real deploy against a throwaway
-cluster; and the platform contract, a TypeScript suite run against the
-deployed state from two vantages. The workflows that carry them are
-[CI](../reference/ci.md).
+kinds: tree-side checks, which read files and render templates with no cluster;
+the upgrade test, which runs the real deploy against a throwaway cluster; and
+the platform contract, a TypeScript suite run against the deployed state from
+two vantages. The workflows that carry them are [CI](../reference/ci.md).
 
 ## The tree-side checks
 
-`make check` (alias `make lint`) is the local form of the `validate.yaml` jobs.
-Each check answers for one thing:
+`make check` (alias `make lint`) is the local form of `validate.yaml`:
 
-| Check                                                            | Proves                                                                                          |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `shellcheck src/scripts/*.sh src/scripts/lib/*.sh`                       | the shell is not quietly wrong: quoting, unset vars, the classic word-split                     |
-| `ansible-lint -c src/ansible/.ansible-lint src/ansible/`                 | the whole Ansible tree, roles and templates and inventories, not just `playbooks/`               |
-| `ansible-playbook --syntax-check` on both playbooks              | each playbook parses against the inventory that actually runs it                                |
-| `helm lint` on `common` alone, then `app` and `platform-service` against their `ci/test-values.yaml` | the charts render, and render something; see [the fixtures](#the-fixtures-are-the-validation-contract) |
-| `helm unittest --strict app platform-service`                    | what the templates COMPUTED, not merely that the YAML is well-formed                            |
-| `actionlint`                                                     | the workflow files themselves                                                                    |
-| `make docs`                                                      | the repository passes the estate's content check: the manual's shape (the map bijective, the pages in their sections, the three required pages), the Markdown, the comments, the names, the secrets |
-| `make harness-check`                                             | the harness (`specs/`) passes its own toolchain: types, lint, format, and `@jterrazz/test`'s conventions over its specs |
+| Check                                                    | Proves                                                                                     |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `shellcheck src/scripts/*.sh src/scripts/lib/*.sh`       | the shell is not quietly wrong: quoting, unset variables, word splitting                   |
+| `ansible-lint -c src/ansible/.ansible-lint src/ansible/` | the whole Ansible tree, roles, templates and inventories                                   |
+| `helm lint` of `common`, then `app` and `platform-service` against their fixtures | the charts render, and render something                           |
+| `helm unittest --strict` on both charts                  | what the templates computed; `--strict` makes a typo'd assertion an error                  |
+| `actionlint`                                             | the workflow files                                                                         |
+| `make docs`                                              | the repository as content: the manual's shape, the Markdown, the comments, the names, no secret |
+| `make specs-check`                                       | the specs project against its own toolchain: types, lint, format, `@jterrazz/test`'s conventions |
 
-`--strict` on helm-unittest matters: it rejects an unknown key in a test file,
-so a typo'd assertion name is an error rather than an assertion that silently
-never runs.
-
-Four of these are soft skips locally (`actionlint`, the helm-unittest plugin,
-`make docs` and `make harness-check`, which need node) because CI runs all three unconditionally,
-so a laptop without them is not a gap in the gate. `make docs` runs
-`typescript check` of `@jterrazz/typescript` on the repository as a content
-repository (`jterrazz.config.ts`), pinned in the `Makefile`; the rule ids and the
-sentence each one prints belong to that engine and are not copied here.
-Everything else hard-fails, which is what stops
-`make check` from printing all green on a machine where it checked nothing.
+actionlint, helm-unittest, `make docs` and `make specs-check` skip softly on a
+machine without them, because CI runs every one unconditionally; any other
+missing tool fails `make check`.
 
 ### What only CI runs
 
-Four checks have no local half, because each needs a tool `make check` does not
-insist on:
+- **`ansible-playbook --syntax-check`** of both playbooks, each against the
+  inventory that runs it.
+- **kubeconform** over `src/kubernetes/cluster`, each chart rendered with its
+  fixture, and every raw manifest under `src/kubernetes/services` (a file with
+  a top-level `apiVersion:`). Never `-ignore-missing-schemas`: a CRD kind with no
+  schema fails ([ADR-020](../decisions/020-validation-gates-fail-loudly-and-pin-what-they-run.md)).
+- **`helmfile template`** over every declared release: a bad chart version, a
+  moved values file or a dangling `needs:` fails here, not mid-deploy.
+- **gitleaks** over the checked-out tree, never the history, which holds
+  rotated credentials.
 
-- **kubeconform**, over `src/kubernetes/cluster`, over each chart rendered with its
-  fixture, and over every raw manifest under `src/kubernetes/services`, found by
-  the one structural property that separates a manifest from a values file, a
-  top-level `apiVersion:` key, which is the same test
-  `roles/platform/tasks/raw-manifests.yml` applies. It is deliberately not
-  paired with `-ignore-missing-schemas`: a CRD kind with no schema anywhere
-  fails loudly rather than skipping validation of that object.
-- **`helmfile template`** over `src/kubernetes/helmfile.yaml.gotmpl`, the only
-  declaration of every platform release. It catches a bad chart version, a
-  values file that moved, a `needs:` pointing at a release that no longer
-  exists, each of which would otherwise surface mid-deploy, after some releases
-  have already been upgraded.
-- **gitleaks**, `--no-git` over the checked-out files. History is never scanned,
-  on purpose: this repository predates any secret hygiene and its history holds
-  credentials that have since been rotated, so scanning it would fail every run
-  forever. The gate is there to stop a NEW secret from landing.
-- **helm-unittest**, run unconditionally rather than as the local soft skip.
+### The fixtures are the validation contract
 
-### helm-unittest asserts the computation
-
-kubeconform proves each rendered object is schema-valid. It cannot see whether
-the template computed the right value: a NODE_OPTIONS heap cap derived from the
-wrong number, a dockerconfigjson whose escaping broke, an `access:` value that
-silently picked the wrong ipAllowList are all perfectly valid YAML. That is the
-gap helm-unittest fills.
-
-The plugin embeds its own rendering library, so its output does not depend on
-the helm CLI beside it, which is what keeps the committed `__snapshot__` files
-reproducible between a laptop and a runner, and why the version in
-`validate.yaml` and the one in the `Makefile` are a pair that must not drift.
-
-## The fixtures are the validation contract
-
-Both charts render near-zero objects with default values, so CI only exercises
-what `ci/test-values.yaml` reaches: a template branch no fixture reaches is a
-branch CI does not check. `charts/common` has no fixture at all (a library
-chart renders nothing on its own), so every branch it holds, each NetworkPolicy
-peer form and each middleware, is reached only through those two files.
-
-Nothing can assert this. There is no equality between a fixture and a template
-to check, so a new branch that went unfixtured looks exactly like a green run.
-Adding a branch means adding the values that reach it, in the same change.
+Both charts render nothing with default values, so CI exercises only what
+`ci/test-values.yaml` reaches; `charts/common` has no fixture and is reached
+through the other two. Nothing can tell a new branch went unfixtured: adding a
+branch means adding the values that reach it, in the same change. The snapshot
+suites pin the whole render, and a failing snapshot is read before
+`helm unittest -u` regenerates it.
 
 ## The upgrade test runs the deploy itself
 
 `upgrade-test.yaml` creates a k3d cluster at the production k3s version and
-runs the real `platform.yml` twice: from the base tree (the PR's base, or the
-commit before a push), then from this one. It is the one check that executes
-the deploy code rather than reading it, and it has no copy of that code:
-`src/ansible/inventories/k3d.yml` points the play at the throwaway cluster, the
-secrets are dummy extra vars, and `dns-records` and `chart-publish` are skipped
-because they reach the real zone and the real registry.
-
-It proves every release APPLIES on top of the previous tree: schemas, Pod
-Security, the app-deployer-ownership policy, immutable fields (the
-ClusterRoleBinding roleRef that left grafana failed on 2026-10-24 would have
-stopped here), and a task that breaks on a re-run. Each pass ends on the play's
-own `helm list --failed` gate. After the upgrade, the harness runs
-`specs/specs/cluster` and `specs/specs/admission` against the k3d cluster with its admin
-kubeconfig ([below](#the-suite-file-by-file)). It does not prove pods start: with no real
-secrets most of them cannot, so `platform_helm_wait: false` keeps helm from
-waiting on them (cert-manager and the Infisical operator wait regardless). To
-test a re-run of one tree, dispatch it with `base` set to `HEAD`.
+runs the real `platform.yml` twice: from the base tree (the pull request's
+base, the commit before a push, or a dispatched `base`; `HEAD` tests a re-run),
+then from this one. It proves every release applies on top of the previous
+tree: schemas, Pod Security, the ownership policy, immutable fields, a task
+that breaks on a re-run. Each pass ends on `helm list --failed`. It then runs
+`specs/specs/cluster` and `specs/specs/admission` against the cluster as admin.
+It does not prove pods start: with dummy secrets most cannot, so
+`platform_helm_wait: false` keeps helm from waiting
+([ADR-021](../decisions/021-the-deploy-is-tested-on-a-throwaway-k3d-cluster.md)).
 
 ## What a deploy proves
 
-A green `ansible-playbook` run is not the claim "the site loads". A platform
-apply can succeed and still leave a service unreachable (a broken
-IngressRoute, a middleware that no longer resolves, a pod that comes back
-CrashLooping after `--wait` returned), and it can leave a door open that
-nothing reached for (a private host answering the internet, a NodePort, a
-cluster-wide Secret read). The platform contract is the suite that closes
-both gaps, and `smoke.yaml` is the only workflow that reads the deployed
-state rather than the tree. Why it is a suite and why two vantages:
-[ADR-022](../decisions/022-the-platform-contract-is-a-typescript-suite-run-from-two-vantages.md).
-
-The question LIST is not in this repo. Every IngressRoute carries its own
-contract as `smoke.jterrazz.com/{path,expect,method,location,probe}`
-annotations, which the charts stamp from facts the service already declares
-(`src/kubernetes/charts/common/templates/_smoke.tpl`), and the suite reads them off
-the live cluster. A surface an app added yesterday is probed today with no
-edit here. Zero discovered routes is an error, never "nothing to check"; a
-route with no annotation is probed with the `GET / -> 200` fallback and named
-`fallback` in its test's title, since it means an app has not redeployed onto
-the current chart.
+A green playbook is not "the site loads". An apply can succeed and leave a
+service unreachable, or leave a door open nothing reached for. The platform
+contract closes both gaps, read from the live objects rather than from a list
+([ADR-022](../decisions/022-the-platform-contract-is-a-typescript-suite-run-from-two-vantages.md)):
+every IngressRoute carries its expectations as `smoke.jterrazz.com/*`
+annotations, which the charts stamp, so a route an app added yesterday is
+probed today with no edit here.
 
 ### The suite, file by file
 
-`specs/` is a TypeScript project of its own (a private `cli` on node, with
-its lockfile); its specs sit under `specs/`:
+`specs/` is a TypeScript project of its own, its suite under `specs/specs/`:
 
-| Specs                                  | Proves                                                                                                                         | Runs from                     |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------- |
-| `api/routes/public.spec.ts`            | every public route answers its contract through the tunnel: a status the contract accepts, the `Location` a redirect names     | either vantage                |
-| `api/routes/private.spec.ts`           | every tailnet-only route answers its contract                                                                                  | the tailnet                   |
-| `api/certificates/{public,private}`    | every host presents a trusted certificate that covers it, 15 days or more from expiry                                          | the host's vantage            |
-| `api/boundary/internet.spec.ts`        | every private host never answers (unresolvable or unreachable), and every public host refuses a request naming a private one (Cloudflare's 403) | the internet only |
-| `cluster/rbac/secrets.test.ts`         | the service accounts that may list Secrets cluster-wide are exactly the allow-listed ones, each with its reason (SubjectAccessReview) | the API server          |
-| `cluster/rbac/github-actions.test.ts`  | the `github-actions:jterrazz` group may create namespaces, and may neither list Secrets nor exec into a pod in any namespace    | the API server                |
-| `cluster/traefik/service.test.ts`      | no Service holds a nodePort, and Traefik's LoadBalancer admits `100.64.0.0/10` alone with node ports off                        | the API server                |
-| `cluster/namespaces/ownership.test.ts` | every namespace outside Kubernetes' and the platform's carries `app.jterrazz.com/repository`                                   | the API server                |
-| `routes/private-hostnames/`            | `private_hostnames` (group_vars) names exactly the hosts served tailnet-only, both ways                                        | the API server                |
-| `admission/ownership/policy.test.ts`   | the app-deployer-ownership policy's thirteen cases, admitted and denied, as an app's own identity (impersonated, dry run)       | k3d, in the upgrade test      |
-| `host/`                                | sshd takes keys alone, the nft guard drops NodePorts and tailnet metrics, unattended-upgrades runs, k3s encrypts Secrets, an unlabelled namespace refuses a privileged pod | the node, as root |
+| Specs                                  | Proves                                                                                                   | Runs from                |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------ |
+| `api/routes/public.spec.ts`            | every public route answers its contract through the tunnel, a redirect its `Location`                    | either vantage           |
+| `api/routes/private.spec.ts`           | every tailnet-only route answers its contract                                                            | the tailnet              |
+| `api/certificates/{public,private}`    | every host presents a trusted certificate that covers it, 15 days or more from expiry                    | the host's vantage       |
+| `api/boundary/internet.spec.ts`        | a private host never answers, and a public host refuses a request naming a private one                   | the internet only        |
+| `cluster/rbac/secrets.test.ts`         | exactly the allow-listed service accounts may list Secrets cluster-wide                                  | the API server           |
+| `cluster/rbac/github-actions.test.ts`  | the app deployers may create namespaces, and neither list Secrets nor exec anywhere                      | the API server           |
+| `cluster/traefik/service.test.ts`      | no Service holds a nodePort, and Traefik admits `100.64.0.0/10` alone                                    | the API server           |
+| `cluster/namespaces/ownership.test.ts` | every app namespace carries `app.jterrazz.com/repository`                                                | the API server           |
+| `routes/private-hostnames/`            | `private_hostnames` names exactly the hosts served tailnet-only                                          | the API server           |
+| `admission/ownership/policy.test.ts`   | the ownership policy's cases, admitted and denied, as an app's identity                                  | k3d, in the upgrade test |
+| `host/`                                | sshd takes keys alone, the nft guard, unattended-upgrades, Secret encryption, the Pod Security default   | the node, as root        |
 
-Three thresholds are refused as fine: a certificate within 15 days of expiry
-(cert-manager renews at 30, so 15 means renewal has failed for two weeks), a
-status outside the annotated set (a 502, a 503 and `unreachable` never are in
-it), and a private host that answers the internet with any status at all.
+A status outside the annotated set fails (a 502, a 503 and `unreachable` never
+are in it), and so does a certificate within 15 days of expiry: cert-manager
+renews at 30, so 15 means renewal has failed for two weeks.
 
 ### The two vantages
 
-- **The tailnet** (`smoke.yaml`'s first job, joined as `tag:ci`): routes and
-  certificates of both scopes, `specs/specs/cluster` and `specs/specs/routes`. It reads
-  the cluster as user `github:jterrazz/jterrazz-infrastructure` through an
-  OIDC kubeconfig built as `docker-deploy` builds one, bound to the read-only
-  `platform-reader` ClusterRole; no key is stored. It snapshots the
-  IngressRoutes for the second job.
-- **The internet** (the second job, which never joins the tailnet): public
-  routes and `api/boundary`, against that snapshot, since the internet
-  cannot reach the apiserver.
+- **The tailnet** (`smoke.yaml`'s first job): routes and certificates of both
+  scopes, `specs/specs/cluster` and `specs/specs/routes`, reading the cluster as
+  `github:jterrazz/jterrazz-infrastructure` through the read-only
+  `platform-reader` role. It snapshots the IngressRoutes for the second job.
+- **The internet** (the second job, never on the tailnet): the public routes
+  and `api/boundary`, against that snapshot.
 
 The host specs run from `deploy-platform.yaml` after the play, over its SSH
-connection; the admission specs from `upgrade-test.yaml`.
-
-`smoke.yaml` runs after every SUCCESSFUL `deploy-platform.yaml` (a failed one
-would only report the same failure a second time, dressed as an independent
-signal), on a Monday 07:17 UTC schedule, and on demand. The schedule is the
-only uptime monitor this repo has: nothing else notices a certificate that
-quietly stopped renewing, or an app that died days after its last deploy.
+connection. `smoke.yaml` runs after every successful platform deploy, every
+Monday at 07:17 UTC (the only uptime monitor) and on demand.
 
 ### Running it from the Mac
 
 The Mac is the internet vantage unless its Tailscale is up, and reaches the
-cluster and the node through OrbStack with no tailnet at all:
+cluster and the node through OrbStack:
 
 ```bash
-make smoke                   # public routes + certificates, boundary, cluster, inventory
-make smoke VANTAGE=tailnet   # with Tailscale up: private routes instead of the boundary
-make test-host               # the node itself, as root through orb
-make test                    # both
-make test-admission KUBECONFIG=$(k3d kubeconfig write <name>)   # a throwaway cluster only
+make smoke                   # public routes and certificates, boundary, cluster, inventory
+make smoke VANTAGE=tailnet   # with Tailscale up: the private routes instead of the boundary
+make test-host               # the node, as root through orb
+make test-admission KUBECONFIG=<a k3d kubeconfig>   # a throwaway cluster only
 ```
 
-The Makefile points the harness at the cluster with
-`CLUSTER_KUBECTL="orb -m jterrazz-infrastructure -u root kubectl"` and at the
-node with `HOST_SHELL="orb -m jterrazz-infrastructure -u root"`. To read
-through a kubeconfig instead, `make smoke CLUSTER_KUBECTL=` reads `$KUBECONFIG`,
-then `./kubeconfig.yaml` (`make kubeconfig`, which needs the tailnet).
-`cd harness && npx vitest --run <path>` runs any subset.
+`make smoke CLUSTER_KUBECTL=` reads `$KUBECONFIG`, then `./kubeconfig.yaml`,
+instead of `orb`; `cd specs && npx vitest --run <path>` runs any subset.
 
 ## What nothing proves
 
-- **Only the contract talks to the real cluster.** The upgrade test talks to a
-  throwaway one. `make diff` previews what a platform apply would change, but it is
-  read-only and it needs a working kubeconfig; it is a habit before a deploy,
-  not a gate.
-- **The ownership policy on the live cluster.** Its cases need an admin
-  identity to impersonate apps, so they run on k3d, against the same
-  manifests; the live policy is the one the deploy applied.
-- **A template branch no fixture reaches**: [above](#the-fixtures-are-the-validation-contract).
-- **A stale vendored CRD schema still validates.** `src/kubernetes/schemas/` overrides
-  the public catalog for the one CRD whose catalog copy lags the operator we
-  run; bumping the `infisical` release without re-extracting it means CI
-  validates against a CRD the cluster no longer has, and the break lands at
-  `kubectl apply`. That pair has no checker; see
-  [Hand-synced pairs](../reference/hand-synced-pairs.md).
-- **`private_hostnames` against the live routes** is only ever checked when the
-  contract runs, both ways. Until a smoke run, a name CoreDNS answers for and nothing
-  serves looks the same as a healthy list.
+- **That a deploy changes only what it should.** `make diff` previews it from a
+  tailnet client; it is a habit before a deploy, not a gate.
+- **The ownership policy on the live cluster.** Its cases impersonate apps, so
+  they run on k3d against the same manifests.
+- **A template branch no fixture reaches** ([above](#the-fixtures-are-the-validation-contract)).
+- **A stale vendored CRD schema** still validates
+  ([Hand-synced pairs](../reference/hand-synced-pairs.md)).

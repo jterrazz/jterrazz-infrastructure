@@ -52,8 +52,7 @@ release Secrets and `helm get values`.
   built with `dict | toJson` and passed to the operator verbatim (a
   hand-written JSON string breaks on a `"` in a password), with `auth`
   because containerd prefers it; and only an image from our registry gets
-  it. No `includeAllSecrets`, which would copy every value at that path,
-  `KUBECONFIG_BASE64` included.
+  it. No `includeAllSecrets`, which would copy every other value at that path.
 
 ## Consequences
 

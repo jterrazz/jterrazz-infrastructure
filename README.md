@@ -3,8 +3,8 @@
 One cluster on one machine: single-node k3s on an OrbStack VM on the dev Mac.
 Public traffic enters through an outbound Cloudflare tunnel, private traffic
 over the tailnet, and nothing listens on a public address. Apps live in their
-own repositories and deploy themselves through the `app` chart published from
-here.
+own repositories and deploy themselves, as their GitHub OIDC identity, through
+the `app` chart published here.
 
 ## Why
 
@@ -33,35 +33,35 @@ spec:
     path: /health
   ingress:
     - host: my-app.jterrazz.com
-      path: /
+      public: true
 ```
 
-The example is trimmed; the full schema is [the app chart's README](src/kubernetes/charts/app/README.md); what
-an app owes the cluster is [the deploy contract](docs/reference/deploy-contract.md).
+The full schema is [the app chart's README](src/kubernetes/charts/app/README.md);
+what an app owes the cluster is [the deploy contract](docs/reference/deploy-contract.md).
 
 ## Quick start
 
 ```bash
-make deploy           # create the VM if absent + ansible site.yml: the whole machine
-make deploy-platform  # ansible platform.yml only: everything above k3s
-make diff             # what a deploy would change, without changing it (helmfile diff)
-make redeploy-apps    # trigger every app's CI to rebuild + redeploy
-make smoke            # the platform contract, from this machine (routes, certificates, boundary, cluster)
-make test             # smoke + the node itself (sshd, firewall, upgrades, k3s)
-make destroy          # delete the VM (the Mac-side data directory stays)
-make check            # the checks CI runs, locally (alias: make lint)
-make check-tools      # ansible / kubectl / orbctl / helm / helmfile / shellcheck / ansible-lint / python3 present?
-make kubeconfig       # regenerate ./kubeconfig.yaml from the VM (needs the tailnet)
+make deploy           # create the VM if absent, then Ansible site.yml: the whole machine
+make deploy-platform  # Ansible platform.yml only: everything above k3s
+make diff             # what a platform deploy would change (helmfile diff, needs the tailnet)
+make smoke            # the platform contract from this Mac: routes, certificates, boundary, cluster
+make test             # smoke, then the node itself (sshd, firewall, upgrades, k3s)
+make redeploy-apps    # trigger every app's CI to rebuild and redeploy
+make backup           # an encrypted snapshot of every persistent volume
+make destroy          # delete the VM (the data directory on the Mac stays)
+make check            # the checks CI runs on the tree (alias: make lint)
 ```
 
-`src/scripts/deploy.sh` is the entry point behind all of them. It sources the
-Infisical identity in `.env` and runs the playbook, whose first role
-(`src/ansible/roles/secrets`) fetches every secret it needs from Infisical. A
-missing secret hard-fails the run; there are no fallback defaults.
+`make help` lists the rest. The deploy reads the Infisical identity in `.env`;
+the playbook's first role fetches every other secret from Infisical and fails
+on a missing one.
 
-## Documentation
+## Layout
 
-[docs/README.md](docs/README.md) is the map of the corpus. Start at
-[docs/concepts/architecture.md](docs/concepts/architecture.md) to understand the system,
-[docs/reference/deploy-contract.md](docs/reference/deploy-contract.md) to deploy an app, and
-[docs/guides/operate.md](docs/guides/operate.md) when something is broken.
+`src/` holds what runs (`ansible/`, `kubernetes/`, `scripts/`), `specs/` what
+proves it (the platform contract, a TypeScript suite), `docs/` what explains it.
+[docs/README.md](docs/README.md) is the map of the manual; start at
+[Architecture](docs/concepts/architecture.md), deploy an app with
+[the deploy contract](docs/reference/deploy-contract.md), and open
+[Operate](docs/guides/operate.md) when something is broken.

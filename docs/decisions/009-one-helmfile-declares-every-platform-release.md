@@ -60,8 +60,9 @@ node, and `make diff` reads it from the Mac.
   helmfile 1.4+ speak its flags, helm-unittest embeds its own renderer (the
   snapshots did not move), server-side apply is the default only for releases
   installed under it, and the legacy plugin ABI still loads. The one visible
-  difference, plugin signature verification (helm-diff publishes none), is
-  feature-tested in `helm-tooling.yml` and `src/scripts/lib/helm-plugin.sh`.
+  difference, plugin signature verification (helm-diff and helm-unittest
+  publish none), is answered with `--verify=false` wherever a plugin is
+  installed; Helm is pinned to 4.x everywhere.
 
 ## Consequences
 
