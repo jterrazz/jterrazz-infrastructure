@@ -387,7 +387,7 @@ matches the recorded render of the CI fixture:
           secretType: kubernetes.io/dockerconfigjson
           template:
             data:
-              .dockerconfigjson: '{{ dict "auths" (dict "registry.internal.jterrazz.com" (dict "username" .DOCKER_REGISTRY_USERNAME.Value "password" .DOCKER_REGISTRY_PASSWORD.Value "auth" (list .DOCKER_REGISTRY_USERNAME.Value .DOCKER_REGISTRY_PASSWORD.Value | join ":" | b64enc))) | toJson }}'
+              .dockerconfigjson: '{{ dict "auths" (dict "registry.internal.jterrazz.com" (dict "username" .REGISTRY_PULL_USERNAME.Value "password" .REGISTRY_PULL_PASSWORD.Value "auth" (list .REGISTRY_PULL_USERNAME.Value .REGISTRY_PULL_PASSWORD.Value | join ":" | b64enc))) | toJson }}'
   8: |
     apiVersion: cert-manager.io/v1
     kind: Certificate

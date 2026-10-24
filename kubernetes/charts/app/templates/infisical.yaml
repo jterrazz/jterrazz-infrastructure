@@ -15,10 +15,11 @@
 {{- /*
 The pull credential for OUR registry, synced by the operator like every other
 secret; it is never a chart value, so it never reaches a Helm release Secret,
-`helm get values -a`, or a runner's argv. It is the ONE stored copy of the
-registry account: the `jterrazz-ci` project, which CI
-(`jterrazz-actions/actions/infra-connect`, over OIDC) and the platform deploy
-read too. `registry-credentials` is
+`helm get values -a`, or a runner's argv. It is built from the registry's
+PULL-ONLY account (REGISTRY_PULL_*, which Zot lets read and nothing else), so a
+leaked pull secret cannot push. Both accounts live in the `jterrazz-ci` project,
+which CI (`jterrazz-actions/actions/infra-connect`, over OIDC) and the platform
+deploy read too. `registry-credentials` is
 the literal name the `imagePullSecrets` of deployment.yaml and cronjob.yaml
 use: a contract between templates, not a derived string.
 
@@ -31,7 +32,7 @@ JSON, and the failure surfaces much later as an unhelpful image-pull auth
 error. `auth` (base64 of user:password) is included because containerd reads
 that field in preference to the username/password pair.
 */}}
-{{- $dockerconfig := printf `{{ dict "auths" (dict %q (dict "username" .DOCKER_REGISTRY_USERNAME.Value "password" .DOCKER_REGISTRY_PASSWORD.Value "auth" (list .DOCKER_REGISTRY_USERNAME.Value .DOCKER_REGISTRY_PASSWORD.Value | join ":" | b64enc))) | toJson }}` .Values.registry.server }}
+{{- $dockerconfig := printf `{{ dict "auths" (dict %q (dict "username" .REGISTRY_PULL_USERNAME.Value "password" .REGISTRY_PULL_PASSWORD.Value "auth" (list .REGISTRY_PULL_USERNAME.Value .REGISTRY_PULL_PASSWORD.Value | join ":" | b64enc))) | toJson }}` .Values.registry.server }}
 ---
 {{ include "common.infisicalSecret" (dict
      "name" (printf "%s-registry-infisical" $appName)

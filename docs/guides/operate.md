@@ -68,12 +68,19 @@ The deploy script never sees these:
 
 ### Project `jterrazz-ci`: the registry account, alone
 
-`DOCKER_REGISTRY_USERNAME` + `DOCKER_REGISTRY_PASSWORD`, environment `prod`,
-path `/`, and nothing else. It is the ONE stored copy of the account, read by
-three parties: Ansible (`registry_username` / `registry_password`, hashed into
-the `registry-auth` htpasswd by `roles/platform/tasks/bootstrap.yml`), the
-operator (each app namespace's `registry-credentials`), and app CI
-(`jterrazz-actions/actions/infra-connect`, for `docker login`).
+Two accounts, environment `prod`, path `/`, and nothing else:
+
+- `DOCKER_REGISTRY_USERNAME` + `DOCKER_REGISTRY_PASSWORD`, the **push** account:
+  app CI (`jterrazz-actions/actions/infra-connect`, `docker login`) and the
+  platform deploy's chart publish.
+- `REGISTRY_PULL_USERNAME` (`kubelet`) + `REGISTRY_PULL_PASSWORD`, the
+  **pull-only** account: the operator builds every app namespace's
+  `registry-credentials` from it, and Zot's accessControl lets it read and
+  nothing else.
+
+Ansible hashes both into the `registry-auth` htpasswd
+(`roles/platform/tasks/bootstrap.yml`). Zot reads that file at start: after a
+password change, `kubectl rollout restart deploy/registry -n platform-registry`.
 
 It is a project of its own because CI reads it with **GitHub OIDC**: the
 machine identity `github-actions` (OIDC auth, subject

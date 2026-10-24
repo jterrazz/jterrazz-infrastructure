@@ -75,6 +75,9 @@ infisical_secrets:
   # the registry password.
   - { var: registry_username, project: jterrazz-ci-v-nh-8, path: /, key: DOCKER_REGISTRY_USERNAME }
   - { var: registry_password, project: jterrazz-ci-v-nh-8, path: /, key: DOCKER_REGISTRY_PASSWORD }
+  # outside: the kubelet's pull-only account (Zot accessControl: read).
+  - { var: registry_pull_username, project: jterrazz-ci-v-nh-8, path: /, key: REGISTRY_PULL_USERNAME }
+  - { var: registry_pull_password, project: jterrazz-ci-v-nh-8, path: /, key: REGISTRY_PULL_PASSWORD }
   - { var: grafana_admin_password, path: /jterrazz-infrastructure/grafana, key: ADMIN_PASSWORD }
   - { var: tailscale_oauth_client_id, path: /jterrazz-infrastructure, key: TAILSCALE_OAUTH_CLIENT_ID, scope: site }
   - { var: tailscale_oauth_client_secret, path: /jterrazz-infrastructure, key: TAILSCALE_OAUTH_CLIENT_SECRET, scope: site }

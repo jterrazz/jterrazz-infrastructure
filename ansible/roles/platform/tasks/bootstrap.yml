@@ -42,15 +42,21 @@
 # hazard: stdin, never `htpasswd -nbB <user> <password>` (visible in `ps`). The
 # account NAME is Infisical's too, never a literal: a rotation overlaps two
 # accounts (docs/decisions/015-deploy-secrets-are-fetched-once-by-ansible.md).
-- name: Generate the htpasswd hash for the registry
+# invariant: two accounts: the push account (CI) and `registry_pull_username`, which
+# the kubelet pulls with and Zot's accessControl limits to `read`
+# (kubernetes/services/registry/app.yaml).
+- name: Generate the htpasswd hashes for the registry
   ansible.builtin.shell:
     cmd: |
       set -o pipefail
       printf '%s' "$REGISTRY_PASSWORD" | htpasswd -niB "$REGISTRY_USERNAME"
     executable: /bin/bash
   environment:
-    REGISTRY_USERNAME: "{{ registry_username }}"
-    REGISTRY_PASSWORD: "{{ registry_password }}"
+    REGISTRY_USERNAME: "{{ item.username }}"
+    REGISTRY_PASSWORD: "{{ item.password }}"
+  loop:
+    - { username: "{{ registry_username }}", password: "{{ registry_password }}" }
+    - { username: "{{ registry_pull_username }}", password: "{{ registry_pull_password }}" }
   register: htpasswd_result
   changed_when: false
   no_log: true
@@ -67,7 +73,7 @@
         namespace: platform-registry
       type: Opaque
       stringData:
-        htpasswd: "{{ htpasswd_result.stdout | trim }}"
+        htpasswd: "{{ htpasswd_result.results | map(attribute='stdout') | map('trim') | reject('equalto', '') | join('\n') }}"
   no_log: true
 
 - name: Install cert-manager and the Infisical operator
