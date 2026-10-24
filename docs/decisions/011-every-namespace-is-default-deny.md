@@ -68,8 +68,7 @@ The rules carry the traps already paid for:
 - An app declares its clients with `exposeTo`; the platform-services catalog
   stamps a client label the target selects on, so a new consumer needs no
   edit on the target.
-- Open: the registry namespace keeps 443 egress until someone confirms
-  distribution 3.x makes no outbound call; it is on the critical path of
-  every deploy.
+- The registry (Zot, no extensions enabled) makes no outbound call; its
+  release is `network.isolated`, so it has no internet egress.
 - Narrowing the collector's ingest means adding a client label to its catalog
   entry, landed only after every app has redeployed carrying it.

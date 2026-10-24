@@ -31,8 +31,7 @@ paths, secrets and quirks.
   which that allow-list admits. Note the loop: the deploy
   workflow's own setup logs into this registry, so taking the `registry`
   release down means the deploy that would restore it cannot start. Recover with `make deploy-platform` from the Mac.
-  A weekly CronJob, `registry-gc`, deletes the untagged manifests every push
-  leaves behind; it is in
+  It is Zot, which collects untagged manifests itself;
   [Operate](../guides/operate.md#registry-garbage-collection).
 - **gateway-intelligence**: an app-chart workload deployed by its own repo. It
   runs CLIProxyAPI with `api-keys: []`, which leaves its auth middleware
