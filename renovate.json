@@ -2,7 +2,7 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": [
     "Boring, weekly-only Renovate config for this repo.",
-    "Watches: GitHub Actions in .github/workflows/, the Helm chart pins in kubernetes/helmfile.yaml.gotmpl (native helmfile manager), ansible/requirements.txt (native pip manager), and through the customManagers below every other pin: bare `image:` lines in kubernetes/services/, the busybox digest wherever it is copied, k3s / helm / helmfile / helm-diff (group_vars), helm-unittest (Makefile), and the Ansible collections' git tags.",
+    "Watches: GitHub Actions in .github/workflows/, the Helm chart pins in kubernetes/helmfile.yaml.gotmpl (native helmfile manager), ansible/requirements.txt (native pip manager), harness/package.json and its lockfile (native npm manager), and through the customManagers below every other pin: bare `image:` lines in kubernetes/services/, the busybox digest wherever it is copied, k3s / helm / helmfile / helm-diff (group_vars), helm-unittest (Makefile), and the Ansible collections' git tags.",
     "Every pin has one home; CI reads it from there rather than holding a copy.",
     "Not watched: kubeconform and gitleaks (their SHA256 pins cannot be bumped by Renovate), Debian and Tailscale (unattended-upgrades and apt).",
     "Automerge is disabled everywhere: every update lands as a PR for manual review."

@@ -8,10 +8,10 @@ name: Upgrade test
 on:
   pull_request:
     branches: [main]
-    paths: ['ansible/**', 'kubernetes/**', '.github/workflows/upgrade-test.yaml']
+    paths: ['ansible/**', 'kubernetes/**', 'harness/**', '.github/workflows/upgrade-test.yaml']
   push:
     branches: [main]
-    paths: ['ansible/**', 'kubernetes/**', '.github/workflows/upgrade-test.yaml']
+    paths: ['ansible/**', 'kubernetes/**', 'harness/**', '.github/workflows/upgrade-test.yaml']
   workflow_dispatch:
     inputs:
       base:
@@ -102,6 +102,23 @@ jobs:
         run: >-
           ansible-playbook playbooks/platform.yml -i inventories/k3d.yml
           -e "@$RUNNER_TEMP/k3d-vars.yml" --skip-tags dns-records,chart-publish
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+
+      - name: Install the harness
+        working-directory: harness
+        run: npm ci
+
+      # invariant: the upgraded cluster holds the cluster contract, and the ownership policy
+      # admits and refuses what it says; the admission specs impersonate app identities,
+      # which only an admin kubeconfig can, so they run here and never on the live cluster.
+      - name: Cluster and admission contract
+        working-directory: harness
+        env:
+          KUBECONFIG: ${{ runner.temp }}/kubeconfig
+        run: npx vitest --run specs/cluster specs/admission
 
       - name: What the cluster holds
         if: always()

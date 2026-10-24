@@ -1,0 +1,30 @@
+import { specification } from '@jterrazz/test';
+import { afterAll } from 'vitest';
+
+import { discoverRoutes } from '../__setup__/routes.ts';
+import type { Route } from '../__setup__/routes.ts';
+
+// value: a cold Next.js pod can take seconds to answer its first request.
+export const { cleanup, deployment } = await specification.deployment({ timeout: 15_000 });
+
+afterAll(cleanup);
+
+/** Every host the live IngressRoutes serve, read off the cluster (or the tailnet job's snapshot) before the run. */
+export const routes: Route[] = await discoverRoutes();
+
+const probed = routes.filter((route) => route.contract !== 'opted out');
+
+/** The routes the internet may reach, each with the contract it states. */
+export const publicRoutes = probed.filter((route) => !route.private);
+
+/** The routes only the tailnet may reach. */
+export const privateRoutes = probed.filter((route) => route.private);
+
+const hostsOf = (selected: Route[]): string[] =>
+    [...new Set(selected.map((route) => route.host))].toSorted();
+
+/** Each public host once: several routes share one, and one certificate covers several. */
+export const publicHosts = hostsOf(routes.filter((route) => !route.private));
+
+/** Each tailnet-only host once. */
+export const privateHosts = hostsOf(routes.filter((route) => route.private));

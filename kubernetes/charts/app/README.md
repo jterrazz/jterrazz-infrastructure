@@ -269,8 +269,8 @@ ingress:
 
 #### `smoke:` names what the probe should get back
 
-`scripts/smoke.sh` in the infrastructure repo lists every IngressRoute in the
-cluster and probes what these annotations say. **You almost never write this
+The platform contract in the infrastructure repo (`harness/specs/deployment`) lists
+every IngressRoute in the cluster and probes what these annotations say. **You almost never write this
 block**: the chart already knows where the route lives and where the app says
 it is healthy, so it derives the contract per entry.
 
@@ -283,9 +283,9 @@ it is healthy, so it derives the contract per entry.
 
 The `stripPrefix: false` case opts out because the app routes everything under
 that prefix itself: nothing here can know which URL below it answers, and a
-guessed one would fail on a perfectly healthy route. Every skipped and every
-unannotated route is printed by `smoke.sh`, so a gap is visible rather than
-silent.
+guessed one would fail on a perfectly healthy route. Every unannotated route is
+probed with the fallback and named `fallback` in its test's title, so a gap is
+visible rather than silent.
 
 Override only when the derived answer is wrong:
 

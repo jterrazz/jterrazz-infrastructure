@@ -1,5 +1,5 @@
 suite: the smoke contract stamped on the IngressRoute
-# hazard: smoke.sh reads these annotations off every route: a wrong value is a probe that
+# hazard: the platform contract reads these annotations off every route: a wrong value is a probe that
 # passes while the service is down; docs/decisions/016-every-fact-has-one-home.md
 templates:
   - templates/ingress-route.yaml

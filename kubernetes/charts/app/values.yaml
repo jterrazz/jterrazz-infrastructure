@@ -5,7 +5,7 @@ metadata:
   name: ""
 
 # invariant: set by app CI only. meta.repository becomes the app.jterrazz.com/repository
-# annotation, the only way scripts/trigger-app-deploys.sh learns the app exists.
+# annotation, the only way `make redeploy-apps` learns the app exists.
 meta:
   repository: ""
 

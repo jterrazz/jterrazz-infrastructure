@@ -43,3 +43,6 @@ id_ed25519*
 
 # Agent worktrees (Claude Code isolation)
 .claude/worktrees/
+
+# The harness's npm install (harness/package-lock.json pins it)
+node_modules/

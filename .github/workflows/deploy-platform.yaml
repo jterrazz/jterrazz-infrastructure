@@ -82,6 +82,26 @@ jobs:
             -i inventories/ci.yml \
             -e "ansible_ssh_private_key_file=$CI_DEPLOY_KEY_FILE"
 
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+
+      - name: Install the harness
+        working-directory: harness
+        run: npm ci
+
+      # invariant: the host half of the contract (harness/specs/host): sshd, the nft guard,
+      # unattended-upgrades, k3s' secret encryption and Pod Security default, read as root
+      # over the SSH connection the play just used. The host roles run only from the Mac
+      # (site.yml), so this is where CI sees what they left.
+      - name: Host contract
+        working-directory: harness
+        run: |
+          set -euo pipefail
+          node=$(awk '/ansible_host:/ {print $2; exit}' ../ansible/inventories/ci.yml)
+          export HOST_SHELL="ssh -i $CI_DEPLOY_KEY_FILE -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -o LogLevel=ERROR root@$node"
+          npx vitest --run specs/host
+
       - name: Wipe temp secrets
         if: always()
         run: |

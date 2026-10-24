@@ -1,5 +1,5 @@
 suite: the smoke contract stamped on every IngressRoute
-# invariant: scripts/smoke.sh reads these annotations off every IngressRoute; the defaults
+# invariant: the platform contract (harness/specs/deployment) reads these annotations off every IngressRoute; the defaults
 # probe an app correctly with no edit; docs/decisions/016-every-fact-has-one-home.md
 templates:
   - templates/ingress.yaml

@@ -5,7 +5,7 @@
 # entry point.
 
 .DEFAULT_GOAL := help
-.PHONY: help deploy deploy-platform destroy redeploy-apps check-tools check docs lint diff smoke backup kubeconfig print-helm-unittest-version
+.PHONY: help deploy deploy-platform destroy redeploy-apps check-tools check docs harness-check lint diff smoke test test-host test-admission backup kubeconfig print-helm-unittest-version
 
 GREEN := \033[32m
 YELLOW := \033[33m
@@ -20,6 +20,20 @@ KUBECONFIG_FILE := kubeconfig.yaml
 HELM_UNITTEST_VERSION := v1.1.2
 NODE_FQDN := $(shell awk '/ansible_host:/ {print $$2; exit}' ansible/inventories/ci.yml)
 
+# outside: how the harness reaches the cluster and the node from this Mac with no tailnet:
+# OrbStack runs the VM here. `CLUSTER_KUBECTL=` falls back to $$KUBECONFIG, then
+# ./kubeconfig.yaml (the order is harness/src/cluster/kubectl.ts's).
+CLUSTER_KUBECTL ?= orb -m $(VM_NAME) -u root kubectl
+HOST_SHELL ?= orb -m $(VM_NAME) -u root
+export CLUSTER_KUBECTL HOST_SHELL
+
+# invariant: the two vantages of the live contract (docs/guides/test.md). The Mac is the
+# internet unless its Tailscale is up; VANTAGE=tailnet adds the private routes and drops
+# the boundary negatives, which would then fail for the right reason.
+VANTAGE ?= internet
+SPECS_internet := specs/deployment/routes/public specs/deployment/certificates/public specs/deployment/boundary specs/cluster specs/routes
+SPECS_tailnet := specs/deployment/routes specs/deployment/certificates specs/cluster specs/routes
+
 
 deploy: ## Provision + configure the cluster (orbctl + Ansible site.yml)
 	./scripts/deploy.sh
@@ -30,8 +44,15 @@ deploy-platform: ## Re-run the platform layer only (Ansible platform.yml)
 destroy: ## Tear down the OrbStack VM (data on the Mac stays)
 	./scripts/deploy.sh --destroy
 
-redeploy-apps: ## Trigger every app's CI to rebuild+redeploy (bootstrap after cluster rebuild)
-	./scripts/trigger-app-deploys.sh
+# invariant: reads the fleet off the live Deployments; ARGS=--dry-run prints it, ARGS="--from FILE"
+# replays a snapshot (the repave). Node builtins only, so it needs no install.
+redeploy-apps: ## Trigger every app's CI to rebuild+redeploy (ARGS=--dry-run | --from FILE)
+	node harness/src/redeploy-apps.bin.ts $(ARGS)
+
+# invariant: the harness's own install, pinned by its lockfile; every target that runs it depends on this.
+harness/node_modules/.install: harness/package-lock.json
+	cd harness && npm ci
+	@touch harness/node_modules/.install
 
 
 # outside: the two steps `make deploy` does as a side effect; k3s writes a loopback
@@ -56,10 +77,20 @@ diff: ## Preview what `make deploy-platform` would change (helmfile diff, read-o
 backup: ## Encrypted snapshot of every persistent volume (ARGS=--consistent for a torn-free copy)
 	@./scripts/backup.sh $(ARGS)
 
-# invariant: `--private` needs the tailnet, so it is left out here (CI runs the full
-# set). Routes are discovered from the cluster, so this needs a kubeconfig.
-smoke: ## Probe the public surfaces + their TLS expiry (ARGS=--private on the tailnet)
-	./scripts/smoke.sh --public --certs $(ARGS)
+smoke: harness/node_modules/.install ## Probe the live platform contract from this machine (VANTAGE=tailnet on the tailnet)
+	cd harness && npx vitest --run $(SPECS_$(VANTAGE))
+
+test-host: harness/node_modules/.install ## Check the node itself: sshd, the nft guard, upgrades, k3s encryption, Pod Security
+	cd harness && npx vitest --run specs/host
+
+test: smoke test-host ## Everything this machine can prove of the live platform
+
+# hazard: the admission specs create and delete namespaces and a PV, and impersonate app
+# identities: never the live cluster. KUBECONFIG names a throwaway one (k3d), and
+# CLUSTER_KUBECTL is cleared so the orb default cannot win.
+test-admission: harness/node_modules/.install ## The ownership policy's cases on a throwaway cluster (KUBECONFIG=<k3d kubeconfig>)
+	@test -n "$(KUBECONFIG)" || { echo "✗ KUBECONFIG must name a throwaway cluster (k3d kubeconfig get <name>)"; exit 1; }
+	cd harness && CLUSTER_KUBECTL= npx vitest --run specs/admission
 
 # invariant: the deploy tools first, then the four `make check` hard-fails on: a green
 # check-tools that omits them just moves the failure to the next target.
@@ -117,9 +148,9 @@ check: ## Run the checks CI runs (shellcheck, ansible-lint, helm lint + unittest
 		echo "⚠ actionlint not installed (brew install actionlint), skipped"; \
 	fi
 	@echo ""
-	@echo "== content check =="
+	@echo "== content check, harness check =="
 	@if command -v npx >/dev/null 2>&1; then \
-		$(MAKE) --no-print-directory docs; \
+		$(MAKE) --no-print-directory docs harness-check; \
 	else \
 		echo "⚠ npx not installed (node), skipped"; \
 	fi
@@ -129,6 +160,10 @@ check: ## Run the checks CI runs (shellcheck, ansible-lint, helm lint + unittest
 # which collides with a dependency and crashed on the runner (`edgesOut`).
 docs: ## Check the repository as content (manual layout, Markdown, comments, names, secrets)
 	npx --yes --package=@jterrazz/typescript@11.0.0 -- typescript check
+
+# invariant: the harness is a TypeScript project of its own, judged by its own pinned toolchain.
+harness-check: harness/node_modules/.install ## Check the harness (types, lint, format, test conventions)
+	cd harness && npx typescript check
 
 # invariant: `lint` is the name in every app repo's universal CI interface (make build /
 # lint / test); `check` is what this target actually is.

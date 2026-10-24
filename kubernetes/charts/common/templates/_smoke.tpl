@@ -1,7 +1,8 @@
 {{/*
-THE SMOKE CONTRACT: what scripts/smoke.sh probes, written on the route itself.
+THE SMOKE CONTRACT: what the platform contract (harness/specs/deployment in the
+infrastructure repo) probes, written on the route itself.
 
-smoke.sh holds no table of hostnames or status codes any more: it lists every
+The suite holds no table of hostnames or status codes: it lists every
 IngressRoute in the cluster and reads these annotations off each one. The
 expectation therefore ships with the thing it describes, and a route that moves,
 appears or disappears takes its check with it.

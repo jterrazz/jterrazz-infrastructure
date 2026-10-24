@@ -13,7 +13,7 @@ aliases: []
 # websecure chain still applies. A leftover boolean `private:` hard-fails the render.
 access: private
 
-# hazard: what scripts/smoke.sh must get back from `host`, stamped as smoke.jterrazz.com/*
+# hazard: what the platform contract must get back from `host`, stamped as smoke.jterrazz.com/*
 # annotations (contract: common/templates/_smoke.tpl). Never accept a 5xx or 000.
 smoke:
   path: /
