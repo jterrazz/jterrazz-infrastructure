@@ -5,12 +5,6 @@ name: registry
 host: registry.internal.jterrazz.com
 port: 5000
 
-# outside: the node's own image pulls hairpin through hostPort -> svclb -> Traefik and
-# reach it from the svclb pod address, in 10.42.0.0/16, which private-access
-# admits as well as cluster-internal-access, so neither list rejects them. The
-# registry's request log records them as http.request.remoteaddr=<svclb pod IP>.
-access: cluster-internal
-
 # outside: the registry's own API root, and 401 is the CORRECT answer: /v2/ demands a
 # bearer token and containerd relies on that challenge to authenticate. A 200
 # would mean the registry became anonymous-readable.

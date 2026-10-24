@@ -89,7 +89,9 @@ spec:
 # MASQUERADEs inside the svclb pod's netns (the Traefik Service is
 # externalTrafficPolicy: Cluster), so a tailnet request reaches Traefik with an
 # svclb POD source; the tailnet gate on that path is the Service's
-# loadBalancerSourceRanges. What keeps every OTHER pod off private hosts is
+# loadBalancerSourceRanges. The node's own image pulls hairpin the same way
+# (hostPort -> svclb -> Traefik), so the registry's request log records them as
+# http.request.remoteaddr=<svclb pod IP>. What keeps every OTHER pod off private hosts is
 # Traefik's own ingress policy, which admits no pod but the svclb one, kube-system's
 # own included (allow-traefik-ingress and allow-same-namespace,
 # kubernetes/cluster/network-policies/kube-system.yaml).
