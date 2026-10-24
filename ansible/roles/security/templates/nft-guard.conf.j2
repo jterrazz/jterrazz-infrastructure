@@ -1,38 +1,23 @@
 # Managed by Ansible (roles/security).
-#
-# UFW is not the effective gate for host-network workloads: k3s inserts its own
-# iptables rules ahead of UFW's INPUT filter, so `ufw default deny incoming`
-# does NOT stop a peer from reaching node-exporter:9100, cloudflared:2000 or
-# kubelet:10250; all three answered a neighbouring OrbStack machine before
-# this table existed. This runs at hook priority -10, ahead of both.
-#
-# Scoped to {{ security_guard_interface }} on purpose. Pod traffic to the node
-# arrives via cni0/flannel and tailnet traffic via tailscale0, so neither is
-# matched (verified: the collector still scrapes cloudflared over the node IP).
+# hazard: k3s' iptables rules run ahead of UFW, so this table (priority -10) is the
+# real gate; scoped to {{ security_guard_interface }} so pod and tailnet traffic pass
+# (docs/decisions/006-the-host-has-no-public-inbound-path.md).
 
 table inet jterrazz_guard {
   chain input {
     type filter hook input priority -10; policy accept;
 
-    # The NodePort range, from EVERY source on this interface, the Mac included.
-    # Traefik allocates none any more (allocateLoadBalancerNodePorts: false),
-    # but a NodePort answers on the node address and bypasses the tailnet gate
-    # (audit 2026-10-24), so any Service that grows one stays unreachable here.
+    # invariant: a NodePort bypasses the tailnet gate; dropped from every source.
     iif "{{ security_guard_interface }}" tcp dport 30000-32767 drop
     iif "{{ security_guard_interface }}" udp dport 30000-32767 drop
 
-    # Metrics endpoints that bind 0.0.0.0 (node-exporter, cloudflared): their
-    # scrapers reach them over the pod network, never over the tailnet, and
-    # both answer without authentication.
+    # invariant: unauthenticated metrics, scraped over the pod network only.
     iifname "tailscale0" tcp dport { 9100, 2000 } drop
 
-    # The hypervisor host. It is how `orb`, Ansible and every Mac-side tool
-    # reach this machine; dropping it locks the VM out of its own operator.
+    # hazard: the hypervisor host (`orb`, Ansible); dropping it locks the operator out.
     iif "{{ security_guard_interface }}" ip saddr {{ security_guard_host_ip }} accept
 
-    # Every other peer on the shared bridge is any other OrbStack machine,
-    # which by default mounts this machine's rootfs at /mnt/machines and can
-    # already read it. These ports are the remaining network surface.
+    # invariant: every other bridge peer is another OrbStack machine.
     iif "{{ security_guard_interface }}" ip saddr {{ security_guard_peer_subnet }} tcp dport { {{ security_guard_blocked_tcp | join(', ') }} } drop
     iif "{{ security_guard_interface }}" ip saddr {{ security_guard_peer_subnet }} udp dport { {{ security_guard_blocked_udp | join(', ') }} } drop
   }

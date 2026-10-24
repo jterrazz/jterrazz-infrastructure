@@ -8,10 +8,8 @@
   register: tailscale_binary
   tags: [tailscale]
 
-# invariant: only for an already-running tailscaled holding a stale resolv.conf: the
-# fresh-install branch below starts the daemon after roles/resolved has put the
-# symlink in place. `default(false)` because a `--tags tailscale` run skips
-# roles/resolved entirely and never registers the fact.
+# invariant: only for a running tailscaled holding a stale resolv.conf; `default(false)`
+# because `--tags tailscale` skips roles/resolved.
 - name: Restart tailscaled to pick up the systemd-resolved integration
   ansible.builtin.systemd_service:
     name: tailscaled
@@ -25,9 +23,7 @@
   when: not tailscale_binary.stat.exists
   tags: [tailscale]
   block:
-    # outside: deb822, NOT apt_key + apt_repository: Debian 13 removed the apt-key
-    # binary so apt_key has nothing to call. Needs python3-debian on the
-    # target, installed by the base role.
+    # outside: deb822: Debian 13 has no apt-key (python3-debian comes from roles/base).
     - name: Add the Tailscale apt repository
       ansible.builtin.deb822_repository:
         name: tailscale
@@ -39,9 +35,7 @@
         state: present
         enabled: true
 
-    # invariant: update_cache here, not as a separate step: the source was only just
-    # written, so apt has no index for it and the install would fail with
-    # "Unable to locate package tailscale".
+    # invariant: update_cache here: the source was just written, apt has no index yet.
     - name: Install the Tailscale package
       ansible.builtin.apt:
         name: tailscale
@@ -55,14 +49,9 @@
     state: started
   tags: [tailscale]
 
-# hazard: boot-time self-heal: after a reboot tailscaled can come back "Logged out"
-# (node-key expiry) and does NOT auto-reconnect. A logged-out node cannot
-# resolve *.ts.net, so registry.internal.jterrazz.com NXDOMAINs, every app pod
-# ImagePullBackOffs and Cloudflare 503s the public hostnames.
-#
-# The script is ALSO how this play logs in (last task in the block); do not
-# re-spell `tailscale up` as an argv here, or a flag added to one copy silently
-# misses the other. It is idempotent: it exits 0 when BackendState is Running.
+# hazard: tailscaled can come back "Logged out" after a reboot and never reconnects,
+# taking every image pull with it. The script is also how this play logs in:
+# never re-spell `tailscale up` (docs/decisions/006-the-host-has-no-public-inbound-path.md).
 - name: Set up Tailscale login and boot-time auto-reauth
   when:
     - tailscale_oauth_client_id != ""

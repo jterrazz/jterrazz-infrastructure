@@ -1,24 +1,13 @@
 ---
-# hazard: everything above k3s (Helm releases + raw manifests). All kubectl/helm
-# commands run ON the node, so no external k8s API access is needed.
-#
-# ALSO run standalone by .github/workflows/deploy-platform.yaml, so it must
-# never assume the site.yml host-layer plays ran in the same invocation. The
-# body is roles/platform, whose includes are tagged for targeted redeploys:
-#
-#   ansible-playbook playbooks/platform.yml -i inventories/laptop.yml \
-#     -e "@vars.yml" --tags telemetry
+# hazard: everything above k3s, run on the node. Also run standalone by
+# deploy-platform.yaml, so never assume site.yml's host plays ran first.
 - name: Platform Services Deployment
   hosts: cluster
   become: true
   gather_facts: true
 
-  # hazard: include_role, not a `roles:` entry with `when:`. A role's `when` is
-  # inherited by every task and evaluated per LOOP ITEM, so once the first
-  # secret was set the rest of the loop was skipped (the first CI deploy after
-  # roles/secrets landed failed on cloudflare_tunnel_token). An include's
-  # `when` is evaluated once. Skipped when site.yml already fetched the wider
-  # `site` scope on this run.
+  # hazard: include_role, never a role-level `when:`: that is evaluated per loop item
+  # and skipped the loop after its first secret (docs/decisions/015-deploy-secrets-are-fetched-once-by-ansible.md).
   pre_tasks:
     - name: Fetch the deploy's secrets from Infisical
       ansible.builtin.include_role:
@@ -31,13 +20,8 @@
       tags: [always]
 
   roles:
-    # hazard: KUBECONFIG once, here, instead of on ~36 individual tasks: every
-    # kubectl/helm command in the role runs on the node against the k3s
-    # kubeconfig, and a task that forgot the block silently talked to
-    # ~/.kube/config (i.e. nothing) instead. The role's `kubeconfig` default
-    # is in scope for its own tasks, so the value still comes from
-    # roles/platform/defaults/main.yml. Handlers do NOT inherit this; see
-    # roles/platform/handlers/main.yml, which keeps its own block.
+    # hazard: KUBECONFIG once for every task; handlers do NOT inherit it
+    # (roles/platform/handlers/main.yml keeps its own).
     - role: platform
       environment:
         KUBECONFIG: "{{ kubeconfig }}"
@@ -49,9 +33,7 @@
         state: absent
       tags: [always]
 
-    # invariant: names neither a service nor a version: a hand-written inventory drifts
-    # from the tasks and then confidently reports something that was never
-    # deployed. `helm list -A` is the only honest answer.
+    # invariant: names no service or version; `helm list -A` is the honest inventory.
     - name: Deployment complete
       ansible.builtin.debug:
         msg: |

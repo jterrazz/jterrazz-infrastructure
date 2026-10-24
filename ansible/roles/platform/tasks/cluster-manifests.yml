@@ -1,18 +1,9 @@
 ---
-# outside: everything under kubernetes/cluster/: namespaces, the `manual` StorageClass,
-# Traefik middlewares/TLS options and the default-deny NetworkPolicies. Plus
-# the one file outside that tree this step owns: Traefik's own HelmChartConfig,
-# which is the VALUES of a single release (k3s' bundled Traefik) and therefore
-# lives in kubernetes/services/traefik/ with every other release's values, not
-# among the cluster-wide objects.
+# outside: everything under kubernetes/cluster/, plus Traefik's HelmChartConfig (a
+# release's values, so it lives in kubernetes/services/traefik/).
 
-# hazard: apply the HelmChartConfig BEFORE waiting on the Traefik install job, not
-# after: on a k3s version bump the bundled chart can require the NEW values
-# schema to reconcile at all (v38 to v40 renamed the service/ports keys), so
-# wait-then-apply deadlocks: the job retries with stale values for 8 minutes
-# while the config that would fix it sits unapplied. Applying a
-# HelmChartConfig for a not-yet-installed chart is safe: helm-controller
-# just picks it up when the chart lands.
+# hazard: apply BEFORE waiting on the install job: after a k3s bump the job may need
+# the new values to reconcile at all (docs/decisions/003-traefiks-service-is-the-tailnet-gate.md).
 - name: Apply the Traefik HelmChartConfig first
   ansible.builtin.command:
     argv:
@@ -23,12 +14,8 @@
   register: traefik_config_apply
   changed_when: "'created' in traefik_config_apply.stdout or 'configured' in traefik_config_apply.stdout"
 
-# hazard: retried, because a HelmChartConfig change makes the helm-controller
-# DELETE and recreate the install job asynchronously; a bare `kubectl wait`
-# right after the apply can land in the window where the job does not exist
-# and fail instantly with NotFound instead of waiting. The long per-try
-# deadline is for a fresh VM with no image cache, where the job needs
-# minutes to pull.
+# hazard: retried: helm-controller recreates the job asynchronously, so a bare wait
+# can hit NotFound. 480s per try covers a fresh VM pulling images.
 - name: Wait for Traefik to be ready
   ansible.builtin.command:
     argv:
@@ -43,18 +30,13 @@
       - --timeout=480s
   register: traefik_wait
   changed_when: false
-  # value: 30 x 10s of NotFound tolerance. 6 tries were not enough on 2026-10-24: the
-  # helm-controller recreated the job after the last one and the deploy failed
-  # on a Traefik that upgraded fine.
+  # value: 30 x 10s of NotFound tolerance; 6 tries failed a fine upgrade on 2026-10-24.
   retries: 30
   delay: 10
   until: traefik_wait.rc == 0
 
-# hazard: a PV whose PVC was deleted goes to Released and will NOT rebind while it
-# still carries the old claimRef, so the app's new PVC stays Pending forever
-# and its pod never schedules. Do NOT make this `failed_when: false`: a
-# kubectl/RBAC problem here then surfaces minutes later as an unexplained
-# scheduling failure instead of as itself.
+# hazard: a Released PV with a stale claimRef never rebinds. Never `failed_when:
+# false`: a failure here would resurface later as an unexplained Pending pod.
 - name: Clear claimRef from released PVs
   block:
     - name: Patch released PVs to drop their stale claimRef
@@ -75,9 +57,8 @@
           recreated will stay Pending until this succeeds. kubectl said:
           {{ pv_clear.stderr | default('(no stderr captured)') }}
 
-# outside: recursive apply, no kustomize, so a new file under kubernetes/cluster/ is
-# deployed without editing a resource list. kubectl walks the directory
-# lexically, which namespaces.yaml relies on to sort before network-policies/.
+# invariant: recursive, no resource list; kubectl walks lexically, so namespaces.yaml
+# applies before network-policies/.
 - name: Deploy the cluster-wide manifests
   ansible.builtin.command:
     cmd: kubectl apply -f {{ manifest_dir }}/kubernetes/cluster -R

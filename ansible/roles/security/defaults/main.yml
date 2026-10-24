@@ -7,25 +7,17 @@ security_ssh_client_alive_count_max: 2
 
 security_ufw_default_forward: "deny"
 
-# hazard: public half of a split keypair; installed into root's authorized_keys so
-# .github/workflows/deploy-platform.yaml can ssh in over the tailnet.
-#
-# KEEP IN SYNC with the GitHub secret `CI_DEPLOY_SSH_PRIVATE` on this repo.
-# Rotating = regenerate, replace this value, update that secret, then
-# `make deploy` to roll the new pubkey onto the VM, in that order, or CI
-# locks itself out.
+# hazard: KEEP IN SYNC with the repo secret `CI_DEPLOY_SSH_PRIVATE` (deploy-platform.yaml).
+# Rotate in order: regenerate, replace here, update the secret, `make deploy`.
 security_ci_deploy_pubkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPPCsf2boqXrePRFuhL3KfJjpabJ0bjAeNqpTLl7GREf ci-deploy@jterrazz-infrastructure"
 
-# outside: NOTE UFW is the second gate for 80/443, not the first: klipper-lb DNATs in
-# PREROUTING before UFW's INPUT filter sees the packet, so the real gate is
-# `loadBalancerSourceRanges` in
-# kubernetes/services/traefik/helm-chart-config.yaml.
+# outside: UFW is only the second gate for 80/443: klipper-lb DNATs first, so the real
+# gate is `loadBalancerSourceRanges` (kubernetes/services/traefik/helm-chart-config.yaml).
 security_ufw_rules:
-  # hazard: any source -> sshd. Deliberately unrestricted: the host has no public
-  # inbound path at all, so a source rule buys nothing and can lock out the Mac.
+  # hazard: deliberately unrestricted: no public inbound path exists, and a source
+  # rule can lock out the Mac.
   - { port: "22", proto: "tcp", rule: "allow", comment: "SSH" }
-  # invariant: tailnet clients -> Traefik. Public HTTP arrives via cloudflared's outbound
-  # tunnel to Traefik's ClusterIP instead, never through these ports.
+  # invariant: tailnet only; public HTTP arrives through cloudflared, never these ports.
   - { port: "80", proto: "tcp", rule: "allow", from: "100.64.0.0/10", comment: "HTTP (Tailscale only)" }
   - { port: "443", proto: "tcp", rule: "allow", from: "100.64.0.0/10", comment: "HTTPS (Tailscale only)" }
   # outside: tailnet clients (laptop kubectl, CI runners) -> the k3s API server.
@@ -40,10 +32,8 @@ security_kernel_params:
   - { name: "net.ipv4.conf.all.rp_filter", value: "1" }
   - { name: "net.ipv4.conf.default.rp_filter", value: "1" }
 
-# outside: peer-isolation guard. OrbStack puts every machine on one bridge and gives
-# each one the others' filesystems at /mnt/machines; these are the ports that
-# were still answering over the network. See templates/nft-guard.conf.j2 for
-# why this is nftables and not a UFW rule.
+# outside: peer isolation from the other OrbStack machines on the bridge
+# (templates/nft-guard.conf.j2; docs/decisions/006-the-host-has-no-public-inbound-path.md).
 security_guard_interface: eth0
 security_guard_host_ip: 192.168.139.1
 security_guard_peer_subnet: 192.168.139.0/24

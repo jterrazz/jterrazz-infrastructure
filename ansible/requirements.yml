@@ -1,23 +1,7 @@
 ---
-# invariant: EXACT pins, never `>=`: a floor lets the GHA runner (clean cache, always
-# newest) and a laptop (already satisfies it, never upgrades) resolve
-# different versions from this same file. Bump deliberately.
-
-# hazard: git sources, not Galaxy. galaxy.ansible.com answered HTTP 500 on every
-# artifact download for hours on 2026-10-24 and took Validate and Deploy
-# Platform down with it; the tags on GitHub are the same releases and come from
-# a host the runner already depends on. A git source does not resolve
-# dependencies from Galaxy either, so community.general's one dependency is
-# pinned below by hand: drop it the day community.general stops declaring it
-# (its MANIFEST.json `dependencies`).
-
-# outside: community.general crossed a MAJOR here (12 -> 13). Its breaking changes are
-# a module-utils privatisation, dropping ansible-core 2.17, and defaults/
-# positional-arg changes in github_repo / rocketchat / the *_pet|string|words
-# lookups, none of which this repo uses. The modules it consumes (`timezone` in
-# roles/base, `ufw` in roles/security, `cloudflare_dns` in roles/platform) are
-# untouched by 13.0.0 and appear nowhere in its Removed Features list. 13.x
-# requires ansible-core >= 2.18; CI installs 2.21.4.
+# invariant: EXACT pins from GitHub tags, never `>=` and never Galaxy. A git source
+# resolves no dependencies, so community.library_inventory_filtering is
+# community.general's, pinned by hand (docs/decisions/020-validation-gates-fail-loudly-and-pin-what-they-run.md).
 
 collections:
   - name: https://github.com/ansible-collections/kubernetes.core.git

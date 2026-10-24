@@ -1,8 +1,6 @@
 ---
-# hazard: do NOT "restore" fail2ban or auditd here. fail2ban would guard a public SSH
-# port that does not exist (there is no public inbound path at all; SSH is
-# tailnet-only), and auditd needs CAP_AUDIT_*, which the OrbStack hypervisor
-# withholds, so its rules never load on this target.
+# hazard: do NOT restore fail2ban (no public SSH port exists) or auditd (OrbStack
+# withholds CAP_AUDIT_*) (docs/decisions/006-the-host-has-no-public-inbound-path.md).
 
 - name: Install security packages
   ansible.builtin.apt:
@@ -14,11 +12,8 @@
     cache_valid_time: 3600
   tags: [security, packages]
 
-# hazard: insertbefore: BOF is load-bearing. In sshd_config the FIRST occurrence of a
-# keyword wins, so an Include at the bottom lets the stock file's own defaults
-# beat every value the drop-in sets. This is a no-op on a stock Debian 13 file
-# and self-heals one where the line was removed; without the Include the whole
-# drop-in is silently inert.
+# hazard: BOF is load-bearing: the FIRST occurrence of an sshd keyword wins, so an
+# Include anywhere lower leaves the drop-in silently inert.
 - name: Ensure sshd_config includes the drop-in directory
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
@@ -38,12 +33,8 @@
     group: root
   tags: [security, ssh]
 
-# hazard: two stages, because a bad sshd config locks us out of the box and only the
-# second stage can catch it: `validate:` parses the CANDIDATE file before
-# Ansible moves it into place, while `sshd -t` afterwards parses the EFFECTIVE
-# config (stock file + every drop-in), which is what sshd actually loads. The
-# rescue removes the drop-in so the distro defaults are always reachable, and
-# fails rather than notifying a restart that would take sshd down.
+# hazard: a bad sshd config locks us out: `validate:` checks the candidate, `sshd -t`
+# the effective config; the rescue removes the drop-in and fails without restarting.
 - name: Harden sshd via drop-in
   tags: [security, ssh]
   block:

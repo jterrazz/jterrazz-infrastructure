@@ -1,11 +1,6 @@
 ---
-# outside: CI inventory: the same OrbStack VM, reached over Tailscale because a GitHub
-# Actions runner has no OrbStack. Used by .github/workflows/deploy-platform.yaml.
-#
-# The SSH private key is the repo's GitHub secret `CI_DEPLOY_SSH_PRIVATE`, NOT
-# Infisical; its public half is `security_ci_deploy_pubkey` in
-# ansible/roles/security/defaults/main.yml, which the security role installs
-# into root's authorized_keys. Rotating means changing both.
+# outside: the same VM over Tailscale, for deploy-platform.yaml. The key is the repo
+# secret `CI_DEPLOY_SSH_PRIVATE`, paired with `security_ci_deploy_pubkey`.
 all:
   children:
     cluster:

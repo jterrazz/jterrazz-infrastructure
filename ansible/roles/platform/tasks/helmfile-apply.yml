@@ -1,19 +1,7 @@
 ---
-# invariant: one `helmfile apply` pass over kubernetes/helmfile.yaml.gotmpl, the single
-# declaration of every platform release. Included more than once because a few
-# things the helmfile cannot own (the ClusterIssuers, cloudflared's raw
-# Deployment) have to be interleaved; see main.yml for the order and
-# bootstrap.yml for why.
-#
-# Args:
-#   helmfile_tier: the `tier:` label to select, or omitted for EVERY release.
-#                   The last pass of a deploy is deliberately unselected, so a
-#                   release that carries no tier label still gets applied.
-#
-# --detailed-exitcode rather than matching stdout: helmfile exits 2 when it
-# changed something and synced it successfully, which is exactly `changed`.
-# Secrets are redacted in the diff by default (--show-secrets is the opt-out),
-# so the diff can stay in the log where a deploy review can see it.
+# invariant: one pass over kubernetes/helmfile.yaml.gotmpl; `helmfile_tier` selects a
+# tier, omitted selects EVERY release (so an untiered one still deploys). Exit 2
+# means changed and synced (docs/decisions/009-one-helmfile-declares-every-platform-release.md).
 
 - name: "Apply the platform Helm releases ({{ helmfile_tier | default('every release') }})"
   ansible.builtin.command:
@@ -22,9 +10,7 @@
       apply --detailed-exitcode --concurrency 1
       {{ ('--selector tier=' ~ helmfile_tier) if (helmfile_tier | default('')) else '' }}
   environment:
-    # invariant: consumed by `requiredEnv` in the helmfile: the hostPath PV's nodeAffinity
-    # target, and Grafana's admin password (an inline values map, so it never
-    # reaches a command line).
+    # invariant: read by `requiredEnv` in the helmfile; the password never reaches argv.
     NODE_NAME: "{{ inventory_hostname }}"
     PLATFORM_HELM_WAIT: "{{ platform_helm_wait | default(true) | string | lower }}"
     GRAFANA_ADMIN_PASSWORD: "{{ grafana_admin_password }}"
@@ -32,14 +18,9 @@
   changed_when: helmfile_apply.rc == 2
   failed_when: helmfile_apply.rc not in [0, 2]
 
-# hazard: a release left `failed` is invisible to the next apply. helm-diff compares
-# the desired manifest with the LAST revision, failed or not, so the retry sees
-# no difference, skips the release and exits 0 while the old objects keep
-# running (2026-10-24: grafana stuck on revision 23, a ClusterRoleBinding
-# roleRef change refused as immutable, two deploys green). So the pass is not
-# done until no release is failed; the fix is the error helm recorded
-# (`helm history <release> -n <ns>`), then a `helmfile sync -l name=<release>`,
-# which does not diff.
+# hazard: a `failed` release is invisible to the next apply (helm-diff compares with
+# the failed revision and skips it). Fix: `helm history`, then `helmfile sync -l
+# name=<release>`, which does not diff.
 - name: "Assert no Helm release is left failed ({{ helmfile_tier | default('every release') }})"
   ansible.builtin.command:
     argv: [helm, list, --all-namespaces, --failed, --short]

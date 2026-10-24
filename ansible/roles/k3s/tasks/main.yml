@@ -1,7 +1,6 @@
 ---
-# hazard: this role has NO defaults/main.yml on purpose: k3s_version lives in
-# inventories/group_vars/all.yml and must not be duplicated, since a role
-# default silently wins whenever group_vars is not loaded.
+# hazard: NO defaults/main.yml on purpose: a role default for k3s_version would
+# silently win whenever group_vars is not loaded.
 
 - name: Create the k3s directories
   ansible.builtin.file:
@@ -77,9 +76,8 @@
   no_log: true
   tags: [k3s]
 
-# outside: only fires when this role runs standalone (site.yml's tailscale role sets
-# them). The IP and DNS name go into the API server's TLS SANs, which is the
-# only way kubectl over the tailnet gets a valid cert.
+# outside: only fires standalone (site.yml's tailscale role sets them); the values
+# become TLS SANs, the only way kubectl over the tailnet gets a valid cert.
 - name: Ensure Tailscale facts are available
   ansible.builtin.include_role:
     name: tailscale
@@ -95,8 +93,7 @@
   notify: Restart k3s
   tags: [k3s]
 
-# invariant: must exist before the apiserver starts: it does not create the directory for
-# audit-log-path and fails to come up at all if the parent is missing.
+# invariant: must exist before the apiserver starts, or it fails to come up.
 - name: Ensure the audit log directory exists
   ansible.builtin.file:
     path: "{{ k3s_data_dir }}/server/logs"
@@ -153,11 +150,8 @@
     daemon_reload: true
   tags: [k3s]
 
-# hazard: placement is load-bearing in BOTH directions. Later than this and the
-# readiness checks below pass against the OLD config, so a broken config change
-# looks green until the next run. Earlier (right after the config template) and
-# a fresh host dies with "Could not find the requested service k3s", because
-# the unit does not exist until the install task above.
+# hazard: placement is load-bearing both ways: later and the readiness checks pass
+# against the OLD config; earlier and a fresh host has no k3s unit yet.
 - name: Restart k3s now if the config changed
   ansible.builtin.meta: flush_handlers
 
@@ -177,10 +171,8 @@
   until: k3s_nodes.rc == 0
   tags: [k3s]
 
-# invariant: `secrets-encryption: true` only covers Secrets written after the restart.
-# This rewrites the ones already in the datastore; without it the plaintext
-# copies of every existing app credential stay exactly where they were.
-# Idempotent: a re-encrypt on an already-encrypted store is a no-op rewrite.
+# invariant: secrets-encryption only covers Secrets written after the restart; this
+# rewrites the existing ones (idempotent).
 - name: Check the secrets encryption status
   ansible.builtin.command: k3s secrets-encrypt status
   register: k3s_secrets_encrypt

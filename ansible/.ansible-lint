@@ -1,12 +1,6 @@
 ---
-# Callers MUST pass `-c ansible/.ansible-lint`: config auto-discovery searches
-# the CWD and walks UP, never down into the linted directory, so running from
-# the repo root without it silently reverts profile, skips and excludes to
-# defaults.
-#
-# `production` is the strictest built-in tier. If a rule becomes genuinely
-# wrong for this setup, skip it below WITH A REASON rather than dropping the
-# profile.
+# hazard: callers MUST pass `-c ansible/.ansible-lint`: discovery walks UP from the CWD,
+# so without it profile, skips and excludes silently revert to defaults.
 profile: production
 
 exclude_paths:
@@ -19,10 +13,8 @@ skip_list:
   - command-instead-of-shell # `shell` is used where set -o pipefail / loops are needed
   - no-changed-when # explicitly handled everywhere it matters; the rest are probes
   - yaml[line-length] # long single-line helm invocations beat folded YAML here
-  # Guards against third-party roles colliding in the shared play namespace,
-  # which cannot happen with five first-party roles on one host. `kubeconfig`
-  # and `manifest_dir` are unprefixed deliberately: platform.yml's post_tasks
-  # read them, and they describe the node rather than a role.
+  # invariant: five first-party roles cannot collide; `kubeconfig` and `manifest_dir`
+  # describe the node and are read by platform.yml.
   - var-naming[no-role-prefix]
 
 warn_list:

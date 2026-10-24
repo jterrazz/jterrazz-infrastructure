@@ -1,23 +1,15 @@
 ---
-# invariant: THE publisher of the app chart. Every platform deploy runs it, and a
-# change under kubernetes/charts/ triggers one, so there is no second publisher
-# (the publish-chart workflow and its script were folded into this on
-# 2026-10-24). It also covers the fresh cluster, whose registry is empty until
-# this runs. Skip with `--skip-tags chart-publish`.
+# invariant: THE app chart publisher, run by every platform deploy (fresh cluster
+# included); no second one (docs/decisions/010-every-workload-renders-through-two-charts.md).
 
-# outside: `helm registry login` below talks HTTPS, and on a fresh cluster DNS-01
-# issuance lags the registry pod by a minute or two; without this the login
-# fails with a TLS error. The registry itself is a Helm release applied by the
-# pass before this one, so it is already rolled out by here.
+# outside: on a fresh cluster DNS-01 issuance lags the registry pod; login needs TLS.
 - name: Wait for the registry TLS certificate to be issued
   ansible.builtin.command: >
     kubectl wait --for=condition=Ready certificate/registry-tls
     -n platform-registry --timeout=180s
   changed_when: false
 
-# outside: same account as the htpasswd line bootstrap.yml generates, from the same
-# Infisical key: during a rotation's overlap the name is `deploy-next`, and a
-# literal here would log in as an account the registry no longer holds.
+# outside: the same Infisical account as bootstrap.yml's htpasswd; never a literal.
 - name: Login to the OCI registry for Helm
   ansible.builtin.command:
     argv:
@@ -41,11 +33,8 @@
   ansible.builtin.set_fact:
     app_chart_version: "{{ (app_chart_yaml.content | b64decode | from_yaml).version }}"
 
-# invariant: the chart is
-# pulled UNVERSIONED by every app deploy, so overwriting a published version
-# means two different template sets answer to one tag depending on when an app
-# pulled. It SKIPS rather than fails, to keep a routine redeploy green, which
-# is why an unbumped kubernetes/charts/app/Chart.yaml publishes nothing.
+# invariant: never overwrite a published version (apps pull it unversioned); skips
+# rather than fails, so an unbumped Chart.yaml publishes nothing.
 - name: Check whether this chart version is already published
   ansible.builtin.command: >
     helm pull oci://registry.internal.jterrazz.com/charts/app
@@ -66,9 +55,7 @@
 - name: Package and push the app chart
   when: app_chart_published.rc != 0
   block:
-    # hazard: the .tgz filename is not knowable here (helm derives it from Chart.yaml),
-    # and parsing it out of `helm package` stdout breaks on any warning line.
-    # Emptying the directory first means the one file in it IS the chart.
+    # hazard: emptied first so the one .tgz in it IS the chart; parsing stdout breaks.
     - name: Reset the chart staging directory
       ansible.builtin.file:
         path: /tmp/app-chart
@@ -80,10 +67,7 @@
         state: directory
         mode: "0700"
 
-    # outside: `common` (the library chart) is a file://../common dependency and nothing
-    # is vendored, so it has to be resolved before `helm package` will run at
-    # all. It is then bundled into the .tgz, which is what lets an app repo
-    # keep pulling one unversioned chart. Local path, so no network.
+    # outside: `common` is an unvendored file:// dependency, bundled into the .tgz.
     - name: Resolve the app chart's library dependency
       ansible.builtin.command: helm dependency update {{ manifest_dir }}/kubernetes/charts/app
       changed_when: true

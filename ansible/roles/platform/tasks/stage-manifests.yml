@@ -1,7 +1,5 @@
 ---
-# outside: every helm/kubectl task in this role runs ON the node and reads its values
-# files and manifests out of {{ manifest_dir }}. platform.yml's post_tasks
-# removes the directory again.
+# outside: every task runs on the node against this staged copy; platform.yml removes it.
 
 - name: Create the manifest directory on the node
   ansible.builtin.file:
@@ -15,19 +13,15 @@
     dest: "{{ manifest_dir }}/kubernetes/"
     mode: "0644"
 
-# invariant: the tailscale role sets these during a full site.yml run, but
-# .github/workflows/deploy-platform.yaml runs this play alone and skips the
-# host layer, hence the guarded include.
+# invariant: deploy-platform.yaml runs this play without the tailscale role.
 - name: Ensure Tailscale facts are available
   ansible.builtin.include_role:
     name: tailscale
     tasks_from: facts
   when: tailscale_ip is not defined
 
-# invariant: facts.yml gathers the address with `failed_when: false`, so a node that is
-# not on the tailnet yields an EMPTY tailscale_ip, which templates/coredns-
-# custom.yaml.j2 renders as a one-field hosts entry, and CoreDNS crashloops on
-# it. Fail here instead, before anything is applied.
+# hazard: an EMPTY tailscale_ip renders a one-field CoreDNS hosts entry and crashloops
+# cluster DNS; fail before anything is applied.
 - name: Assert the node has a tailnet address
   ansible.builtin.assert:
     that:

@@ -4,13 +4,8 @@
     name: systemd-resolved
     state: restarted
 
-# outside: `networkctl reload` + `reconfigure`, NOT `systemctl restart systemd-networkd`:
-# this play reaches the host over that very link (OrbStack SSH proxy, or
-# Tailscale from CI), and a daemon restart is the one operation that can drop it.
-# `reload` re-reads the .network files and their drop-ins; `reconfigure` re-applies
-# them to the link, which is what actually withdraws the DHCP-supplied DNS server
-# from systemd-resolved. Neither flushes the address: the DHCP lease is renewed,
-# not released.
+# hazard: never `systemctl restart systemd-networkd`: the play reaches the host over
+# this link. reload + reconfigure withdraw the DHCP DNS without dropping the lease.
 - name: Reload systemd-networkd
   ansible.builtin.command:
     cmd: "{{ item }}"

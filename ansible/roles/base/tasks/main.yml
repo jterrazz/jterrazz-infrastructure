@@ -34,24 +34,18 @@
       - python3-pip
       - python3-yaml
       - python3-kubernetes
-      # outside: required by ansible.builtin.deb822_repository (roles/tailscale). Debian
-      # 13 removed apt-key, so deb822 sources are the only supported path.
+      # outside: deb822_repository needs it; Debian 13 has no apt-key.
       - python3-debian
       - iptables
-      # outside: a SEPARATE, non-default package on Debian 12+. Must be installed here,
-      # before the tailscale role symlinks /etc/resolv.conf at its stub and
-      # before k3s pins --resolv-conf=/run/systemd/resolve/resolv.conf.
+      # outside: a separate package on Debian 12+, needed before roles/resolved and k3s.
       - systemd-resolved
-      # outside: OrbStack VMs ship without sshd; the security role needs `sshd -t` to
-      # validate its drop-in, and skips the hardening entirely without it.
+      # outside: OrbStack VMs ship without sshd; roles/security validates with `sshd -t`.
       - openssh-server
     state: present
   tags: [base, packages]
 
-# hazard: Debian 13 ships OpenSSH socket-activated, which breaks the security role two
-# ways: `Port` in sshd_config is ignored (ListenStream decides it), and
-# restarting ssh.service does not re-bind, so a config change looks applied but
-# is not. Switch to the classic always-listening daemon instead.
+# hazard: Debian 13's socket-activated sshd ignores `Port` and does not re-bind on
+# restart, so a config change looks applied but is not.
 - name: Check for a socket-activated sshd unit
   ansible.builtin.stat:
     path: /usr/lib/systemd/system/ssh.socket
@@ -66,8 +60,7 @@
   when: ssh_socket_unit.stat.exists
   tags: [base, ssh]
 
-# invariant: also creates /run/sshd, which `sshd -t` needs: on a fresh install that has
-# never started the daemon, the security role's validation fails without it.
+# invariant: also creates /run/sshd, which `sshd -t` needs on a fresh install.
 - name: Ensure ssh service is started and enabled
   ansible.builtin.systemd_service:
     name: ssh.service
@@ -76,9 +69,8 @@
     daemon_reload: true
   tags: [base, ssh]
 
-# hazard: kubelet opens /dev/kmsg at startup and k3s crashloops without it. Some
-# lightweight VMs do not expose it, hence the conditional /dev/console
-# fallback plus a tmpfiles.d entry to recreate the symlink on reboot.
+# hazard: k3s crashloops without /dev/kmsg; some VMs lack it, hence the persisted
+# /dev/console fallback.
 - name: Stat /dev/kmsg
   ansible.builtin.stat:
     path: /dev/kmsg
@@ -102,15 +94,9 @@
         state: link
         force: true
 
-# hazard: OrbStack answers every virtio-blk FLUSH with a macOS F_FULLFSYNC on its disk
-# image, so each guest fsync() on the VM disk (k3s' kine SQLite, containerd,
-# /var/log/pods) costs ~330KB of Mac SSD writes. "write through" tells the
-# block layer the device has no volatile cache and it stops sending FLUSHes;
-# the data still lands in the Mac's page cache, so only a macOS crash or hard
-# power-off can lose the last seconds, the same contract a native macOS
-# fsync() gives. Applies to /dev/vd* only: virtiofs mounts (/var/lib/k8s-data)
-# are untouched, their fsyncs stay durable. See docs/guides/develop.md § The fsync tax.
-# Runtime-only sysfs attribute, hence a unit that re-applies it at every boot.
+# value: every virtio-blk FLUSH is an F_FULLFSYNC on the Mac; "write through" stops
+# them on /dev/vd* (not virtiofs). Runtime-only, so re-applied at every boot
+# (docs/decisions/008-storage-on-orbstack-spends-fsyncs-not-bytes.md).
 - name: Install the virtio-blk no-flush unit
   ansible.builtin.copy:
     dest: /etc/systemd/system/virtio-blk-write-through.service
@@ -159,14 +145,11 @@
       * hard nproc 65536
   tags: [base]
 
-# hazard: dO NOT CHANGE THESE PATHS. /var/lib/k8s-data is baked into every PV manifest
-# under kubernetes/ and holds live data. It is a symlink into OrbStack's
-# auto file-share of the Mac home, which is what makes the data survive a
-# `make destroy` of the VM while the PV path itself stays stable.
+# hazard: DO NOT CHANGE THESE PATHS: every PV names /var/lib/k8s-data, a symlink into
+# the Mac home so live data survives `make destroy`.
 - name: Resolve Mac bind dir
   ansible.builtin.set_fact:
-    # invariant: created on the Mac by scripts/deploy.sh (vm_up) before the VM is ever
-    # created, so it always exists.
+    # invariant: scripts/deploy.sh (vm_up) creates it before the VM exists.
     storage_orbstack_data_dir: "/mnt/mac/Users/{{ lookup('env', 'USER') }}/.jterrazz-infrastructure/data"
   tags: [base, storage]
 

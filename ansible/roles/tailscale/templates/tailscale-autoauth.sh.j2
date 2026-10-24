@@ -1,13 +1,8 @@
 #!/usr/bin/env bash
-# Managed by Ansible (tailscale role). THE definition of "log this node into
-# the tailnet", run both by tailscale-autoauth.service on every boot and by the
-# tailscale role at deploy time; keep it the only spelling of `tailscale up`.
-#
-# TS_CLIENT_ID / TS_CLIENT_SECRET come from /etc/tailscale/autoauth.env under
-# systemd, and from the task environment when Ansible calls it.
+# invariant: managed by Ansible (tailscale role); the only spelling of `tailscale up`,
+# run at boot (autoauth.env) and at deploy (task environment).
 set -euo pipefail
 
-# Wait for tailscaled's socket to be answerable before deciding anything.
 for _ in $(seq 1 30); do
     if tailscale status --json >/dev/null 2>&1; then
         break
@@ -15,8 +10,7 @@ for _ in $(seq 1 30); do
     sleep 2
 done
 
-# Whitespace-tolerant: `tailscale status --json` pretty-prints with a space
-# after the colon, so an unspaced pattern never matches.
+# outside: whitespace-tolerant: the JSON is pretty-printed.
 if tailscale status --json | grep -Eq '"BackendState"[[:space:]]*:[[:space:]]*"Running"'; then
     echo "Tailscale already Running; nothing to do."
     exit 0
@@ -28,16 +22,10 @@ args=(
     --client-secret="${TS_CLIENT_SECRET}"
     --hostname="{{ inventory_hostname | regex_replace('[^a-zA-Z0-9-]', '-') }}"
     --advertise-tags="tag:ci"
-    # Spelled out because it is load-bearing, not because it differs from the
-    # default: MagicDNS is what resolves the *.ts.net targets every
-    # <svc>.internal.jterrazz.com CNAME points at.
+    # invariant: the default, spelled out: MagicDNS resolves every *.internal target.
     --accept-dns=true
-    # NOT the default (true). tailscaled 1.102 masquerades EVERY packet it
-    # forwards off tailscale0, including a tailnet client's SYN that klipper-lb's
-    # hostPort DNATs to the svclb pod, so the pod sees 10.42.0.1 instead of a
-    # 100.64.0.0/10 address and its loadBalancerSourceRanges filter drops it:
-    # every private hostname (registry, grafana, ...) dead for the tailnet and
-    # for CI, while the node itself still answers. 1.98 left the source alone.
+    # hazard: not the default: since 1.102 the SNAT hides the 100.x source from
+    # Traefik's loadBalancerSourceRanges, killing every private hostname.
     --snat-subnet-routes=false
 )
 tailscale up "${args[@]}"

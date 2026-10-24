@@ -1,31 +1,14 @@
 ---
-# invariant: what is left after every workload that a chart CAN express became a Helm
-# release: cloudflared's Deployment, and the Grafana dashboard ConfigMaps this
-# repo generates from JSON.
-#
-# cloudflared is a raw manifest on purpose: `hostNetwork: true` and
-# `dnsPolicy: ClusterFirstWithHostNet`, which the app chart does not express,
-# for the one workload that needs them (see the Gotchas in CLAUDE.md). Anything
-# else that lands here should be a release instead.
-#
-# Position is load-bearing: this runs AFTER bootstrap.yml, whose `tier: platform`
-# pass declares the InfisicalSecret whose Secret cloudflared reads at startup.
-
-# outside: its tunnel token arrives via the InfisicalSecret bootstrap.yml applied; a pod
-# scheduled before that Secret exists sits in CreateContainerConfigError rather
-# than retrying gracefully.
+# invariant: only what no chart can express (cloudflared's hostNetwork Deployment,
+# generated dashboards; docs/guides/develop.md#workloads). Runs after bootstrap.yml,
+# whose pass declares the Secret cloudflared reads, or it sits in CreateContainerConfigError.
 - name: Apply the cloudflared deployment
   ansible.builtin.command: kubectl apply -f {{ manifest_dir }}/kubernetes/services/cloudflared/deployment.yaml
   register: cloudflared_result
   changed_when: "'created' in cloudflared_result.stdout or 'configured' in cloudflared_result.stdout"
 
-# invariant: APP alert rules and dashboards are deliberately NOT applied here: they ship
-# with the app that emits the metric, through the app chart's `spec.alerts` /
-# `spec.dashboards` (which render the same labelled ConfigMaps the sidecars in
-# grafana/values.yaml watch). One living in this repo outlives the app it watches
-# and goes stale invisibly. Only the infrastructure dashboards below, which
-# describe the cluster itself, belong here, and the sidecar picks them up
-# whenever they appear, so they need no ordering against the Grafana release.
+# invariant: infrastructure dashboards only; app alerts and dashboards ship with the
+# app chart (docs/decisions/005-telemetry-runs-on-the-victoriametrics-family.md).
 - name: Deploy Grafana infrastructure dashboards
   ansible.builtin.shell:
     cmd: |

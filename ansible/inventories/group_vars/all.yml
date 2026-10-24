@@ -1,158 +1,78 @@
 ---
-# invariant: global variables, the visible config surface of this repo. This file MUST
-# stay beside the inventory files: Ansible auto-loads `group_vars/` from next
-# to the inventory (or the playbook) and nowhere else. Role `defaults/main.yml`
-# is only for values a user should not normally touch.
+# invariant: the config surface. MUST stay beside the inventory files: Ansible
+# auto-loads `group_vars/` from next to the inventory (or playbook) and nowhere else.
 
 timezone: UTC
 
-# invariant: THE Helm version: the node installs it and validate.yaml reads it from
-# here for azure/setup-helm. A chart packaged by one version and rendered by
-# another is a silent behaviour difference, so there is no second copy.
-#
-# v4 since 2026-09-19. What held it at v3 was checked before moving: helm-diff
-# 3.15.10+ and helmfile 1.4+ speak v4's flags, helm-unittest embeds its own
-# renderer so the committed snapshots do not move, server-side apply is only
-# the default for releases that were INSTALLED under it (existing releases
-# stay client-side), and the legacy cli/v1 plugin ABI still loads. The one
-# visible difference is `helm plugin install --verify`, handled in
-# roles/platform/tasks/helm-tooling.yml and scripts/lib/helm-plugin.sh.
+# invariant: THE Helm version: the node installs it, validate.yaml reads it from here;
+# no second copy (docs/decisions/009-one-helmfile-declares-every-platform-release.md).
 helm_version: "v4.3.0"
 
-# invariant: the release layer. helmfile owns every `helm upgrade --install` this repo
-# performs; the releases themselves are declared in kubernetes/helmfile.yaml.gotmpl
-# and the chart versions live THERE, not here.
-#
-# validate.yaml's `kubernetes` job reads this value to install the helmfile that
-# renders the same state file: a renderer that is not the applier proves nothing.
+# invariant: helmfile owns every release; chart versions live in
+# kubernetes/helmfile.yaml.gotmpl. validate.yaml installs this same helmfile.
 helmfile_version: "v1.8.0"
 
-# value: helm-diff is not optional tooling: `helmfile apply` is diff-then-sync, so
-# without the plugin there is no deploy at all. Pinned because it renders the
-# chart AND talks to the cluster.
+# value: not optional: `helmfile apply` is diff-then-sync, no plugin means no deploy.
 helm_diff_version: "v3.15.13"
 
-# hazard: SINGLE SOURCE OF TRUTH, deliberately NOT duplicated in roles/k3s/defaults
-# (which is why that file does not exist): a role default wins only when this
-# file is not loaded, so two copies is a silent-drift trap.
-#
-# In-place minor bump is the supported path: roles/k3s re-runs get.k3s.io with
-# INSTALL_K3S_VERSION and restarts the unit, which takes the CONTROL PLANE down
-# for tens of seconds (containers keep running). NEVER SKIP A MINOR:
-# Kubernetes' version-skew policy forbids it.
-#
-# A k3s minor can move the BUNDLED TRAEFIK CHART across a breaking major, so
-# re-read kubernetes/services/traefik/helm-chart-config.yaml against the new chart's
-# values.schema.json IN THE SAME CHANGE. Renamed *port* keys hard-fail the
-# helm-install job; a renamed `service.*` key does NOT, since `service` carries no
-# `additionalProperties: false`, so a stale key is a SILENT no-op. That is the
-# dangerous half: it would drop `loadBalancerSourceRanges: 100.64.0.0/10`, the
-# only thing restricting Traefik's host ports 80/443 to the tailnet (klipper-lb
-# DNATs in PREROUTING, so UFW never sees the packet). Post-upgrade gate, never
-# skip it:
-#   kubectl -n kube-system get svc traefik \
-#     -o jsonpath='{.spec.loadBalancerSourceRanges}'   # must be non-empty
+# hazard: single source, deliberately absent from roles/k3s/defaults. Never skip a
+# minor; a minor can move the bundled Traefik chart, so re-read
+# kubernetes/services/traefik/helm-chart-config.yaml in the same change and check
+# `loadBalancerSourceRanges` is non-empty after (docs/decisions/003-traefiks-service-is-the-tailnet-gate.md).
 k3s_version: "v1.37.0+k3s1"
-# value: the audience a GitHub Actions job asks its OIDC token for; the apiserver
-# accepts no other (roles/k3s/templates/authentication.yaml.j2). Hand-synced
-# with `audience:` in jterrazz-actions/actions/docker-deploy.
+# value: the only OIDC audience the apiserver accepts; hand-synced with `audience:` in
+# jterrazz-actions/actions/docker-deploy (docs/decisions/017-app-repositories-deploy-as-their-github-oidc-identity.md).
 k3s_oidc_audience: "jterrazz-infrastructure"
-# outside: k3s' own default data-dir, repeated here only because tasks/main.yml and the
-# apiserver's audit-log-path need the path as a value.
+# outside: k3s' own default, repeated because tasks and the audit-log-path need it.
 k3s_data_dir: "/var/lib/rancher/k3s"
 k3s_node_ip: "{{ ansible_default_ipv4.address }}"
 
-# outside: private hostnames, short-circuited IN-CLUSTER to the node's own tailnet IP.
-# Needed because CoreDNS cannot chase a CNAME from a public zone into the
-# tailnet zone, so without the override an in-cluster lookup NXDOMAINs.
-# Rendered into the `coredns-custom` ConfigMap by
-# roles/platform/tasks/coredns.yml via templates/coredns-custom.yaml.j2.
-#
-# NOT paired with anything on the public-DNS side: every name here is
-# `<svc>.internal.jterrazz.com` or `<app>.staging.jterrazz.com`, each zone covered
-# by one wildcard CNAME (`*.internal`, `*.staging`) in `dns_records` below.
-# Adding a private service means adding ONE line here and nothing else,
-# anywhere.
-#
-# An explicit list rather than a wildcard because CoreDNS's `hosts` plugin
-# matches exact names only; expressing `*.internal` needs the `template`
-# plugin, which k3s's CoreDNS build does not include.
-#
-# This list is the ONE private-hostname fact the cluster cannot supply: CoreDNS
-# needs the name before any route exists. scripts/smoke.sh checks it against the
-# live IngressRoutes in BOTH directions, so a name here that nothing serves and
-# a tailnet-only route missing from here are each a reported failure.
+# outside: answered in-cluster with the node's tailnet IP (CoreDNS cannot chase the
+# public CNAME into the tailnet). Exact names only, one line per private host; smoke
+# checks it against the live routes both ways (docs/decisions/012-private-hostnames-are-wildcard-zones.md).
 private_hostnames:
   - registry.internal.jterrazz.com
   - grafana.internal.jterrazz.com
   - gateway-intelligence.internal.jterrazz.com
-  # invariant: an app-chart route (prod-signews-api), not a platform service; this list
-  # is about who answers the name, not about which repo declares it.
   - signews.internal.jterrazz.com
   - os.internal.jterrazz.com
-  # outside: was in private_hostnames_via_traefik until 2026-09-19: OpenPanel 2.3.0's
-  # dashboard honours API_URL_SSR, so nothing in the cluster fetches this host
-  # any more (kubernetes/services/openpanel/config.yaml).
   - openpanel.internal.jterrazz.com
-  # invariant: the staging environments live in their own tailnet-only zone, so staging
-  # is never reachable from the internet (staging-signews-api).
   - signews.staging.jterrazz.com
 
-# outside: same as above, but mapped to Traefik's ClusterIP rather than the node's
-# tailnet IP, for a pod that fetches its own PUBLIC URL from inside the
-# cluster. A pod cannot hairpin to the node's ServiceLB; it times out.
-# Empty since 2026-09-19 (openpanel left once its dashboard could split the
-# SSR URL from the browser URL; kubernetes/services/openpanel/config.yaml
-# keeps the story). The mechanism stays for the next image that cannot, and
-# that pod also needs its namespace admitted by allow-traefik-ingress
-# (kubernetes/cluster/network-policies/kube-system.yaml), which turns every
-# other pod away from Traefik.
+# outside: mapped to Traefik's ClusterIP, for a pod fetching its own public URL (no
+# hairpin to ServiceLB). Such a pod's namespace also needs allow-traefik-ingress
+# (kubernetes/cluster/network-policies/kube-system.yaml).
 private_hostnames_via_traefik: []
 
-# outside: the records in the public zone that no other owner creates, converged by
-# roles/platform/tasks/dns-records.yml on every platform deploy. Every other
-# public record is made by a Public Hostname on the Cloudflare tunnel, every
-# ACME TXT record by cert-manager; neither belongs here.
-#
-# One wildcard per private zone, never a per-service record: a private service
-# needs a line in `private_hostnames` above, not a record. Both targets are
-# derived, so a re-created VM or tunnel needs no edit here.
+# outside: only the public records no other owner creates (the tunnel and cert-manager
+# make the rest). One wildcard per private zone, never a per-service record.
 dns_zone: jterrazz.com
 dns_records:
-  # invariant: DNS-only. The name resolves to the node's 100.x address, reachable from
-  # the tailnet only; the route's private-access ipAllowList is the enforcement.
-  # Unproxied is also why a two-label name gets valid HTTPS: the certificate is
-  # cert-manager's, not Cloudflare's Universal SSL (which stops at *.jterrazz.com).
+  # invariant: DNS-only: resolves to the node's 100.x address; unproxied is also why
+  # the two-label name gets cert-manager's certificate.
   - record: "*.internal"
     value: "{{ tailscale_dns_hostname }}"
     proxied: false
-  # invariant: staging is tailnet-only: `<app>.staging.jterrazz.com`, `public: false`.
   - record: "*.staging"
     value: "{{ tailscale_dns_hostname }}"
     proxied: false
-  # invariant: proxied is mandatory: cfargotunnel.com resolves only at the edge. The
-  # tunnel id is the connector token's `t` field. Its ROUTE is a Public Hostname in
-  # Zero Trust, but that Public Hostname did not create this record, so it is
-  # owned here (kubernetes/services/cloudflared/README.md).
+  # invariant: proxied is mandatory (cfargotunnel.com resolves only at the edge); the
+  # tunnel id is the connector token's `t` field.
   - record: analytics
     value: "{{ (cloudflare_tunnel_token | b64decode | from_json).t }}.cfargotunnel.com"
     proxied: true
 
-# invariant: every secret a deploy reads, once. roles/secrets fetches exactly this list
-# from Infisical (project `jterrazz`, environment `prod`) on the controller and
-# fails on a missing key before anything deploys; nothing else holds a copy.
-# Each folder is fetched EXPLICITLY, never recursively, so short key names can
-# repeat across folders. `scope: site` entries are fetched by site.yml only.
+# invariant: every secret a deploy reads, once; roles/secrets fetches each folder
+# explicitly and fails on a missing key. `scope: site` is fetched by site.yml only
+# (docs/decisions/015-deploy-secrets-are-fetched-once-by-ansible.md).
 infisical_api: https://eu.infisical.com
 infisical_project: jterrazz
 infisical_environment: prod
 infisical_secrets:
   - { var: cloudflare_api_token, path: /jterrazz-infrastructure, key: CLOUDFLARE_API_TOKEN }
   - { var: cloudflare_tunnel_token, path: /jterrazz-infrastructure, key: CLOUDFLARE_TUNNEL_TOKEN }
-  # outside: both halves of the registry ACCOUNT: a password rotation overlaps two
-  # accounts (`deploy` / `deploy-next`), and the htpasswd line bootstrap.yml
-  # generates follows the name CI and the kubelet authenticate with
-  # (docs/guides/operate.md, Rotating the registry password).
+  # outside: both halves of the registry account; see docs/guides/operate.md, Rotating
+  # the registry password.
   - { var: registry_username, path: /jterrazz-infrastructure, key: DOCKER_REGISTRY_USERNAME }
   - { var: registry_password, path: /jterrazz-infrastructure, key: DOCKER_REGISTRY_PASSWORD }
   - { var: grafana_admin_password, path: /jterrazz-infrastructure/grafana, key: ADMIN_PASSWORD }

@@ -1,12 +1,6 @@
 ---
-# outside: the three binaries the release layer runs on: helm, its diff plugin, and
-# helmfile. All pinned in inventories/group_vars/all.yml, and all checked by
-# VERSION rather than presence: a node left behind on an older helm renders
-# charts differently from the CI that validated them, and `helmfile apply` is
-# helm-diff plus helm underneath.
-#
-# There is no `helm repo add` here any more: kubernetes/helmfile.yaml.gotmpl
-# declares the repositories and helmfile adds them itself on every run.
+# invariant: helm, helm-diff and helmfile are checked by VERSION, not presence: a
+# stale node renders differently from CI (docs/decisions/009-one-helmfile-declares-every-platform-release.md).
 
 - name: Get the installed Helm version
   ansible.builtin.command:
@@ -18,9 +12,7 @@
 - name: Install Helm
   when: (helm_installed.rc | default(1)) != 0 or (helm_installed.stdout | default('') | trim) != helm_version
   block:
-    # invariant: a TAG, never `main`: this script is fetched and executed as root, so a
-    # moving branch lets an upstream commit change what runs on the host
-    # between two deploys with no change on our side.
+    # invariant: a TAG, never `main`: this script runs as root.
     - name: Download Helm install script
       ansible.builtin.get_url:
         url: "https://raw.githubusercontent.com/helm/helm/{{ helm_version }}/scripts/get-helm-3"
@@ -38,8 +30,7 @@
         path: /tmp/get_helm.sh
         state: absent
 
-# outside: `helm plugin list` prints the version without the leading `v` the release tag
-# carries, hence the strip on both sides of the comparison.
+# outside: `helm plugin list` drops the leading `v`, hence the strip on both sides.
 - name: Get the installed helm-diff plugin version
   ansible.builtin.shell:
     cmd: |
@@ -55,17 +46,14 @@
     (helm_diff_installed.stdout | default('') | trim)
     != (helm_diff_version | regex_replace('^v', ''))
   block:
-    # outside: `helm plugin install` refuses to overwrite an existing plugin, so a
-    # version bump is an uninstall away. Never fatal: the uninstall is a no-op
-    # on a node that has no plugin yet.
+    # outside: `helm plugin install` refuses to overwrite; a no-op on a fresh node.
     - name: Remove any mismatched helm-diff plugin
       ansible.builtin.command: helm plugin uninstall diff
       changed_when: true
       failed_when: false
 
-    # outside: Helm 4 verifies plugin signatures by default and helm-diff publishes none;
-    # Helm 3 has no --verify flag at all. Same test as scripts/lib/helm-plugin.sh,
-    # so this survives a helm bump in either direction.
+    # outside: Helm 4 verifies signatures (helm-diff ships none), Helm 3 has no
+    # --verify; same feature test as scripts/lib/helm-plugin.sh.
     - name: Install the pinned helm-diff plugin
       ansible.builtin.shell:
         cmd: |
@@ -111,8 +99,7 @@
         path: /tmp/helmfile.tar.gz
         state: absent
 
-    # invariant: the download is version-named but the archive's contents are not, so this
-    # is what actually proves the pin landed.
+    # invariant: the archive's contents are not version-named; this proves the pin.
     - name: Verify the installed helmfile version
       ansible.builtin.command:
         argv: [helmfile, --version]
