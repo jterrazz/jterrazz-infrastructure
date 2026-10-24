@@ -199,21 +199,22 @@ tuning.
 
 ## DNS has exactly three owners, and none of them is this repo's code
 
-- **Private**: `<svc>.internal.jterrazz.com`, covered by the single
-  `*.internal` wildcard CNAME. Adding one needs no DNS change at all, only a
-  line in `private_hostnames` (group_vars) so in-cluster lookups skip the public
-  CNAME chain.
+- **Private**: `<svc>.internal.jterrazz.com`, covered by the `*.internal`
+  wildcard CNAME, and `<app>.staging.jterrazz.com`, covered by `*.staging`: the
+  staging environments are tailnet-only, never public. Adding one needs no DNS
+  change at all, only a line in `private_hostnames` (group_vars) so in-cluster
+  lookups skip the public CNAME chain, and `public: false` on the route.
 - **Public**: the Cloudflare Zero Trust tunnel owns the record. Add a Public
   Hostname in its UI; nothing lands in this repo.
-- **The machine**: two records made by hand in the Cloudflare dashboard and
+- **The machine**: three records made by hand in the Cloudflare dashboard and
   written down in [Operate](operate.md#dns-records-set-once-survive-everything):
-  the `*.internal` wildcard, and `analytics`, which is the exception to "the
+  the `*.internal` and `*.staging` wildcards, and `analytics`, which is the exception to "the
   tunnel owns every public record" because its route is a Public Hostname but
   its record is manual, so deleting it falls back to nothing.
 
-Both hand-made records are set once and survive every repave: the VM keeps its
+The hand-made records are set once and survive every repave: the VM keeps its
 hostname, the tunnel keeps its id, and nothing a deploy runs ever touches them.
-Never grow that pair into a per-service list; that is what made the hostname
+Never grow them into a per-service list (one wildcard per private zone is the ceiling); that is what made the hostname
 list live in two files with a CI assertion holding them together.
 
 A new public zone is three steps: add it to both ClusterIssuers in

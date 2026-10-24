@@ -177,8 +177,9 @@ for item in doc.get("items", []):
     for host in hosts:
         # An ipAllowList in front of the route, or the private zone: either way
         # a non-tailnet caller cannot reach it. The middleware is the actual
-        # enforcement; the suffix catches a route whose gate was dropped.
-        scope = "private" if (gated or ".internal." in host) else "public"
+        # enforcement; the suffixes (.internal., .staging.) catch a route whose
+        # gate was dropped.
+        scope = "private" if (gated or ".internal." in host or ".staging." in host) else "public"
         if scope == "private":
             private_hosts.add(host)
         if source == "skipped":

@@ -262,8 +262,10 @@ ingress:
   **entry** (`<app>-<idx>`), so two entries can share a host.
 - Public hostnames still need a Public Hostname route in the Cloudflare Zero
   Trust dashboard, and a new zone must be added to cert-manager's
-  `issuers.yaml`. Private `*.internal.jterrazz.com` names resolve through one
-  hand-made wildcard CNAME and need no DNS work.
+  `issuers.yaml`. Private `*.internal.jterrazz.com` and
+  `<app>.staging.jterrazz.com` names resolve through one hand-made wildcard
+  CNAME per zone and need no DNS work, only `public: false` and a line in the
+  infrastructure repo's `private_hostnames`. Staging is always private.
 
 #### `smoke:` names what the probe should get back
 
