@@ -1,56 +1,29 @@
 ---
-# outside: target OS is Debian 13 (trixie); package names below are Debian-native.
-
-- name: Display deployment target
-  ansible.builtin.debug:
-    msg: "Deploying to {{ inventory_hostname }} ({{ ansible_distribution }} {{ ansible_distribution_version }})"
-  tags: [always]
-
-- name: Wait for system to be ready
-  ansible.builtin.wait_for_connection:
-    connect_timeout: 20
-    timeout: 300
-  tags: [always]
-
-- name: Update apt cache
-  ansible.builtin.apt:
-    update_cache: true
-    cache_valid_time: 3600
-  tags: [base, packages]
-
-- name: Install essential packages
+- name: Install the base packages
   ansible.builtin.apt:
     name:
       - curl
-      - wget
-      - git
+      - ca-certificates
       - vim
       - htop
-      - unzip
       - jq
-      - ca-certificates
-      - gnupg
-      - lsb-release
-      - python3-pip
       - python3-yaml
       - python3-kubernetes
       # outside: deb822_repository needs it; Debian 13 has no apt-key.
       - python3-debian
       - iptables
-      # outside: a separate package on Debian 12+, needed before roles/resolved and k3s.
       - systemd-resolved
-      # outside: OrbStack VMs ship without sshd; roles/security validates with `sshd -t`.
+      # outside: OrbStack VMs ship without sshd.
       - openssh-server
     state: present
-  tags: [base, packages]
+    update_cache: true
+    cache_valid_time: 3600
 
-# hazard: Debian 13's socket-activated sshd ignores `Port` and does not re-bind on
-# restart, so a config change looks applied but is not.
-- name: Check for a socket-activated sshd unit
+# hazard: a socket-activated sshd ignores `Port` and does not re-bind on restart.
+- name: Check for a socket-activated sshd
   ansible.builtin.stat:
     path: /usr/lib/systemd/system/ssh.socket
   register: ssh_socket_unit
-  tags: [base, ssh]
 
 - name: Disable socket activation for sshd
   ansible.builtin.systemd_service:
@@ -58,30 +31,25 @@
     state: stopped
     enabled: false
   when: ssh_socket_unit.stat.exists
-  tags: [base, ssh]
 
 # invariant: also creates /run/sshd, which `sshd -t` needs on a fresh install.
-- name: Ensure ssh service is started and enabled
+- name: Start and enable sshd
   ansible.builtin.systemd_service:
     name: ssh.service
     state: started
     enabled: true
     daemon_reload: true
-  tags: [base, ssh]
 
-# hazard: k3s crashloops without /dev/kmsg; some VMs lack it, hence the persisted
-# /dev/console fallback.
-- name: Stat /dev/kmsg
+# hazard: k3s crashloops without /dev/kmsg, which some VMs lack.
+- name: Check for /dev/kmsg
   ansible.builtin.stat:
     path: /dev/kmsg
   register: kmsg_dev
-  tags: [base, kmsg]
 
-- name: Backfill /dev/kmsg when the kernel doesn't expose it
+- name: Backfill /dev/kmsg
   when: not kmsg_dev.stat.exists
-  tags: [base, kmsg]
   block:
-    - name: Persist /dev/kmsg symlink via tmpfiles.d
+    - name: Persist the /dev/kmsg symlink
       ansible.builtin.copy:
         dest: /etc/tmpfiles.d/orbstack-kmsg.conf
         content: "L /dev/kmsg - - - - /dev/console\n"
@@ -94,10 +62,8 @@
         state: link
         force: true
 
-# value: every virtio-blk FLUSH is an F_FULLFSYNC on the Mac; "write through" stops
-# them on /dev/vd* (not virtiofs). Runtime-only, so re-applied at every boot
-# (docs/decisions/008-storage-on-orbstack-spends-fsyncs-not-bytes.md).
-- name: Install the virtio-blk no-flush unit
+# value: every virtio-blk FLUSH is an F_FULLFSYNC on the Mac; runtime-only, so set at boot (ADR-008).
+- name: Install the virtio-blk write-through unit
   ansible.builtin.copy:
     dest: /etc/systemd/system/virtio-blk-write-through.service
     mode: "0644"
@@ -118,22 +84,19 @@
       [Install]
       WantedBy=multi-user.target
   register: virtio_blk_unit
-  tags: [base, storage]
 
-- name: Enable the virtio-blk no-flush unit
+- name: Enable the virtio-blk write-through unit
   ansible.builtin.systemd_service:
     name: virtio-blk-write-through.service
     enabled: true
     state: "{{ 'restarted' if virtio_blk_unit.changed else 'started' }}"
     daemon_reload: true
-  tags: [base, storage]
 
-- name: Set timezone
+- name: Set the timezone
   community.general.timezone:
-    name: "{{ timezone | default('UTC') }}"
-  tags: [base]
+    name: UTC
 
-- name: Configure system limits for Kubernetes
+- name: Raise the process limits for Kubernetes
   ansible.builtin.blockinfile:
     path: /etc/security/limits.d/kubernetes.conf
     create: true
@@ -143,20 +106,12 @@
       * hard nofile 65536
       * soft nproc 65536
       * hard nproc 65536
-  tags: [base]
 
-# hazard: DO NOT CHANGE THESE PATHS: every PV names /var/lib/k8s-data, a symlink into
-# the Mac home so live data survives `make destroy`.
-- name: Resolve Mac bind dir
-  ansible.builtin.set_fact:
-    # invariant: scripts/deploy.sh (vm_up) creates it before the VM exists.
-    storage_orbstack_data_dir: "/mnt/mac/Users/{{ lookup('env', 'USER') }}/.jterrazz-infrastructure/data"
-  tags: [base, storage]
-
-- name: Replace /var/lib/k8s-data with a symlink to the Mac dir
+# hazard: every PV names /var/lib/k8s-data; it must stay a symlink into the Mac share that
+# scripts/deploy.sh creates, so the data survives `make destroy`.
+- name: Link /var/lib/k8s-data to the Mac data directory
   ansible.builtin.file:
-    src: "{{ storage_orbstack_data_dir }}"
+    src: "/mnt/mac/Users/{{ lookup('env', 'USER') }}/.jterrazz-infrastructure/data"
     dest: /var/lib/k8s-data
     state: link
     force: true
-  tags: [base, storage]

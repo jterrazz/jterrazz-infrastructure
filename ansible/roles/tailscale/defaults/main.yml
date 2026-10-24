@@ -1,5 +1,4 @@
 ---
-# invariant: set by ansible/roles/secrets in a site.yml run (scope `site`). Empty here
-# so a run without them SKIPS the login block rather than failing.
+# invariant: set by roles/secrets in a site.yml run; empty skips the login instead of failing.
 tailscale_oauth_client_id: ""
 tailscale_oauth_client_secret: ""

@@ -1,8 +1,6 @@
 ---
-# invariant: EXACT pins from GitHub tags, never `>=` and never Galaxy. A git source
-# resolves no dependencies, so community.library_inventory_filtering is
-# community.general's, pinned by hand (docs/decisions/020-validation-gates-fail-loudly-and-pin-what-they-run.md).
-
+# invariant: exact pins from GitHub tags, never `>=` nor Galaxy; a git source resolves no
+# dependencies, so community.general's library_inventory_filtering is pinned by hand (ADR-020).
 collections:
   - name: https://github.com/ansible-collections/kubernetes.core.git
     type: git

@@ -1,6 +1,5 @@
 ---
-# hazard: do NOT restore fail2ban (no public SSH port exists) or auditd (OrbStack
-# withholds CAP_AUDIT_*) (docs/decisions/006-the-host-has-no-public-inbound-path.md).
+# hazard: fail2ban and auditd are absent on purpose: no public SSH port, no CAP_AUDIT_* (ADR-006).
 
 - name: Install security packages
   ansible.builtin.apt:
@@ -10,10 +9,8 @@
     state: present
     update_cache: true
     cache_valid_time: 3600
-  tags: [security, packages]
 
-# hazard: BOF is load-bearing: the FIRST occurrence of an sshd keyword wins, so an
-# Include anywhere lower leaves the drop-in silently inert.
+# hazard: at BOF: the first occurrence of an sshd keyword wins, so a lower Include is inert.
 - name: Ensure sshd_config includes the drop-in directory
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
@@ -22,7 +19,6 @@
     state: present
     validate: "sshd -t -f %s"
   notify: Restart SSH
-  tags: [security, ssh]
 
 - name: Ensure the sshd drop-in directory exists
   ansible.builtin.file:
@@ -31,12 +27,10 @@
     mode: "0755"
     owner: root
     group: root
-  tags: [security, ssh]
 
-# hazard: a bad sshd config locks us out: `validate:` checks the candidate, `sshd -t`
-# the effective config; the rescue removes the drop-in and fails without restarting.
+# hazard: a bad config is a lockout: validate the candidate, then the effective config, and
+# on failure remove the drop-in without restarting.
 - name: Harden sshd via drop-in
-  tags: [security, ssh]
   block:
     - name: Configure the SSH daemon hardening drop-in
       ansible.builtin.template:
@@ -66,53 +60,44 @@
           removed so sshd keeps running on the distro defaults. Run
           `sshd -t` on the host to see the parse error.
 
-# invariant: setting security_ci_deploy_pubkey empty in extra-vars skips this entirely.
 - name: Install the CI deploy public key in root's authorized_keys
   ansible.posix.authorized_key:
     user: root
     key: "{{ security_ci_deploy_pubkey }}"
     state: present
     comment: "ci-deploy (jterrazz-infrastructure GHA)"
-  when: security_ci_deploy_pubkey | length > 0
-  tags: [security, ssh]
 
-# invariant: the cluster binds no IPv6 listeners, so the v6 rule set would be dead config.
+# invariant: nothing listens on IPv6.
 - name: Disable IPv6 in UFW
   ansible.builtin.lineinfile:
     path: /etc/default/ufw
     regexp: "^IPV6="
     line: "IPV6=no"
-  tags: [security, firewall]
 
-# invariant: only the forward policy: UFW already defaults incoming to deny and outgoing
-# to allow.
-- name: Configure the UFW default forward policy # noqa: args[module]
+# invariant: only the forward policy: UFW already denies incoming and allows outgoing.
+- name: Deny routed traffic by default # noqa: args[module]
   community.general.ufw:
     direction: routed
-    policy: "{{ security_ufw_default_forward }}"
-  tags: [security, firewall]
+    policy: deny
 
 - name: Configure the UFW rules
   community.general.ufw:
-    rule: "{{ item.rule }}"
+    rule: allow
     port: "{{ item.port }}"
-    proto: "{{ item.proto | default('tcp') }}"
-    comment: "{{ item.comment | default('') }}"
+    proto: tcp
+    comment: "{{ item.comment }}"
     from_ip: "{{ item.from | default('any') }}"
   loop: "{{ security_ufw_rules }}"
-  tags: [security, firewall]
 
 - name: Enable UFW
   community.general.ufw:
     state: enabled
-  tags: [security, firewall]
 
 - name: Ensure the nftables drop-in directory exists
   ansible.builtin.file:
     path: /etc/nftables.d
     state: directory
     mode: "0755"
-  tags: [security, firewall]
 
 - name: Install the peer-isolation nftables guard
   ansible.builtin.template:
@@ -120,7 +105,6 @@
     dest: /etc/nftables.d/jterrazz-guard.conf
     mode: "0644"
   notify: Reload the nftables guard
-  tags: [security, firewall]
 
 - name: Install the guard's systemd unit
   ansible.builtin.copy:
@@ -144,7 +128,6 @@
       [Install]
       WantedBy=multi-user.target
   notify: Reload the nftables guard
-  tags: [security, firewall]
 
 - name: Enable the nftables guard
   ansible.builtin.systemd_service:
@@ -152,21 +135,18 @@
     enabled: true
     state: started
     daemon_reload: true
-  tags: [security, firewall]
 
 - name: Configure automatic updates
   ansible.builtin.template:
     src: 20auto-upgrades.j2
     dest: /etc/apt/apt.conf.d/20auto-upgrades
     mode: "0644"
-  tags: [security, updates]
 
 - name: Configure unattended upgrades
   ansible.builtin.template:
     src: 50unattended-upgrades.j2
     dest: /etc/apt/apt.conf.d/50unattended-upgrades
     mode: "0644"
-  tags: [security, updates]
 
 - name: Configure the kernel security parameters
   ansible.posix.sysctl:
@@ -175,7 +155,6 @@
     state: present
     reload: true
   loop: "{{ security_kernel_params }}"
-  tags: [security, sysctl]
 
 - name: Disable uncommon network protocols
   ansible.builtin.blockinfile:
@@ -187,4 +166,3 @@
       install sctp /bin/true
       install rds /bin/true
       install tipc /bin/true
-  tags: [security]

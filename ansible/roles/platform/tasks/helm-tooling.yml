@@ -1,6 +1,5 @@
 ---
-# invariant: helm, helm-diff and helmfile are checked by VERSION, not presence: a
-# stale node renders differently from CI (docs/decisions/009-one-helmfile-declares-every-platform-release.md).
+# invariant: checked by version, not presence: a stale node renders differently from CI.
 
 - name: Get the installed Helm version
   ansible.builtin.command:
@@ -12,20 +11,20 @@
 - name: Install Helm
   when: (helm_installed.rc | default(1)) != 0 or (helm_installed.stdout | default('') | trim) != helm_version
   block:
-    # invariant: a TAG, never `main`: this script runs as root.
-    - name: Download Helm install script
+    # invariant: a tag, never `main`: this script runs as root.
+    - name: Download the Helm install script
       ansible.builtin.get_url:
         url: "https://raw.githubusercontent.com/helm/helm/{{ helm_version }}/scripts/get-helm-3"
         dest: /tmp/get_helm.sh
         mode: "0755"
 
-    - name: Run Helm install script
+    - name: Run the Helm install script
       ansible.builtin.command: /tmp/get_helm.sh
       environment:
         DESIRED_VERSION: "{{ helm_version }}"
       changed_when: true
 
-    - name: Cleanup Helm install script
+    - name: Remove the Helm install script
       ansible.builtin.file:
         path: /tmp/get_helm.sh
         state: absent
@@ -46,26 +45,16 @@
     (helm_diff_installed.stdout | default('') | trim)
     != (helm_diff_version | regex_replace('^v', ''))
   block:
-    # outside: `helm plugin install` refuses to overwrite; a no-op on a fresh node.
+    # outside: `helm plugin install` refuses to overwrite.
     - name: Remove any mismatched helm-diff plugin
       ansible.builtin.command: helm plugin uninstall diff
       changed_when: true
       failed_when: false
 
-    # outside: Helm 4 verifies signatures (helm-diff ships none), Helm 3 has no
-    # --verify; same feature test as scripts/lib/helm-plugin.sh. hazard: never
-    # `| grep -q` under pipefail: grep exits on the first match, helm takes a
-    # SIGPIPE, the test reads false and Helm 4 refuses the unsigned plugin.
+    # outside: helm-diff publishes no signature, which Helm 4 verifies by default.
     - name: Install the pinned helm-diff plugin
-      ansible.builtin.shell:
-        cmd: |
-          help=$(helm plugin install --help 2>&1)
-          if [[ $help == *--verify* ]]; then
-            helm plugin install https://github.com/databus23/helm-diff --version {{ helm_diff_version }} --verify=false
-          else
-            helm plugin install https://github.com/databus23/helm-diff --version {{ helm_diff_version }}
-          fi
-        executable: /bin/bash
+      ansible.builtin.command:
+        argv: [helm, plugin, install, https://github.com/databus23/helm-diff, --version, "{{ helm_diff_version }}", --verify=false]
       changed_when: true
 
 - name: Get the installed helmfile version
@@ -96,7 +85,7 @@
         include: [helmfile]
         mode: "0755"
 
-    - name: Cleanup the helmfile archive
+    - name: Remove the helmfile archive
       ansible.builtin.file:
         path: /tmp/helmfile.tar.gz
         state: absent

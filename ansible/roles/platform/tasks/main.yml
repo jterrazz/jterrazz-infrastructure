@@ -1,41 +1,38 @@
 ---
-# invariant: dependency order, three helmfile passes (docs/decisions/009-one-helmfile-declares-every-platform-release.md).
-# One release is redeployed with `helmfile ... apply -l name=<release>`, not a tag.
-
-- name: Stage the kubernetes/ tree and gather node facts
+# invariant: dependency order, with three helmfile passes (ADR-009); one release is
+# `helmfile apply -l name=<release>`, not a tag.
+- name: Stage the kubernetes/ tree
   ansible.builtin.import_tasks: stage-manifests.yml
   tags: [always]
 
-# hazard: BEFORE coredns.yml, or Traefik installs without its HelmChartConfig, i.e.
-# without `loadBalancerSourceRanges`.
-- name: Deploy the cluster-wide manifests
+- name: Apply the cluster-wide manifests
   ansible.builtin.import_tasks: cluster-manifests.yml
-  tags: [cluster-manifests, namespaces]
+  tags: [cluster-manifests]
 
 - name: Converge the DNS records no other owner creates
   ansible.builtin.import_tasks: dns-records.yml
-  tags: [dns-records, dns]
+  tags: [dns-records]
 
-- name: Configure CoreDNS split-DNS for private hostnames
+- name: Answer the private hostnames in CoreDNS
   ansible.builtin.import_tasks: coredns.yml
-  tags: [coredns, dns]
+  tags: [coredns]
 
 - name: Install helm, helm-diff and helmfile
   ansible.builtin.import_tasks: helm-tooling.yml
   tags: [helm]
 
-- name: Bootstrap secrets, CRDs, issuers and service storage
+- name: Bootstrap the secrets, CRDs, issuers and service storage
   ansible.builtin.import_tasks: bootstrap.yml
-  tags: [bootstrap, secrets, certmanager, infisical]
+  tags: [bootstrap]
 
-- name: Deploy the raw manifests
+- name: Apply the raw manifests
   ansible.builtin.import_tasks: raw-manifests.yml
-  tags: [raw-manifests, cloudflared, grafana]
+  tags: [raw-manifests]
 
 - name: Apply every platform Helm release
   ansible.builtin.import_tasks: helmfile-apply.yml
   tags: [releases]
 
-- name: Publish the app Helm chart
+- name: Publish the app chart
   ansible.builtin.import_tasks: publish-app-chart.yml
   tags: [chart-publish]

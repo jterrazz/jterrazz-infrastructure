@@ -1,10 +1,8 @@
 ---
-# invariant: dependency order: the Secrets Infisical cannot provide, `tier: bootstrap`
-# (the CRDs), the ClusterIssuers, then `tier: platform` (the claims and Secrets
-# later passes mount) (docs/decisions/009-one-helmfile-declares-every-platform-release.md).
-
-# hazard: the k8s module, never a shell: `$`, backticks or newlines would be mangled.
-- name: Create the Cloudflare API token secret for networking
+# invariant: the Secrets Infisical cannot provide, `tier: bootstrap` (the CRDs), the
+# ClusterIssuers, then `tier: platform` (the claims and Secrets later passes mount); ADR-009.
+# hazard: Secrets go through the k8s module, never a shell, which mangles `$` and backticks.
+- name: Create the Cloudflare API token Secret
   kubernetes.core.k8s:
     kubeconfig: "{{ kubeconfig }}"
     definition:
@@ -18,7 +16,7 @@
         api-token: "{{ cloudflare_api_token }}"
   no_log: true
 
-- name: Create the Infisical credentials secret
+- name: Create the Infisical credentials Secret
   kubernetes.core.k8s:
     kubeconfig: "{{ kubeconfig }}"
     definition:
@@ -33,19 +31,15 @@
         clientSecret: "{{ infisical_client_secret }}"
   no_log: true
 
-- name: Install apache2-utils for htpasswd
+- name: Install htpasswd
   ansible.builtin.apt:
     name: apache2-utils
     state: present
     update_cache: true
 
-# hazard: stdin, never `htpasswd -nbB <user> <password>` (visible in `ps`). The
-# account NAME is Infisical's too, never a literal: a rotation overlaps two
-# accounts (docs/decisions/015-deploy-secrets-are-fetched-once-by-ansible.md).
-# invariant: two accounts: the push account (CI) and `registry_pull_username`, which
-# the kubelet pulls with and Zot's accessControl limits to `read`
-# (kubernetes/services/registry/app.yaml).
-- name: Generate the htpasswd hashes for the registry
+# hazard: the password on stdin, never as an argument (`ps`); both names come from Infisical,
+# since a rotation overlaps two push accounts (ADR-014, ADR-015).
+- name: Hash the registry's push and pull accounts
   ansible.builtin.shell:
     cmd: |
       set -o pipefail
@@ -61,8 +55,7 @@
   changed_when: false
   no_log: true
 
-# hazard: the k8s module, never a shell: a bcrypt hash is full of `$` and `/`.
-- name: Create the registry htpasswd bootstrap secret
+- name: Create the registry htpasswd Secret
   kubernetes.core.k8s:
     kubeconfig: "{{ kubeconfig }}"
     definition:
@@ -81,17 +74,17 @@
   vars:
     helmfile_tier: bootstrap
 
-- name: Wait for cert-manager webhook to be ready
+- name: Wait for the cert-manager webhook
   ansible.builtin.command:
     cmd: kubectl rollout status deployment/cert-manager-webhook -n platform-networking --timeout=120s
   changed_when: false
 
-- name: Apply cert-manager ClusterIssuers
+- name: Apply the cert-manager ClusterIssuers
   ansible.builtin.command: kubectl apply -f {{ manifest_dir }}/kubernetes/services/cert-manager/issuers.yaml
   register: issuers_result
   changed_when: "'created' in issuers_result.stdout or 'configured' in issuers_result.stdout"
 
-- name: Deploy the platform-service chart storage, certificates, ingress and secrets
+- name: Install the platform-service releases
   ansible.builtin.include_tasks: helmfile-apply.yml
   vars:
     helmfile_tier: platform

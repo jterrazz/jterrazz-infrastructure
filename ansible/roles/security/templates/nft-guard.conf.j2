@@ -1,7 +1,6 @@
 # Managed by Ansible (roles/security).
-# hazard: k3s' iptables rules run ahead of UFW, so this table (priority -10) is the
-# real gate; scoped to {{ security_guard_interface }} so pod and tailnet traffic pass
-# (docs/decisions/006-the-host-has-no-public-inbound-path.md).
+# hazard: k3s' iptables rules run ahead of UFW, so this table (priority -10) is the real gate;
+# scoped to {{ security_guard_interface }} so pod and tailnet traffic pass (ADR-006).
 
 table inet jterrazz_guard {
   chain input {

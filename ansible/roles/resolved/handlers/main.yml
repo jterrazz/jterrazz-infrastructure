@@ -4,8 +4,7 @@
     name: systemd-resolved
     state: restarted
 
-# hazard: never `systemctl restart systemd-networkd`: the play reaches the host over
-# this link. reload + reconfigure withdraw the DHCP DNS without dropping the lease.
+# hazard: never restart systemd-networkd: the play reaches the host over this link.
 - name: Reload systemd-networkd
   ansible.builtin.command:
     cmd: "{{ item }}"

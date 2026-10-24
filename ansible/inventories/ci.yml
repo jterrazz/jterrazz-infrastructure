@@ -1,13 +1,11 @@
 ---
-# outside: the same VM over Tailscale, for deploy-platform.yaml. The key is the repo
-# secret `CI_DEPLOY_SSH_PRIVATE`, paired with `security_ci_deploy_pubkey`.
+# outside: the VM over Tailscale, for deploy-platform.yaml; the key is the CI_DEPLOY_SSH_PRIVATE
+# secret, paired with security_ci_deploy_pubkey.
 all:
   children:
     cluster:
       hosts:
         jterrazz-infrastructure:
-          # invariant: MagicDNS FQDN; it resolves only because the runner joins the tailnet
-          # with accept-dns via tailscale/github-action.
           ansible_host: jterrazz-infrastructure.tail77a797.ts.net
           ansible_user: root
           ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes"

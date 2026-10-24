@@ -1,12 +1,11 @@
 #!/bin/bash
-# invariant: shared logging helpers. Source it:
-#   source "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"
+# invariant: the logging helpers every script sources.
 
-export RED='\033[0;31m'
-export GREEN='\033[0;32m'
-export YELLOW='\033[1;33m'
-export BLUE='\033[0;34m'
-export NC='\033[0m'
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
 info() { echo -e "${BLUE}→ $1${NC}"; }
 success() { echo -e "${GREEN}✓ $1${NC}"; }

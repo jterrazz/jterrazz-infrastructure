@@ -1,6 +1,5 @@
 ---
-# hazard: THE one place deriving tailscale_ip / tailscale_dns_hostname; other callers
-# include it guarded by `when: tailscale_ip is not defined`.
+# invariant: the one place deriving tailscale_ip and tailscale_dns_hostname.
 
 - name: Get Tailscale IPv4 address
   ansible.builtin.command: tailscale ip -4

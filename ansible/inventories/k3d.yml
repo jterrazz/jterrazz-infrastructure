@@ -1,6 +1,6 @@
 ---
-# invariant: the upgrade test's throwaway k3d cluster; the host name is the k3d server
-# node's, since it becomes NODE_NAME, the hostPath nodeAffinity (docs/decisions/021-the-deploy-is-tested-on-a-throwaway-k3d-cluster.md).
+# invariant: the upgrade test's k3d cluster; the host name is the k3d server node's, since it
+# becomes NODE_NAME, the hostPath PV nodeAffinity.
 all:
   children:
     cluster:

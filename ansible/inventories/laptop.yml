@@ -1,13 +1,11 @@
 ---
-# invariant: the VM through OrbStack's SSH proxy (scripts/deploy.sh); the host key must
-# match VM_NAME there. The group is `cluster` in every inventory.
+# invariant: the VM through OrbStack's SSH proxy; `orb` is an ssh-config alias, so every real
+# address (TLS SANs, kubeconfig) uses the tailnet name instead.
 all:
   children:
     cluster:
       hosts:
         jterrazz-infrastructure:
-          # invariant: `orb` is an SSH-config alias, not a hostname; real addresses (SANs,
-          # kubeconfig) use the Tailscale name.
           ansible_host: orb
           ansible_user: root@jterrazz-infrastructure
           ansible_ssh_common_args: "-F {{ lookup('env', 'HOME') }}/.orbstack/ssh/config -o StrictHostKeyChecking=no"

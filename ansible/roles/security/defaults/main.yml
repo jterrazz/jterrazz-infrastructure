@@ -5,23 +5,17 @@ security_ssh_max_auth_tries: 3
 security_ssh_client_alive_interval: 300
 security_ssh_client_alive_count_max: 2
 
-security_ufw_default_forward: "deny"
-
-# hazard: KEEP IN SYNC with the repo secret `CI_DEPLOY_SSH_PRIVATE` (deploy-platform.yaml).
-# Rotate in order: regenerate, replace here, update the secret, `make deploy`.
+# hazard: the public half of the CI_DEPLOY_SSH_PRIVATE secret; rotation is docs/guides/operate.md.
 security_ci_deploy_pubkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPPCsf2boqXrePRFuhL3KfJjpabJ0bjAeNqpTLl7GREf ci-deploy@jterrazz-infrastructure"
 
-# outside: UFW is only the second gate for 80/443: klipper-lb DNATs first, so the real
-# gate is `loadBalancerSourceRanges` (kubernetes/services/traefik/helm-chart-config.yaml).
+# invariant: the second gate: klipper-lb DNATs 80/443 before UFW sees them, so Traefik's
+# loadBalancerSourceRanges is the first (ADR-003, ADR-006).
 security_ufw_rules:
-  # hazard: deliberately unrestricted: no public inbound path exists, and a source
-  # rule can lock out the Mac.
-  - { port: "22", proto: "tcp", rule: "allow", comment: "SSH" }
-  # invariant: tailnet only; public HTTP arrives through cloudflared, never these ports.
-  - { port: "80", proto: "tcp", rule: "allow", from: "100.64.0.0/10", comment: "HTTP (Tailscale only)" }
-  - { port: "443", proto: "tcp", rule: "allow", from: "100.64.0.0/10", comment: "HTTPS (Tailscale only)" }
-  # outside: tailnet clients (laptop kubectl, CI runners) -> the k3s API server.
-  - { port: "6443", proto: "tcp", rule: "allow", from: "100.64.0.0/10", comment: "K8s API (Tailscale)" }
+  # hazard: unrestricted: no public inbound path exists, and a source rule can lock out the Mac.
+  - { port: "22", comment: "SSH" }
+  - { port: "80", from: "100.64.0.0/10", comment: "HTTP (Tailscale only)" }
+  - { port: "443", from: "100.64.0.0/10", comment: "HTTPS (Tailscale only)" }
+  - { port: "6443", from: "100.64.0.0/10", comment: "K8s API (Tailscale)" }
 
 security_kernel_params:
   - { name: "net.ipv4.tcp_syncookies", value: "1" }
@@ -32,8 +26,7 @@ security_kernel_params:
   - { name: "net.ipv4.conf.all.rp_filter", value: "1" }
   - { name: "net.ipv4.conf.default.rp_filter", value: "1" }
 
-# outside: peer isolation from the other OrbStack machines on the bridge
-# (templates/nft-guard.conf.j2; docs/decisions/006-the-host-has-no-public-inbound-path.md).
+# invariant: the peer-isolation guard against the other OrbStack machines (ADR-006).
 security_guard_interface: eth0
 security_guard_host_ip: 192.168.139.1
 security_guard_peer_subnet: 192.168.139.0/24

@@ -1,35 +1,21 @@
 ---
-# invariant: the config surface. MUST stay beside the inventory files: Ansible
-# auto-loads `group_vars/` from next to the inventory (or playbook) and nowhere else.
+# invariant: the config surface; Ansible loads group_vars/ only from beside the inventory.
 
-timezone: UTC
-
-# invariant: THE Helm version: the node installs it, validate.yaml reads it from here;
-# no second copy (docs/decisions/009-one-helmfile-declares-every-platform-release.md).
+# invariant: the one pin of each tool; the node and validate.yaml both read it here.
 helm_version: "v4.3.0"
-
-# invariant: helmfile owns every release; chart versions live in
-# kubernetes/helmfile.yaml.gotmpl. validate.yaml installs this same helmfile.
 helmfile_version: "v1.8.0"
-
-# value: not optional: `helmfile apply` is diff-then-sync, no plugin means no deploy.
 helm_diff_version: "v3.15.13"
 
-# hazard: single source, deliberately absent from roles/k3s/defaults. Never skip a
-# minor; a minor can move the bundled Traefik chart, so re-read
-# kubernetes/services/traefik/helm-chart-config.yaml in the same change and check
-# `loadBalancerSourceRanges` is non-empty after (docs/decisions/003-traefiks-service-is-the-tailnet-gate.md).
+# hazard: never skip a minor; a minor can move the bundled Traefik chart, so re-read
+# kubernetes/services/traefik/helm-chart-config.yaml in the same change (ADR-003, ADR-007).
 k3s_version: "v1.37.0+k3s1"
-# value: the only OIDC audience the apiserver accepts; hand-synced with `audience:` in
-# jterrazz-actions/actions/docker-deploy (docs/decisions/017-app-repositories-deploy-as-their-github-oidc-identity.md).
+# hazard: hand-synced with `audience:` in jterrazz-actions/actions/docker-deploy (ADR-017).
 k3s_oidc_audience: "jterrazz-infrastructure"
-# outside: k3s' own default, repeated because tasks and the audit-log-path need it.
 k3s_data_dir: "/var/lib/rancher/k3s"
 k3s_node_ip: "{{ ansible_default_ipv4.address }}"
 
-# outside: answered in-cluster with the node's tailnet IP (CoreDNS cannot chase the
-# public CNAME into the tailnet). Exact names only, one line per private host; smoke
-# checks it against the live routes both ways (docs/decisions/012-private-hostnames-are-wildcard-zones.md).
+# invariant: answered in-cluster with the node's tailnet IP; exact names only. The platform
+# contract checks it against the live routes both ways (ADR-012).
 private_hostnames:
   - registry.internal.jterrazz.com
   - grafana.internal.jterrazz.com
@@ -39,43 +25,30 @@ private_hostnames:
   - openpanel.internal.jterrazz.com
   - signews.staging.jterrazz.com
 
-# outside: mapped to Traefik's ClusterIP, for a pod fetching its own public URL (no
-# hairpin to ServiceLB). Such a pod's namespace also needs allow-traefik-ingress
-# (kubernetes/cluster/network-policies/kube-system.yaml).
-private_hostnames_via_traefik: []
-
-# outside: only the public records no other owner creates (the tunnel and cert-manager
-# make the rest). One wildcard per private zone, never a per-service record.
+# invariant: only the records no other owner creates; one wildcard per private zone (ADR-012).
 dns_zone: jterrazz.com
 dns_records:
-  # invariant: DNS-only: resolves to the node's 100.x address; unproxied is also why
-  # the two-label name gets cert-manager's certificate.
   - record: "*.internal"
     value: "{{ tailscale_dns_hostname }}"
     proxied: false
   - record: "*.staging"
     value: "{{ tailscale_dns_hostname }}"
     proxied: false
-  # invariant: proxied is mandatory (cfargotunnel.com resolves only at the edge); the
-  # tunnel id is the connector token's `t` field.
+  # invariant: proxied, since cfargotunnel.com resolves only at the edge; the tunnel id is the
+  # connector token's `t` field.
   - record: analytics
     value: "{{ (cloudflare_tunnel_token | b64decode | from_json).t }}.cfargotunnel.com"
     proxied: true
 
-# invariant: every secret a deploy reads, once; roles/secrets fetches each folder
-# explicitly and fails on a missing key. `scope: site` is fetched by site.yml only
-# (docs/decisions/015-deploy-secrets-are-fetched-once-by-ansible.md).
+# invariant: every secret a deploy reads; `scope: site` is fetched by site.yml only (ADR-015).
 infisical_api: https://eu.infisical.com
 infisical_project: jterrazz
 infisical_environment: prod
 infisical_secrets:
   - { var: cloudflare_api_token, path: /jterrazz-infrastructure, key: CLOUDFLARE_API_TOKEN }
   - { var: cloudflare_tunnel_token, path: /jterrazz-infrastructure, key: CLOUDFLARE_TUNNEL_TOKEN }
-  # outside: both halves of the registry account; see docs/guides/operate.md, Rotating
-  # the registry password.
   - { var: registry_username, project: jterrazz-ci-v-nh-8, path: /, key: DOCKER_REGISTRY_USERNAME }
   - { var: registry_password, project: jterrazz-ci-v-nh-8, path: /, key: DOCKER_REGISTRY_PASSWORD }
-  # outside: the kubelet's pull-only account (Zot accessControl: read).
   - { var: registry_pull_username, project: jterrazz-ci-v-nh-8, path: /, key: REGISTRY_PULL_USERNAME }
   - { var: registry_pull_password, project: jterrazz-ci-v-nh-8, path: /, key: REGISTRY_PULL_PASSWORD }
   - { var: grafana_admin_password, path: /jterrazz-infrastructure/grafana, key: ADMIN_PASSWORD }

@@ -1,44 +1,30 @@
 ---
-# hazard: everything above k3s, run on the node. Also run standalone by
-# deploy-platform.yaml, so never assume site.yml's host plays ran first.
-- name: Platform Services Deployment
+# hazard: also run alone by deploy-platform.yaml: never assume site.yml's host plays ran.
+- name: Deploy the platform layer
   hosts: cluster
   become: true
   gather_facts: true
 
-  # hazard: include_role, never a role-level `when:`: that is evaluated per loop item
-  # and skipped the loop after its first secret (docs/decisions/015-deploy-secrets-are-fetched-once-by-ansible.md).
   pre_tasks:
+    # hazard: include_role, never a role-level `when:`, which is evaluated per loop item (ADR-015);
+    # `apply` hands `always` to the included tasks so a `--tags` run still has its secrets.
     - name: Fetch the deploy's secrets from Infisical
       ansible.builtin.include_role:
         name: secrets
-        # invariant: an include does not hand its tags to the tasks it includes;
-        # `apply` does, so a targeted `--tags releases` still has its secrets.
         apply:
           tags: [always]
       when: cloudflare_api_token is not defined
       tags: [always]
 
   roles:
-    # hazard: KUBECONFIG once for every task; handlers do NOT inherit it
-    # (roles/platform/handlers/main.yml keeps its own).
+    # hazard: handlers do not inherit this environment; roles/platform/handlers sets its own.
     - role: platform
       environment:
         KUBECONFIG: "{{ kubeconfig }}"
 
   post_tasks:
-    - name: Cleanup temporary manifests
+    - name: Remove the staged manifests
       ansible.builtin.file:
         path: "{{ manifest_dir }}"
         state: absent
-      tags: [always]
-
-    # invariant: names no service or version; `helm list -A` is the honest inventory.
-    - name: Deployment complete
-      ansible.builtin.debug:
-        msg: |
-          Platform deployment complete.
-
-          App chart published to: oci://registry.internal.jterrazz.com/charts/app
-          Installed releases:     helm list -A --kubeconfig {{ kubeconfig }}
       tags: [always]

@@ -1,16 +1,14 @@
 ---
-# invariant: THE app chart publisher, run by every platform deploy (fresh cluster
-# included); no second one (docs/decisions/010-every-workload-renders-through-two-charts.md).
+# invariant: the one publisher of the app chart (ADR-010).
 
-# outside: on a fresh cluster DNS-01 issuance lags the registry pod; login needs TLS.
+# outside: on a fresh cluster DNS-01 issuance lags the registry pod, and login needs TLS.
 - name: Wait for the registry TLS certificate to be issued
   ansible.builtin.command: >
     kubectl wait --for=condition=Ready certificate/registry-tls
     -n platform-registry --timeout=180s
   changed_when: false
 
-# outside: the same Infisical account as bootstrap.yml's htpasswd; never a literal.
-- name: Login to the OCI registry for Helm
+- name: Log in to the registry
   ansible.builtin.command:
     argv:
       - helm
@@ -33,8 +31,8 @@
   ansible.builtin.set_fact:
     app_chart_version: "{{ (app_chart_yaml.content | b64decode | from_yaml).version }}"
 
-# invariant: never overwrite a published version (apps pull it unversioned); skips
-# rather than fails, so an unbumped Chart.yaml publishes nothing.
+# invariant: never overwrite a published version: apps pull it unversioned, so an unbumped
+# Chart.yaml publishes nothing.
 - name: Check whether this chart version is already published
   ansible.builtin.command: >
     helm pull oci://registry.internal.jterrazz.com/charts/app
@@ -55,7 +53,7 @@
 - name: Package and push the app chart
   when: app_chart_published.rc != 0
   block:
-    # hazard: emptied first so the one .tgz in it IS the chart; parsing stdout breaks.
+    # invariant: emptied first, so the one .tgz in it is the chart.
     - name: Reset the chart staging directory
       ansible.builtin.file:
         path: /tmp/app-chart

@@ -1,7 +1,6 @@
 ---
-# invariant: one pass over kubernetes/helmfile.yaml.gotmpl; `helmfile_tier` selects a
-# tier, omitted selects EVERY release (so an untiered one still deploys). Exit 2
-# means changed and synced (docs/decisions/009-one-helmfile-declares-every-platform-release.md).
+# invariant: one pass; `helmfile_tier` selects a tier, omitted selects every release, so an
+# untiered one still deploys. Exit 2 means changed and synced (ADR-009).
 
 - name: "Apply the platform Helm releases ({{ helmfile_tier | default('every release') }})"
   ansible.builtin.command:
@@ -10,7 +9,7 @@
       apply --detailed-exitcode --concurrency 1
       {{ ('--selector tier=' ~ helmfile_tier) if (helmfile_tier | default('')) else '' }}
   environment:
-    # invariant: read by `requiredEnv` in the helmfile; the password never reaches argv.
+    # invariant: read by the helmfile's `requiredEnv`, so the password never reaches argv.
     NODE_NAME: "{{ inventory_hostname }}"
     PLATFORM_HELM_WAIT: "{{ platform_helm_wait | default(true) | string | lower }}"
     GRAFANA_ADMIN_PASSWORD: "{{ grafana_admin_password }}"
@@ -18,9 +17,8 @@
   changed_when: helmfile_apply.rc == 2
   failed_when: helmfile_apply.rc not in [0, 2]
 
-# hazard: a `failed` release is invisible to the next apply (helm-diff compares with
-# the failed revision and skips it). Fix: `helm history`, then `helmfile sync -l
-# name=<release>`, which does not diff.
+# hazard: the next apply diffs against a failed revision and skips it; the fix is
+# `helmfile sync -l name=<release>`, which does not diff (ADR-009).
 - name: "Assert no Helm release is left failed ({{ helmfile_tier | default('every release') }})"
   ansible.builtin.command:
     argv: [helm, list, --all-namespaces, --failed, --short]

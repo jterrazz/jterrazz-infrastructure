@@ -1,29 +1,21 @@
 ---
-# outside: install + join only. The systemd-resolved/networkd DNS repair this depends on
-# is roles/resolved, which site.yml runs immediately before this role.
-
 - name: Check if Tailscale is installed
   ansible.builtin.stat:
     path: /usr/bin/tailscale
   register: tailscale_binary
-  tags: [tailscale]
 
-# invariant: only for a running tailscaled holding a stale resolv.conf; `default(false)`
-# because `--tags tailscale` skips roles/resolved.
-- name: Restart tailscaled to pick up the systemd-resolved integration
+# invariant: a running tailscaled holds the resolv.conf roles/resolved just replaced.
+- name: Restart tailscaled onto the systemd-resolved stub
   ansible.builtin.systemd_service:
     name: tailscaled
     state: restarted
   when:
     - resolved_stub_link.changed | default(false)
     - tailscale_binary.stat.exists
-  tags: [tailscale]
 
 - name: Install Tailscale
   when: not tailscale_binary.stat.exists
-  tags: [tailscale]
   block:
-    # outside: deb822: Debian 13 has no apt-key (python3-debian comes from roles/base).
     - name: Add the Tailscale apt repository
       ansible.builtin.deb822_repository:
         name: tailscale
@@ -35,7 +27,6 @@
         state: present
         enabled: true
 
-    # invariant: update_cache here: the source was just written, apt has no index yet.
     - name: Install the Tailscale package
       ansible.builtin.apt:
         name: tailscale
@@ -47,16 +38,13 @@
     name: tailscaled
     enabled: true
     state: started
-  tags: [tailscale]
 
-# hazard: tailscaled can come back "Logged out" after a reboot and never reconnects,
-# taking every image pull with it. The script is also how this play logs in:
-# never re-spell `tailscale up` (docs/decisions/006-the-host-has-no-public-inbound-path.md).
+# hazard: a node back "Logged out" after a reboot loses every image pull; the boot unit logs it
+# back in, and its script is the only spelling of `tailscale up` (ADR-006).
 - name: Set up Tailscale login and boot-time auto-reauth
   when:
     - tailscale_oauth_client_id != ""
     - tailscale_oauth_client_secret != ""
-  tags: [tailscale]
   block:
     - name: Create the Tailscale config directory
       ansible.builtin.file:
@@ -89,7 +77,7 @@
         enabled: true
         daemon_reload: true
 
-    # invariant: the OAuth secret goes via the task environment, never a command line.
+    # invariant: the OAuth secret travels in the environment, never on a command line.
     - name: Connect to Tailscale
       ansible.builtin.command: /usr/local/bin/tailscale-autoauth.sh
       environment:
@@ -99,8 +87,5 @@
       changed_when: "'re-authenticating' in tailscale_up.stdout"
       no_log: true
 
-# outside: publishes tailscale_ip / tailscale_dns_hostname for the k3s role (TLS SANs,
-# kubeconfig server URL) and the platform role (CoreDNS overrides, Helm values).
-- name: Gather Tailscale facts for downstream plays
+- name: Gather the Tailscale facts
   ansible.builtin.include_tasks: facts.yml
-  tags: [tailscale]

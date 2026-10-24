@@ -1,18 +1,6 @@
 #!/bin/bash
-# outside: encrypted snapshot of every persistent volume, restorable on any future
-# machine with nothing but the passphrase.
-#
-# WHY ENCRYPTED AT ALL: the volumes live on the Mac at
-# ~/.jterrazz-infrastructure/data, world-readable, and a `chmod 750` on that
-# tree is NOT the fix: the pods write as uids 70/101/472/999/1000 through
-# virtiofs and lose traversal the moment "other" is dropped. Encryption moves
-# the control to where copies of this data actually travel: Time Machine, an
-# external disk, another machine.
-#
-# THE PASSPHRASE IS PERMANENT. Rotating it does not re-encrypt old archives, it
-# only orphans them. It lives in Infisical as BACKUP_ENCRYPTION_KEY under
-# /jterrazz-infrastructure; losing it loses every archive it ever made, and
-# there is no recovery path by design.
+# outside: an encrypted snapshot of every persistent volume, restorable anywhere with the
+# passphrase alone; why encrypted, and why the passphrase is permanent: docs/guides/operate.md.
 #
 #   ./scripts/backup.sh                 # snapshot, workloads left running
 #   ./scripts/backup.sh --consistent    # stop workloads first (real downtime)
@@ -25,17 +13,14 @@ source "$SCRIPT_DIR/lib/common.sh"
 MACHINE="${ORB_MACHINE:-jterrazz-infrastructure}"
 DATA_DIR="${BACKUP_DATA_DIR:-$HOME/.jterrazz-infrastructure/data}"
 OUT_DIR="${BACKUP_OUT_DIR:-$HOME/.jterrazz-infrastructure/backups}"
-# invariant: 600k iterations: openssl's own default is 10k, which is a decade out of date
-# for a key this long-lived.
+# value: 600k PBKDF2 iterations, not openssl's 10k default, for a key this long-lived.
 ITER=600000
-# invariant: where the passphrase lives. Same folder as the rest of this repo's secrets.
 KEY_PATH=/jterrazz-infrastructure
 
 usage() { echo "usage: $0 [--consistent] [--verify-only <archive>]"; exit 2; }
 
 require_key() {
     if [ -z "${BACKUP_ENCRYPTION_KEY:-}" ]; then
-        # invariant: same source of truth as every other credential here.
         if [ -f "$SCRIPT_DIR/../.env" ]; then
             set -a
             # shellcheck disable=SC1091
@@ -43,9 +28,7 @@ require_key() {
             set +a
         fi
     fi
-    # outside: still nothing: pull it from Infisical directly. Deliberately NOT in
-    # the deploy's `infisical_secrets`: those become variables of every deploy,
-    # and this key has no business there.
+    # invariant: fetched here, never through the deploy's infisical_secrets.
     if [ -z "${BACKUP_ENCRYPTION_KEY:-}" ] && [ -n "${INFISICAL_CLIENT_ID:-}" ] \
         && [ -n "${INFISICAL_CLIENT_SECRET:-}" ]; then
         info "Fetching BACKUP_ENCRYPTION_KEY from Infisical"
@@ -73,15 +56,12 @@ require_key() {
     fi
 }
 
-# invariant: decrypt and list. An archive nobody has ever opened is a guess, not a backup,
-# so this runs on every snapshot and not only on demand.
+# invariant: every snapshot is decrypted back: an archive nobody opened is a guess.
 verify() {
     local archive="$1"
     info "Verifying $archive"
     local count
-    # invariant: `if ! count=$(...)`, not a bare assignment: under `set -e` a failed
-    # decrypt aborts the script outright and the branches below never run, so
-    # the one failure this function exists to report is the one it misses.
+    # hazard: `if !`, not a bare assignment, which `set -e` would abort before reporting.
     if ! count=$(openssl enc -d -aes-256-cbc -pbkdf2 -iter "$ITER" \
                      -pass env:BACKUP_ENCRYPTION_KEY -in "$archive" \
                  | tar -tzf - | wc -l | tr -d ' '); then
@@ -115,20 +95,17 @@ main() {
     archive="$OUT_DIR/k8s-data-$stamp.tar.gz.enc"
 
     if [ "$consistent" -eq 1 ]; then
-        # outside: `systemctl stop k3s` does NOT stop the containers: they keep writing
-        # through the whole tar and the databases land torn. killall is the
-        # only thing that actually stops them.
+        # hazard: `systemctl stop k3s` leaves the containers writing; only killall stops them.
         section "Stopping workloads"
         orb -m "$MACHINE" -u root /usr/local/bin/k3s-killall.sh >/dev/null 2>&1 || true
         success "Workloads stopped"
     else
         warn "Live snapshot: databases may be captured mid-write."
-        warn "Use --consistent for a restorable copy of Postgres/Mongo/ClickHouse."
+        warn "Use --consistent for a restorable copy of the databases."
     fi
 
     section "Archiving $DATA_DIR"
-    # invariant: --exclude .DS_Store: Finder writes it into every directory it displays and
-    # tar aborts on the permission error mid-archive.
+    # hazard: Finder's .DS_Store files abort tar on a permission error.
     tar -czf - --exclude '.DS_Store' -C "$(dirname "$DATA_DIR")" "$(basename "$DATA_DIR")" \
         | openssl enc -aes-256-cbc -pbkdf2 -iter "$ITER" \
               -pass env:BACKUP_ENCRYPTION_KEY -out "$archive"

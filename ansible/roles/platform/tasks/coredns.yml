@@ -1,22 +1,12 @@
 ---
-# outside: CoreDNS cannot chase the CNAME into *.ts.net; a hosts block answers the
-# group_vars private names, the rest falls through (docs/decisions/012-private-hostnames-are-wildcard-zones.md).
-
-# hazard: looked up, never hardcoded: the ClusterIP changes on every repave.
-- name: Get Traefik ClusterIP (in-cluster target for openpanel.internal.jterrazz.com)
-  ansible.builtin.command: kubectl get svc traefik -n kube-system -o jsonpath='{.spec.clusterIP}'
-  register: traefik_cluster_ip
-  changed_when: false
-  retries: 30
-  delay: 10
-  until: traefik_cluster_ip.rc == 0 and traefik_cluster_ip.stdout | length > 0
-
-- name: Apply CoreDNS custom config for private hostnames
+# invariant: CoreDNS cannot chase the public CNAME into *.ts.net, so a hosts block answers
+# private_hostnames and the rest falls through (ADR-012).
+- name: Apply the CoreDNS private-hosts config
   kubernetes.core.k8s:
     kubeconfig: "{{ kubeconfig }}"
     definition: "{{ lookup('ansible.builtin.template', 'coredns-custom.yaml.j2') | from_yaml }}"
   notify: Restart CoreDNS
 
-# outside: CoreDNS reloads only on restart, and the next tasks need the records now.
+# invariant: CoreDNS reads it only on restart, and the next tasks need the records now.
 - name: Restart CoreDNS now if the config changed
   ansible.builtin.meta: flush_handlers

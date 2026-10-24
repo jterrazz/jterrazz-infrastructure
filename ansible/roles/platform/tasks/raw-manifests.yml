@@ -1,21 +1,18 @@
 ---
-# invariant: only what no chart can express (cloudflared's hostNetwork Deployment,
-# generated dashboards; docs/guides/develop.md#workloads). Runs after bootstrap.yml,
-# whose pass declares the Secret cloudflared reads, or it sits in CreateContainerConfigError.
-- name: Apply the cloudflared deployment
+# invariant: only what no chart expresses; after bootstrap.yml, whose pass declares the Secret
+# cloudflared reads.
+- name: Apply the cloudflared Deployment
   ansible.builtin.command: kubectl apply -f {{ manifest_dir }}/kubernetes/services/cloudflared/deployment.yaml
   register: cloudflared_result
   changed_when: "'created' in cloudflared_result.stdout or 'configured' in cloudflared_result.stdout"
 
-# invariant: infrastructure dashboards only; app alerts and dashboards ship with the
-# app chart (docs/decisions/005-telemetry-runs-on-the-victoriametrics-family.md).
-- name: Deploy Grafana infrastructure dashboards
+# invariant: infrastructure dashboards only; an app ships its own through the app chart.
+- name: Apply the Grafana infrastructure dashboards
   ansible.builtin.shell:
     cmd: |
       set -o pipefail
       DASHBOARD_DIR="{{ manifest_dir }}/kubernetes/services/grafana/dashboards"
       for json_file in "$DASHBOARD_DIR"/*.json; do
-        [ -f "$json_file" ] || continue
         name="dashboard-$(basename "$json_file" .json)"
         kubectl create configmap "$name" \
           --from-file="$(basename "$json_file")=$json_file" \

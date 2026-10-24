@@ -1,8 +1,6 @@
 ---
-# outside: host layer + platform layer in one run; Debian 13 only.
-
 # invariant: raw SSH before fact gathering: every later play needs python3.
-- name: Bootstrap Python interpreter
+- name: Bootstrap the Python interpreter
   hosts: all
   become: true
   gather_facts: false
@@ -12,9 +10,8 @@
       register: python_bootstrap
       changed_when: "'Setting up python3' in python_bootstrap.stdout"
 
-# invariant: role order is load-bearing: base installs systemd-resolved, resolved
-# repairs DNS before tailscale and k3s read it.
-- name: Configure the cluster node
+# invariant: base installs systemd-resolved; resolved repairs DNS before tailscale and k3s read it.
+- name: Configure the node
   hosts: cluster
   become: true
   gather_facts: true
@@ -28,11 +25,11 @@
     - role: security
       tags: [security]
     - role: resolved
-      tags: [resolved, dns, networking]
+      tags: [resolved]
     - role: tailscale
-      tags: [tailscale, networking]
+      tags: [tailscale]
     - role: k3s
       tags: [k3s]
 
-- name: Platform Services
+- name: Deploy the platform layer
   ansible.builtin.import_playbook: platform.yml

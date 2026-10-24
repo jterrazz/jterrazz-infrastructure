@@ -1,6 +1,4 @@
 ---
-# outside: every task runs on the node against this staged copy; platform.yml removes it.
-
 - name: Create the manifest directory on the node
   ansible.builtin.file:
     path: "{{ manifest_dir }}"
@@ -13,15 +11,13 @@
     dest: "{{ manifest_dir }}/kubernetes/"
     mode: "0644"
 
-# invariant: deploy-platform.yaml runs this play without the tailscale role.
-- name: Ensure Tailscale facts are available
+- name: Ensure the Tailscale facts are available
   ansible.builtin.include_role:
     name: tailscale
     tasks_from: facts
   when: tailscale_ip is not defined
 
-# hazard: an EMPTY tailscale_ip renders a one-field CoreDNS hosts entry and crashloops
-# cluster DNS; fail before anything is applied.
+# hazard: an empty tailscale_ip renders one-field CoreDNS hosts entries and crashloops cluster DNS.
 - name: Assert the node has a tailnet address
   ansible.builtin.assert:
     that:

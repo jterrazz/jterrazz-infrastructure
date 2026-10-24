@@ -1,25 +1,21 @@
 ---
-# invariant: runs before roles/tailscale and roles/k3s: kubelet's --resolv-conf is the
-# uplink file this role fixes (docs/decisions/004-one-orbstack-vm-is-the-only-target.md).
+# invariant: OrbStack's DHCP resolver (0.250.250.200) drops queries, and kubelet hands CoreDNS
+# the uplink file this role repairs; it runs before tailscale and k3s (ADR-004).
 
-# outside: the image ships systemd-resolved masked; without a stub, Tailscale's
-# 100.100.100.100 cannot chase public CNAMEs into the tailnet.
-- name: Ensure systemd-resolved is enabled (needed for CNAME chasing into tailnet)
+# outside: the image ships systemd-resolved masked.
+- name: Enable systemd-resolved
   ansible.builtin.systemd_service:
     name: systemd-resolved
     masked: false
     enabled: true
     state: started
     daemon_reload: true
-  tags: [resolved, dns]
 
-# hazard: OrbStack's DHCP hands out 0.250.250.200, which silently drops queries.
 - name: Ensure the systemd-resolved drop-in directory exists
   ansible.builtin.file:
     path: /etc/systemd/resolved.conf.d
     state: directory
     mode: "0755"
-  tags: [resolved, dns]
 
 - name: Configure the systemd-resolved global DNS overrides
   ansible.builtin.copy:
@@ -36,11 +32,8 @@
       LLMNR=no
       MulticastDNS=no
   notify: Restart systemd-resolved
-  tags: [resolved, dns]
 
-# hazard: upstream.conf alone is not enough: a global `DNS=` keeps DHCP's per-link
-# server in the resolv.conf kubelet pins. networkd is the DHCP client, so a
-# `UseDNS=false` drop-in is the fix (docs/decisions/004-one-orbstack-vm-is-the-only-target.md).
+# hazard: a global `DNS=` keeps DHCP's per-link server; only a networkd drop-in removes it.
 - name: Discover the systemd-networkd file configuring the default interface
   ansible.builtin.shell:
     cmd: |
@@ -50,10 +43,8 @@
     executable: /bin/bash
   register: resolved_networkd_file
   changed_when: false
-  tags: [resolved, dns]
 
-# invariant: fail loudly: a drop-in for a renamed .network file is inert and the bogus
-# resolver would come back unnoticed.
+# invariant: a drop-in beside a renamed .network file is inert, so fail loudly instead.
 - name: Assert the default interface is managed by systemd-networkd
   ansible.builtin.assert:
     that:
@@ -64,16 +55,13 @@
       {{ resolved_networkd_file.stdout | default('') | trim | default('nothing', true) }}).
       This role disables the DHCP-supplied resolver through a systemd-networkd
       drop-in, which only works if networkd owns the link. If the OrbStack image
-      switched network stacks, the fix has to switch with it; see the block
-      comment above this task.
-  tags: [resolved, dns]
+      switched network stacks, this role has to switch with it.
 
 - name: Ensure the systemd-networkd drop-in directory exists
   ansible.builtin.file:
     path: /etc/systemd/network/{{ resolved_networkd_file.stdout | trim | basename }}.d
     state: directory
     mode: "0755"
-  tags: [resolved, dns]
 
 - name: Stop DHCP from installing its own resolver on the default link
   ansible.builtin.copy:
@@ -94,14 +82,11 @@
       [IPv6AcceptRA]
       UseDNS=false
   notify: Reload systemd-networkd
-  tags: [resolved, dns]
 
-# invariant: the resolver must be live before the symlink and before roles/tailscale.
 - name: Apply the resolved and networkd config changes now
   ansible.builtin.meta: flush_handlers
 
-# invariant: roles/tailscale reads `resolved_stub_link.changed` to decide whether an
-# already-running tailscaled is holding a stale resolv.conf.
+# invariant: roles/tailscale restarts tailscaled when this changes.
 - name: Point /etc/resolv.conf at the systemd-resolved stub
   ansible.builtin.file:
     src: /run/systemd/resolve/stub-resolv.conf
@@ -109,4 +94,3 @@
     state: link
     force: true
   register: resolved_stub_link
-  tags: [resolved, dns]

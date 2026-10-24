@@ -1,16 +1,7 @@
 ---
-# invariant: values nobody should touch (the config surface is group_vars); the first
-# two are read by playbooks/platform.yml, hence unprefixed.
-
-# outside: written by k3s on the node.
 kubeconfig: /etc/rancher/k3s/k3s.yaml
-
 # invariant: staged by tasks/stage-manifests.yml, removed by platform.yml's post_tasks.
 manifest_dir: /tmp/k8s-manifests
-
-# hazard: the `.gotmpl` suffix is what makes helmfile render it as a Go template
-# (its `requiredEnv` calls); renamed, it stops parsing.
+# hazard: the `.gotmpl` suffix makes helmfile render its `requiredEnv` calls (ADR-009).
 platform_helmfile: "{{ manifest_dir }}/kubernetes/helmfile.yaml.gotmpl"
-
-# outside: Debian's arch name to helmfile's GOARCH; an unknown arch fails loudly.
 helmfile_arch: "{{ {'aarch64': 'arm64', 'x86_64': 'amd64'}[ansible_architecture] }}"

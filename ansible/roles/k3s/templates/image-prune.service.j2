@@ -1,7 +1,4 @@
 # Managed by Ansible (roles/k3s).
-# invariant: removes the images no container uses; run by image-prune.timer. It
-# replaced a privileged hostPID pod every app deploy used to start
-# (jterrazz-actions docker-cleanup), which an app's CI identity may no longer do.
 [Unit]
 Description=Prune container images no container uses
 After=k3s.service

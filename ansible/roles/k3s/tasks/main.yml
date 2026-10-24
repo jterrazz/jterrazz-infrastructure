@@ -1,6 +1,6 @@
 ---
-# hazard: NO defaults/main.yml on purpose: a role default for k3s_version would
-# silently win whenever group_vars is not loaded.
+# hazard: no defaults/main.yml: a role default for k3s_version would silently win wherever
+# group_vars is not loaded (ADR-007).
 
 - name: Create the k3s directories
   ansible.builtin.file:
@@ -10,14 +10,11 @@
   loop:
     - /etc/rancher/k3s
     - "{{ k3s_data_dir }}"
-    - /var/log/k3s
-  tags: [k3s]
 
 - name: Check if k3s is installed
   ansible.builtin.stat:
     path: /usr/local/bin/k3s
   register: k3s_binary
-  tags: [k3s]
 
 - name: Get the installed k3s version
   ansible.builtin.command: k3s --version
@@ -25,20 +22,16 @@
   changed_when: false
   failed_when: false
   when: k3s_binary.stat.exists
-  tags: [k3s]
 
 - name: Determine if k3s needs installation
   ansible.builtin.set_fact:
     k3s_needs_install: "{{ not k3s_binary.stat.exists or (k3s_version not in (k3s_current_version.stdout | default(''))) }}"
-  tags: [k3s]
 
-# outside: generated once and persisted at /etc/rancher/k3s/token; regenerating it
-# on an existing cluster invalidates every node's registration.
+# hazard: generated once; a new token on an existing cluster invalidates its registration.
 - name: Check if the k3s token file exists
   ansible.builtin.stat:
     path: /etc/rancher/k3s/token
   register: k3s_token_file
-  tags: [k3s]
 
 - name: Read the existing token
   ansible.builtin.slurp:
@@ -46,7 +39,6 @@
   register: k3s_existing_token
   when: k3s_token_file.stat.exists
   no_log: true
-  tags: [k3s]
 
 - name: Generate a new token if none exists
   ansible.builtin.command: openssl rand -hex 32
@@ -54,7 +46,6 @@
   changed_when: false
   when: not k3s_token_file.stat.exists
   no_log: true
-  tags: [k3s]
 
 - name: Set the k3s token fact
   ansible.builtin.set_fact:
@@ -65,7 +56,6 @@
         {{ k3s_generated_token.stdout }}
       {%- endif -%}
   no_log: true
-  tags: [k3s]
 
 - name: Save the token to file
   ansible.builtin.copy:
@@ -74,16 +64,13 @@
     mode: "0600"
   when: not k3s_token_file.stat.exists
   no_log: true
-  tags: [k3s]
 
-# outside: only fires standalone (site.yml's tailscale role sets them); the values
-# become TLS SANs, the only way kubectl over the tailnet gets a valid cert.
+# invariant: the tailnet IP and name become TLS SANs; set already in a full site.yml run.
 - name: Ensure Tailscale facts are available
   ansible.builtin.include_role:
     name: tailscale
     tasks_from: facts
   when: tailscale_ip is not defined
-  tags: [k3s]
 
 - name: Generate the audit policy
   ansible.builtin.template:
@@ -91,15 +78,13 @@
     dest: /etc/rancher/k3s/audit-policy.yaml
     mode: "0640"
   notify: Restart k3s
-  tags: [k3s]
 
-# invariant: must exist before the apiserver starts, or it fails to come up.
+# invariant: the apiserver does not start without its audit log directory.
 - name: Ensure the audit log directory exists
   ansible.builtin.file:
     path: "{{ k3s_data_dir }}/server/logs"
     state: directory
     mode: "0700"
-  tags: [k3s]
 
 - name: Generate the Pod Security defaults and the OIDC authentication config
   ansible.builtin.template:
@@ -108,7 +93,6 @@
     mode: "0640"
   loop: [pod-security, authentication]
   notify: Restart k3s
-  tags: [k3s]
 
 - name: Generate the k3s config
   ansible.builtin.template:
@@ -116,7 +100,6 @@
     dest: /etc/rancher/k3s/config.yaml
     mode: "0640"
   notify: Restart k3s
-  tags: [k3s]
 
 - name: Download the k3s install script
   ansible.builtin.get_url:
@@ -124,7 +107,6 @@
     dest: /tmp/k3s-install.sh
     mode: "0755"
   when: k3s_needs_install
-  tags: [k3s]
 
 - name: Install k3s
   ansible.builtin.shell: |
@@ -134,13 +116,11 @@
   changed_when: true
   when: k3s_needs_install
   notify: Restart k3s
-  tags: [k3s]
 
 - name: Cleanup the install script
   ansible.builtin.file:
     path: /tmp/k3s-install.sh
     state: absent
-  tags: [k3s]
 
 - name: Enable the k3s service
   ansible.builtin.systemd_service:
@@ -148,10 +128,9 @@
     enabled: true
     state: started
     daemon_reload: true
-  tags: [k3s]
 
-# hazard: placement is load-bearing both ways: later and the readiness checks pass
-# against the OLD config; earlier and a fresh host has no k3s unit yet.
+# hazard: here exactly: later, the readiness checks pass on the old config; earlier, a fresh
+# host has no k3s unit yet.
 - name: Restart k3s now if the config changed
   ansible.builtin.meta: flush_handlers
 
@@ -160,7 +139,6 @@
     port: 6443
     host: "{{ k3s_node_ip }}"
     timeout: 120
-  tags: [k3s]
 
 - name: Verify the cluster is running
   ansible.builtin.command: k3s kubectl get nodes
@@ -169,16 +147,14 @@
   retries: 10
   delay: 5
   until: k3s_nodes.rc == 0
-  tags: [k3s]
 
-# invariant: secrets-encryption only covers Secrets written after the restart; this
-# rewrites the existing ones (idempotent).
+# invariant: secrets-encryption covers only Secrets written after it was enabled; this
+# rewrites the existing ones.
 - name: Check the secrets encryption status
   ansible.builtin.command: k3s secrets-encrypt status
   register: k3s_secrets_encrypt
   changed_when: false
   failed_when: false
-  tags: [k3s, security]
 
 - name: Re-encrypt existing secrets
   ansible.builtin.command: k3s secrets-encrypt reencrypt --force
@@ -186,27 +162,23 @@
   register: k3s_reencrypt
   changed_when: k3s_reencrypt.rc == 0
   failed_when: false
-  tags: [k3s, security]
 
 - name: Create the kubectl symlink
   ansible.builtin.file:
     src: /usr/local/bin/k3s
     dest: /usr/local/bin/kubectl
     state: link
-  tags: [k3s]
 
 - name: Set the kubeconfig permissions
   ansible.builtin.file:
     path: /etc/rancher/k3s/k3s.yaml
     mode: "0600"
-  tags: [k3s]
 
 - name: Create the .kube directory for root
   ansible.builtin.file:
     path: /root/.kube
     state: directory
     mode: "0700"
-  tags: [k3s]
 
 - name: Copy the kubeconfig for root
   ansible.builtin.copy:
@@ -214,14 +186,10 @@
     dest: /root/.kube/config
     remote_src: true
     mode: "0600"
-  tags: [k3s]
 
 - name: Publish the kubeconfig to the machine that ran the playbook
   ansible.builtin.import_tasks: kubeconfig.yml
-  tags: [k3s, kubeconfig]
 
-# invariant: unused images are pruned by the node itself, weekly; see
-# templates/image-prune.service.j2 for why this is not in app CI any more.
 - name: Install the image-prune service and timer
   ansible.builtin.template:
     src: "image-prune.{{ item }}.j2"
@@ -229,7 +197,6 @@
     mode: "0644"
   loop: [service, timer]
   register: image_prune_units
-  tags: [k3s]
 
 - name: Enable the image-prune timer
   ansible.builtin.systemd_service:
@@ -237,4 +204,3 @@
     enabled: true
     state: started
     daemon_reload: "{{ image_prune_units.changed }}"
-  tags: [k3s]

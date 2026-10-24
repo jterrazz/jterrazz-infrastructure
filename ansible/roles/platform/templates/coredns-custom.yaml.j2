@@ -1,7 +1,3 @@
-{#
-  Rendered by roles/platform/tasks/coredns.yml from `private_hostnames` and
-  `private_hostnames_via_traefik` in inventories/group_vars/all.yml.
-#}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -13,9 +9,6 @@ data:
       hosts {
 {% for hostname in private_hostnames %}
         {{ tailscale_ip }} {{ hostname }}
-{% endfor %}
-{% for hostname in private_hostnames_via_traefik %}
-        {{ traefik_cluster_ip.stdout }} {{ hostname }}
 {% endfor %}
         fallthrough
       }
