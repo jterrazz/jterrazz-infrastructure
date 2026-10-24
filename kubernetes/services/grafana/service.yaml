@@ -12,9 +12,9 @@ smoke:
   expect: "302,200"
 
 # outside: alert delivery. The operator renders the Infisical path
-# /jterrazz-infrastructure/grafana into `grafana-alerting`, and the label is what
-# Grafana's alerts sidecar (values.yaml, `sidecar.alerts`) selects: it writes
-# the key into provisioning/alerting and reloads, with no pod restart.
+# /jterrazz-infrastructure/grafana into `grafana-alerting`, which values.yaml
+# (`extraSecretMounts`) mounts into provisioning/alerting. A changed value lands
+# at the next pod restart; the sidecar no longer reads Secrets.
 #
 #   SLACK_WEBHOOK_URL   a Slack incoming-webhook URL. Absent, the file is a bare
 #                       `apiVersion: 1` and Grafana keeps its built-in policy;
@@ -26,8 +26,6 @@ smoke:
 secrets:
   path: /jterrazz-infrastructure/grafana
   secretName: grafana-alerting
-  labels:
-    grafana_alert: "1"
   template:
     data:
       contact-point-slack.yaml: |

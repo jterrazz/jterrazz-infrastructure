@@ -8,7 +8,7 @@ type: application
 # ansible/roles/platform/tasks/publish-app-chart.yml) refuse to overwrite an
 # already-published version, so an unbumped template change publishes nothing
 # and every app keeps rendering the old templates.
-version: 2.16.0
+version: 2.17.0
 appVersion: "1.17.1"
 
 # invariant: the one implementation of every concern this chart shares with
@@ -19,5 +19,5 @@ appVersion: "1.17.1"
 # asserted by scripts/assert-sync.py.
 dependencies:
   - name: common
-    version: 1.4.0
+    version: 1.5.0
     repository: file://../common

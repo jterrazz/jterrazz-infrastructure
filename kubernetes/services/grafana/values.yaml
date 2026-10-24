@@ -55,22 +55,55 @@ sidecar:
   dashboards:
     enabled: true
     searchNamespace: ALL
+    # invariant: ConfigMaps only, matching the RBAC below: a sidecar left on the
+    # default `both` lists Secrets cluster-wide and gets a 403 on every loop.
+    resource: configmap
     labelValue: "1"
     folderAnnotation: grafana_folder
     provider:
       foldersFromFilesStructure: true
-  # invariant: this sidecar also carries DELIVERY: the Slack contact point and the
-  # policy routing every alert to it arrive as the `grafana-alerting` Secret,
-  # declared in service.yaml, which says what is delivered when its key is absent.
-  #
-  # The RULES themselves live with the app that emits the metric: the app chart
+  # invariant: alert RULES live with the app that emits the metric: the app chart
   # renders `spec.alerts` into a ConfigMap labelled grafana_alert=1, which this
   # sidecar picks up from any namespace. Nothing in THIS repo applies app alert
   # rules; one that did would outlive the app it watches.
   alerts:
     enabled: true
     searchNamespace: ALL
+    resource: configmap
     labelValue: "1"
+
+# hazard: the chart's own ClusterRole grants get/list/watch on configmaps AND secrets
+# in every namespace, and the service-account token is mounted in the Grafana
+# container too, so a Grafana RCE read every Secret in the cluster (audit
+# 2026-10-24: `can-i list secrets -A` answered yes). The sidecars need only
+# ConfigMaps (both are `resource: configmap` above), so the binding points at
+# this narrower ClusterRole instead, and the chart renders none of its own.
+rbac:
+  useExistingClusterRole: grafana-sidecar-configmaps
+extraObjects:
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: grafana-sidecar-configmaps
+    rules:
+      - apiGroups: [""]
+        resources: ["configmaps"]
+        verbs: ["get", "watch", "list"]
+
+# invariant: alert DELIVERY, the one Secret Grafana reads. The Slack contact point and
+# the policy routing every alert to it arrive as the `grafana-alerting` Secret,
+# declared in service.yaml, which says what is delivered when its key is absent.
+# Mounted by the kubelet rather than fetched by the alerts sidecar, so Grafana
+# needs no Secret RBAC at all. A subPath mount does not follow updates: a new
+# SLACK_WEBHOOK_URL lands at the next pod restart
+# (`kubectl rollout restart deploy/grafana -n platform-telemetry`).
+extraSecretMounts:
+  - name: grafana-alerting
+    secretName: grafana-alerting
+    defaultMode: 0440
+    mountPath: /etc/grafana/provisioning/alerting/contact-point-slack.yaml
+    subPath: contact-point-slack.yaml
+    readOnly: true
 
 # outside: VictoriaLogs is not a core Grafana datasource: it ships as a plugin, signed
 # by VictoriaMetrics and served from the Grafana catalog, so grafana-cli installs

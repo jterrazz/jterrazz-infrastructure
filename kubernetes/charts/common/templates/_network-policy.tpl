@@ -113,12 +113,19 @@ Output starts at column 0; the caller indents it.
 {{- else if eq $peer "any-namespace" }}
     - namespaceSelector: {}
 {{- else if eq $peer "internet" }}
+{{- /* Not only RFC1918: 100.64.0.0/10 is the tailnet (a pod would reach every
+       peer, masqueraded as the node, and the node's own 22/6443/10250 on its
+       tailnet IP), 198.19.0.0/16 the OrbStack machine network, 169.254.0.0/16
+       link-local. Nothing a workload calls lives in any of them. */}}
     - ipBlock:
         cidr: 0.0.0.0/0
         except:
           - 10.0.0.0/8
           - 172.16.0.0/12
           - 192.168.0.0/16
+          - 100.64.0.0/10
+          - 198.19.0.0/16
+          - 169.254.0.0/16
 {{- else if eq $peer "anywhere" }}
     - ipBlock:
         cidr: 0.0.0.0/0

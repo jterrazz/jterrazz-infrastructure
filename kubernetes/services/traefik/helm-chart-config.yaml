@@ -36,8 +36,22 @@ spec:
     # source. Post-deploy gate:
     #   kubectl -n kube-system get svc traefik \
     #     -o jsonpath='{.spec.loadBalancerSourceRanges}'   # must be non-empty
+    #
+    # hazard: allocateLoadBalancerNodePorts: false. A LoadBalancer Service also gets
+    # NodePorts by default (30000-32767 on every node address), and
+    # loadBalancerSourceRanges filters only klipper-lb's hostPorts, never those.
+    # A NodePort hit arrives SNATed from 10.42.0.1, which `private-access` admits,
+    # so every private route answered the Mac and every other OrbStack machine
+    # on <node-ip>:<nodePort> (audit 2026-10-24: grafana, openpanel, the keyless
+    # gateway). klipper-lb never used them: its svclb pods DNAT to the ClusterIP
+    # (DEST_IPS on the svclb DaemonSet). Turning allocation off does NOT free
+    # ports already allocated, so the existing ones were removed once by hand;
+    # gate after any rebuild of this Service:
+    #   kubectl -n kube-system get svc traefik \
+    #     -o jsonpath='{.spec.ports[*].nodePort}'                # must be empty
     service:
       spec:
+        allocateLoadBalancerNodePorts: false
         loadBalancerSourceRanges:
           - 100.64.0.0/10      # Tailscale CGNAT, the only permitted source.
 

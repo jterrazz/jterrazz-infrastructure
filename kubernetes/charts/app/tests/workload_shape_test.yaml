@@ -272,6 +272,9 @@ tests:
                     - 10.0.0.0/8
                     - 172.16.0.0/12
                     - 192.168.0.0/16
+                    - 100.64.0.0/10
+                    - 198.19.0.0/16
+                    - 169.254.0.0/16
 
   - it: admits a same-namespace pod label and nothing wider
     # invariant: `pods:` is a bare podSelector, "here". `any-namespace-pods:` with the
@@ -350,3 +353,6 @@ tests:
                     - 10.0.0.0/8
                     - 172.16.0.0/12
                     - 192.168.0.0/16
+                    - 100.64.0.0/10
+                    - 198.19.0.0/16
+                    - 169.254.0.0/16
