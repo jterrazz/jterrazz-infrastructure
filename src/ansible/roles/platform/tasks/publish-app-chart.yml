@@ -32,12 +32,12 @@
     app_chart_version: "{{ (app_chart_yaml.content | b64decode | from_yaml).version }}"
 
 # invariant: never overwrite a published version: apps pull it unversioned, so an unbumped
-# Chart.yaml publishes nothing.
+# Chart.yaml publishes nothing. hazard: not `helm pull --destination`, which fails on a
+# missing directory and reads as unpublished.
 - name: Check whether this chart version is already published
   ansible.builtin.command: >
-    helm pull oci://registry.internal.jterrazz.com/charts/app
+    helm show chart oci://registry.internal.jterrazz.com/charts/app
     --version {{ app_chart_version }}
-    --destination /tmp/app-chart-check
   register: app_chart_published
   changed_when: false
   failed_when: false
@@ -93,10 +93,7 @@
       ansible.builtin.command: "helm push {{ packaged_chart.files[0].path }} oci://registry.internal.jterrazz.com/charts"
       changed_when: true
 
-- name: Clean up the chart staging directories
+- name: Remove the chart staging directory
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: /tmp/app-chart
     state: absent
-  loop:
-    - /tmp/app-chart
-    - /tmp/app-chart-check

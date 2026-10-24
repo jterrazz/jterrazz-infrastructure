@@ -684,11 +684,8 @@ to `oci://registry.internal.jterrazz.com/charts/app`.
 Two rules follow from apps pulling the chart **unversioned**:
 
 1. **Bump `version:` in the same commit as any template change.** The publisher
-   `helm pull`s the version first and, if it resolves, publishes **nothing**
-   (a green no-op, not a failure: a routine push right
-   after `make deploy` would otherwise go red on an already-current registry).
-   The guard's only job is to prevent an *overwrite*, so two template sets can
-   never answer to the same tag. The corollary is that a forgotten bump ships
+   looks the version up first and, if it exists, publishes **nothing**, a green
+   no-op, so two template sets never answer to one tag. A forgotten bump ships
    nothing at all, quietly.
 2. **Every behavioural change reaches every app on its next deploy**: there
    is no per-app opt-in window. Additive and defaulted changes only, unless
