@@ -1,7 +1,8 @@
 # Managed by Ansible (roles/k3s).
 #
 # invariant: GitHub Actions' OIDC token is a Kubernetes identity. A workflow of
-# `jterrazz/<repo>` running on `main`, asking for audience
+# `jterrazz/<repo>` running on `main` or on a `v*` tag (release-docker deploys
+# the environments tagged `next` from one), asking for audience
 # `{{ k3s_oidc_audience }}`, authenticates as user `github:jterrazz/<repo>` in
 # group `github-actions:jterrazz`, with no stored credential anywhere: the
 # token is minted per job and expires with it. What that identity may do is
@@ -11,6 +12,7 @@
 # hazard: the claim rules are the whole trust boundary of the issuer. Without the
 # repository_owner rule, ANY public GitHub repository could mint a token this
 # apiserver accepts; without the ref rule, any branch of ours could deploy.
+# Both refs need write access to the repository to create.
 apiVersion: apiserver.config.k8s.io/v1
 kind: AuthenticationConfiguration
 jwt:
@@ -21,8 +23,8 @@ jwt:
     claimValidationRules:
       - expression: "claims.repository_owner == 'jterrazz'"
         message: only repositories of the jterrazz account
-      - expression: "claims.ref == 'refs/heads/main'"
-        message: only workflows running on main
+      - expression: "claims.ref == 'refs/heads/main' || claims.ref.startsWith('refs/tags/v')"
+        message: only workflows running on main or on a v* tag
     claimMappings:
       username:
         expression: "'github:' + claims.repository"
