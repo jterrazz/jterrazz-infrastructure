@@ -1,25 +1,9 @@
 name: Upgrade test
 
-# invariant: the one check that runs the platform DEPLOY itself, before it reaches the
-# real cluster. A throwaway k3d cluster at the production k3s version is
-# deployed by the real `platform.yml` from the BASE tree (the PR's base, or the
-# commit before a push), then upgraded by the same play from this tree.
-# What only this catches: an object the API server refuses on UPGRADE (an
-# immutable field such as a ClusterRoleBinding's roleRef, which left grafana
-# failed on 2026-10-24), an admission refusal (Pod Security, the
-# app-deployer-ownership policy), a manifest the cluster's schemas reject, a
-# task that breaks a re-run. Each pass ends on the play's own
-# `helm list --failed` assertion.
-#
-# What it cannot prove, by design: that pods START. The cluster has no real
-# secrets, so most workloads wait on a Secret that never comes;
-# PLATFORM_HELM_WAIT=false keeps helm from waiting on them. Starting is the
-# post-deploy smoke's job, on the real cluster.
-#
-# Nothing here reaches outside the runner: the play's secrets are dummies
-# (roles/secrets is skipped when they are defined), `dns-records` would edit
-# the real Cloudflare zone and `chart-publish` the real registry, so both are
-# skipped.
+# invariant: the real platform.yml on a throwaway k3d cluster, base tree then this
+# one; it proves releases APPLY, never that pods start (docs/guides/test.md,
+# docs/decisions/021-the-deploy-is-tested-on-a-throwaway-k3d-cluster.md). Nothing reaches outside the runner:
+# dummy secrets, `dns-records` and `chart-publish` skipped.
 
 on:
   pull_request:
@@ -73,9 +57,8 @@ jobs:
         with:
           python-version: "3.13"
 
-      # outside: kubernetes==30.1.0 because the play's k8s modules run HERE instead of
-      # on the node, and the node gets the client library from Debian
-      # (python3-kubernetes 30.1.0, roles/base): the same version on both.
+      # invariant: kubernetes==30.1.0 is the node's python3-kubernetes (roles/base);
+      # the play's k8s modules run here instead of on the node.
       - name: Install Ansible, its collections and the node's k8s client library
         run: |
           pip install -r ansible/requirements.txt kubernetes==30.1.0

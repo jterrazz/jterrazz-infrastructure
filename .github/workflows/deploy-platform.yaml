@@ -1,21 +1,8 @@
 name: Deploy Platform
 
-# outside: runs ansible-playbook against the OrbStack VM over Tailscale to apply
-# platform-layer changes (cert-manager, otel-collector, openpanel, ...) and
-# any manifests under kubernetes/services or kubernetes/cluster.
-#
-# Creating the VM is deliberately NOT in scope here: it is `orbctl` on the dev
-# Mac, which a GHA runner cannot satisfy. Provisioning stays on the laptop via
-# `make deploy`; this workflow only handles incremental updates.
-#
-# Auth: the deploy keypair lives split, the public half in
-# ansible/roles/security/defaults/main.yml (security_ci_deploy_pubkey)
-# so the security role installs it in root's authorized_keys, private
-# half as the CI_DEPLOY_SSH_PRIVATE GitHub Action secret on this repo.
-# To rotate: regen the keypair, paste the new pub into the security
-# role default, set the new priv via `gh secret set CI_DEPLOY_SSH_PRIVATE
-# -R jterrazz/jterrazz-infrastructure`, then `make deploy` to roll the
-# pubkey onto the VM.
+# outside: platform.yml over Tailscale only; creating the VM is `orbctl` on the Mac,
+# which no runner has. The SSH key is split between security_ci_deploy_pubkey and
+# the CI_DEPLOY_SSH_PRIVATE secret (rotation: docs/guides/operate.md).
 
 on:
   push:
@@ -34,9 +21,7 @@ on:
 
 permissions:
   contents: read
-  # invariant: `environment: production` below makes the runner's GITHUB_TOKEN create
-  # and update a Deployment record (from in_progress to success or failure), which
-  # needs the deployments scope, not just contents:read.
+  # invariant: `environment: production` writes a Deployment record, which needs this.
   deployments: write
 
 concurrency:
@@ -47,22 +32,13 @@ jobs:
   deploy:
     name: Apply platform via Ansible
     runs-on: ubuntu-latest
-    # outside: records a GitHub Deployment under the `production` environment and
-    # auto-updates its status (from in_progress to success or failure) as this job
-    # runs, so the repo's Environments/Deployments view stays live.
+    # outside: keeps the repo's Deployments view live for this job.
     environment: production
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # outside: fetch CI secrets (Tailscale OAuth, docker registry creds) + join
-      # the tailnet as tag:ci. After this step the runner can reach the
-      # OrbStack VM at jterrazz-infrastructure.tail77a797.ts.net.
-      #
-      # Left at @main deliberately: this is jterrazz's own first-party
-      # action (owner-controlled, not a third-party supply-chain risk in
-      # the same sense as the pinned actions below), and floating on @main
-      # is how it's meant to pick up changes across the fleet of app repos
-      # that also consume it.
+      # outside: fetches the CI secrets and joins the tailnet as tag:ci, after which
+      # the runner reaches the VM by its MagicDNS name.
       - name: Setup infrastructure
         uses: jterrazz/jterrazz-actions/actions/infra-connect@796f105597d23e266df4f12f99afbd481428c6e2 # main, 2026-10-24
         with:
@@ -72,9 +48,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          # hazard: must be >= 3.12 or ansible-core 2.21 is not installable at all;
-          # pip would silently resolve an ancient core instead. Same value as
-          # the `ansible` job in validate.yaml, deliberately.
+          # hazard: below 3.12 pip silently resolves an ancient ansible-core; same as validate.yaml.
           python-version: "3.13"
 
       - name: Install Ansible + collections
@@ -83,8 +57,7 @@ jobs:
           pip install -r requirements.txt
           ansible-galaxy collection install -r requirements.yml
 
-      # outside: materialise the deploy private key in a 0600 tempfile so ansible
-      # can consume it without it ever touching the workspace.
+      # invariant: a 0600 tempfile outside the workspace.
       - name: Write SSH deploy key
         env:
           CI_DEPLOY_SSH_PRIVATE: ${{ secrets.CI_DEPLOY_SSH_PRIVATE }}
@@ -98,13 +71,8 @@ jobs:
           printf '%s\n' "$CI_DEPLOY_SSH_PRIVATE" > "$KEY_FILE"
           echo "CI_DEPLOY_KEY_FILE=$KEY_FILE" >> "$GITHUB_ENV"
 
-      # outside: scope: platform.yml only (Helm-managed services + manifests).
-      # Skips the base/security/resolved/tailscale/k3s roles because those can restart
-      # sshd or tailscaled and would kill the runner's SSH session mid-run.
-      # Use `make deploy` from the laptop when you need to apply changes
-      # outside the platform layer.
-      # invariant: the play fetches its own secrets from Infisical (ansible/roles/secrets)
-      # with this identity; nothing is written to disk.
+      # hazard: platform.yml only: the host roles restart sshd or tailscaled and would
+      # kill this session. The play fetches its own secrets with this identity.
       - name: Run ansible-playbook (platform layer only)
         working-directory: ansible
         env:
