@@ -15,7 +15,7 @@ cluster-internal-access is already a strict superset of private-access.
                    values file that forgets the key gets tailnet-only.
   cluster-internal tailnet humans PLUS the pod/service CIDRs and the node. For
                    routes something inside the cluster must also reach
-                   (registry image pulls, openpanel SSR).
+                   (the registry is the one route that asks for it).
   public           no ipAllowList. The route is still behind the rate-limit /
                    compress / security-headers chain the websecure entrypoint
                    attaches globally.

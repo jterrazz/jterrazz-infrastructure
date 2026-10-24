@@ -12,9 +12,8 @@ values:
   - ../ci/test-values.yaml
 tests:
   - it: "attaches cluster-internal-access for `access: cluster-internal`"
-    # outside: the fixture's value. This is the arm registry (containerd's hairpin pull)
-    # and openpanel (dashboard SSR from a pod IP) need, the arm the pre-2.1
-    # boolean could not express at all.
+    # outside: the fixture's value, and the registry's: the arm the pre-2.1 boolean
+    # could not express at all.
     asserts:
       - equal:
           path: spec.routes[0].middlewares

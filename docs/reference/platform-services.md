@@ -26,11 +26,11 @@ paths, secrets and quirks.
   `tempo`, because dashboards and app-shipped alert rules reference them; only
   the names, URLs and two of the types changed.
 - **Registry**: `registry.internal.jterrazz.com`, namespace
-  `platform-registry`. Its IngressRoute uses `cluster-internal-access` because
-  containerd's hairpin pull is sourced from a pod-CIDR or node address, not a
-  tailnet IP. Note the loop: the deploy workflow's own setup logs into this
-  registry, so taking the `registry` release down means the deploy that would
-  restore it cannot start. Recover with `make deploy-platform` from the Mac.
+  `platform-registry`. Its IngressRoute uses `cluster-internal-access`; the
+  node's containerd pulls hairpin through svclb and arrive from the svclb pod
+  address, which `private-access` admits too. Note the loop: the deploy
+  workflow's own setup logs into this registry, so taking the `registry`
+  release down means the deploy that would restore it cannot start. Recover with `make deploy-platform` from the Mac.
   A weekly CronJob, `registry-gc`, deletes the untagged manifests every push
   leaves behind; it is in
   [Operate](../guides/operate.md#registry-garbage-collection).

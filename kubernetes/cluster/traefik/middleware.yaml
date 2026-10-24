@@ -117,12 +117,9 @@ spec:
 # only once allow-traefik-ingress (kubernetes/cluster/network-policies/kube-system.yaml)
 # admits its namespace, and none is admitted today.
 #
-# The flow that needs it:
-#   * registry: containerd on the NODE pulls registry.internal.jterrazz.com, which
-#     CoreDNS maps to the node's own tailnet IP; that hairpins through
-#     hostPort -> svclb -> Traefik, so the source is a pod-CIDR or node
-#     address (kubernetes/services/registry/service.yaml, `access:
-#     cluster-internal`).
+# The one route that names it is the registry
+# (kubernetes/services/registry/service.yaml), whose node-side pulls arrive
+# from the svclb pod address, which private-access admits too.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -136,7 +133,7 @@ spec:
     sourceRange:
       - "100.64.0.0/10" # Tailscale CGNAT: humans (same as private-access).
       - "127.0.0.1/32" # node-local loopback.
-      - "10.42.0.0/16" # k3s pod CIDR: in-cluster SSR callers + svclb SNAT.
+      - "10.42.0.0/16" # k3s pod CIDR: the svclb SNAT source.
       - "10.43.0.0/16" # k3s service CIDR: kube-proxy SNAT edge cases.
       - "198.19.0.0/16" # OrbStack machine network: node default IPv4.
       - "10.0.0.0/8" # RFC1918: private LAN the node's default iface sits on.

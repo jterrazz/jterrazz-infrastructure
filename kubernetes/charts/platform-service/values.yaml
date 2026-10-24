@@ -17,7 +17,8 @@ aliases: []
 #   cluster-internal -> cluster-internal-access  strict superset of private:
 #                       tailnet humans PLUS the pod/service CIDRs and the
 #                       node. For routes something inside the cluster must
-#                       also reach (registry image pulls, openpanel SSR).
+#                       also reach (the registry is the one route that
+#                       asks for it).
 #   public           -> no access middleware. The route is still behind the
 #                       rate-limit / compress / security-headers chain that
 #                       the websecure entrypoint attaches globally.

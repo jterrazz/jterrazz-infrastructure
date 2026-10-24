@@ -1,6 +1,6 @@
-# invariant: app-chart values for op-dashboard, the Next.js admin UI, and the whole
-# reason the private host is `cluster-internal` rather than tailnet-only: it
-# SSRs against its own public URL from inside its pod. See config.yaml.
+# outside: app-chart values for op-dashboard, the Next.js admin UI. It SSRs through
+# op-api's Service (API_URL_SSR), so its private host is tailnet-only like any
+# other. See config.yaml.
 metadata:
   name: op-dashboard
 

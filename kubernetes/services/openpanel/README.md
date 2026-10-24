@@ -29,10 +29,9 @@ integrates OpenPanel's browser snippet itself. Other origins listed in
 - **op-api** owns DB migrations (`pnpm -r run migrate:deploy` on boot: Prisma
   for Postgres + code-migrations for ClickHouse), then `pnpm start`.
 - **op-worker** runs the BullMQ queues/crons (event/session/profile flushers).
-- **op-dashboard** is the Next.js UI, and it SSRs against its own public URL
-  rather than an in-cluster one. `config.yaml` owns that rationale and the
-  retirement condition; the CoreDNS special case below is one of the three
-  things it rests on.
+- **op-dashboard** is the Next.js UI, and it SSRs through op-api's Service
+  (`API_URL_SSR`) rather than its own public URL. `config.yaml` owns that
+  rationale and what returns if a future image drops the variable.
 - Public host routes **only** `/api/track`; everything else (dashboard,
   `/api/export`, `/api/live`, admin) is reachable only via the tailnet.
 
@@ -206,15 +205,6 @@ the Mac; a file snapshot is sufficient. No scheduled backup needed.
   no CNAME never resolves. Both are required.
 - **ClickHouse hostPath perms**: the pod runs as uid 101; an init container
   chowns `/var/lib/clickhouse` because hostPath dirs are created root-owned.
-- **Dashboard SSR resolves `openpanel.internal.jterrazz.com` to Traefik's
-  ClusterIP, in-cluster.** The `coredns-custom` block maps that host to
-  Traefik's ClusterIP (a separate hosts line from the other private hosts,
-  which use the node tailnet IP); resolving it to the node tailnet IP instead
-  hairpins through the ServiceLB and times out. Because those SSR calls then
-  arrive at Traefik from a **pod IP**, the private IngressRoute uses
-  `cluster-internal-access` rather than `private-access`.
-  `kubernetes/services/openpanel/config.yaml` owns this rationale in full,
-  including what has to happen before any of it can be removed.
 - **The private host is served by two releases.** `op-api.yaml` routes
   `/api/*` and `op-dashboard.yaml` everything else; Traefik ranks the more
   specific rule first. Both name `tlsSecret: openpanel-tls`, whose Certificate

@@ -5,9 +5,10 @@ name: registry
 host: registry.internal.jterrazz.com
 port: 5000
 
-# outside: cluster-internal-access, NOT private-access: containerd's hairpin pull for
-# registry.internal.jterrazz.com is sourced from a pod-CIDR or node address, not a
-# tailnet IP, so private-access would reject the cluster's own image pulls.
+# outside: the node's own image pulls hairpin through hostPort -> svclb -> Traefik and
+# reach it from the svclb pod address, in 10.42.0.0/16, which private-access
+# admits as well as cluster-internal-access, so neither list rejects them. The
+# registry's request log records them as http.request.remoteaddr=<svclb pod IP>.
 access: cluster-internal
 
 # outside: the registry's own API root, and 401 is the CORRECT answer: /v2/ demands a
