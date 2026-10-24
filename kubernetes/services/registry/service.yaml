@@ -12,6 +12,12 @@ smoke:
 storage:
   # hazard: without the explicit hostPath PV the PVC binds to local-path, which a
   # `make destroy && make deploy` wipes with every blob.
+  # value: `data` is distribution's store, kept unmounted as the rollback of the
+  # 2026-10-24 move to Zot; delete it (and /var/lib/k8s-data/registry/docker)
+  # once Zot has run clean for a while.
   data:
     size: 10Gi
+  zot:
+    size: 20Gi
+    pathSuffix: zot
 
