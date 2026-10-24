@@ -73,9 +73,12 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Install Ansible and its collections
+      # outside: kubernetes==30.1.0 because the play's k8s modules run HERE instead of
+      # on the node, and the node gets the client library from Debian
+      # (python3-kubernetes 30.1.0, roles/base): the same version on both.
+      - name: Install Ansible, its collections and the node's k8s client library
         run: |
-          pip install -r ansible/requirements.txt
+          pip install -r ansible/requirements.txt kubernetes==30.1.0
           ansible-galaxy collection install -r ansible/requirements.yml
 
       - name: Create the k3d cluster at the production k3s version
