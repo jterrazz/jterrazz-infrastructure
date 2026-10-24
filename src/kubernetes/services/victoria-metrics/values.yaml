@@ -11,6 +11,9 @@ server:
   # value: 60s, not 5s: fewer fsyncs over virtiofs (ADR-008).
   extraArgs:
     inmemoryDataFlushInterval: 60s
+    # hazard: without it VictoriaMetrics reads scrape.yml once at start, and a scrape
+    # change deploys green while the old jobs keep running (2026-10-25).
+    promscrape.configCheckInterval: 1m
 
   resources:
     requests:
