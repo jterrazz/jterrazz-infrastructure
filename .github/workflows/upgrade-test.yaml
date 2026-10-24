@@ -1,9 +1,7 @@
 name: Upgrade test
 
-# invariant: the real platform.yml on a throwaway k3d cluster, base tree then this
-# one; it proves releases APPLY, never that pods start (docs/guides/test.md,
-# docs/decisions/021-the-deploy-is-tested-on-a-throwaway-k3d-cluster.md). Nothing reaches outside the runner:
-# dummy secrets, `dns-records` and `chart-publish` skipped.
+# invariant: the real platform.yml on a throwaway k3d cluster, base tree then this one: it
+# proves releases apply, never that pods start; nothing leaves the runner (ADR-021).
 
 on:
   pull_request:
@@ -49,16 +47,14 @@ jobs:
           fi
           echo "base: $base"
           git worktree add "$RUNNER_TEMP/base" "$base"
-          # value: the inventory comes from THIS tree in both passes (the base may
-          # predate it); group_vars still resolve from each tree's own inventories/.
+          # invariant: the base may predate the k3d inventory; group_vars stay each tree's own.
           cp ansible/inventories/k3d.yml "$RUNNER_TEMP/base/ansible/inventories/k3d.yml"
 
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v7.0.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
 
-      # invariant: kubernetes==30.1.0 is the node's python3-kubernetes (roles/base);
-      # the play's k8s modules run here instead of on the node.
+      # invariant: the play's k8s modules run here, on the node's python3-kubernetes version.
       - name: Install Ansible, its collections and the node's k8s client library
         run: |
           pip install -r ansible/requirements.txt kubernetes==30.1.0
@@ -113,9 +109,8 @@ jobs:
         working-directory: harness
         run: npm ci
 
-      # invariant: the upgraded cluster holds the cluster contract, and the ownership policy
-      # admits and refuses what it says; the admission specs impersonate app identities,
-      # which only an admin kubeconfig can, so they run here and never on the live cluster.
+      # invariant: impersonating app identities needs an admin kubeconfig, so the admission
+      # specs run here and never on the live cluster.
       - name: Cluster and admission contract
         working-directory: harness
         env:

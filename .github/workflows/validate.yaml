@@ -1,14 +1,13 @@
 name: Validate
 
-# invariant: PRs AND pushes to main: a direct push would otherwise reach
-# deploy-platform.yaml unvalidated (docs/decisions/020-validation-gates-fail-loudly-and-pin-what-they-run.md).
+# invariant: pushes too, or a direct push reaches deploy-platform.yaml unvalidated (ADR-020).
 on:
   pull_request:
     branches: [main]
   push:
     branches: [main]
 
-# value: read-only checks, so a stale run is cancelled (never a deploy workflow's setting).
+# value: read-only, so a stale run is cancelled.
 concurrency:
   group: validate-${{ github.ref }}
   cancel-in-progress: true
@@ -23,7 +22,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # outside: ubuntu-latest ships shellcheck; mirrors `make check`.
       - name: ShellCheck
         run: shellcheck scripts/*.sh scripts/lib/*.sh
 
@@ -33,18 +31,14 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # hazard: the image's baked-in npm crashed inside `npm exec`; pin the node major.
+      # hazard: the image's own npm crashed inside `npm exec`.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
 
-      # invariant: `make docs` owns the command and its pin; this job is why the
-      # laptop's soft skip is safe.
       - name: Content check
         run: make docs
 
-  # invariant: the TypeScript harness is a project of its own (harness/), held to its toolchain:
-  # types, lint, format and the test conventions over its specs. Nothing here reaches a cluster.
   harness:
     name: Validate Harness
     runs-on: ubuntu-latest
@@ -71,8 +65,7 @@ jobs:
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          # outside: ansible-core 2.21 needs 3.12-3.14; 3.13 has the widest wheels for
-          # ansible-lint's compiled deps. Never a floating "3.x".
+          # value: ansible-core 2.21 needs 3.12-3.14; 3.13 has the widest wheels (ADR-020).
           python-version: "3.13"
 
       - name: Install Ansible
@@ -83,12 +76,9 @@ jobs:
         run: ansible-galaxy collection install -r requirements.yml
 
       - name: Ansible Lint
-        # hazard: `-c` is required: config discovery walks UP from the CWD, so
-        # without it ansible/.ansible-lint is silently ignored.
         run: ansible-lint -c ansible/.ansible-lint ansible/
 
       - name: Syntax Check
-        # outside: from ansible/ so ansible.cfg (relative roles_path) is picked up.
         working-directory: ansible
         run: |
           set -euo pipefail
@@ -99,9 +89,8 @@ jobs:
     name: Validate Kubernetes
     runs-on: ubuntu-latest
     env:
-      # invariant: tried IN ORDER: vendored overrides (kubernetes/schemas/README.md),
-      # core kinds, the datreeio catalog. Never `-ignore-missing-schemas`: an
-      # unknown CRD must fail loudly (docs/decisions/020-validation-gates-fail-loudly-and-pin-what-they-run.md).
+      # invariant: tried in order: the vendored overrides, the core kinds, the datreeio catalog;
+      # never `-ignore-missing-schemas` (ADR-020).
       KUBECONFORM_SCHEMA_ARGS: >-
         -schema-location kubernetes/schemas/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json
         -schema-location default
@@ -109,10 +98,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@829323503d1be3d00ca8346e5391ca0b07a9ab0d # v5.1.0
-
-      # invariant: the node's own tool versions, read where the node reads them.
       - name: Read the pinned tool versions
         id: versions
         run: |
@@ -139,21 +124,15 @@ jobs:
           sudo mv /tmp/kubeconform /usr/local/bin/kubeconform
           kubeconform -v
 
-      - name: Validate cluster manifests
-        # outside: plain manifests applied with `kubectl apply -R`, so walked whole.
+      - name: Validate the cluster manifests
         run: |
-          set -euo pipefail
           # shellcheck disable=SC2086
           kubeconform -strict $KUBECONFORM_SCHEMA_ARGS -summary kubernetes/cluster
-          echo "All cluster manifests are valid!"
 
-      - name: Validate Helm charts against CI fixtures
-        # invariant: default values render (near) nothing; ci/test-values.yaml is
-        # the fixture that exercises the real templates.
+      # invariant: default values render nothing; each fixture is its chart's contract.
+      - name: Validate the charts against their fixtures
         run: |
           set -euo pipefail
-          # `common` is a library chart, linted alone; its consumers need a
-          # local `helm dependency update` before they render.
           helm lint kubernetes/charts/common
           for chart in app platform-service; do
             fixture="kubernetes/charts/$chart/ci/test-values.yaml"
@@ -165,26 +144,17 @@ jobs:
               | kubeconform -strict $KUBECONFORM_SCHEMA_ARGS -summary -
           done
 
-      # invariant: kubeconform proves schema validity only; helm-unittest asserts what
-      # the templates computed. Pinned by tag (a plugin has no digest); it embeds
-      # its own renderer, which keeps the snapshots reproducible.
+      # invariant: pinned by tag (a plugin has no digest) and unsigned, which Helm 4 refuses
+      # without --verify=false; it embeds its own renderer, so the snapshots reproduce.
       - name: Install helm-unittest
-        # outside: scripts/lib/helm-plugin.sh carries the Helm 3/4 --verify fallback, so
-        # this and scripts/helmfile.sh install plugins the same way.
-        run: |
-          set -euo pipefail
-          HELM_UNITTEST_VERSION=${{ steps.versions.outputs.helm_unittest }}
-          source scripts/lib/helm-plugin.sh
-          helm_plugin_install https://github.com/helm-unittest/helm-unittest "$HELM_UNITTEST_VERSION"
-          helm plugin list
+        env:
+          HELM_UNITTEST_VERSION: ${{ steps.versions.outputs.helm_unittest }}
+        run: helm plugin install https://github.com/helm-unittest/helm-unittest --version "$HELM_UNITTEST_VERSION" --verify=false
 
+      # hazard: without `--strict` a typo'd assertion name silently never runs.
       - name: Helm chart unit tests
-        # hazard: without `--strict` a typo'd assertion name silently never runs.
         run: helm unittest --strict kubernetes/charts/app kubernetes/charts/platform-service
 
-      # invariant: renders the one state file roles/platform applies, with the node's
-      # helmfile, so a bad version, moved values file or dangling `needs:` fails
-      # here rather than mid-deploy.
       - name: Install helmfile
         run: |
           set -euo pipefail
@@ -195,21 +165,18 @@ jobs:
           sudo mv /tmp/helmfile /usr/local/bin/helmfile
           helmfile --version
 
+      # invariant: a bad version, moved values file or dangling `needs:` fails here, not mid-deploy.
       - name: Render the platform helmfile
-        # invariant: no cluster needed; the two variables only satisfy `requiredEnv`.
         env:
           NODE_NAME: ci-render
           GRAFANA_ADMIN_PASSWORD: ci-render
         run: helmfile --file kubernetes/helmfile.yaml.gotmpl template > /dev/null
 
-      - name: Validate raw service manifests
-        # invariant: a raw manifest is a file with a top-level `apiVersion:`, the same
-        # test roles/platform/tasks/raw-manifests.yml applies; no file list.
+      # invariant: a raw manifest is a file with a top-level `apiVersion:`; no file list.
+      - name: Validate the raw service manifests
         run: |
           set -euo pipefail
           mapfile -t manifests < <(grep -rl '^apiVersion:' kubernetes/services --include='*.yaml')
-          echo "Validating ${#manifests[@]} raw manifests:"
-          printf '  %s\n' "${manifests[@]}"
           # shellcheck disable=SC2086
           kubeconform -strict $KUBECONFORM_SCHEMA_ARGS -summary "${manifests[@]}"
 
@@ -219,7 +186,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # hazard: version + sha256 pinned, so a re-tagged release cannot run here.
+      # hazard: version and sha256 pinned, so a re-tagged release cannot run here.
       - name: Install gitleaks
         run: |
           set -euo pipefail
@@ -232,8 +199,6 @@ jobs:
           sudo mv /tmp/gitleaks /usr/local/bin/gitleaks
           gitleaks version
 
+      # hazard: --no-git: the history holds rotated credentials; this gate stops new ones (ADR-020).
       - name: Scan the working tree
-        # hazard: --no-git on purpose: the history holds rotated credentials and this
-        # gate stops NEW secrets. No .gitleaks.toml: a tripping fixture is rewritten,
-        # never allowlisted (docs/decisions/020-validation-gates-fail-loudly-and-pin-what-they-run.md).
         run: gitleaks detect --source . --no-git --no-banner --redact -v

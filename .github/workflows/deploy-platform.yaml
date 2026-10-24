@@ -1,9 +1,7 @@
 name: Deploy Platform
 
-# outside: platform.yml over Tailscale only; creating the VM is `orbctl` on the Mac,
-# which no runner has. The SSH key is split between security_ci_deploy_pubkey and
-# the CI_DEPLOY_SSH_PRIVATE secret (rotation: docs/guides/operate.md).
-
+# hazard: platform.yml only: the host roles restart sshd and tailscaled under the runner's own
+# session, and creating the VM is orbctl on the Mac.
 on:
   push:
     branches: [main]
@@ -12,8 +10,7 @@ on:
       - 'kubernetes/services/**'
       - 'kubernetes/cluster/**'
       - 'kubernetes/charts/platform-service/**'
-      # invariant: the app chart: the helmfile installs platform workloads from the LOCAL
-      # copy of it (./charts/app), not from the published OCI one.
+      # invariant: platform workloads render through the local app chart, which this also publishes.
       - 'kubernetes/charts/app/**'
       - 'kubernetes/charts/common/**'
       - 'kubernetes/helmfile.yaml.gotmpl'
@@ -21,8 +18,7 @@ on:
 
 permissions:
   contents: read
-  # invariant: infra-connect joins the tailnet with this job's GitHub OIDC token
-  # (Tailscale workload identity); there is no Tailscale secret any more.
+  # invariant: infra-connect joins the tailnet with this job's OIDC token.
   id-token: write
 
 concurrency:
@@ -33,21 +29,17 @@ jobs:
   deploy:
     name: Apply platform via Ansible
     runs-on: ubuntu-latest
-    # hazard: no `environment:`. It carried no protection rule, only a Deployments view,
-    # and it rewrites the job's OIDC subject to `...:environment:production`, which
-    # the Tailscale trust credential (`...:ref:refs/heads/main`) does not match.
+    # hazard: no `environment:`: it rewrites the OIDC subject, which Tailscale's trust
+    # credential (`...:ref:refs/heads/main`) then refuses.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # outside: fetches the CI secrets and joins the tailnet as tag:ci, after which
-      # the runner reaches the VM by its MagicDNS name.
-      - name: Setup infrastructure
+      - name: Join the tailnet
         uses: jterrazz/jterrazz-actions/actions/infra-connect@a56e32078360198f0262f9d6bacd0594ac310237 # main, 2026-10-24
 
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          # hazard: below 3.12 pip silently resolves an ancient ansible-core; same as validate.yaml.
           python-version: "3.13"
 
       - name: Install Ansible + collections
@@ -56,8 +48,7 @@ jobs:
           pip install -r requirements.txt
           ansible-galaxy collection install -r requirements.yml
 
-      # invariant: a 0600 tempfile outside the workspace.
-      - name: Write SSH deploy key
+      - name: Write the SSH deploy key
         env:
           CI_DEPLOY_SSH_PRIVATE: ${{ secrets.CI_DEPLOY_SSH_PRIVATE }}
         run: |
@@ -70,9 +61,7 @@ jobs:
           printf '%s\n' "$CI_DEPLOY_SSH_PRIVATE" > "$KEY_FILE"
           echo "CI_DEPLOY_KEY_FILE=$KEY_FILE" >> "$GITHUB_ENV"
 
-      # hazard: platform.yml only: the host roles restart sshd or tailscaled and would
-      # kill this session. The play fetches its own secrets with this identity.
-      - name: Run ansible-playbook (platform layer only)
+      - name: Deploy the platform layer
         working-directory: ansible
         env:
           INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
@@ -90,12 +79,8 @@ jobs:
         working-directory: harness
         run: npm ci
 
-      # invariant: the host half of the contract (harness/specs/host): sshd, the nft guard,
-      # unattended-upgrades, k3s' secret encryption and Pod Security default, read as root
-      # over the SSH connection the play just used. The host roles run only from the Mac
-      # (site.yml), so this is where CI sees what they left.
-      # hazard: sshd drops unauthenticated connections past MaxStartups 3 (roles/security), so
-      # the files run one at a time over one multiplexed connection.
+      # hazard: sshd's MaxStartups 3 drops parallel connections, so the files run one at a time
+      # over one multiplexed connection.
       - name: Host contract
         working-directory: harness
         run: |
@@ -104,7 +89,7 @@ jobs:
           export HOST_SHELL="ssh -i $CI_DEPLOY_KEY_FILE -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -o LogLevel=ERROR -o ControlMaster=auto -o ControlPath=$RUNNER_TEMP/ssh-%C -o ControlPersist=120 root@$node"
           npx vitest --run --no-file-parallelism specs/host
 
-      - name: Wipe temp secrets
+      - name: Remove the SSH deploy key
         if: always()
         run: |
           rm -f "${CI_DEPLOY_KEY_FILE:-}" || true

@@ -1,25 +1,10 @@
 name: Smoke
 
-# invariant: the platform contract against the LIVE cluster, from two vantages: a job on
-# the tailnet (every route, every certificate, the cluster's invariants read through the
-# API) and a job on the bare internet (what must stay unreachable from there). The specs
-# are harness/specs/ (docs/guides/test.md); this workflow only supplies the vantages.
-#
-# Three triggers, three different questions:
-#   * workflow_run after Deploy Platform: "did that deploy break anything a green
-#     ansible-playbook run would not have noticed?"
-#   * schedule: nothing else notices a certificate that quietly stopped renewing, or an
-#     app that died days after its last deploy. The weekly run is the uptime monitor.
-#   * workflow_dispatch: after a manual change, or to confirm a suspicion.
-#
-# The check LIST is not in this repo: every IngressRoute carries its own smoke contract
-# as annotations, read off the live cluster, so a surface an app added yesterday is
-# probed today with no edit here.
-
+# invariant: the platform contract against the live cluster from two vantages (ADR-022); the
+# weekly schedule is the only uptime monitor.
 on:
   schedule:
-    # outside: Mondays 07:17 UTC. Off the hour on purpose: GitHub's scheduler queues every
-    # :00 job on the planet at once and delays are routine.
+    # value: off the hour, when GitHub's scheduler queues every :00 job.
     - cron: "17 7 * * 1"
   workflow_dispatch:
   workflow_run:
@@ -28,12 +13,10 @@ on:
 
 permissions:
   contents: read
-  # invariant: one token, two audiences: Tailscale's workload identity (infra-connect) and
-  # the k3s apiserver, which maps it to user github:jterrazz/jterrazz-infrastructure.
+  # invariant: one token for Tailscale and for the apiserver (github:jterrazz/jterrazz-infrastructure).
   id-token: write
 
-# invariant: never cancel a run in flight: each one is a point-in-time observation, and a
-# cancelled smoke test reads as "unknown", not "fine".
+# invariant: a cancelled observation reads as "unknown", not "fine".
 concurrency:
   group: smoke
   cancel-in-progress: false
@@ -42,18 +25,14 @@ jobs:
   tailnet:
     name: Contract from the tailnet
     runs-on: ubuntu-latest
-    # invariant: a workflow_run fires on completion regardless of outcome; probing right
-    # after a FAILED deploy would just report the failure a second time, in a place that
-    # looks like an independent signal. The other two triggers must always run.
+    # invariant: after a failed deploy a probe would only report that failure twice.
     if: >-
       github.event_name != 'workflow_run' ||
       github.event.workflow_run.conclusion == 'success'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # outside: joins the tailnet as tag:ci; Traefik's 443 and the apiserver's 6443 only
-      # answer Tailscale CGNAT sources.
-      - name: Setup infrastructure
+      - name: Join the tailnet
         uses: jterrazz/jterrazz-actions/actions/infra-connect@a56e32078360198f0262f9d6bacd0594ac310237 # main, 2026-10-24
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -64,10 +43,8 @@ jobs:
         working-directory: harness
         run: npm ci
 
-      # invariant: docker-deploy's kubeconfig, built the same way (jterrazz-actions
-      # actions/docker-deploy): an exec plugin minting this job's OIDC token per call, the
-      # CA read from k3s' /cacerts. The identity reads through kubernetes/cluster/platform-reader.yaml
-      # and stores nothing.
+      # invariant: built as jterrazz-actions docker-deploy builds it: an exec plugin minting the
+      # job's OIDC token, the CA from k3s' /cacerts; it reads through platform-reader.
       - name: Write the OIDC kubeconfig
         env:
           API_SERVER: https://jterrazz-infrastructure.tail77a797.ts.net:6443
@@ -109,8 +86,7 @@ jobs:
           echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
           KUBECONFIG="$RUNNER_TEMP/kubeconfig" kubectl auth whoami
 
-      # invariant: the internet job cannot reach the apiserver, so it probes the routes
-      # this job read: one snapshot, taken before either job probes anything.
+      # invariant: the internet job cannot reach the apiserver, so it probes this snapshot.
       - name: Snapshot the IngressRoutes for the internet job
         run: kubectl get ingressroutes.traefik.io --all-namespaces -o json > "$RUNNER_TEMP/ingressroutes.json"
 
@@ -128,8 +104,7 @@ jobs:
     name: Boundary from the internet
     runs-on: ubuntu-latest
     needs: tailnet
-    # invariant: deliberately NOT on the tailnet: this job is where an outsider stands. It
-    # runs whatever the tailnet job's probes concluded, once that job took the snapshot.
+    # invariant: never on the tailnet: this job stands where an outsider does.
     if: ${{ !cancelled() && needs.tailnet.result != 'skipped' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
