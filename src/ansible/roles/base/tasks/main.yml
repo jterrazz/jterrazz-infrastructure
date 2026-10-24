@@ -1,0 +1,117 @@
+---
+- name: Install the base packages
+  ansible.builtin.apt:
+    name:
+      - curl
+      - ca-certificates
+      - vim
+      - htop
+      - jq
+      - python3-yaml
+      - python3-kubernetes
+      # outside: deb822_repository needs it; Debian 13 has no apt-key.
+      - python3-debian
+      - iptables
+      - systemd-resolved
+      # outside: OrbStack VMs ship without sshd.
+      - openssh-server
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# hazard: a socket-activated sshd ignores `Port` and does not re-bind on restart.
+- name: Check for a socket-activated sshd
+  ansible.builtin.stat:
+    path: /usr/lib/systemd/system/ssh.socket
+  register: ssh_socket_unit
+
+- name: Disable socket activation for sshd
+  ansible.builtin.systemd_service:
+    name: ssh.socket
+    state: stopped
+    enabled: false
+  when: ssh_socket_unit.stat.exists
+
+# invariant: also creates /run/sshd, which `sshd -t` needs on a fresh install.
+- name: Start and enable sshd
+  ansible.builtin.systemd_service:
+    name: ssh.service
+    state: started
+    enabled: true
+    daemon_reload: true
+
+# hazard: k3s crashloops without /dev/kmsg, which some VMs lack.
+- name: Check for /dev/kmsg
+  ansible.builtin.stat:
+    path: /dev/kmsg
+  register: kmsg_dev
+
+- name: Backfill /dev/kmsg
+  when: not kmsg_dev.stat.exists
+  block:
+    - name: Persist the /dev/kmsg symlink
+      ansible.builtin.copy:
+        dest: /etc/tmpfiles.d/orbstack-kmsg.conf
+        content: "L /dev/kmsg - - - - /dev/console\n"
+        mode: "0644"
+
+    - name: Create /dev/kmsg now
+      ansible.builtin.file:
+        src: /dev/console
+        dest: /dev/kmsg
+        state: link
+        force: true
+
+# value: every virtio-blk FLUSH is an F_FULLFSYNC on the Mac; runtime-only, so set at boot (ADR-008).
+- name: Install the virtio-blk write-through unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/virtio-blk-write-through.service
+    mode: "0644"
+    content: |
+      # Managed by Ansible (roles/base).
+      [Unit]
+      Description=Stop sending FLUSH to virtio-blk disks (each one is an F_FULLFSYNC on the Mac)
+      DefaultDependencies=no
+      After=local-fs.target
+      Before=k3s.service
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/bin/sh -c 'for f in /sys/block/vd*/queue/write_cache; do echo "write through" > "$f"; done'
+      ExecStop=/bin/sh -c 'for f in /sys/block/vd*/queue/write_cache; do echo "write back" > "$f"; done'
+
+      [Install]
+      WantedBy=multi-user.target
+  register: virtio_blk_unit
+
+- name: Enable the virtio-blk write-through unit
+  ansible.builtin.systemd_service:
+    name: virtio-blk-write-through.service
+    enabled: true
+    state: "{{ 'restarted' if virtio_blk_unit.changed else 'started' }}"
+    daemon_reload: true
+
+- name: Set the timezone
+  community.general.timezone:
+    name: UTC
+
+- name: Raise the process limits for Kubernetes
+  ansible.builtin.blockinfile:
+    path: /etc/security/limits.d/kubernetes.conf
+    create: true
+    mode: "0644"
+    block: |
+      * soft nofile 65536
+      * hard nofile 65536
+      * soft nproc 65536
+      * hard nproc 65536
+
+# hazard: every PV names /var/lib/k8s-data; it must stay a symlink into the Mac share that
+# src/scripts/deploy.sh creates, so the data survives `make destroy`.
+- name: Link /var/lib/k8s-data to the Mac data directory
+  ansible.builtin.file:
+    src: "/mnt/mac/Users/{{ lookup('env', 'USER') }}/.jterrazz-infrastructure/data"
+    dest: /var/lib/k8s-data
+    state: link
+    force: true

@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-07-26
 
-Written 2026-10-24 from the comments in `ansible/roles/{security,tailscale}`
+Written 2026-10-24 from the comments in `src/ansible/roles/{security,tailscale}`
 and the k3s templates (commit 2885ec2, extended by the 2026-10-24 audit) that
 this record replaces.
 

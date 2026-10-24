@@ -31,7 +31,7 @@ carry a tag.
 
 The registry is **Zot** (`ghcr.io/project-zot/zot`), an OCI-native registry
 whose garbage collection and retention are built in, configured in
-`kubernetes/services/registry/app.yaml`:
+`src/kubernetes/services/registry/app.yaml`:
 
 - `gc` every 6h with a 1h delay; `retention` removes untagged manifests and
   their referrers (attestations, SBOMs) 24h after they lose their tag.

@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-07-26
 
-Written 2026-10-24 from the comments in `kubernetes/services/{otel-collector,
+Written 2026-10-24 from the comments in `src/kubernetes/services/{otel-collector,
 victoria-*,grafana,kube-state-metrics}/` (commit 5093096 and its follow-ups
 30c461e and 61be749) that this record replaces.
 

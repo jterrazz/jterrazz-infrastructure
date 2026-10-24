@@ -4,7 +4,7 @@
 **Date:** 2026-05-10
 
 Written 2026-10-24 from the comments in
-`kubernetes/services/cert-manager/issuers.yaml` and the network policies that
+`src/kubernetes/services/cert-manager/issuers.yaml` and the network policies that
 this record replaces. DNS-01 itself dates from the first cert-manager setup
 (2025-12-30, 587d6df); it became the only possible answer when public 80/443
 closed (6dc3915).

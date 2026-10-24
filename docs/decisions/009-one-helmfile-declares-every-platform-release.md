@@ -3,8 +3,8 @@
 **Status:** Accepted
 **Date:** 2026-08-30
 
-Written 2026-10-24 from the comments in `kubernetes/helmfile.yaml.gotmpl`,
-`ansible/roles/platform/` and `group_vars` (commit 4b69385, and the Helm 4
+Written 2026-10-24 from the comments in `src/kubernetes/helmfile.yaml.gotmpl`,
+`src/ansible/roles/platform/` and `group_vars` (commit 4b69385, and the Helm 4
 move of 2026-09-19) that this record replaces.
 
 ## Context
@@ -17,12 +17,12 @@ nothing rendered the whole set before a deploy touched the cluster.
 
 ## Decision
 
-`kubernetes/helmfile.yaml.gotmpl` is the only declaration of every platform
+`src/kubernetes/helmfile.yaml.gotmpl` is the only declaration of every platform
 release (name, namespace, chart, pinned version, values file) and of the
 chart repositories. Ansible holds no chart fact; it applies the file on the
 node, and `make diff` reads it from the Mac.
 
-- **It lives in `kubernetes/`**, because the node only ever receives that
+- **It lives in `src/kubernetes/`**, because the node only ever receives that
   subtree (staged to `/tmp/k8s-manifests`) and every path in it is relative.
 - **The `.gotmpl` suffix is load-bearing**: helmfile 1.x renders the state
   file as a Go template only when the extension says so, and two values come
@@ -61,7 +61,7 @@ node, and `make diff` reads it from the Mac.
   snapshots did not move), server-side apply is the default only for releases
   installed under it, and the legacy plugin ABI still loads. The one visible
   difference, plugin signature verification (helm-diff publishes none), is
-  feature-tested in `helm-tooling.yml` and `scripts/lib/helm-plugin.sh`.
+  feature-tested in `helm-tooling.yml` and `src/scripts/lib/helm-plugin.sh`.
 
 ## Consequences
 

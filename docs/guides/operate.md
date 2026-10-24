@@ -21,7 +21,7 @@ why `inventories/laptop.yml` passes it explicitly.
 
 ### Read by the deploy
 
-`ansible/roles/secrets`, the first role of both playbooks, fetches the list
+`src/ansible/roles/secrets`, the first role of both playbooks, fetches the list
 `infisical_secrets` in group_vars on the controller (the Mac or the runner),
 each folder explicitly, and stops on a missing key before anything deploys
 ([ADR-015](../decisions/015-deploy-secrets-are-fetched-once-by-ansible.md)).
@@ -105,7 +105,7 @@ ts-postrouting` must list no MASQUERADE (`--snat-subnet-routes=false`, ADR-006).
 kubectl get pod -A | grep -v Running ; helm list -A --failed ; kubectl get certificate -A
 make smoke                                     # the platform contract, from the Mac
 make diff                                      # what the next platform deploy changes (tailnet)
-./scripts/helmfile.sh diff -l name=grafana     # one release
+./src/scripts/helmfile.sh diff -l name=grafana     # one release
 
 # cert-manager after k3s churn: the webhook and cainjector lose the API; restart all three
 kubectl rollout restart -n platform-networking \
@@ -159,7 +159,7 @@ orb -m jterrazz-infrastructure -u root resolvectl status eth0                 # 
 
 - **Use fully-qualified CRD names** with kubectl: `certificate.cert-manager.io`,
   `ingressroute.traefik.io`.
-- **Delete by hand an object you remove from `kubernetes/cluster/`**: the deploy
+- **Delete by hand an object you remove from `src/kubernetes/cluster/`**: the deploy
   applies that tree without pruning. Delete it after the deploy that stops
   referencing it: a Middleware deleted while a route names it 404s the route.
 - **Helm adopts an existing object** only with the annotations
@@ -257,7 +257,7 @@ data/
 Grafana's volume lives in the VM (`/var/lib/grafana-node-local`), and a repave
 resets it. Every directory here survives a repave, so deleting one is the
 deletion the `Retain` policy protects against. Database-consistent dumps are
-in [the OpenPanel README](../../kubernetes/services/openpanel/README.md#backup-and-restore).
+in [the OpenPanel README](../../src/kubernetes/services/openpanel/README.md#backup-and-restore).
 
 ## Rotating credentials
 
@@ -354,19 +354,19 @@ regctl tag ls registry.internal.jterrazz.com/<app>
 
 ## Add a platform service
 
-A platform service is a directory under `kubernetes/services/` holding one
+A platform service is a directory under `src/kubernetes/services/` holding one
 values file per release, named after the chart that renders it
 ([Architecture](../concepts/architecture.md#four-layers)). Prefer a maintained
 upstream chart, else the app chart; a raw manifest is the last resort.
 
-1. **Namespace**: add it to `kubernetes/cluster/namespaces.yaml`, and its
-   baseline to `kubernetes/cluster/network-policies/<ns>.yaml`: default-deny,
+1. **Namespace**: add it to `src/kubernetes/cluster/namespaces.yaml`, and its
+   baseline to `src/kubernetes/cluster/network-policies/<ns>.yaml`: default-deny,
    same-namespace, DNS egress, nothing naming a workload.
 2. **Values**: `service.yaml` for the route, certificate, volumes, credentials
    and policy, plus `values.yaml` for an upstream chart or one app-chart file
    per workload. `registry/` is the single-workload example, `openpanel/` the
    multi-workload one.
-3. **Release**: one block in `kubernetes/helmfile.yaml.gotmpl` with its pinned
+3. **Release**: one block in `src/kubernetes/helmfile.yaml.gotmpl` with its pinned
    `version:`; the `<svc>-platform` sibling inherits the `platform-service`
    template. That block is the whole declaration.
 4. **Route**: `access` defaults to `private`; add the hostname to
@@ -386,7 +386,7 @@ Apps deploy themselves; this repo owns only their chart
 ([the deploy contract](../reference/deploy-contract.md)).
 
 1. Add `.infrastructure/application.yaml` to the app repo, with `tag:` on every
-   environment ([the schema](../../kubernetes/charts/app/README.md)).
+   environment ([the schema](../../src/kubernetes/charts/app/README.md)).
 2. Expose `make build`, `make lint` and `make test`, and call the shared
    workflow in `jterrazz/jterrazz-actions` from a job granting
    `permissions: { contents: read, id-token: write }`.
@@ -417,7 +417,7 @@ mv ~/.jterrazz-infrastructure/data/openpanel/postgres/pgdata \
    ~/.jterrazz-infrastructure/data/openpanel/postgres/pgdata-pg<old>-$(date +%F)
 mkdir -p ~/.jterrazz-infrastructure/data/openpanel/postgres/pgdata
 
-# 4. Bump the image in kubernetes/services/openpanel/op-postgres.yaml and deploy it.
+# 4. Bump the image in src/kubernetes/services/openpanel/op-postgres.yaml and deploy it.
 kubectl rollout status -n platform-analytics deploy/op-postgres --timeout=180s
 
 # 5. Restore, then bring the writers back; op-api migrates on boot.

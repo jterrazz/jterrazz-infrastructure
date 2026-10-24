@@ -4,7 +4,7 @@
 **Date:** 2026-08-30
 
 Written 2026-10-24 from the comments in `group_vars` and
-`ansible/roles/platform/tasks/{coredns,dns-records}.yml` that this record
+`src/ansible/roles/platform/tasks/{coredns,dns-records}.yml` that this record
 replaces. The records moved from Pulumi to the platform deploy with Pulumi's
 deletion (2026-08-30); the `*.staging` zone was added on 2026-10-24
 (9d03e09).

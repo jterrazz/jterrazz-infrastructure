@@ -4,7 +4,7 @@
 **Date:** 2026-08-23
 
 Written 2026-10-24 from the comments in `roles/base`,
-`kubernetes/cluster/storage-class.yaml` and the Victoria, OpenPanel, Grafana
+`src/kubernetes/cluster/storage-class.yaml` and the Victoria, OpenPanel, Grafana
 and collector values (commits 3a94b34, 61be749, 00c90a2) that this record
 replaces.
 

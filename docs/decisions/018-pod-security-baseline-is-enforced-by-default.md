@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-10-24
 
-Written 2026-10-24 from the comments in `kubernetes/cluster/namespaces.yaml`,
+Written 2026-10-24 from the comments in `src/kubernetes/cluster/namespaces.yaml`,
 the app chart's hardening tests and the k3s Pod Security template (commit
 4584007) that this record summarises; the template keeps its comments, since
 it is rendered onto the node.

@@ -9,7 +9,7 @@ here; the workflows that execute the contract are
 - **One manifest**, `.infrastructure/application.yaml`, an `Application` the
   app chart renders: port, resources, ingress, storage, secrets, per
   environment. The schema, its merge semantics, `platformServices` and storage
-  are [kubernetes/charts/app/README.md](../../kubernetes/charts/app/README.md).
+  are [src/kubernetes/charts/app/README.md](../../src/kubernetes/charts/app/README.md).
 - **`tag:` on every environment.** Without it the workflow takes a legacy
   branch that deploys "staging" and leaves prod silently stale.
 - **One universal CI interface**: `make build`, `make lint`, `make test`,
@@ -23,11 +23,11 @@ here; the workflows that execute the contract are
 With nothing stored. The deploy job's GitHub OIDC token, audience
 `jterrazz-infrastructure`, is accepted by the apiserver for any
 `jterrazz/<repo>` workflow running on `main`, as user
-`github:jterrazz/<repo>` ([authentication.yaml.j2](../../ansible/roles/k3s/templates/authentication.yaml.j2)).
+`github:jterrazz/<repo>` ([authentication.yaml.j2](../../src/ansible/roles/k3s/templates/authentication.yaml.j2)).
 That is why a calling job grants `permissions: id-token: write`.
 
 What the identity may do is
-[kubernetes/cluster/app-deployers/](../../kubernetes/cluster/app-deployers/), and
+[src/kubernetes/cluster/app-deployers/](../../src/kubernetes/cluster/app-deployers/), and
 there is no list of apps in it. A repo:
 
 1. creates its namespaces on its first deploy, labelled
@@ -54,7 +54,7 @@ in our zones from inside its own namespace.
   version, which is why a template edit must bump `version:` in
   `charts/app/Chart.yaml`; see [Hand-synced pairs](hand-synced-pairs.md).
 - **Discovery instead of registration.** Smoke probes and redeploys read the
-  live cluster: the platform contract (`harness/specs/api`) probes what each
+  live cluster: the platform contract (`specs/specs/api`) probes what each
   IngressRoute's `smoke.jterrazz.com/*` annotations say, and
   `make redeploy-apps` reads `app.jterrazz.com/repository` off every app
   Deployment. No list of

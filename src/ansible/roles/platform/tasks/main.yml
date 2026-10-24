@@ -1,0 +1,38 @@
+---
+# invariant: dependency order, with three helmfile passes (ADR-009); one release is
+# `helmfile apply -l name=<release>`, not a tag.
+- name: Stage the src/kubernetes/ tree
+  ansible.builtin.import_tasks: stage-manifests.yml
+  tags: [always]
+
+- name: Apply the cluster-wide manifests
+  ansible.builtin.import_tasks: cluster-manifests.yml
+  tags: [cluster-manifests]
+
+- name: Converge the DNS records no other owner creates
+  ansible.builtin.import_tasks: dns-records.yml
+  tags: [dns-records]
+
+- name: Answer the private hostnames in CoreDNS
+  ansible.builtin.import_tasks: coredns.yml
+  tags: [coredns]
+
+- name: Install helm, helm-diff and helmfile
+  ansible.builtin.import_tasks: helm-tooling.yml
+  tags: [helm]
+
+- name: Bootstrap the secrets, CRDs, issuers and service storage
+  ansible.builtin.import_tasks: bootstrap.yml
+  tags: [bootstrap]
+
+- name: Apply the raw manifests
+  ansible.builtin.import_tasks: raw-manifests.yml
+  tags: [raw-manifests]
+
+- name: Apply every platform Helm release
+  ansible.builtin.import_tasks: helmfile-apply.yml
+  tags: [releases]
+
+- name: Publish the app chart
+  ansible.builtin.import_tasks: publish-app-chart.yml
+  tags: [chart-publish]

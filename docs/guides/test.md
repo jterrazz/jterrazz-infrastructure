@@ -14,14 +14,14 @@ Each check answers for one thing:
 
 | Check                                                            | Proves                                                                                          |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `shellcheck scripts/*.sh scripts/lib/*.sh`                       | the shell is not quietly wrong: quoting, unset vars, the classic word-split                     |
-| `ansible-lint -c ansible/.ansible-lint ansible/`                 | the whole Ansible tree, roles and templates and inventories, not just `playbooks/`               |
+| `shellcheck src/scripts/*.sh src/scripts/lib/*.sh`                       | the shell is not quietly wrong: quoting, unset vars, the classic word-split                     |
+| `ansible-lint -c src/ansible/.ansible-lint src/ansible/`                 | the whole Ansible tree, roles and templates and inventories, not just `playbooks/`               |
 | `ansible-playbook --syntax-check` on both playbooks              | each playbook parses against the inventory that actually runs it                                |
 | `helm lint` on `common` alone, then `app` and `platform-service` against their `ci/test-values.yaml` | the charts render, and render something; see [the fixtures](#the-fixtures-are-the-validation-contract) |
 | `helm unittest --strict app platform-service`                    | what the templates COMPUTED, not merely that the YAML is well-formed                            |
 | `actionlint`                                                     | the workflow files themselves                                                                    |
 | `make docs`                                                      | the repository passes the estate's content check: the manual's shape (the map bijective, the pages in their sections, the three required pages), the Markdown, the comments, the names, the secrets |
-| `make harness-check`                                             | the harness (`harness/`) passes its own toolchain: types, lint, format, and `@jterrazz/test`'s conventions over its specs |
+| `make harness-check`                                             | the harness (`specs/`) passes its own toolchain: types, lint, format, and `@jterrazz/test`'s conventions over its specs |
 
 `--strict` on helm-unittest matters: it rejects an unknown key in a test file,
 so a typo'd assertion name is an error rather than an assertion that silently
@@ -41,14 +41,14 @@ Everything else hard-fails, which is what stops
 Four checks have no local half, because each needs a tool `make check` does not
 insist on:
 
-- **kubeconform**, over `kubernetes/cluster`, over each chart rendered with its
-  fixture, and over every raw manifest under `kubernetes/services`, found by
+- **kubeconform**, over `src/kubernetes/cluster`, over each chart rendered with its
+  fixture, and over every raw manifest under `src/kubernetes/services`, found by
   the one structural property that separates a manifest from a values file, a
   top-level `apiVersion:` key, which is the same test
   `roles/platform/tasks/raw-manifests.yml` applies. It is deliberately not
   paired with `-ignore-missing-schemas`: a CRD kind with no schema anywhere
   fails loudly rather than skipping validation of that object.
-- **`helmfile template`** over `kubernetes/helmfile.yaml.gotmpl`, the only
+- **`helmfile template`** over `src/kubernetes/helmfile.yaml.gotmpl`, the only
   declaration of every platform release. It catches a bad chart version, a
   values file that moved, a `needs:` pointing at a release that no longer
   exists, each of which would otherwise surface mid-deploy, after some releases
@@ -90,7 +90,7 @@ Adding a branch means adding the values that reach it, in the same change.
 runs the real `platform.yml` twice: from the base tree (the PR's base, or the
 commit before a push), then from this one. It is the one check that executes
 the deploy code rather than reading it, and it has no copy of that code:
-`ansible/inventories/k3d.yml` points the play at the throwaway cluster, the
+`src/ansible/inventories/k3d.yml` points the play at the throwaway cluster, the
 secrets are dummy extra vars, and `dns-records` and `chart-publish` are skipped
 because they reach the real zone and the real registry.
 
@@ -99,7 +99,7 @@ Security, the app-deployer-ownership policy, immutable fields (the
 ClusterRoleBinding roleRef that left grafana failed on 2026-10-24 would have
 stopped here), and a task that breaks on a re-run. Each pass ends on the play's
 own `helm list --failed` gate. After the upgrade, the harness runs
-`harness/specs/cluster` and `harness/specs/admission` against the k3d cluster with its admin
+`specs/specs/cluster` and `specs/specs/admission` against the k3d cluster with its admin
 kubeconfig ([below](#the-suite-file-by-file)). It does not prove pods start: with no real
 secrets most of them cannot, so `platform_helm_wait: false` keeps helm from
 waiting on them (cert-manager and the Infisical operator wait regardless). To
@@ -120,7 +120,7 @@ state rather than the tree. Why it is a suite and why two vantages:
 The question LIST is not in this repo. Every IngressRoute carries its own
 contract as `smoke.jterrazz.com/{path,expect,method,location,probe}`
 annotations, which the charts stamp from facts the service already declares
-(`kubernetes/charts/common/templates/_smoke.tpl`), and the suite reads them off
+(`src/kubernetes/charts/common/templates/_smoke.tpl`), and the suite reads them off
 the live cluster. A surface an app added yesterday is probed today with no
 edit here. Zero discovered routes is an error, never "nothing to check"; a
 route with no annotation is probed with the `GET / -> 200` fallback and named
@@ -129,8 +129,8 @@ the current chart.
 
 ### The suite, file by file
 
-`harness/` is a TypeScript project of its own (a private `cli` on node, with
-its lockfile); its specs sit under `harness/specs/`:
+`specs/` is a TypeScript project of its own (a private `cli` on node, with
+its lockfile); its specs sit under `specs/`:
 
 | Specs                                  | Proves                                                                                                                         | Runs from                     |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------- |
@@ -154,7 +154,7 @@ it), and a private host that answers the internet with any status at all.
 ### The two vantages
 
 - **The tailnet** (`smoke.yaml`'s first job, joined as `tag:ci`): routes and
-  certificates of both scopes, `harness/specs/cluster` and `harness/specs/routes`. It reads
+  certificates of both scopes, `specs/specs/cluster` and `specs/specs/routes`. It reads
   the cluster as user `github:jterrazz/jterrazz-infrastructure` through an
   OIDC kubeconfig built as `docker-deploy` builds one, bound to the read-only
   `platform-reader` ClusterRole; no key is stored. It snapshots the
@@ -202,7 +202,7 @@ then `./kubeconfig.yaml` (`make kubeconfig`, which needs the tailnet).
   identity to impersonate apps, so they run on k3d, against the same
   manifests; the live policy is the one the deploy applied.
 - **A template branch no fixture reaches**: [above](#the-fixtures-are-the-validation-contract).
-- **A stale vendored CRD schema still validates.** `kubernetes/schemas/` overrides
+- **A stale vendored CRD schema still validates.** `src/kubernetes/schemas/` overrides
   the public catalog for the one CRD whose catalog copy lags the operator we
   run; bumping the `infisical` release without re-extracting it means CI
   validates against a CRD the cluster no longer has, and the break lands at

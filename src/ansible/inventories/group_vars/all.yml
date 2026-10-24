@@ -1,0 +1,56 @@
+---
+# invariant: the config surface; Ansible loads group_vars/ only from beside the inventory.
+
+# invariant: the one pin of each tool; the node and validate.yaml both read it here.
+helm_version: "v4.3.0"
+helmfile_version: "v1.8.0"
+helm_diff_version: "v3.15.13"
+
+# hazard: never skip a minor; a minor can move the bundled Traefik chart, so re-read
+# src/kubernetes/services/traefik/helm-chart-config.yaml in the same change (ADR-003, ADR-007).
+k3s_version: "v1.37.0+k3s1"
+# hazard: hand-synced with `audience:` in jterrazz-actions/actions/docker-deploy (ADR-017).
+k3s_oidc_audience: "jterrazz-infrastructure"
+k3s_data_dir: "/var/lib/rancher/k3s"
+k3s_node_ip: "{{ ansible_default_ipv4.address }}"
+
+# invariant: answered in-cluster with the node's tailnet IP; exact names only. The platform
+# contract checks it against the live routes both ways (ADR-012).
+private_hostnames:
+  - registry.internal.jterrazz.com
+  - grafana.internal.jterrazz.com
+  - gateway-intelligence.internal.jterrazz.com
+  - signews.internal.jterrazz.com
+  - os.internal.jterrazz.com
+  - openpanel.internal.jterrazz.com
+  - signews.staging.jterrazz.com
+
+# invariant: only the records no other owner creates; one wildcard per private zone (ADR-012).
+dns_zone: jterrazz.com
+dns_records:
+  - record: "*.internal"
+    value: "{{ tailscale_dns_hostname }}"
+    proxied: false
+  - record: "*.staging"
+    value: "{{ tailscale_dns_hostname }}"
+    proxied: false
+  # invariant: proxied, since cfargotunnel.com resolves only at the edge; the tunnel id is the
+  # connector token's `t` field.
+  - record: analytics
+    value: "{{ (cloudflare_tunnel_token | b64decode | from_json).t }}.cfargotunnel.com"
+    proxied: true
+
+# invariant: every secret a deploy reads; `scope: site` is fetched by site.yml only (ADR-015).
+infisical_api: https://eu.infisical.com
+infisical_project: jterrazz
+infisical_environment: prod
+infisical_secrets:
+  - { var: cloudflare_api_token, path: /jterrazz-infrastructure, key: CLOUDFLARE_API_TOKEN }
+  - { var: cloudflare_tunnel_token, path: /jterrazz-infrastructure, key: CLOUDFLARE_TUNNEL_TOKEN }
+  - { var: registry_username, project: jterrazz-ci-v-nh-8, path: /, key: DOCKER_REGISTRY_USERNAME }
+  - { var: registry_password, project: jterrazz-ci-v-nh-8, path: /, key: DOCKER_REGISTRY_PASSWORD }
+  - { var: registry_pull_username, project: jterrazz-ci-v-nh-8, path: /, key: REGISTRY_PULL_USERNAME }
+  - { var: registry_pull_password, project: jterrazz-ci-v-nh-8, path: /, key: REGISTRY_PULL_PASSWORD }
+  - { var: grafana_admin_password, path: /jterrazz-infrastructure/grafana, key: ADMIN_PASSWORD }
+  - { var: tailscale_oauth_client_id, path: /jterrazz-infrastructure, key: TAILSCALE_OAUTH_CLIENT_ID, scope: site }
+  - { var: tailscale_oauth_client_secret, path: /jterrazz-infrastructure, key: TAILSCALE_OAUTH_CLIENT_SECRET, scope: site }

@@ -5,7 +5,7 @@ knowledge is in [docs/README.md](docs/README.md).
 
 ## Mental model
 
-`scripts/deploy.sh` creates an OrbStack VM on the Mac, Ansible configures it,
+`src/scripts/deploy.sh` creates an OrbStack VM on the Mac, Ansible configures it,
 Helmfile deploys onto it. Above the machine there are four layers (host,
 cluster, platform services, apps) and three Helm charts, one of them a library
 the other two share. Apps are not deployed from here: they render through the
@@ -31,9 +31,9 @@ answer.
 | What runs on the cluster, and where is its detail?       | [docs/reference/platform-services.md](docs/reference/platform-services.md)          |
 | How do I bring a rented target back?                     | [docs/guides/resurrect-hetzner.md](docs/guides/resurrect-hetzner.md)                |
 | Why was a choice made?                                   | [docs/decisions/](docs/decisions/)                                                  |
-| The `application.yaml` schema                            | [kubernetes/charts/app/README.md](kubernetes/charts/app/README.md)                  |
-| What the two charts share                                | [kubernetes/charts/common/README.md](kubernetes/charts/common/README.md)            |
-| One service's versions, data paths and quirks            | `kubernetes/services/<svc>/README.md`                                               |
+| The `application.yaml` schema                            | [src/kubernetes/charts/app/README.md](src/kubernetes/charts/app/README.md)                  |
+| What the two charts share                                | [src/kubernetes/charts/common/README.md](src/kubernetes/charts/common/README.md)            |
+| One service's versions, data paths and quirks            | `src/kubernetes/services/<svc>/README.md`                                               |
 
 ## Gestures
 

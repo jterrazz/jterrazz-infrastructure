@@ -3,8 +3,8 @@
 **Status:** Accepted
 **Date:** 2026-08-30
 
-Written 2026-10-24 from the comments in `kubernetes/charts/`,
-`kubernetes/services/openpanel/` and `roles/platform/tasks/publish-app-chart.yml`
+Written 2026-10-24 from the comments in `src/kubernetes/charts/`,
+`src/kubernetes/services/openpanel/` and `roles/platform/tasks/publish-app-chart.yml`
 that this record replaces (the platform-service rename, 076bc79; app chart
 2.11, which absorbed OpenPanel and the registry; OpenPanel's in-cluster SSR
 on 2026-09-19).

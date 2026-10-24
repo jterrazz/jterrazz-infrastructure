@@ -6,7 +6,7 @@ system; what to type when it breaks is [Operate](../guides/operate.md).
 ## The machine
 
 A single OrbStack VM (`jterrazz-infrastructure`, Debian 13 trixie, arm64) on
-the dev Mac, running single-node k3s. `scripts/deploy.sh` creates it with one
+the dev Mac, running single-node k3s. `src/scripts/deploy.sh` creates it with one
 `orbctl create` (`vm_up`, skipped when the VM already exists), Ansible
 configures it from `inventories/laptop.yml`, and Helmfile deploys onto it.
 
@@ -14,7 +14,7 @@ There is no provisioning state anywhere: the VM's existence is the state,
 probed with `orbctl info`. There is no GitOps controller either: a deploy is
 `helmfile apply`, run on the node from CI or from the laptop. Every platform
 release, with its name, namespace, chart, pinned version and values file, is
-declared once in `kubernetes/helmfile.yaml.gotmpl`.
+declared once in `src/kubernetes/helmfile.yaml.gotmpl`.
 
 There is no second target. The Hetzner VPS this repo also supported was
 removed; the resurrection recipe is [Resurrect Hetzner](../guides/resurrect-hetzner.md) and the
@@ -29,11 +29,11 @@ is strict: one word, one meaning.
 | Layer             | What it covers                                                   | Applied by                             |
 | ----------------- | ---------------------------------------------------------------- | -------------------------------------- |
 | Host              | The VM and what runs directly on it: `roles/{base,security,resolved,tailscale,k3s}` | `make deploy`, from the Mac only       |
-| Cluster           | Objects belonging to no single release: `kubernetes/cluster/`: namespaces, the `manual` StorageClass, NetworkPolicies, Traefik middlewares and TLSOption | `roles/platform`'s `cluster-manifests` |
-| Platform services | `kubernetes/services/<x>/`, one helmfile release block per file  | CI on merge, or `make deploy-platform` |
+| Cluster           | Objects belonging to no single release: `src/kubernetes/cluster/`: namespaces, the `manual` StorageClass, NetworkPolicies, Traefik middlewares and TLSOption | `roles/platform`'s `cluster-manifests` |
+| Platform services | `src/kubernetes/services/<x>/`, one helmfile release block per file  | CI on merge, or `make deploy-platform` |
 | Apps              | Deployed from their own repos through `charts/app`, into `prod-*` / `next-*` / `staging-*` | each app's own pipeline                |
 
-Every file under `kubernetes/services/<x>/` is a values file, named after the
+Every file under `src/kubernetes/services/<x>/` is a values file, named after the
 chart that consumes it:
 
 - `values.yaml`: the upstream chart.
@@ -66,7 +66,7 @@ every name is an input.
 certificate, volumes, credentials, network policy) from one values file.
 `charts/app` is what every app repo deploys through; it is published to the
 private OCI registry and pulled unversioned. Reference documentation for each
-lives beside it, in `kubernetes/charts/<chart>/README.md`.
+lives beside it, in `src/kubernetes/charts/<chart>/README.md`.
 
 ## Two ways in, neither an open port
 
@@ -120,7 +120,7 @@ Mac anyway. Re-add `cluster-init: true` the day a second node exists.
 ## The tree
 
 ```text
-ansible/
+src/ansible/
 ├── playbooks/     site.yml     base → security → resolved → tailscale → k3s → platform
 │                  platform.yml the platform layer alone (what CI runs)
 ├── roles/         base · security · resolved · tailscale · k3s · platform
@@ -128,7 +128,7 @@ ansible/
                    group_vars/all.yml, the config surface: k3s_version,
                    helm_version, helmfile_version, private_hostnames
 
-kubernetes/
+src/kubernetes/
 ├── helmfile.yaml.gotmpl  every platform Helm release, declared once: name,
 │                     namespace, chart, pinned version, values file. Applied on
 │                     the node by roles/platform; previewed by `make diff`.
@@ -136,16 +136,16 @@ kubernetes/
 │                     implementation of IngressRoute, Certificate, PV/PVC,
 │                     NetworkPolicy and InfisicalSecret, pulled by the two
 │                     charts below through a relative file:// dependency.
-│                     Reference: kubernetes/charts/common/README.md
+│                     Reference: src/kubernetes/charts/common/README.md
 
 ├── charts/app/       application chart, published to the OCI registry (with
 │                     charts/common bundled into the .tgz).
-│                     Version: kubernetes/charts/app/Chart.yaml. Reference:
-│                     kubernetes/charts/app/README.md
+│                     Version: src/kubernetes/charts/app/Chart.yaml. Reference:
+│                     src/kubernetes/charts/app/README.md
 ├── charts/platform-service/
 │                     IngressRoute + Certificate + hostPath PV/PVCs + the
 │                     per-service NetworkPolicy, from one values file.
-│                     Reference: kubernetes/charts/platform-service/README.md
+│                     Reference: src/kubernetes/charts/platform-service/README.md
 
 ├── cluster/          cluster-wide manifests, `kubectl apply -f ... -R`:
 │                     namespaces, the `manual` StorageClass, Traefik
@@ -162,10 +162,10 @@ kubernetes/
                       manifests left are cloudflared's Deployment and
                       cert-manager's ClusterIssuers.
 
-scripts/      deploy.sh (creates the VM, then runs Ansible) · backup.sh ·
+src/scripts/      deploy.sh (creates the VM, then runs Ansible) · backup.sh ·
               helmfile.sh · lib/common.sh · lib/helm-plugin.sh
 
-harness/      the platform contract (specs/, on @jterrazz/test) and
+specs/      the platform contract (specs/, on @jterrazz/test) and
               `make redeploy-apps` (src/), a TypeScript project of its own;
               both discover their targets from the cluster, and the charts
               stamp the expectations as annotations

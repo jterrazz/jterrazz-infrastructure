@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-07-26
 
-Written 2026-10-24 from the comments in `ansible/roles/k3s/` and
+Written 2026-10-24 from the comments in `src/ansible/roles/k3s/` and
 `group_vars` (the single-target restructure, dfc3c78, and 1d3e207, which
 disabled local-path) that this record summarises. The k3s templates keep
 their own comments: they are rendered onto the node, and editing them

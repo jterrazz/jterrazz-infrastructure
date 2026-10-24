@@ -32,5 +32,5 @@ The decisions this repository took alone stand in [decisions/](decisions/),
 numbered and chronological, with the mold `_template.md` beside them.
 
 Reference documentation for the charts lives beside them, in
-`kubernetes/charts/<chart>/README.md`; a multi-part platform service keeps its
+`src/kubernetes/charts/<chart>/README.md`; a multi-part platform service keeps its
 own README beside its values files.

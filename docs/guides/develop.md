@@ -58,22 +58,22 @@ mechanically when editing any values file, manifest or template in this repo.
 - **One directory per app** under `/var/lib/k8s-data`. A multi-component app
   nests its volumes (`openpanel/{postgres,clickhouse,redis}`) through
   `storage.<key>.pathSuffix`.
-- **`ansible/inventories/group_vars/all.yml` is the config surface.** It sits
+- **`src/ansible/inventories/group_vars/all.yml` is the config surface.** It sits
   next to the inventory files, which is the only place Ansible auto-loads it
-  from here: a top-level `ansible/group_vars/` was adjacent to neither
+  from here: a top-level `src/ansible/group_vars/` was adjacent to neither
   inventory nor playbook and was silently never loaded. Role `defaults/` is for
   values a human should not touch; `k3s_version` is single-sourced in
   group_vars and deliberately absent from `roles/k3s/defaults/`, which is why
   that file does not exist.
 - **Namespaces** are `prod-<app>` / `next-<app>` / `staging-<app>` for apps and
   `platform-*` for infrastructure. All platform namespaces are declared in
-  `kubernetes/cluster/namespaces.yaml`, never by `kubectl create ns`.
+  `src/kubernetes/cluster/namespaces.yaml`, never by `kubectl create ns`.
 
 ## The VM is built one way
 
 - **`orb create debian` gives you bookworm.** Debian is the one distro where
   OrbStack's bare image name resolves to the previous stable, so `vm_up` in
-  `scripts/deploy.sh` spells out `debian:trixie`. Never drop the tag: every
+  `src/scripts/deploy.sh` spells out `debian:trixie`. Never drop the tag: every
   Ansible role is Debian-13-native (deb822 repositories, socket-activated
   sshd, systemd-resolved as a separate package).
 - **`orbctl create -u root` is broken** since OrbStack 2.2.0: its setup runs
@@ -89,7 +89,7 @@ mechanically when editing any values file, manifest or template in this repo.
 ## How the platform layer is applied
 
 - **One helmfile, applied in three passes.** Every platform release lives in
-  `kubernetes/helmfile.yaml.gotmpl` and nowhere else; Ansible holds no chart
+  `src/kubernetes/helmfile.yaml.gotmpl` and nowhere else; Ansible holds no chart
   name, no version and no values path. `roles/platform` applies it three times
   because two things must happen in the middle: the `InfisicalSecret`s need the
   operator's CRD and cert-manager the Certificate one, so `tier: bootstrap`
@@ -135,12 +135,12 @@ mechanically when editing any values file, manifest or template in this repo.
   keeps the hostPath PV it bound.
 - **The platform contract and `redeploy-apps` discover their targets from the
   cluster; the expectations are annotations the charts stamp.** The contract
-  (`harness/specs/api`) lists every IngressRoute and probes what its
+  (`specs/specs/api`) lists every IngressRoute and probes what its
   `smoke.jterrazz.com/{path,expect,method,location,probe}` annotations say;
   `make redeploy-apps` reads `app.jterrazz.com/repository` off every app
   Deployment. Neither holds a list of hostnames, status codes or repos. Add
   a surface and it is probed with no edit here; the contract is
-  `kubernetes/charts/common/templates/_smoke.tpl`.
+  `src/kubernetes/charts/common/templates/_smoke.tpl`.
 
   Two consequences: an
   unannotated route is probed with a `GET / -> 200` fallback and named in the
@@ -204,7 +204,7 @@ is the ceiling); that is what made the hostname list live in two files with a
 CI assertion holding them together.
 
 A new public zone is three steps: add it to both ClusterIssuers in
-`kubernetes/services/cert-manager/issuers.yaml`, add a Public Hostname in the
+`src/kubernetes/services/cert-manager/issuers.yaml`, add a Public Hostname in the
 Cloudflare Zero Trust tunnel UI (which auto-creates the CNAME), and set the
 zone's SSL mode to Full (Strict).
 

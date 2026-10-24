@@ -39,8 +39,8 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Install the harness
-        working-directory: harness
+      - name: Install the specs project
+        working-directory: specs
         run: npm ci
 
       # invariant: built as jterrazz-actions docker-deploy builds it: an exec plugin minting the
@@ -97,7 +97,7 @@ jobs:
           retention-days: 1
 
       - name: Routes, certificates, cluster invariants, private_hostnames
-        working-directory: harness
+        working-directory: specs
         run: npx vitest --run specs/api/routes specs/api/certificates specs/cluster specs/routes
 
   internet:
@@ -113,8 +113,8 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Install the harness
-        working-directory: harness
+      - name: Install the specs project
+        working-directory: specs
         run: npm ci
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -123,7 +123,7 @@ jobs:
           path: ${{ runner.temp }}
 
       - name: Public routes answer, private hosts do not
-        working-directory: harness
+        working-directory: specs
         env:
           INGRESSROUTES_FILE: ${{ runner.temp }}/ingressroutes.json
         run: npx vitest --run specs/api/routes/public specs/api/boundary

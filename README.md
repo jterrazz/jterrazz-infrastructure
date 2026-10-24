@@ -36,7 +36,7 @@ spec:
       path: /
 ```
 
-The example is trimmed; the full schema is [the app chart's README](kubernetes/charts/app/README.md); what
+The example is trimmed; the full schema is [the app chart's README](src/kubernetes/charts/app/README.md); what
 an app owes the cluster is [the deploy contract](docs/reference/deploy-contract.md).
 
 ## Quick start
@@ -54,9 +54,9 @@ make check-tools      # ansible / kubectl / orbctl / helm / helmfile / shellchec
 make kubeconfig       # regenerate ./kubeconfig.yaml from the VM (needs the tailnet)
 ```
 
-`scripts/deploy.sh` is the entry point behind all of them. It sources the
+`src/scripts/deploy.sh` is the entry point behind all of them. It sources the
 Infisical identity in `.env` and runs the playbook, whose first role
-(`ansible/roles/secrets`) fetches every secret it needs from Infisical. A
+(`src/ansible/roles/secrets`) fetches every secret it needs from Infisical. A
 missing secret hard-fails the run; there are no fallback defaults.
 
 ## Documentation

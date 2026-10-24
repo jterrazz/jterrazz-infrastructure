@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: ShellCheck
-        run: shellcheck scripts/*.sh scripts/lib/*.sh
+        run: shellcheck src/scripts/*.sh src/scripts/lib/*.sh
 
   docs:
     name: Validate Docs
@@ -39,8 +39,8 @@ jobs:
       - name: Content check
         run: make docs
 
-  harness:
-    name: Validate Harness
+  specs:
+    name: Validate Specs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -49,12 +49,12 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Install the harness
-        working-directory: harness
+      - name: Install the specs project
+        working-directory: specs
         run: npm ci
 
-      - name: Harness check
-        working-directory: harness
+      - name: Specs check
+        working-directory: specs
         run: npx typescript check
 
   ansible:
@@ -69,17 +69,17 @@ jobs:
           python-version: "3.13"
 
       - name: Install Ansible
-        run: pip install -r ansible/requirements.txt
+        run: pip install -r src/ansible/requirements.txt
 
       - name: Install Ansible collections
-        working-directory: ansible
+        working-directory: src/ansible
         run: ansible-galaxy collection install -r requirements.yml
 
       - name: Ansible Lint
-        run: ansible-lint -c ansible/.ansible-lint ansible/
+        run: ansible-lint -c src/ansible/.ansible-lint src/ansible/
 
       - name: Syntax Check
-        working-directory: ansible
+        working-directory: src/ansible
         run: |
           set -euo pipefail
           ansible-playbook playbooks/site.yml -i inventories/laptop.yml --syntax-check
@@ -92,7 +92,7 @@ jobs:
       # invariant: tried in order: the vendored overrides, the core kinds, the datreeio catalog;
       # never `-ignore-missing-schemas` (ADR-020).
       KUBECONFORM_SCHEMA_ARGS: >-
-        -schema-location kubernetes/schemas/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json
+        -schema-location src/kubernetes/schemas/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json
         -schema-location default
         -schema-location https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json
     steps:
@@ -102,8 +102,8 @@ jobs:
         id: versions
         run: |
           {
-            echo "helm=$(yq '.helm_version' ansible/inventories/group_vars/all.yml)"
-            echo "helmfile=$(yq '.helmfile_version' ansible/inventories/group_vars/all.yml)"
+            echo "helm=$(yq '.helm_version' src/ansible/inventories/group_vars/all.yml)"
+            echo "helmfile=$(yq '.helmfile_version' src/ansible/inventories/group_vars/all.yml)"
             echo "helm_unittest=$(make -s print-helm-unittest-version)"
           } >> "$GITHUB_OUTPUT"
 
@@ -127,20 +127,20 @@ jobs:
       - name: Validate the cluster manifests
         run: |
           # shellcheck disable=SC2086
-          kubeconform -strict $KUBECONFORM_SCHEMA_ARGS -summary kubernetes/cluster
+          kubeconform -strict $KUBECONFORM_SCHEMA_ARGS -summary src/kubernetes/cluster
 
       # invariant: default values render nothing; each fixture is its chart's contract.
       - name: Validate the charts against their fixtures
         run: |
           set -euo pipefail
-          helm lint kubernetes/charts/common
+          helm lint src/kubernetes/charts/common
           for chart in app platform-service; do
-            fixture="kubernetes/charts/$chart/ci/test-values.yaml"
+            fixture="src/kubernetes/charts/$chart/ci/test-values.yaml"
             echo "== $chart chart =="
-            helm dependency update "kubernetes/charts/$chart"
-            helm lint "kubernetes/charts/$chart" -f "$fixture"
+            helm dependency update "src/kubernetes/charts/$chart"
+            helm lint "src/kubernetes/charts/$chart" -f "$fixture"
             # shellcheck disable=SC2086
-            helm template ci-test "kubernetes/charts/$chart" -f "$fixture" \
+            helm template ci-test "src/kubernetes/charts/$chart" -f "$fixture" \
               | kubeconform -strict $KUBECONFORM_SCHEMA_ARGS -summary -
           done
 
@@ -153,7 +153,7 @@ jobs:
 
       # hazard: without `--strict` a typo'd assertion name silently never runs.
       - name: Helm chart unit tests
-        run: helm unittest --strict kubernetes/charts/app kubernetes/charts/platform-service
+        run: helm unittest --strict src/kubernetes/charts/app src/kubernetes/charts/platform-service
 
       - name: Install helmfile
         run: |
@@ -170,13 +170,13 @@ jobs:
         env:
           NODE_NAME: ci-render
           GRAFANA_ADMIN_PASSWORD: ci-render
-        run: helmfile --file kubernetes/helmfile.yaml.gotmpl template > /dev/null
+        run: helmfile --file src/kubernetes/helmfile.yaml.gotmpl template > /dev/null
 
       # invariant: a raw manifest is a file with a top-level `apiVersion:`; no file list.
       - name: Validate the raw service manifests
         run: |
           set -euo pipefail
-          mapfile -t manifests < <(grep -rl '^apiVersion:' kubernetes/services --include='*.yaml')
+          mapfile -t manifests < <(grep -rl '^apiVersion:' src/kubernetes/services --include='*.yaml')
           # shellcheck disable=SC2086
           kubeconform -strict $KUBECONFORM_SCHEMA_ARGS -summary "${manifests[@]}"
 

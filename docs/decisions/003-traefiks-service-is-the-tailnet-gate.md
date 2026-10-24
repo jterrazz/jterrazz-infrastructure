@@ -4,8 +4,8 @@
 **Date:** 2026-05-10
 
 Written 2026-10-24 from the comments in
-`kubernetes/services/traefik/helm-chart-config.yaml`,
-`kubernetes/cluster/{traefik,network-policies}/`, `group_vars` and
+`src/kubernetes/services/traefik/helm-chart-config.yaml`,
+`src/kubernetes/cluster/{traefik,network-policies}/`, `group_vars` and
 `roles/platform` that this record replaces. The tailnet restriction dates
 from the close of public 80/443 (6dc3915); the NodePort and timeout rows from
 the 2026-10-24 audit and incidents.

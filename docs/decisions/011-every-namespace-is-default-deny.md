@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-08-30
 
-Written 2026-10-24 from the comments in `kubernetes/cluster/network-policies/`,
+Written 2026-10-24 from the comments in `src/kubernetes/cluster/network-policies/`,
 the charts' `network:` blocks and the service values that this record
 replaces (the per-service split landed in 1814709).
 
@@ -19,7 +19,7 @@ drifted from the services they described.
 
 ## Decision
 
-Two layers. `kubernetes/cluster/network-policies/<ns>.yaml` holds only the
+Two layers. `src/kubernetes/cluster/network-policies/<ns>.yaml` holds only the
 namespace baseline: default-deny both ways, allow-same-namespace, and the
 namespace-wide egress every pod needs (DNS, from `namespaceSelector: {}`,
 since a pod resolves before it knows who answers). Every rule that names one

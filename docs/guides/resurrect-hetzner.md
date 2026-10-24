@@ -7,7 +7,7 @@ cost a `deployment_target` branch in every role plus an inventory nobody ran.
 
 **Pulumi itself is gone too.** One VM and a handful of never-changing DNS
 records did not pay for a language, a lockfile, a CI job, a state backend and a
-token: today `scripts/deploy.sh` runs the single `orbctl create` (`vm_up` /
+token: today `src/scripts/deploy.sh` runs the single `orbctl create` (`vm_up` /
 `vm_destroy`) and the platform deploy converges the records
 ([Operate](operate.md#dns-records-converged-by-the-platform-deploy)). The last commit
 that still contained a `pulumi/` directory is **`487f370`**, so every file named
@@ -16,7 +16,7 @@ tree is in history, not in the working copy.
 
 So a resurrection starts with a choice: restore `pulumi/` whole from `487f370`
 and re-add the target removed below, or skip Pulumi entirely and drive the
-`hcloud` CLI from `scripts/deploy.sh` the way `vm_up`/`vm_destroy` drive
+`hcloud` CLI from `src/scripts/deploy.sh` the way `vm_up`/`vm_destroy` drive
 `orbctl`: one server, one SSH key, one firewall, three commands.
 
 Nothing was deleted destructively. The last tree with both targets is the parent
@@ -30,7 +30,7 @@ would restore:
   default, it is the previous stable), the `MachineOutputs` interface
   (`targets/types.ts`), the `target` dispatch in `src/index.ts`, and the
   `@pulumi/hcloud` + `@pulumi/tls` dependencies.
-- A second inventory, `ansible/inventories/hetzner.yml` in today's flat layout
+- A second inventory, `src/ansible/inventories/hetzner.yml` in today's flat layout
   (it was `inventories/production/hosts.yml`): group `cluster`, host
   `jterrazz-vps`, `ansible_host` + `ansible_ssh_private_key_file` from the
   Pulumi outputs (`sshHost`, `sshPrivateKey --show-secrets`).
@@ -38,7 +38,7 @@ would restore:
   backfill and the `/var/lib/k8s-data` Mac symlink are OrbStack-only; plain
   `mkdir /var/lib/k8s-data` is the Hetzner path), plus `ansible_host` back in
   the k3s TLS SAN list (on Hetzner it is a real public IP).
-- `scripts/deploy.sh`'s positional target, its SSH-key tempfile helper, and the
+- `src/scripts/deploy.sh`'s positional target, its SSH-key tempfile helper, and the
   `manageDns` guard below, which is not optional.
 
 Stack init, once `pulumi/` is restored (its `Pulumi.local.yaml` came back

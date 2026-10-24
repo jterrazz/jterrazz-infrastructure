@@ -23,7 +23,7 @@ run of the same ref (it is read-only; the deploy workflows never cancel), and
 follows four rules.
 
 - **Fail on the unknown.** kubeconform tries vendored schemas first
-  (`kubernetes/schemas/`, overrides for CRDs whose catalog copy lags the
+  (`src/kubernetes/schemas/`, overrides for CRDs whose catalog copy lags the
   version run: today the InfisicalSecret, whose catalog copy marked the
   deprecated `resyncInterval` required and rejected `syncConfig`), then the
   core kinds, then the datreeio catalog, and never
@@ -31,7 +31,7 @@ follows four rules.
   list is updated. helm-unittest runs with `--strict`, so a typo'd assertion
   is an error rather than one that never runs. ansible-lint gets `-c`,
   because its config discovery walks up from the working directory and would
-  otherwise ignore `ansible/.ansible-lint` without a word.
+  otherwise ignore `src/ansible/.ansible-lint` without a word.
 - **Pin every tool, by digest where one exists.** kubeconform and gitleaks
   are downloaded at a version with a sha256 check, so a re-tagged release
   cannot run. helm-unittest is pinned by tag (a plugin installs from a git

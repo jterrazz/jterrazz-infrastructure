@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-10-24
 
-Written 2026-10-24 from the comments in `group_vars`, `ansible/roles/secrets`,
+Written 2026-10-24 from the comments in `group_vars`, `src/ansible/roles/secrets`,
 `roles/platform` and the app chart's registry pull-secret tests (commits
 52aa825 and c711e12) that this record replaces.
 

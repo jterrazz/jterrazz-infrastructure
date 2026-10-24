@@ -2,7 +2,7 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": [
     "Boring, weekly-only Renovate config for this repo.",
-    "Watches: GitHub Actions in .github/workflows/, the Helm chart pins in kubernetes/helmfile.yaml.gotmpl (native helmfile manager), ansible/requirements.txt (native pip manager), harness/package.json and its lockfile (native npm manager), and through the customManagers below every other pin: bare `image:` lines in kubernetes/services/, the busybox digest wherever it is copied, k3s / helm / helmfile / helm-diff (group_vars), helm-unittest (Makefile), and the Ansible collections' git tags.",
+    "Watches: GitHub Actions in .github/workflows/, the Helm chart pins in src/kubernetes/helmfile.yaml.gotmpl (native helmfile manager), src/ansible/requirements.txt (native pip manager), specs/package.json and its lockfile (native npm manager), and through the customManagers below every other pin: bare `image:` lines in src/kubernetes/services/, the busybox digest wherever it is copied, k3s / helm / helmfile / helm-diff (group_vars), helm-unittest (Makefile), and the Ansible collections' git tags.",
     "Every pin has one home; CI reads it from there rather than holding a copy.",
     "Not watched: kubeconform and gitleaks (their SHA256 pins cannot be bumped by Renovate), Debian and Tailscale (unattended-upgrades and apt).",
     "Automerge is disabled everywhere: every update lands as a PR for manual review."
@@ -17,7 +17,7 @@
       "customType": "regex",
       "description": "Bare image pins in platform-service and app-chart values files.",
       "managerFilePatterns": [
-        "/^kubernetes/services/.+\\.ya?ml$/"
+        "/^src/kubernetes/services/.+\\.ya?ml$/"
       ],
       "matchStrings": [
         "image:\\s+(?<depName>[a-z0-9][a-z0-9./-]*):(?<currentValue>[A-Za-z0-9][A-Za-z0-9._-]*)(?:\\s|$)"
@@ -28,7 +28,7 @@
       "customType": "regex",
       "description": "k3s, pinned in group_vars.",
       "managerFilePatterns": [
-        "/^ansible/inventories/group_vars/all\\.yml$/"
+        "/^src/ansible/inventories/group_vars/all\\.yml$/"
       ],
       "matchStrings": [
         "k3s_version:\\s+\"(?<currentValue>[^\"]+)\""
@@ -41,7 +41,7 @@
       "customType": "regex",
       "description": "helm, pinned in group_vars (validate.yaml reads it from there).",
       "managerFilePatterns": [
-        "/^ansible/inventories/group_vars/all\\.yml$/"
+        "/^src/ansible/inventories/group_vars/all\\.yml$/"
       ],
       "matchStrings": [
         "helm_version:\\s+\"(?<currentValue>v[^\"]+)\""
@@ -53,7 +53,7 @@
       "customType": "regex",
       "description": "helmfile, pinned in group_vars (validate.yaml reads it from there).",
       "managerFilePatterns": [
-        "/^ansible/inventories/group_vars/all\\.yml$/"
+        "/^src/ansible/inventories/group_vars/all\\.yml$/"
       ],
       "matchStrings": [
         "helmfile_version:\\s+\"(?<currentValue>v[^\"]+)\""
@@ -65,7 +65,7 @@
       "customType": "regex",
       "description": "helm-diff, pinned in group_vars.",
       "managerFilePatterns": [
-        "/^ansible/inventories/group_vars/all\\.yml$/"
+        "/^src/ansible/inventories/group_vars/all\\.yml$/"
       ],
       "matchStrings": [
         "helm_diff_version:\\s+\"(?<currentValue>v[^\"]+)\""
@@ -87,9 +87,9 @@
     },
     {
       "customType": "regex",
-      "description": "Ansible collections, installed from their GitHub tags (ansible/requirements.yml says why).",
+      "description": "Ansible collections, installed from their GitHub tags (src/ansible/requirements.yml says why).",
       "managerFilePatterns": [
-        "/^ansible/requirements\\.yml$/"
+        "/^src/ansible/requirements\\.yml$/"
       ],
       "matchStrings": [
         "name: https://github\\.com/(?<depName>[^/\\s]+/[^\\s]+?)\\.git\\n\\s+type: git\\n\\s+version: \"(?<currentValue>[^\"]+)\""
@@ -100,7 +100,7 @@
       "customType": "regex",
       "description": "The busybox init image, pinned by digest in the app chart, two values files and the chart's snapshot: one PR moves every copy.",
       "managerFilePatterns": [
-        "/^kubernetes/.+\\.(ya?ml|snap)$/"
+        "/^src/kubernetes/.+\\.(ya?ml|snap)$/"
       ],
       "matchStrings": [
         "(?<depName>busybox):(?<currentValue>[0-9][0-9.]*)@(?<currentDigest>sha256:[a-f0-9]{64})"

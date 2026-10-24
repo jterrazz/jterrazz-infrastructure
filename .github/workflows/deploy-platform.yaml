@@ -6,14 +6,14 @@ on:
   push:
     branches: [main]
     paths:
-      - 'ansible/**'
-      - 'kubernetes/services/**'
-      - 'kubernetes/cluster/**'
-      - 'kubernetes/charts/platform-service/**'
+      - 'src/ansible/**'
+      - 'src/kubernetes/services/**'
+      - 'src/kubernetes/cluster/**'
+      - 'src/kubernetes/charts/platform-service/**'
       # invariant: platform workloads render through the local app chart, which this also publishes.
-      - 'kubernetes/charts/app/**'
-      - 'kubernetes/charts/common/**'
-      - 'kubernetes/helmfile.yaml.gotmpl'
+      - 'src/kubernetes/charts/app/**'
+      - 'src/kubernetes/charts/common/**'
+      - 'src/kubernetes/helmfile.yaml.gotmpl'
   workflow_dispatch:
 
 permissions:
@@ -43,7 +43,7 @@ jobs:
           python-version: "3.13"
 
       - name: Install Ansible + collections
-        working-directory: ansible
+        working-directory: src/ansible
         run: |
           pip install -r requirements.txt
           ansible-galaxy collection install -r requirements.yml
@@ -62,7 +62,7 @@ jobs:
           echo "CI_DEPLOY_KEY_FILE=$KEY_FILE" >> "$GITHUB_ENV"
 
       - name: Deploy the platform layer
-        working-directory: ansible
+        working-directory: src/ansible
         env:
           INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
@@ -75,17 +75,17 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Install the harness
-        working-directory: harness
+      - name: Install the specs project
+        working-directory: specs
         run: npm ci
 
       # hazard: sshd's MaxStartups 3 drops parallel connections, so the files run one at a time
       # over one multiplexed connection.
       - name: Host contract
-        working-directory: harness
+        working-directory: specs
         run: |
           set -euo pipefail
-          node=$(awk '/ansible_host:/ {print $2; exit}' ../ansible/inventories/ci.yml)
+          node=$(awk '/ansible_host:/ {print $2; exit}' ../src/ansible/inventories/ci.yml)
           export HOST_SHELL="ssh -i $CI_DEPLOY_KEY_FILE -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -o LogLevel=ERROR -o ControlMaster=auto -o ControlPath=$RUNNER_TEMP/ssh-%C -o ControlPersist=120 root@$node"
           npx vitest --run --no-file-parallelism specs/host
 

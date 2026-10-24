@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-10-24
 
-Written 2026-10-24 from the comments in `kubernetes/cluster/app-deployers/`,
+Written 2026-10-24 from the comments in `src/kubernetes/cluster/app-deployers/`,
 `group_vars` and the k3s authentication template (commits 4584007 and
 f244821) that this record summarises; the authentication template keeps its
 comments, since it is rendered onto the node.

@@ -10,10 +10,10 @@ paths, secrets and quirks.
   app-chart releases (`op-postgres`, `op-redis`, `op-clickhouse`, `op-api`,
   `op-worker`, `op-dashboard`) plus `openpanel-platform`, which owns the volumes
   and the two certificates its routes share.
-  [README](../../kubernetes/services/openpanel/README.md)
+  [README](../../src/kubernetes/services/openpanel/README.md)
 - **cloudflared**: the public-traffic tunnel, namespace `platform-networking`.
   The one raw Deployment in the tree, deliberately (`hostNetwork: true`).
-  [README](../../kubernetes/services/cloudflared/README.md)
+  [README](../../src/kubernetes/services/cloudflared/README.md)
 - **Telemetry** (`platform-telemetry`): the VictoriaMetrics family:
   VictoriaMetrics (metrics, 30d, scrapes via `-promscrape.config` and receives
   Prometheus remote-write), VictoriaLogs (logs, 90d) and VictoriaTraces (traces,

@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-05-10
 
-Written 2026-10-24 from the comments in `kubernetes/services/cloudflared/`,
+Written 2026-10-24 from the comments in `src/kubernetes/services/cloudflared/`,
 `group_vars` and `roles/platform` that this record replaces (the tunnel
 landed in 10ac6e2, before public 80/443 were closed in 6dc3915).
 

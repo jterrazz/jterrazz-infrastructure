@@ -23,7 +23,7 @@ from `group_vars`), deploys it with the real `platform.yml` from the BASE tree
 `HEAD` gives a re-run test), then upgrades it with the same play from this
 tree. Each pass ends on the play's own `helm list --failed` assertion.
 
-- **No copy of the deploy code.** `ansible/inventories/k3d.yml` points the
+- **No copy of the deploy code.** `src/ansible/inventories/k3d.yml` points the
   play at the throwaway cluster; it is copied from this tree into the base
   checkout, which may predate it, while group_vars still resolve from each
   tree's own inventory.
@@ -44,7 +44,7 @@ tree. Each pass ends on the play's own `helm list --failed` assertion.
 
 - An upgrade-only failure surfaces on the pull request, before
   `deploy-platform.yaml` runs.
-- About one k3d cluster's worth of runner time per change to `ansible/` or
-  `kubernetes/`.
+- About one k3d cluster's worth of runner time per change to `src/ansible/` or
+  `src/kubernetes/`.
 - What it cannot see (a pod that crash-loops, a route that no longer
   answers) stays with smoke; see [Test](../guides/test.md#the-upgrade-test-runs-the-deploy-itself).

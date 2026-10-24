@@ -1,0 +1,67 @@
+---
+# hazard: the HelmChartConfig goes first: after a k3s bump the install job may need the new
+# values to reconcile at all (ADR-003).
+- name: Apply the Traefik HelmChartConfig first
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - apply
+      - -f
+      - "{{ manifest_dir }}/kubernetes/services/traefik/helm-chart-config.yaml"
+  register: traefik_config_apply
+  changed_when: "'created' in traefik_config_apply.stdout or 'configured' in traefik_config_apply.stdout"
+
+# hazard: helm-controller recreates the job asynchronously, so a wait can hit NotFound; 30 x 10s
+# of tolerance, 480s per try for a fresh VM pulling images (ADR-003).
+- name: Wait for the Traefik install job
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - wait
+      - --for=condition=complete
+      - job
+      - -l
+      - helmcharts.helm.cattle.io/chart=traefik
+      - -n
+      - kube-system
+      - --timeout=480s
+  register: traefik_wait
+  changed_when: false
+  retries: 30
+  delay: 10
+  until: traefik_wait.rc == 0
+
+# hazard: `allocateLoadBalancerNodePorts: false` frees none of the NodePorts k3s created the
+# Service with, and each one bypasses the tailnet gate (ADR-003).
+- name: Free the NodePorts Traefik's Service was created with
+  ansible.builtin.shell:
+    cmd: |
+      set -euo pipefail
+      ops=$(kubectl -n kube-system get svc traefik -o json | python3 -c 'import json, sys
+      ports = json.load(sys.stdin)["spec"]["ports"]
+      print(json.dumps([{"op": "remove", "path": f"/spec/ports/{i}/nodePort"} for i, p in enumerate(ports) if "nodePort" in p]))')
+      if [ "$ops" = "[]" ]; then echo "no nodePorts"; exit 0; fi
+      kubectl -n kube-system patch svc traefik --type=json -p "$ops"
+    executable: /bin/bash
+  register: traefik_nodeports
+  changed_when: "'no nodePorts' not in traefik_nodeports.stdout"
+
+# hazard: a Released PV keeps its stale claimRef and never rebinds; a recreated PVC would
+# stay Pending.
+- name: Release the claimRef of Released PVs
+  ansible.builtin.shell:
+    cmd: |
+      set -euo pipefail
+      for pv in $(kubectl get pv -o jsonpath='{.items[?(@.status.phase=="Released")].metadata.name}'); do
+        kubectl patch pv "$pv" -p '{"spec":{"claimRef":null}}' --type=merge
+      done
+    executable: /bin/bash
+  register: pv_clear
+  changed_when: pv_clear.stdout != ''
+
+# invariant: kubectl walks the tree lexically, so namespaces.yaml applies before network-policies/.
+- name: Apply src/kubernetes/cluster
+  ansible.builtin.command:
+    cmd: kubectl apply -f {{ manifest_dir }}/kubernetes/cluster -R
+  register: cluster_base_result
+  changed_when: "'created' in cluster_base_result.stdout or 'configured' in cluster_base_result.stdout"

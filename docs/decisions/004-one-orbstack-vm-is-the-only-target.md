@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-05-11
 
-Written 2026-10-24 from the comments in `ansible/` (inventories, `site.yml`,
+Written 2026-10-24 from the comments in `src/ansible/` (inventories, `site.yml`,
 roles base, resolved and tailscale) that this record replaces. The Hetzner
 target was destroyed on 2026-05-11 (a23066f, b29f250); Pulumi, which had
 created the VM since, was deleted on 2026-08-30 (ab4917d).
@@ -26,7 +26,7 @@ a resolver (0.250.250.200) that silently drops queries.
 ## Decision
 
 There is one target: an OrbStack VM on the Mac, created by
-`scripts/deploy.sh` (`orbctl`) when absent and configured by Ansible. There is
+`src/scripts/deploy.sh` (`orbctl`) when absent and configured by Ansible. There is
 no provisioning state and no `target` branch anywhere.
 
 - **The image is pinned and repaired, not tolerated.** `debian:trixie` is
