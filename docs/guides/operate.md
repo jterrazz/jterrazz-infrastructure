@@ -281,6 +281,13 @@ to, and why, is [Develop](develop.md#the-vm-is-built-one-way).
 
 - **Use fully-qualified CRD names** with kubectl: `certificate.cert-manager.io`,
   `ingressroute.traefik.io`.
+- **Delete by hand an object you remove from `kubernetes/cluster/`.** The deploy
+  runs `kubectl apply -R` on that tree without pruning, so the live object
+  survives its manifest. Run the delete after the deploy that stops
+  referencing it, never before: a Middleware deleted while a route still names
+  it turns that route into a 404. The fully-qualified form is
+  `kubectl -n <ns> delete middleware.traefik.io <name>` or
+  `kubectl -n <ns> delete networkpolicy <name>`.
 - **Remove finalizers before deleting an `Application` object** when tearing
   down a controller that manages resources through it, or the cascade takes the
   managed resources with it. Learned dismantling ArgoCD, which is long gone from
