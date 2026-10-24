@@ -163,10 +163,12 @@ kubernetes/
                       cert-manager's ClusterIssuers.
 
 scripts/      deploy.sh (creates the VM, then runs Ansible) · backup.sh ·
-              helmfile.sh · smoke.sh · trigger-app-deploys.sh · lib/common.sh ·
-              lib/helm-plugin.sh
-              (smoke.sh and trigger-app-deploys.sh discover their targets from
-              the cluster; the charts stamp the expectations as annotations)
+              helmfile.sh · lib/common.sh · lib/helm-plugin.sh
+
+harness/      the platform contract (specs/, on @jterrazz/test) and
+              `make redeploy-apps` (src/), a TypeScript project of its own;
+              both discover their targets from the cluster, and the charts
+              stamp the expectations as annotations
 ```
 
 ## Names that mean the layer

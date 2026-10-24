@@ -41,7 +41,8 @@ answer.
 make check      # everything CI runs on the tree (alias: make lint)
 make deploy     # create the VM if absent + ansible site.yml
 make diff       # what a platform deploy would change, without changing it
-make smoke      # probe the deployed public surfaces
+make smoke      # the platform contract from this Mac: routes, certificates, boundary, cluster
+make test       # smoke + the node itself (sshd, nft guard, upgrades, k3s)
 ```
 
 What each one proves is [docs/guides/test.md](docs/guides/test.md); what a change

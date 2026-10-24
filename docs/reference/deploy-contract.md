@@ -54,9 +54,10 @@ in our zones from inside its own namespace.
   version, which is why a template edit must bump `version:` in
   `charts/app/Chart.yaml`; see [Hand-synced pairs](hand-synced-pairs.md).
 - **Discovery instead of registration.** Smoke probes and redeploys read the
-  live cluster: `scripts/smoke.sh` probes what each IngressRoute's
-  `smoke.jterrazz.com/*` annotations say, and `scripts/trigger-app-deploys.sh`
-  reads `app.jterrazz.com/repository` off every app Deployment. No list of
+  live cluster: the platform contract (`harness/specs/deployment`) probes what each
+  IngressRoute's `smoke.jterrazz.com/*` annotations say, and
+  `make redeploy-apps` reads `app.jterrazz.com/repository` off every app
+  Deployment. No list of
   hostnames, status codes or repos lives here.
 
 ## Consequences worth knowing

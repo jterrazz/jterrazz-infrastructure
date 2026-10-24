@@ -133,12 +133,12 @@ mechanically when editing any values file, manifest or template in this repo.
   `<x>-platform` are frozen for the same class of reason: the chart behind them
   is `platform-service`, but a renamed release is a new release, and the old one
   keeps the hostPath PV it bound.
-- **Smoke and `redeploy-apps` discover their targets from the cluster; the
-  expectations are annotations the charts stamp.** `scripts/smoke.sh` lists
-  every IngressRoute and probes what its
+- **The platform contract and `redeploy-apps` discover their targets from the
+  cluster; the expectations are annotations the charts stamp.** The contract
+  (`harness/specs/deployment`) lists every IngressRoute and probes what its
   `smoke.jterrazz.com/{path,expect,method,location,probe}` annotations say;
-  `scripts/trigger-app-deploys.sh` reads `app.jterrazz.com/repository` off every
-  app Deployment. Neither holds a list of hostnames, status codes or repos. Add
+  `make redeploy-apps` reads `app.jterrazz.com/repository` off every app
+  Deployment. Neither holds a list of hostnames, status codes or repos. Add
   a surface and it is probed with no edit here; the contract is
   `kubernetes/charts/common/templates/_smoke.tpl`.
 

@@ -46,6 +46,8 @@ make deploy           # create the VM if absent + ansible site.yml: the whole ma
 make deploy-platform  # ansible platform.yml only: everything above k3s
 make diff             # what a deploy would change, without changing it (helmfile diff)
 make redeploy-apps    # trigger every app's CI to rebuild + redeploy
+make smoke            # the platform contract, from this machine (routes, certificates, boundary, cluster)
+make test             # smoke + the node itself (sshd, firewall, upgrades, k3s)
 make destroy          # delete the VM (the Mac-side data directory stays)
 make check            # the checks CI runs, locally (alias: make lint)
 make check-tools      # ansible / kubectl / orbctl / helm / helmfile / shellcheck / ansible-lint / python3 present?

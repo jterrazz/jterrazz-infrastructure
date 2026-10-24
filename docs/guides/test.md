@@ -3,8 +3,9 @@
 What proves a change here, and what nothing proves. The evidence is of three
 kinds: tree-side checks, which read files and render templates with no cluster
 anywhere; the upgrade test, which runs the real deploy against a throwaway
-cluster; and one black-box probe of the deployed state. The workflows that
-carry them are [CI](../reference/ci.md).
+cluster; and the platform contract, a TypeScript suite run against the
+deployed state from two vantages. The workflows that carry them are
+[CI](../reference/ci.md).
 
 ## The tree-side checks
 
@@ -20,13 +21,14 @@ Each check answers for one thing:
 | `helm unittest --strict app platform-service`                    | what the templates COMPUTED, not merely that the YAML is well-formed                            |
 | `actionlint`                                                     | the workflow files themselves                                                                    |
 | `make docs`                                                      | the repository passes the estate's content check: the manual's shape (the map bijective, the pages in their sections, the three required pages), the Markdown, the comments, the names, the secrets |
+| `make harness-check`                                             | the harness (`harness/`) passes its own toolchain: types, lint, format, and `@jterrazz/test`'s conventions over its specs |
 
 `--strict` on helm-unittest matters: it rejects an unknown key in a test file,
 so a typo'd assertion name is an error rather than an assertion that silently
 never runs.
 
-Three of these are soft skips locally (`actionlint`, the helm-unittest plugin
-and `make docs`, which needs node) because CI runs all three unconditionally,
+Four of these are soft skips locally (`actionlint`, the helm-unittest plugin,
+`make docs` and `make harness-check`, which need node) because CI runs all three unconditionally,
 so a laptop without them is not a gap in the gate. `make docs` runs
 `typescript check` of `@jterrazz/typescript` on the repository as a content
 repository (`jterrazz.config.ts`), pinned in the `Makefile`; the rule ids and the
@@ -96,7 +98,9 @@ It proves every release APPLIES on top of the previous tree: schemas, Pod
 Security, the app-deployer-ownership policy, immutable fields (the
 ClusterRoleBinding roleRef that left grafana failed on 2026-10-24 would have
 stopped here), and a task that breaks on a re-run. Each pass ends on the play's
-own `helm list --failed` gate. It does not prove pods start: with no real
+own `helm list --failed` gate. After the upgrade, the harness runs
+`harness/specs/cluster` and `harness/specs/admission` against the k3d cluster with its admin
+kubeconfig ([below](#the-suite-file-by-file)). It does not prove pods start: with no real
 secrets most of them cannot, so `platform_helm_wait: false` keeps helm from
 waiting on them (cert-manager and the Infisical operator wait regardless). To
 test a re-run of one tree, dispatch it with `base` set to `HEAD`.
@@ -104,46 +108,99 @@ test a re-run of one tree, dispatch it with `base` set to `HEAD`.
 ## What a deploy proves
 
 A green `ansible-playbook` run is not the claim "the site loads". A platform
-apply can succeed and still leave a service unreachable: a broken IngressRoute,
-a middleware that no longer resolves, a pod that comes back CrashLooping after
-`--wait` returned. `scripts/smoke.sh` is the check that closes that gap, and
-`smoke.yaml` is the only workflow that reads the deployed state rather than the
-tree.
+apply can succeed and still leave a service unreachable (a broken
+IngressRoute, a middleware that no longer resolves, a pod that comes back
+CrashLooping after `--wait` returned), and it can leave a door open that
+nothing reached for (a private host answering the internet, a NodePort, a
+cluster-wide Secret read). The platform contract is the suite that closes
+both gaps, and `smoke.yaml` is the only workflow that reads the deployed
+state rather than the tree. Why it is a suite and why two vantages:
+[ADR-022](../decisions/022-the-platform-contract-is-a-typescript-suite-run-from-two-vantages.md).
 
-It probes the front door: public hostnames through the Cloudflare tunnel,
-private hostnames over the tailnet, and TLS expiry from the wire. The question
-LIST is not in this repo: every IngressRoute carries its own contract as
-`smoke.jterrazz.com/{path,expect,method,location,probe}` annotations, which the
-charts stamp from facts the service already declares
-(`kubernetes/charts/common/templates/_smoke.tpl`). A surface an app added
-yesterday is probed today with no edit here.
+The question LIST is not in this repo. Every IngressRoute carries its own
+contract as `smoke.jterrazz.com/{path,expect,method,location,probe}`
+annotations, which the charts stamp from facts the service already declares
+(`kubernetes/charts/common/templates/_smoke.tpl`), and the suite reads them off
+the live cluster. A surface an app added yesterday is probed today with no
+edit here. Zero discovered routes is an error, never "nothing to check"; a
+route with no annotation is probed with the `GET / -> 200` fallback and named
+`fallback` in its test's title, since it means an app has not redeployed onto
+the current chart.
 
-Three things it refuses to read as fine:
+### The suite, file by file
 
-- **Zero discovered routes is an error**, never "nothing to check"; that is a
-  broken cluster or a broken query.
-- **A route with no annotation is probed with the `GET / -> 200` fallback and
-  named in the output**, because an unannotated route means an app has not
-  redeployed onto the current chart, not that the surface is uninteresting.
-- **A certificate within 15 days of expiry fails.** cert-manager renews at 30
-  days remaining, so 15 means renewal has been failing for two weeks.
+`harness/` is a TypeScript project of its own (a private `cli` on node, with
+its lockfile); its specs sit under `harness/specs/`:
+
+| Specs                                  | Proves                                                                                                                         | Runs from                     |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------- |
+| `deployment/routes/public.spec.ts`            | every public route answers its contract through the tunnel: a status the contract accepts, the `Location` a redirect names     | either vantage                |
+| `deployment/routes/private.spec.ts`           | every tailnet-only route answers its contract                                                                                  | the tailnet                   |
+| `deployment/certificates/{public,private}`    | every host presents a trusted certificate that covers it, 15 days or more from expiry                                          | the host's vantage            |
+| `deployment/boundary/internet.spec.ts`        | every private host never answers (unresolvable or unreachable), and every public host refuses a request naming a private one (Cloudflare's 403) | the internet only |
+| `cluster/rbac/secrets.test.ts`         | the service accounts that may list Secrets cluster-wide are exactly the allow-listed ones, each with its reason (SubjectAccessReview) | the API server          |
+| `cluster/rbac/github-actions.test.ts`  | the `github-actions:jterrazz` group may create namespaces, and may neither list Secrets nor exec into a pod in any namespace    | the API server                |
+| `cluster/traefik/service.test.ts`      | no Service holds a nodePort, and Traefik's LoadBalancer admits `100.64.0.0/10` alone with node ports off                        | the API server                |
+| `cluster/namespaces/ownership.test.ts` | every namespace outside Kubernetes' and the platform's carries `app.jterrazz.com/repository`                                   | the API server                |
+| `routes/private-hostnames/`            | `private_hostnames` (group_vars) names exactly the hosts served tailnet-only, both ways                                        | the API server                |
+| `admission/ownership/policy.test.ts`   | the app-deployer-ownership policy's thirteen cases, admitted and denied, as an app's own identity (impersonated, dry run)       | k3d, in the upgrade test      |
+| `host/`                                | sshd takes keys alone, the nft guard drops NodePorts and tailnet metrics, unattended-upgrades runs, k3s encrypts Secrets, an unlabelled namespace refuses a privileged pod | the node, as root |
+
+Three thresholds are refused as fine: a certificate within 15 days of expiry
+(cert-manager renews at 30, so 15 means renewal has failed for two weeks), a
+status outside the annotated set (a 502, a 503 and `unreachable` never are in
+it), and a private host that answers the internet with any status at all.
+
+### The two vantages
+
+- **The tailnet** (`smoke.yaml`'s first job, joined as `tag:ci`): routes and
+  certificates of both scopes, `harness/specs/cluster` and `harness/specs/routes`. It reads
+  the cluster as user `github:jterrazz/jterrazz-infrastructure` through an
+  OIDC kubeconfig built as `docker-deploy` builds one, bound to the read-only
+  `platform-reader` ClusterRole; no key is stored. It snapshots the
+  IngressRoutes for the second job.
+- **The internet** (the second job, which never joins the tailnet): public
+  routes and `deployment/boundary`, against that snapshot, since the internet
+  cannot reach the apiserver.
+
+The host specs run from `deploy-platform.yaml` after the play, over its SSH
+connection; the admission specs from `upgrade-test.yaml`.
 
 `smoke.yaml` runs after every SUCCESSFUL `deploy-platform.yaml` (a failed one
 would only report the same failure a second time, dressed as an independent
-signal), on a Monday 07:17 UTC schedule, and on demand. The schedule is the only
-uptime monitor this repo has: nothing else notices a certificate that quietly
-stopped renewing, or an app that died days after its last deploy.
+signal), on a Monday 07:17 UTC schedule, and on demand. The schedule is the
+only uptime monitor this repo has: nothing else notices a certificate that
+quietly stopped renewing, or an app that died days after its last deploy.
 
-Locally, `make smoke` probes `--public --certs` only (the private half needs
-this machine on the tailnet), and `./scripts/smoke.sh --list` prints what it
-discovered without probing anything.
+### Running it from the Mac
+
+The Mac is the internet vantage unless its Tailscale is up, and reaches the
+cluster and the node through OrbStack with no tailnet at all:
+
+```bash
+make smoke                   # public routes + certificates, boundary, cluster, inventory
+make smoke VANTAGE=tailnet   # with Tailscale up: private routes instead of the boundary
+make test-host               # the node itself, as root through orb
+make test                    # both
+make test-admission KUBECONFIG=$(k3d kubeconfig write <name>)   # a throwaway cluster only
+```
+
+The Makefile points the harness at the cluster with
+`CLUSTER_KUBECTL="orb -m jterrazz-infrastructure -u root kubectl"` and at the
+node with `HOST_SHELL="orb -m jterrazz-infrastructure -u root"`. To read
+through a kubeconfig instead, `make smoke CLUSTER_KUBECTL=` reads `$KUBECONFIG`,
+then `./kubeconfig.yaml` (`make kubeconfig`, which needs the tailnet).
+`cd harness && npx vitest --run <path>` runs any subset.
 
 ## What nothing proves
 
-- **Only smoke talks to the real cluster.** The upgrade test talks to a throwaway
-  one. `make diff` previews what a platform apply would change, but it is
+- **Only the contract talks to the real cluster.** The upgrade test talks to a
+  throwaway one. `make diff` previews what a platform apply would change, but it is
   read-only and it needs a working kubeconfig; it is a habit before a deploy,
   not a gate.
+- **The ownership policy on the live cluster.** Its cases need an admin
+  identity to impersonate apps, so they run on k3d, against the same
+  manifests; the live policy is the one the deploy applied.
 - **A template branch no fixture reaches**: [above](#the-fixtures-are-the-validation-contract).
 - **A stale vendored CRD schema still validates.** `kubernetes/schemas/` overrides
   the public catalog for the one CRD whose catalog copy lags the operator we
@@ -151,6 +208,6 @@ discovered without probing anything.
   validates against a CRD the cluster no longer has, and the break lands at
   `kubectl apply`. That pair has no checker; see
   [Hand-synced pairs](../reference/hand-synced-pairs.md).
-- **`private_hostnames` against the live routes** is only ever checked at smoke
-  time, both ways. Until a smoke run, a name CoreDNS answers for and nothing
+- **`private_hostnames` against the live routes** is only ever checked when the
+  contract runs, both ways. Until a smoke run, a name CoreDNS answers for and nothing
   serves looks the same as a healthy list.

@@ -9,7 +9,7 @@ nothing here is written twice. The pages are cut by what a reader came to do.
 | Page                                         | Holds                                                                                   |
 | -------------------------------------------- | --------------------------------------------------------------------------------------- |
 | [develop](guides/develop.md)                 | How a change is made: the gate, the five config rules, the conventions, DNS owners      |
-| [test](guides/test.md)                       | What proves a change: the tree-side checks, the chart fixtures, the smoke probe         |
+| [test](guides/test.md)                       | What proves a change: the tree-side checks, the chart fixtures, the platform contract         |
 | [operate](guides/operate.md)                 | Secrets, troubleshooting, repaving, backups, restores, adding a service or app          |
 | [resurrect-hetzner](guides/resurrect-hetzner.md) | How to bring a rented target back, from git history                                 |
 

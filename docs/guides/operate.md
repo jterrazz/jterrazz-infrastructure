@@ -180,9 +180,9 @@ kubectl get pod -A | grep -v Running ; helm list -A ; kubectl get certificate -A
 # What would the next platform deploy change? (read-only, needs the tailnet)
 make diff
 
-# What does smoke think it should be probing, and what did it fall back on?
-./scripts/smoke.sh --public --private --list
-./scripts/trigger-app-deploys.sh --dry-run     # which repos would be rebuilt
+# Does the platform still keep its contract, from here? (no tailnet needed)
+make smoke                                     # routes, certificates, boundary, cluster
+make redeploy-apps ARGS=--dry-run              # which repos would be rebuilt
 ./scripts/helmfile.sh diff -l name=grafana     # one release
 
 # cert-manager after any k3s churn (webhook + cainjector lose the API, the
@@ -357,7 +357,7 @@ The sequence as executed on 2026-07-25 (Debian 13 migration):
 # 0. Snapshot the fleet WHILE IT STILL EXISTS. `make redeploy-apps` discovers
 #    the repos from the live Deployments' app.jterrazz.com/repository
 #    annotation, and a rebuilt cluster has no Deployments to read.
-./scripts/trigger-app-deploys.sh --dry-run > ~/fleet-$(date +%F).txt
+make -s redeploy-apps ARGS=--dry-run > ~/fleet-$(date +%F).txt
 
 # 1. Stop the workloads. `systemctl stop k3s` does NOT stop running
 #    containers: they keep writing to /var/lib/k8s-data mid-backup.
@@ -373,7 +373,7 @@ make deploy
 # 4. Rebuild + redeploy every app onto the new (empty) registry, from the
 #    snapshot taken in step 0 (there is nothing left in the cluster to
 #    discover). `make redeploy-apps` is the discovery form, for every other day.
-./scripts/trigger-app-deploys.sh --from ~/fleet-YYYY-MM-DD.txt
+make redeploy-apps ARGS="--from $HOME/fleet-YYYY-MM-DD.txt"
 ```
 
 Step 5 is required, not optional: registry blobs are hostPath and do survive,
@@ -653,14 +653,14 @@ Deployment is the last resort, for something no chart can express; cloudflared
    Renovate bumps it, with nothing to keep in sync. If the chart comes from a
    repository not already listed at the top of the file, add that too.
 4. Ingress: `access` in `service.yaml` defaults to `private` (`public` is the
-   other value); add the private hostname to `private_hostnames` in group_vars: CoreDNS needs the name before the route exists, and `smoke.sh`
-   fails if the list and the live routes disagree either way. A public service
+   other value); add the private hostname to `private_hostnames` in group_vars: CoreDNS needs the name before the route exists, and the platform
+   contract fails if the list and the live routes disagree either way. A public service
    needs a new zone; the three steps are in
    [Develop](develop.md#dns-has-exactly-three-owners).
    Smoke: **nothing**, unless the default (`GET /` -> 200) is wrong for this
    service, in which case add `smoke: { path, expect }` to the same
-   `service.yaml`. The chart stamps it on the route and `scripts/smoke.sh`
-   discovers it.
+   `service.yaml`. The chart stamps it on the route and the platform
+   contract (`harness/specs/deployment`) discovers it.
 5. Network: for an upstream chart, declare `network:` in the same
    `service.yaml`: the pod selector (read it off that chart's pods, it cannot
    be derived) plus the ingress and egress the workload needs. For an app-chart
