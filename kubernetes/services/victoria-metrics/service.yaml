@@ -1,32 +1,13 @@
-# invariant: Service-chart values for VictoriaMetrics: storage only. `host` is
-# deliberately unset (Grafana and the OTel collector reach it in-cluster), and
-# with no host the chart emits neither IngressRoute nor Certificate.
-#
-# The PVC name is load-bearing: victoria-metrics/values.yaml pins
-# `server.persistentVolume.existingClaim: victoria-metrics-data`, which is
-# <name>-<key> = victoria-metrics-data. Rename either half and VictoriaMetrics
-# starts on a fresh dynamically-provisioned volume.
-#
-# No `claimName` override is needed even though the chart runs a StatefulSet:
-# setting `existingClaim` makes it drop its volumeClaimTemplate and mount this
-# PVC by name, so the storage-<release>-<ordinal> constraint never applies.
+# hazard: storage only, no host. The PVC <name>-<key> = victoria-metrics-data is pinned by
+# values.yaml's `existingClaim`; rename either half and it starts on a fresh volume.
 name: victoria-metrics
 storage:
-  # invariant: no pathSuffix; the PV lands on /var/lib/k8s-data/victoria-metrics.
-  #
-  # Nominal: hostPath enforces no quota, the real cap is the Mac disk.
+  # invariant: no pathSuffix: /var/lib/k8s-data/victoria-metrics; nominal size, the Mac disk is the cap.
   data:
     size: 20Gi
 
-# invariant: scrape egress, DELIBERATELY UNRESTRICTED, and it has to be. The target set is
-# discovered from prometheus.io annotations at runtime (server.scrape in
-# values.yaml beside this file), so a static list here would have to be
-# re-derived on every deploy. The blast radius is bounded on the far side
-# instead: a scraper only ever GETs /metrics, and every namespace it reaches
-# into still enforces its own ingress policy.
-#
-# `anywhere`, not `internet`: the apiserver it discovers targets through is
-# RFC1918 twice over on this cluster.
+# invariant: scrape egress unrestricted on purpose: targets are discovered at runtime,
+# and every namespace still enforces its own ingress; docs/decisions/011-every-namespace-is-default-deny.md
 network:
   podSelector:
     app.kubernetes.io/name: victoria-metrics-single

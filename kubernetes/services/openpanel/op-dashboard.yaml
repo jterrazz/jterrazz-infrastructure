@@ -1,6 +1,4 @@
-# outside: app-chart values for op-dashboard, the Next.js admin UI. It SSRs through
-# op-api's Service (API_URL_SSR), so its private host is tailnet-only like any
-# other. See config.yaml.
+# outside: op-dashboard, the Next.js admin UI; it SSRs through op-api (config.yaml).
 metadata:
   name: op-dashboard
 
@@ -25,16 +23,11 @@ spec:
     path: /api/healthcheck
 
   ingress:
-    # outside: the catch-all half of the private host: op-api's route carries the same
-    # host with `PathPrefix(/api)`, and Traefik ranks the more specific rule
-    # first, so /api/* reaches the API and everything else lands here.
+    # invariant: the catch-all of the private host; op-api's more specific /api route wins.
     - host: openpanel.internal.jterrazz.com
       access: private
       tlsSecret: openpanel-tls
-      # invariant: the derived probe would be this host's /api/healthcheck, which the more
-      # specific route sends to op-api, so it would not test the dashboard
-      # at all. It SSRs and bounces an unauthenticated visitor to /login or
-      # /onboarding, so 307 is the normal answer and 200 the already-rendered one.
+      # invariant: the derived /api/healthcheck would hit op-api; 307 to /login is normal.
       smoke:
         path: /
         expect: "307,200"
@@ -43,13 +36,8 @@ spec:
     exposeTo:
       - traefik
     egress:
-      # outside: op-api (SSR, via API_URL_SSR in config.yaml) and the datastores. No
-      # Traefik egress any more: until 2026-09-19 the dashboard fetched its own
-      # public URL server-side and needed `to: traefik, ports: [8443, 8000]`
-      # (8443, not 443: a NetworkPolicy is evaluated after kube-proxy's DNAT,
-      # so it sees Traefik's containerPort). Bring that rule back, and the
-      # host back into private_hostnames_via_traefik, only if a future image
-      # loses API_URL_SSR.
+      # hazard: no Traefik egress since API_URL_SSR; if an image loses it, see
+      # docs/decisions/010-every-workload-renders-through-two-charts.md
       - to: namespace:platform-analytics
       - to: internet
         ports: [443]

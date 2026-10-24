@@ -1,6 +1,4 @@
-# outside: app-chart values for op-worker, the BullMQ consumer that drains the Redis
-# queue into ClickHouse. No route, no ingress, and the one op-* release with no
-# ALLOW_REGISTRATION to flip.
+# outside: op-worker drains the Redis queue into ClickHouse; no route.
 metadata:
   name: op-worker
 
@@ -25,10 +23,8 @@ spec:
     path: /healthcheck
 
   network:
-    # outside: no `exposeTo`: nothing outside this namespace reaches the worker, and it
-    # keeps working under an ingress policy that admits nothing because the
-    # kubelet's probes are sourced from the node, which NetworkPolicy does not
-    # filter.
+    # invariant: no `exposeTo`: nothing reaches it, and kubelet probes come from the node,
+    # which NetworkPolicy does not filter.
     egress:
       - to: namespace:platform-analytics
       - to: internet

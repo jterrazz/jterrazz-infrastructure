@@ -1,14 +1,5 @@
-# outside: app-chart values for op-postgres: orgs, projects, dashboards, users.
-#
-# 17-alpine, ABOVE OpenPanel's own pin. OpenPanel pins `postgres:14-alpine` in
-# its self-hosting compose and documents no other version; the only support
-# statement reaching higher is Prisma 6's supported-databases list (PG 9.6-18),
-# the ORM, not the application. 14 goes EOL on 2026-11-12, which is why the
-# accept-the-risk migration in docs/guides/operate.md was run on 2026-09-19
-# (pg_dumpall with a 17 client, restore into a fresh 17 cluster; the PG 14
-# directory stays beside it as `pgdata-pg14-<date>`, the rollback). 17 rather
-# than 18: the 18 image moved its default data layout, and 17 is supported
-# until 2029. `17-alpine` floats to the latest 17 patch.
+# outside: op-postgres: orgs, projects, dashboards, users. 17, above OpenPanel's 14 pin
+# (14 is EOL 2026-11-12; 18 moved its data layout); docs/decisions/019-openpanel-datastores-run-supported-versions.md
 metadata:
   name: op-postgres
 
@@ -17,13 +8,10 @@ environment: prod
 spec:
   image: postgres:17-alpine
   port: 5432
-  # outside: `postgresql://openpanel:<password>@op-postgres:5432/openpanel` is the
-  # DATABASE_URL in Infisical, so the Service answers on 5432, not on 80.
+  # outside: DATABASE_URL in Infisical dials op-postgres:5432.
   servicePort: 5432
 
-  # outside: uid/gid 70 is the ALPINE image's `postgres` user; the Debian-based
-  # postgres images use 999. The same uid `storage.owner` chowns to: pinning it
-  # is what stops the entrypoint chowning PGDATA and su-exec-ing down itself.
+  # outside: uid 70 is the alpine image's `postgres` user (Debian images use 999).
   securityContext:
     runAsUser: 70
     runAsGroup: 70
@@ -31,8 +19,7 @@ spec:
   env:
     POSTGRES_USER: openpanel
     POSTGRES_DB: openpanel
-    # invariant: keep PGDATA in a subdir so lost+found / hostPath root never collides with
-    # initdb's empty-dir check.
+    # invariant: PGDATA in a subdir so the mount root never fails initdb's empty-dir check.
     PGDATA: /var/lib/postgresql/data/pgdata
 
   secrets:
@@ -42,8 +29,7 @@ spec:
 
   storage:
     mountPath: /var/lib/postgresql/data
-    # invariant: openpanel-platform owns this claim (service.yaml, Retain) so the data
-    # survives a repave; this release only mounts it.
+    # invariant: openpanel-platform owns this claim (service.yaml, Retain); this mounts it.
     claimName: openpanel-postgres
     owner: "70:70"
 
@@ -56,10 +42,8 @@ spec:
     memoryLimit: 384Mi
 
   network:
-    # hazard: Postgres has a password, but the two stores beside it do not, and the
-    # rule is the same for all three: reachable only from this namespace (the
-    # baseline in cluster/network-policies/platform-analytics.yaml), dialling
-    # nothing but DNS.
+    # hazard: reachable only from this namespace, dialling only DNS, like the two
+    # unauthenticated stores beside it.
     isolated: true
 
 environments:

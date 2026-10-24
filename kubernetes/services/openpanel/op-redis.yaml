@@ -1,26 +1,19 @@
-# invariant: app-chart values for op-redis, the BullMQ job queue + event buffer, NOT an
-# evictable cache: `--appendonly yes` so in-flight events survive a restart.
-# No auth, so `network:` below is the only thing keeping other namespaces off it.
+# invariant: op-redis is the BullMQ queue and event buffer, not a cache (`--appendonly
+# yes`). No auth: `network:` below is all that keeps other namespaces off it.
 metadata:
   name: op-redis
 
 environment: prod
 
 spec:
-  # outside: latest 7.x. Deliberately NOT 8.x: OpenPanel's self-hosting compose pins
-  # redis:7.2.5-alpine and neither OpenPanel nor BullMQ publishes any statement
-  # supporting Redis 8, so 8.x would be two uncited assumptions under the job
-  # queue. 7.4 is a minor bump inside the line upstream pins, verified to
-  # start under this exact uid (999:1000) and these args.
-  # NOTE: 7.4's RDB/AOF are not readable by 7.2, so this is forward-only,
-  # acceptable because this volume is a rebuildable queue, not a source of truth.
+  # outside: 7.x as upstream pins, not 8; 7.4's AOF is unreadable by 7.2, so forward
+  # only; docs/decisions/019-openpanel-datastores-run-supported-versions.md
   image: redis:7.4.11-alpine
   port: 6379
   # invariant: `redis://op-redis:6379` is REDIS_URL in config.yaml.
   servicePort: 6379
 
-  # invariant: uid 999 / gid 1000 is the image's `redis` user; the official image creates
-  # the group at 1000 and the user at 999, hence the mismatch.
+  # invariant: the image's `redis` user is uid 999, group 1000.
   securityContext:
     runAsUser: 999
     runAsGroup: 1000
@@ -29,12 +22,8 @@ spec:
     - "redis-server"
     - "--appendonly"
     - "yes"
-    # hazard: `everysec` is the default: one fsync per second, forever. The AOF lives
-    # on /var/lib/k8s-data, i.e. the Mac's APFS over virtiofs, where an fsync
-    # costs far more than the bytes it commits, and this is a job queue, so it
-    # churns keys far faster than it stores them. `no` leaves the flush to the
-    # kernel: a normal pod restart still replays the AOF, only a host-level
-    # crash loses the tail.
+    # value: `no`, not the `everysec` default: an fsync over virtiofs costs far more
+    # than its bytes; a pod restart still replays the AOF; docs/decisions/008-storage-on-orbstack-spends-fsyncs-not-bytes.md
     - "--appendfsync"
     - "no"
 

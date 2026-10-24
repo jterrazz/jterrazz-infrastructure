@@ -1,21 +1,17 @@
-# outside: Service-chart values for the private container registry: IngressRoute,
-# Certificate and the hostPath PV/PVC. The Deployment + Service (and the
-# htpasswd Secret Ansible bootstraps) are in deployment.yaml next to this file.
+# invariant: platform-service values: IngressRoute, Certificate, the hostPath PV/PVC.
+# The workload is app.yaml beside this file.
 name: registry
 host: registry.internal.jterrazz.com
 port: 5000
 
-# outside: the registry's own API root, and 401 is the CORRECT answer: /v2/ demands a
-# bearer token and containerd relies on that challenge to authenticate. A 200
-# would mean the registry became anonymous-readable.
+# invariant: 401 is correct: containerd relies on the challenge; 200 means anonymous reads.
 smoke:
   path: /v2/
   expect: "401"
 
 storage:
-  # hazard: load-bearing on OrbStack: without an explicit `manual` hostPath volume the
-  # PVC binds to local-path under /var/lib/rancher/k3s/storage/, which a
-  # `make destroy && make deploy` wipes, every registry blob with it.
+  # hazard: without the explicit hostPath PV the PVC binds to local-path, which a
+  # `make destroy && make deploy` wipes with every blob.
   data:
     size: 10Gi
 

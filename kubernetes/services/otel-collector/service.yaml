@@ -1,37 +1,15 @@
-# outside: Service-chart values for the OTel Collector: its credentials and the one
-# NetworkPolicy rule that names it. No host: the collector serves no route.
-#
-# The upstream chart's own values are values.yaml beside this file.
+# outside: platform-service values for the collector: credentials and its ingress rule;
+# the upstream chart's values are values.yaml beside this file.
 name: otel-collector
 
-# invariant: Infisical /jterrazz-infrastructure/otel-collector (env prod) -> the
-# Langfuse OTLP Basic-Auth header.
-#
-# THE SECRET NAME IS READ BY A LITERAL STRING: values.yaml's
-# extraEnvs.LANGFUSE_BASIC_AUTH.secretKeyRef names `otel-collector-secrets`.
-#
-#   LANGFUSE_BASIC_AUTH   base64("public_key:secret_key") of the Langfuse
-#                         project's API keys; the value lives in Infisical,
-#                         never here: echo -n "pk-lf-x:sk-lf-x" | base64
+# invariant: the Langfuse OTLP Basic-Auth header, base64("pk:sk"), lives in Infisical;
+# values.yaml's extraEnvs reads `otel-collector-secrets` by a literal string.
 secrets:
   path: /jterrazz-infrastructure/otel-collector
   secretName: otel-collector-secrets
 
-# invariant: the ingest half of the app chart's `platformServices: [otel-collector]`
-# contract: any pod in any namespace may write telemetry to the collector's two
-# OTLP ports.
-#
-# DELIBERATELY namespace-wide, because nothing narrower is expressible.
-# NetworkPolicy has no globbing, so `prod-*` is not a selector; the only labels
-# app namespaces carry are their own names; and the otel-collector catalog entry
-# has no `clientLabel`, so opted-in app pods carry no marker. The narrowing that
-# IS applied is one pod, two ports, and the widest thing granted is "write
-# telemetry". Tightening means adding a clientLabel to that catalog entry; land
-# it only AFTER every app has redeployed carrying it.
-#
-# Everything else the collector does (reading the three stores, the apiserver,
-# cloud.langfuse.com) is covered by the namespace baseline in
-# kubernetes/cluster/network-policies/platform-telemetry.yaml.
+# invariant: any namespace may write to the two OTLP ports, namespace-wide because
+# nothing narrower is expressible yet; docs/decisions/011-every-namespace-is-default-deny.md
 network:
   # outside: the upstream chart's labels, not ours.
   podSelector:

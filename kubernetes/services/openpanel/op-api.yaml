@@ -1,28 +1,19 @@
-# hazard: app-chart values for op-api, the ingest + tRPC API, and the OWNER OF THE
-# DATABASE SCHEMA: it runs `migrate:deploy` before `pnpm start`, so it must
-# reach Ready before op-worker and op-dashboard are useful. Shares
-# config.yaml's env and secrets; both routes it answers on are here.
-#
-# ALLOW_REGISTRATION is "false" here and in op-dashboard.yaml. To add users:
-# flip both to "true", redeploy, invite, flip back, and always keep a password
-# login, because OAuth-only plus signup-disabled can lock you out entirely
-# (upstream issue #363).
+# hazard: op-api owns the database schema (`migrate:deploy` before start). To add users
+# flip ALLOW_REGISTRATION here AND in op-dashboard.yaml, invite, flip back; keep a
+# password login (OAuth-only plus signup-disabled locks you out, upstream #363).
 metadata:
   name: op-api
 
 spec:
-  # value: pinned to the 2.2 minor; upstream ships a floating `2`.
+  # value: pinned to a 2.x minor; upstream ships a floating `2`.
   image: lindesvard/openpanel-api:2.3.0
   port: 3000
   # invariant: both IngressRoutes below name this Service, and its port is written into
   # the routes rather than the chart's default 80.
   servicePort: 3000
 
-  # hazard: no uid pin: the lindesvard/openpanel-* images do not document the user they
-  # run as, and forcing runAsNonRoot on an image expecting root fails the pod
-  # outright. `runAsRoot` here means only "do not impose 1000"; the container
-  # still drops every capability. OPEN: read the uid out of a running container
-  # (`id`) and pin it, for all three op-* releases.
+  # hazard: the images document no uid, and runAsNonRoot on a root image fails the pod;
+  # capabilities are still dropped. Open: read the uid and pin it for all three op-*.
   runAsRoot: true
 
   # invariant: recreate WITHOUT storage to derive it from: two pods would run
@@ -39,14 +30,11 @@ spec:
 
   env:
     ALLOW_REGISTRATION: "false"
-    # value: without this V8 auto-detects a ~256Mi heap ceiling and aborts (exit 134,
-    # "JS heap out of memory") well before the cgroup limit. Pinned under the
-    # container limit so it GCs instead.
+    # value: without it V8 picks a ~256Mi heap and aborts before the cgroup limit.
     NODE_OPTIONS: "--max-old-space-size=768"
 
   resources:
-    # hazard: the request does NOT have to cover the 768Mi max-old-space-size above:
-    # that heap ceiling is bounded by the LIMIT. Do not lower the limit.
+    # hazard: the 768Mi heap is bounded by the limit, not the request; keep the limit.
     cpu: 50m
     memory: 480Mi
     memoryLimit: 1Gi
@@ -54,23 +42,10 @@ spec:
   health:
     path: /healthcheck
 
-  # outside: PRIVATE  openpanel.internal.jterrazz.com/api/* -> here (the rest of that host
-  #          goes to op-dashboard, whose route is the less specific one).
-  # PUBLIC   analytics.jterrazz.com/api/track -> here and NOTHING else; any other
-  #          path 404s at Traefik, which is what keeps dashboard/admin/export
-  #          off the internet. Abuse is guarded by the rate-limit middleware the
-  #          websecure entrypoint attaches to every route
-  #          (services/traefik/helm-chart-config.yaml) plus OpenPanel's
-  #          per-project clientId/CORS.
-  #
-  # Both hosts strip /api before this service, which serves /track, /trpc and
-  # /live at root. `tlsSecret` on both: the certificates belong to
-  # openpanel-platform (service.yaml), because op-dashboard answers on the
-  # private host too and two releases cannot each own one hostname's cert.
+  # invariant: private host /api/* comes here (the rest goes to op-dashboard); public
+  # analytics.jterrazz.com serves /api/track alone, everything else 404s. Both TLS
+  # secrets belong to openpanel-platform (service.yaml), as two releases share a host.
   ingress:
-    # invariant: private (tailnet only) since 2026-09-19: op-dashboard's server-side
-    # fetches go to this Service directly (API_URL_SSR), so no pod IP has to
-    # reach this route any more.
     - host: openpanel.internal.jterrazz.com
       path: /api
       access: private
@@ -82,19 +57,11 @@ spec:
       # route's own path (the default) would leave it nothing to serve.
       stripPrefix: /api
       tlsSecret: openpanel-analytics-tls
-      # invariant: POST-only by design: a GET answers 404 whether op-api is healthy or
-      # not. The probe POSTs an empty JSON object, which reaches op-api and is
-      # rejected for want of a client id: 401 proves the route is wired end to
-      # end AND that ingest is not anonymous. (A body-less POST answers 400 and
-      # a non-JSON one 415; both prove liveness, only 401 also asserts the
-      # auth check runs.)
       smoke:
         method: POST
         path: /api/track
-        # invariant: 400, not 401: since 2.3.0 the API validates the smoke probe's empty
-        # `{}` body before it looks at the client headers, so an unauthenticated
-        # empty POST is a schema error. A well-formed body with no client id is
-        # still 401. Either code proves the public route reaches op-api.
+        # invariant: 400 since 2.3.0: the empty `{}` body fails validation before the
+        # client check; either code proves the public route reaches op-api.
         expect: "400"
 
   network:
@@ -103,8 +70,6 @@ spec:
     egress:
       # invariant: -> op-postgres:5432, op-redis:6379, op-clickhouse:8123.
       - to: namespace:platform-analytics
-      # outside: -> geo/IP enrichment, avatar fetches. OPEN: nothing has enumerated
-      # which hosts OpenPanel actually dials, so this cannot be narrowed to an
-      # ipBlock without breaking enrichment.
+      # outside: geo/IP enrichment and avatars; the hosts are not enumerated, so no ipBlock.
       - to: internet
         ports: [443]

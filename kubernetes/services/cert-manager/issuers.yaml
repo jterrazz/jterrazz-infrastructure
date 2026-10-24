@@ -1,7 +1,7 @@
 ---
-# hazard: DNS-01, not HTTP-01: the cluster has no public inbound path, so an HTTP-01
-# challenge could never be reached. Adding a new public zone means adding it to
-# the dnsZones list of BOTH issuers below.
+# hazard: DNS-01, not HTTP-01: no public inbound path could answer an HTTP-01
+# challenge. A new public zone goes in the dnsZones of BOTH issuers;
+# docs/decisions/001-certificates-are-issued-over-dns-01.md
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:

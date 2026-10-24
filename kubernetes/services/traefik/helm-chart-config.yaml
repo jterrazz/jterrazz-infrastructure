@@ -1,12 +1,6 @@
 ---
-# outside: the values of ONE release: k3s' bundled Traefik, which helm-controller
-# installs from a HelmChart in kube-system. That is why this sits with every
-# other release's values under kubernetes/services/ rather than among the
-# cluster-wide objects in kubernetes/cluster/traefik/ (the middlewares and the
-# TLSOption, which belong to no single release).
-#
-# Applied by roles/platform/tasks/cluster-manifests.yml, explicitly and FIRST:
-# `kubectl apply -f kubernetes/cluster -R` no longer reaches it.
+# outside: the values of k3s' bundled Traefik release (a HelmChart in kube-system).
+# Applied explicitly and first by roles/platform/tasks/cluster-manifests.yml.
 apiVersion: helm.cattle.io/v1
 kind: HelmChartConfig
 metadata:
@@ -14,41 +8,12 @@ metadata:
   namespace: kube-system
 spec:
   valuesContent: |-
-    # klipper-lb binds the host's ports 80/443 for this Service (type
-    # LoadBalancer is the chart default), which is how Tailscale clients reach
-    # private services via the host's Tailscale IP. Public traffic instead
-    # enters through cloudflared and hits Traefik on its cluster-internal
-    # ClusterIP, not the host ports.
-    #
-    # loadBalancerSourceRanges is the REAL gate, not UFW: klipper-lb DNATs in
-    # PREROUTING, before UFW's INPUT filter sees the packet, so `ufw deny 443`
-    # does nothing. Setting the range at the Service level makes klipper-lb
-    # itself reject public traffic.
-    #
-    # Traefik chart v41 schema (k3s 1.37 bundles v41; 1.36 bundled v40, whose
-    # only difference from v41 is the `logs.general`/`logs.access` rename to
-    # `log`/`accessLog`, and nothing here sets either; v38 used flat
-    # `service.type`/`service.loadBalancerSourceRanges` and
-    # `ports.web.redirectTo`). The `service.spec.*` nesting is load-bearing:
-    # the template renders ONLY `.service.spec`, and `service:` has no
-    # additionalProperties guard: a flat key is silently ignored, which for
-    # loadBalancerSourceRanges means host ports 80/443 quietly open to any
-    # source. Post-deploy gate:
-    #   kubectl -n kube-system get svc traefik \
-    #     -o jsonpath='{.spec.loadBalancerSourceRanges}'   # must be non-empty
-    #
-    # hazard: allocateLoadBalancerNodePorts: false. A LoadBalancer Service also gets
-    # NodePorts by default (30000-32767 on every node address), and
-    # loadBalancerSourceRanges filters only klipper-lb's hostPorts, never those.
-    # A NodePort hit arrives SNATed from 10.42.0.1, which `private-access` admits,
-    # so every private route answered the Mac and every other OrbStack machine
-    # on <node-ip>:<nodePort> (audit 2026-10-24: grafana, openpanel, the keyless
-    # gateway). klipper-lb never used them: its svclb pods DNAT to the ClusterIP
-    # (DEST_IPS on the svclb DaemonSet). Turning allocation off does NOT free
-    # ports already allocated, so the existing ones were removed once by hand;
-    # gate after any rebuild of this Service:
-    #   kubectl -n kube-system get svc traefik \
-    #     -o jsonpath='{.spec.ports[*].nodePort}'                # must be empty
+    # hazard: loadBalancerSourceRanges is the ONLY tailnet gate on host ports 80/443
+    # (klipper-lb DNATs before UFW). Chart v41 renders only `.service.spec` and does
+    # not reject unknown keys, so a flat or renamed key silently opens them. NodePorts
+    # are off because the source range never filters them. After any rebuild,
+    # `kubectl -n kube-system get svc traefik -o yaml`: the range non-empty, no
+    # nodePort; docs/decisions/003-traefiks-service-is-the-tailnet-gate.md
     service:
       spec:
         allocateLoadBalancerNodePorts: false
@@ -57,12 +22,8 @@ spec:
 
     ports:
       websecure:
-        # value: 10m, not Traefik v3's 60s default readTimeout: an image layer pushed
-        # to the registry over the tailnet (often DERP-relayed from a CI runner)
-        # takes longer than a minute to upload, and Traefik then cuts the request
-        # body and answers 499, which buildx reports as a failed push (jterrazz-os,
-        # twice on 2026-10-24). Every public request reaches here through the
-        # Cloudflare tunnel, whose edge already bounds a slow client.
+        # value: 10m, not the 60s default: a registry layer push over the tailnet takes
+        # longer and is cut with a 499; the tunnel edge bounds public clients.
         transport:
           respondingTimeouts:
             readTimeout: 10m
@@ -73,10 +34,7 @@ spec:
             - platform-networking-security-headers@kubernetescrd
         http3:
           enabled: true
-          # NOT a restated default: Traefik defaults advertisedPort to the
-          # entryPoint's own listen port, which is :8443 in-container. Unset,
-          # the Alt-Svc header would send HTTP/3 clients to UDP/8443, which
-          # klipper-lb does not publish.
+          # value: not a default: unset, Alt-Svc advertises the in-container UDP/8443.
           advertisedPort: 443
       web:
         http:
@@ -85,14 +43,8 @@ spec:
               to: websecure
               scheme: https
 
-    # The k3s Traefik chart ships NO resources, which puts the pod in BestEffort,
-    # first evicted under node memory pressure. Every public and private
-    # surface terminates here, so an app OOM elsewhere would take grafana, chat,
-    # the registry, openpanel and every public site with it. The memory LIMIT is
-    # what makes the QoS class Burstable, and is generous versus the request
-    # because Traefik's buffers scale with concurrent connections. NO CPU LIMIT
-    # on purpose (unlike Grafana): a cap throttles handling under exactly the
-    # burst it exists to absorb, surfacing as unexplained latency everywhere.
+    # value: the chart ships no resources (BestEffort, first evicted) and every surface
+    # terminates here; the memory limit makes it Burstable. No CPU limit on purpose.
     resources:
       requests:
         cpu: 50m
@@ -100,37 +52,14 @@ spec:
       limits:
         memory: 192Mi
 
-    # Required for the websecure middlewares above: they live in
-    # platform-networking, Traefik in kube-system.
+    # invariant: the websecure middlewares live in platform-networking.
     providers:
       kubernetesCRD:
         allowCrossNamespace: true
 
-    # forwardedHeaders.trustedIPs: which *direct TCP peer* is allowed to have
-    # set X-Forwarded-For. Traefik strips X-Forwarded-* from any peer NOT in
-    # this list, so a wrong list silently discards the real client IP from the
-    # apps' X-Forwarded-For (the rate limiter keys on Cf-Connecting-Ip instead,
-    # kubernetes/cluster/traefik/middleware.yaml).
-    #
-    # Cloudflare's own edge CIDRs must NOT be listed: CF never talks to Traefik
-    # directly. The chain is client -> CF edge (sets XFF) -> cloudflared
-    # (hostNetwork, on the NODE) -> Traefik ClusterIP, so Traefik's peer is
-    # always an address belonging to this node/cluster. Trusting those is safe:
-    # Traefik's 443 is reachable only from the tailnet
-    # (loadBalancerSourceRanges), from inside the cluster, and from the node.
-    #
-    #   10.42.0.0/16    k3s pod CIDR: cni0 gw (10.42.0.1) sources node->pod
-    #                   traffic (cloudflared -> Traefik); svclb pods source
-    #                   all LoadBalancer traffic.
-    #   10.43.0.0/16    k3s service CIDR: kube-proxy/klipper SNAT edge cases.
-    #   127.0.0.1/32    node-local loopback (hostPort / host-network clients).
-    #   100.64.0.0/10   Tailscale CGNAT: tailnet peers and the node's own
-    #                   tailscale0 address (the registry hairpin path).
-    #   169.254.0.0/16  link-local: CNI/flannel edge cases.
-    #   198.19.0.0/16   OrbStack machine network: the node's default IPv4
-    #                   lives here (RFC2544 block, never routable).
-    #   172.16.0.0/12   RFC1918: the private LAN the node's default interface
-    #   192.168.0.0/16  sits on. No 10.0.0.0/8: the only 10-space addresses here
-    #                   are the pod and service CIDRs, both listed above.
+    # hazard: trustedIPs are the direct peers allowed to set X-Forwarded-For; a wrong
+    # list silently drops the client IP. Never Cloudflare's CIDRs: cloudflared on the
+    # node is the peer. Pod, service, loopback, tailnet, link-local, OrbStack
+    # (198.19/16) and RFC1918 LAN ranges; docs/decisions/003-traefiks-service-is-the-tailnet-gate.md
     additionalArguments:
       - "--entryPoints.websecure.forwardedHeaders.trustedIPs=10.42.0.0/16,10.43.0.0/16,127.0.0.1/32,100.64.0.0/10,169.254.0.0/16,198.19.0.0/16,172.16.0.0/12,192.168.0.0/16"

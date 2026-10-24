@@ -1,25 +1,6 @@
-# hazard: the non-secret env every OpenPanel APPLICATION release shares: op-api,
-# op-worker and op-dashboard each load this file before their own, which is
-# what the `openpanel-config` ConfigMap and its three `envFrom` blocks used to
-# do. The datastores do not read it; their own values files carry the two
-# Postgres bootstrap variables they need.
-#
-# DASHBOARD_URL / API_URL are the PRIVATE host only; the public ingest host
-# analytics.jterrazz.com carries /api/track alone, configured per sending site.
-#
-# THE DASHBOARD SSRs THROUGH API_URL_SSR (below) since 2.3.0. Until 2.2.1 it
-# could only fetch its own public URL server-side, which rested on three
-# workarounds together: the host in `private_hostnames_via_traefik`
-# (group_vars/all.yml), a kube-system:8443 egress rule in op-dashboard.yaml,
-# and `access: cluster-internal` on the routes in op-api.yaml /
-# op-dashboard.yaml. All three were retired on 2026-09-19 after SSR was
-# verified on the new path (/onboarding 200, no `[tRPC SSR Error]`). If a
-# future image drops API_URL_SSR, /onboarding fails with `fetch failed`, and
-# the way back is the host in `private_hostnames_via_traefik`, the egress
-# rule, and platform-analytics admitted by allow-traefik-ingress
-# (kubernetes/cluster/network-policies/kube-system.yaml), together, never one
-# at a time. The routes keep `access: private`, since private-access admits
-# the pod CIDR.
+# invariant: the non-secret env op-api, op-worker and op-dashboard load before their
+# own values; the datastores do not read it. The dashboard SSRs through
+# API_URL_SSR; if an image drops it, docs/decisions/010-every-workload-renders-through-two-charts.md
 
 environment: prod
 
@@ -37,30 +18,16 @@ spec:
     CLICKHOUSE_URL: "http://op-clickhouse:8123/openpanel"
     DASHBOARD_URL: "https://openpanel.internal.jterrazz.com"
     API_URL: "https://openpanel.internal.jterrazz.com/api"
-    # invariant: dashboard SSR only (2.3.0 honours it; upstream added it 2026-07-01): the
-    # in-cluster Service, so a server-side fetch never has to leave the pod
-    # network and hairpin through Traefik. The browser keeps API_URL.
+    # invariant: dashboard SSR only: the in-cluster Service, so no hairpin through
+    # Traefik. The browser keeps API_URL.
     API_URL_SSR: "http://op-api:3000"
-    # outside: browser origins allowed to POST events to /api/track on the public host.
-    # jterrazz.com + www.jterrazz.com are LIVE senders (the externally-hosted
-    # site posts here directly); the rest are pre-authorised and cost nothing.
-    # There is no shared SDK: each site integrates OpenPanel's browser snippet
-    # itself, so adding a sender means adding its apex (and www./sub) here.
+    # outside: browser origins allowed to POST /api/track; each site embeds OpenPanel's
+    # snippet itself, so a new sender adds its apex (and www.) here.
     API_CORS_ORIGINS: "https://openpanel.internal.jterrazz.com,https://jterrazz.com,https://www.jterrazz.com,https://spwn.sh,https://sig.news"
 
-  # outside: Infisical /jterrazz-infrastructure/openpanel, env prod. Each release syncs
-  # its own copy of the folder and projects only the keys it names; the
-  # `openpanel-secrets` Secret that all three read wholesale through `envFrom`
-  # is gone, and with it the Ansible task that had to create it before any of
-  # them started.
-  #
-  #   DATABASE_URL         postgresql://openpanel:<POSTGRES_PASSWORD>@op-postgres:5432/openpanel
-  #   DATABASE_URL_DIRECT  same as DATABASE_URL (no pooler here; used by migrations)
-  #   COOKIE_SECRET        32+ byte random, for session/cookie signing
-  #
-  # ClickHouse and Redis have NO credential to store: they run unauthenticated
-  # and are isolated by their own `network:` blocks. Email
-  # (RESEND_API_KEY/SMTP) is omitted on purpose: no invitations or resets.
+  # outside: Infisical /jterrazz-infrastructure/openpanel, env prod: DATABASE_URL and
+  # DATABASE_URL_DIRECT (postgresql://openpanel:<POSTGRES_PASSWORD>@op-postgres:5432/openpanel),
+  # COOKIE_SECRET (32+ random bytes). ClickHouse and Redis run unauthenticated.
   secrets:
     path: /jterrazz-infrastructure/openpanel
     env:
@@ -68,10 +35,7 @@ spec:
       - DATABASE_URL_DIRECT
       - COOKIE_SECRET
 
-  # invariant: nothing in this namespace gets the reach the chart derives for an app:
-  # every rule below is one flow that was in
-  # cluster/network-policies/platform-analytics.yaml when these six workloads
-  # had no release to declare it with.
+  # invariant: no app-derived reach; every flow is declared per release.
   network:
     isolated: true
 

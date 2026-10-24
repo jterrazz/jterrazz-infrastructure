@@ -1,18 +1,7 @@
-# invariant: Service-chart values for VictoriaLogs: storage only. `host` is deliberately
-# unset (Grafana and the OTel collector both reach it in-cluster), and
-# with no host the chart emits neither IngressRoute nor Certificate.
-#
-# The PVC name is load-bearing: victoria-logs/values.yaml pins
-# `server.persistentVolume.existingClaim: victoria-logs-data`, which is
-# <name>-<key> = victoria-logs-data.
-#
-# No `claimName` override needed: `existingClaim` makes the chart drop its
-# StatefulSet volumeClaimTemplate entirely, so the storage-<release>-<ordinal>
-# constraint never applies.
+# hazard: storage only, no host. The PVC <name>-<key> = victoria-logs-data is pinned by
+# values.yaml's `existingClaim`; rename either half and it starts on a fresh volume.
 name: victoria-logs
 storage:
-  # invariant: no pathSuffix; the PV lands on /var/lib/k8s-data/victoria-logs.
-  #
-  # Nominal: hostPath enforces no quota, the real cap is the Mac disk.
+  # invariant: no pathSuffix: /var/lib/k8s-data/victoria-logs; nominal size, the Mac disk is the cap.
   data:
     size: 20Gi
