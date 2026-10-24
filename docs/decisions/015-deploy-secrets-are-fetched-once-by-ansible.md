@@ -1,6 +1,6 @@
 # ADR-015: Deploy secrets are fetched once by Ansible; workload secrets are synced by the operator
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-24
 
 Written 2026-10-24 from the comments in `group_vars`, `ansible/roles/secrets`,

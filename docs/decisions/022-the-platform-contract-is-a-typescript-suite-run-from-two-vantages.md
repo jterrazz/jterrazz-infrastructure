@@ -1,6 +1,6 @@
 # ADR-022: The platform contract is a TypeScript suite on @jterrazz/test, run from two vantages
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-24
 
 ## Context

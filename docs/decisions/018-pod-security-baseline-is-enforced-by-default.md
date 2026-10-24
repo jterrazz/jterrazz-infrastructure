@@ -1,6 +1,6 @@
 # ADR-018: Pod Security baseline is enforced everywhere by default
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-24
 
 Written 2026-10-24 from the comments in `kubernetes/cluster/namespaces.yaml`,

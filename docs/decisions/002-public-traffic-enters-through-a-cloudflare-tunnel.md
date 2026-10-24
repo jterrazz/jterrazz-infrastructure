@@ -1,6 +1,6 @@
 # ADR-002: Public traffic enters through a Cloudflare tunnel, never an open port
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-05-10
 
 Written 2026-10-24 from the comments in `kubernetes/services/cloudflared/`,

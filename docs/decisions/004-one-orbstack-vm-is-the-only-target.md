@@ -1,6 +1,6 @@
 # ADR-004: One OrbStack VM is the only target, and its existence is the state
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-05-11
 
 Written 2026-10-24 from the comments in `ansible/` (inventories, `site.yml`,

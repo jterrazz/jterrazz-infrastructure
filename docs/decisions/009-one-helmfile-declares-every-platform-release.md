@@ -1,6 +1,6 @@
 # ADR-009: One helmfile declares every platform release, applied in three passes
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-08-30
 
 Written 2026-10-24 from the comments in `kubernetes/helmfile.yaml.gotmpl`,

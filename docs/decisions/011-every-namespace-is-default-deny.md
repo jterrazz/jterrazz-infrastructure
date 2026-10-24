@@ -1,6 +1,6 @@
 # ADR-011: Every namespace is default-deny; a service declares its own flows
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-08-30
 
 Written 2026-10-24 from the comments in `kubernetes/cluster/network-policies/`,

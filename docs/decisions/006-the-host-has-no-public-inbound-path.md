@@ -1,6 +1,6 @@
 # ADR-006: The host has no public inbound path, and OrbStack peers are walled off
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-07-26
 
 Written 2026-10-24 from the comments in `ansible/roles/{security,tailscale}`

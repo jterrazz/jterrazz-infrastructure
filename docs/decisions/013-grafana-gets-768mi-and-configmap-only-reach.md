@@ -1,6 +1,6 @@
 # ADR-013: Grafana gets 768Mi, sized sidecars, and ConfigMap-only reach
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-09-19
 
 Written 2026-10-24 from the comments in `kubernetes/services/grafana/`

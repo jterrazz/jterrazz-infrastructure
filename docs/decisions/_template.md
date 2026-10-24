@@ -1,6 +1,6 @@
 # ADR-NNN: Title
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** YYYY-MM-DD
 
 An agent leaves the status `Proposed`; only the owner writes `Accepted`.

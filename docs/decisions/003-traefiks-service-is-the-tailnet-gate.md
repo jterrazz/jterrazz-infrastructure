@@ -1,6 +1,6 @@
 # ADR-003: Traefik's Service is the tailnet gate, shaped in its HelmChartConfig
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-05-10
 
 Written 2026-10-24 from the comments in

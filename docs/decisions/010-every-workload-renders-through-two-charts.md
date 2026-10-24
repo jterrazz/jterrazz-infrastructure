@@ -1,6 +1,6 @@
 # ADR-010: Every workload renders through two charts that share one library
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-08-30
 
 Written 2026-10-24 from the comments in `kubernetes/charts/`,

@@ -1,6 +1,6 @@
 # ADR-005: Telemetry runs on the VictoriaMetrics family, logs folded into the collector
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-07-26
 
 Written 2026-10-24 from the comments in `kubernetes/services/{otel-collector,

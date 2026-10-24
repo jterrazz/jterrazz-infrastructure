@@ -1,6 +1,6 @@
 # ADR-007: k3s runs single-node on SQLite, upgraded in place one minor at a time
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-07-26
 
 Written 2026-10-24 from the comments in `ansible/roles/k3s/` and

@@ -1,6 +1,6 @@
 # ADR-016: Every fact has one home, and the cluster is discovered, not listed
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-24
 
 Written 2026-10-24 from the comments in the charts, `group_vars`,

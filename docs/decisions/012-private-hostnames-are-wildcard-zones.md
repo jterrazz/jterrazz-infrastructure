@@ -1,6 +1,6 @@
 # ADR-012: Private hostnames are wildcard zones, answered in-cluster by CoreDNS
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-08-30
 
 Written 2026-10-24 from the comments in `group_vars` and

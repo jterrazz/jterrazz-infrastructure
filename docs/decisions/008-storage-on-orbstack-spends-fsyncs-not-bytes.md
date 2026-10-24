@@ -1,6 +1,6 @@
 # ADR-008: Storage on OrbStack spends fsyncs, not bytes
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-08-23
 
 Written 2026-10-24 from the comments in `roles/base`,

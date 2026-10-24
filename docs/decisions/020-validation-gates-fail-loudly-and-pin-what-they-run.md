@@ -1,6 +1,6 @@
 # ADR-020: Validation gates fail loudly and pin what they run
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-24
 
 Written 2026-10-24 from the comments in `.github/workflows/validate.yaml`,

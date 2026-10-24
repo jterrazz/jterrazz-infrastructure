@@ -1,6 +1,6 @@
 # ADR-014: The registry is Zot, and collects its own garbage
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-24
 
 Rewritten on 2026-10-24 when Zot replaced distribution. The distribution-era

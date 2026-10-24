@@ -1,6 +1,6 @@
 # ADR-021: The deploy is tested by running it on a throwaway k3d cluster
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-24
 
 Written 2026-10-24 from the comments in `.github/workflows/upgrade-test.yaml`
