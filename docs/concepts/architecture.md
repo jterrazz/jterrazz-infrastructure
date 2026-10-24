@@ -70,7 +70,7 @@ lives beside it, in `kubernetes/charts/<chart>/README.md`.
 
 ## Two ways in, neither an open port
 
-Public traffic arrives through an outbound QUIC tunnel, from the Cloudflare
+Public traffic arrives through an outbound HTTP/2 tunnel, from the Cloudflare
 edge to the `cloudflared` pod, then Traefik, then the app. Private traffic (Grafana, the registry, the
 API server) is tailnet-only: Traefik's LoadBalancer is pinned to
 the Tailscale CGNAT range by `loadBalancerSourceRanges`, and UFW double-enforces.
@@ -80,7 +80,7 @@ Nothing listens on a public address.
 ┌───────────────────────────── INTERNET ────────────────────────────────┐
 │                          Cloudflare edge                              │
 └──────────────────────────────┬────────────────────────────────────────┘
-                               │ outbound QUIC tunnel, no inbound port
+                               │ outbound HTTP/2 tunnel, no inbound port
                                ▼
 ┌────────────── OrbStack VM · Debian 13 trixie · arm64 ─────────────────┐
 │                                                                       │

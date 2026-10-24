@@ -30,8 +30,9 @@ integrates OpenPanel's browser snippet itself. Other origins listed in
   for Postgres + code-migrations for ClickHouse), then `pnpm start`.
 - **op-worker** runs the BullMQ queues/crons (event/session/profile flushers).
 - **op-dashboard** is the Next.js UI, and it SSRs through op-api's Service
-  (`API_URL_SSR`) rather than its own public URL. `config.yaml` owns that
-  rationale and what returns if a future image drops the variable.
+  (`API_URL_SSR`) rather than its own public URL. Why, and what returns if a
+  future image drops the variable, is
+  [the OpenPanel ADR](../../../docs/decisions/010-every-workload-renders-through-two-charts.md).
 - Public host routes **only** `/api/track`; everything else (dashboard,
   `/api/export`, `/api/live`, admin) is reachable only via the tailnet.
 
@@ -141,8 +142,9 @@ Bump the `2.3.0` tag in `op-api.yaml`, `op-worker.yaml` and
 playbook. op-api runs any new migrations on boot, so watch its logs
 for "Migrations finished" before trusting the new version. Bump ClickHouse /
 Postgres / Redis only deliberately (Postgres major bumps need a dump/restore,
-not an in-place image swap). Check the OpenPanel self-hosting changelog for the
-matching ClickHouse version.
+not an in-place image swap). The datastores deliberately run above OpenPanel's
+compose pins; the bounds are in
+[the datastore-versions ADR](../../../docs/decisions/019-openpanel-datastores-run-supported-versions.md).
 
 ### Registration
 
@@ -196,8 +198,9 @@ the Mac; a file snapshot is sufficient. No scheduled backup needed.
   deploy/cert-manager-cainjector`, then re-run the deploy.
 - **Public ingest: the CNAME and the tunnel route are managed separately.** The
   cloudflared tunnel routes per-hostname (not a wildcard):
-  - CNAME `analytics`, pointing at the tunnel, is created by the Cloudflare Zero Trust
-    UI when the Public Hostname is added; nothing for it lands in this repo.
+  - CNAME `analytics`, pointing at the tunnel, is converged by the platform
+    deploy (`dns_records` in `ansible/inventories/group_vars/all.yml`): its Public
+    Hostname did not create it.
   - The per-hostname **routing rule** must be added in the Zero Trust
     dashboard (Service: HTTPS to `traefik.kube-system.svc.cluster.local:443`,
     No TLS Verify ON); it needs Tunnel:Edit, which the DNS token lacks.

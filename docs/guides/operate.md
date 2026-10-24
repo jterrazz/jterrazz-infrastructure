@@ -623,8 +623,8 @@ The registry never deletes anything on its own: every CI push moves `:latest`
 to a new manifest and leaves the old one behind, untagged but still holding
 its layers. `registry-gc`, a CronJob in `platform-registry`, runs
 `registry garbage-collect --delete-untagged` every Sunday at 03:30 UTC. Why
-that command is safe, and why the run is guarded rather than read-only, is the
-comment on `cronJobs:` in `kubernetes/services/registry/app.yaml`.
+that command is safe, and why the run is guarded rather than read-only, is
+[ADR-014](../decisions/014-the-registry-collects-its-own-garbage.md).
 
 - **It skips itself** when any upload was touched in the last 30 minutes, and
   says so in its log. A skip exits 0.
@@ -762,7 +762,8 @@ chart they render through. Full schema and merge semantics:
 ## Version decisions
 
 Pins held below the current upstream release. Do not re-open without new
-evidence.
+evidence; the reasoning is
+[ADR-019](../decisions/019-openpanel-datastores-run-supported-versions.md).
 
 | Component  | Held at        | Why                                                                                                                                                                                              |
 | ---------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

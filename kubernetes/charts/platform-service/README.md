@@ -28,6 +28,39 @@ All of them come from `kubernetes/charts/common`, the library chart this one and
 rule, the PV/PVC data-safety constraints and the NetworkPolicy peer vocabulary
 actually live.
 
+## `access:` and `aliases:`, the route
+
+`access: private` (the default) attaches the `private-access` ipAllowList, so
+only the tailnet reaches the route; `access: public` attaches none, and the
+route still sits behind the rate-limit, compress and security-headers chain the
+websecure entrypoint applies globally. A leftover boolean `private:` key
+hard-fails the render (`templates/ingress-route.yaml`).
+
+`aliases` are extra hostnames answered by the same IngressRoute and carried as
+SANs on the same certificate. They exist for a rename only: the service answers
+its old and new name at once so no consumer breaks. One service has one
+canonical `host`; this is not a place to park unrelated hostnames.
+
+## `storage:`, the hostPath volumes
+
+```yaml
+storage:
+  data:      { size: 3Gi, pathSuffix: mongo, claimName: storage-svc-0 }
+  uploads:   { size: 5Gi, pathSuffix: uploads }
+```
+
+| Key | Meaning |
+| --- | --- |
+| `size` | required; the PV capacity and the PVC request |
+| `pathSuffix` | nests the hostPath under `<name>/` (one directory per app) |
+| `claimName` | overrides the PVC name only, never the PV or the binding |
+| `nodeLocalPath` | an absolute hostPath outside `/var/lib/k8s-data`, in the VM rather than on the Mac share |
+
+Names and paths address live data; read `templates/storage.yaml` and the
+library's `_storage.tpl` before changing any of them. `nodeLocalPath` is for
+data a service works continuously and does not survive a repave, so point it
+only at something reconstructible (`grafana-data` is the one user).
+
 ## `secrets:`, the service's credentials
 
 ```yaml

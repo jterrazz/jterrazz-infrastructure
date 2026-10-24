@@ -43,9 +43,12 @@ mechanically when editing any values file, manifest or template in this repo.
    is one of three: a cross-resource invariant (this name must match that one),
    a data-destroying constraint (change this and the volume is orphaned), or a
    silent-failure trap (the wrong spelling applies cleanly and does nothing).
-   Delete past measurements, incident narratives, dated right-sizing diaries,
-   completed-migration tables and verification transcripts; git history keeps
-   them, and a comment nobody can re-verify becomes a comment nobody trusts.
+   Past measurements, incident narratives, alternatives rejected and
+   verification transcripts belong in a decision record under
+   [decisions/](../decisions/), which the comment links in one line (`#
+   hazard: ...; docs/decisions/NNN-....md`); a comment nobody can re-verify
+   becomes a comment nobody trusts. Every kept comment opens with its kind:
+   `invariant:`, `hazard:`, `outside:` or `value:`, which `make docs` checks.
 5. **Say it once.** One file owns each rationale and the others point at it.
    When you delete a value, grep the tree for comments that reference it: a
    dangling "see the note in X" is worse than no note at all.
@@ -164,37 +167,21 @@ mechanically when editing any values file, manifest or template in this repo.
 
 ## The fsync tax
 
-**Every guest `fsync` is a macOS `F_FULLFSYNC` on the Mac SSD, and there are
-two paths with different levers.** OrbStack honours a guest `fsync()` with a
-real durable barrier, an APFS journal commit, about 135KB of SSD writes each,
-whatever it commits; macOS' own `fsync()` does not, it only pushes to the drive
-cache. So the tax is per-fsync, not per-byte (sequential writes run 1:1), and
-every storage-side tuning in this tree is about issuing fewer fsyncs, never
-fewer bytes. Upstream tracks the symptom in orbstack/orbstack#1332, open and
-undiagnosed; there is no OrbStack setting for it.
+**Every guest `fsync` is a macOS `F_FULLFSYNC` on the Mac SSD**, so the cost
+is per fsync, not per byte, and every storage tuning in this tree issues fewer
+fsyncs, never fewer bytes. Two paths, two levers:
 
-- **virtiofs**: `/var/lib/k8s-data`, a symlink into the Mac home, so every PV.
-  The fsync is a FUSE request the guest cannot suppress, and the workload is
-  the only lever: `inmemoryDataFlushInterval` on the three Victoria stores,
-  `--appendfsync no` on OpenPanel's Redis. A store that writes 15MB/day can
-  cost tens of GB/day of SSD if it fsyncs on a 5s timer. `findmnt` on the
-  symlink prints nothing; `readlink -f` first.
-- **The VM disk**: `/dev/vdb`, btrfs: k3s' kine SQLite, containerd,
-  `/var/log/pods`. The fsync is a virtio-blk FLUSH, and
-  `queue/write_cache=write through` makes the block layer stop sending them
-  (300 fsyncs: from 99MB to 0MB). `roles/base` installs
-  `virtio-blk-write-through.service` for that, re-applied at every boot
-  because the attribute is runtime-only. Two things to know: OrbStack runs ONE
-  Linux VM and every "machine" plus Docker is a container in it on the same
-  `vdb`, so the setting is OrbStack-wide; and the writes still land in the
-  Mac's page cache, so only a macOS panic or hard power-off can lose the last
-  seconds, the contract a native macOS `fsync()` gives every Mac app. It does
-  nothing for virtiofs (verified), so it is not a reason to skip the workload
-  tuning above.
+- **virtiofs** (`/var/lib/k8s-data`, every PV): the workload is the only
+  lever, `inmemoryDataFlushInterval` on the Victoria stores and
+  `--appendfsync no` on OpenPanel's Redis. `findmnt` on the symlink prints
+  nothing; `readlink -f` first.
+- **The VM disk** (`/dev/vdb`: kine, containerd, `/var/log/pods`):
+  `virtio-blk-write-through.service` in `roles/base` stops the FLUSHes,
+  OrbStack-wide, and does nothing for virtiofs.
 
-Moving `k8s-data` onto `vdb` would make its fsyncs free too, but the Mac dir
-is what lets the data survive `make destroy`; that trade is a decision, not a
-tuning.
+The measurements, the durability contract and the open trade (moving
+`k8s-data` onto `vdb`) are
+[ADR-008](../decisions/008-storage-on-orbstack-spends-fsyncs-not-bytes.md).
 
 ## DNS has exactly three owners
 
@@ -226,4 +213,5 @@ zone's SSL mode to Full (Strict).
 fail2ban and auditd are not installed, and that is a decision, not an omission.
 fail2ban guarded a public SSH port that does not exist (there is no public
 inbound path at all), and auditd needs `CAP_AUDIT_*`, which the OrbStack
-hypervisor withholds. Do not restore them.
+hypervisor withholds. Do not restore them
+([ADR-006](../decisions/006-the-host-has-no-public-inbound-path.md)).

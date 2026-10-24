@@ -1,15 +1,15 @@
 # Cloudflared
 
 Cloudflare Tunnel runtime that brings public traffic into the cluster
-without exposing any host port. Cloudflared maintains an outbound QUIC
-connection to the Cloudflare edge; traffic for any of our public
+without exposing any host port. Cloudflared maintains an outbound connection
+(HTTP/2, see below) to the Cloudflare edge; traffic for any of our public
 hostnames flows back through that tunnel and lands on the cluster-
 internal Traefik service.
 
 ## How it routes
 
 ```text
-client ──https──► Cloudflare edge ──QUIC tunnel──► this Deployment
+client ──https──► Cloudflare edge ──http2 tunnel──► this Deployment
                                                        │
                                                        ▼
                                   traefik.kube-system.svc.cluster.local:443
@@ -73,7 +73,8 @@ the InfisicalSecret that becomes `cloudflared-secrets`; `deployment.yaml` is
 
 It stays raw on purpose: `hostNetwork: true` plus
 `dnsPolicy: ClusterFirstWithHostNet` are what make the tunnel work here at all
-(the CNI bridge mangles outbound TCP/7844; see the note in the manifest), and
+(the CNI bridge mangles outbound TCP/7844; see
+[ADR-002](../../../docs/decisions/002-public-traffic-enters-through-a-cloudflare-tunnel.md)), and
 the app chart expresses neither. It is the exception; anything else new should
 be a chart release.
 
@@ -114,13 +115,8 @@ kubectl scale -n platform-networking deploy/cloudflared --replicas=0
 
 ## Two settings that are load-bearing here
 
-`hostNetwork: true`. Without it, the CNI bridge on the OrbStack VM mangles
-outbound TCP/7844 to the Cloudflare edge and cloudflared's tunnel handshake
-gets RSTed, while `curl` from the same pod IP connects fine, so only
-cloudflared's specific socket flow fails. hostNetwork bypasses CNI and traffic
-goes straight through the host's stack.
-
-`--protocol http2`, to avoid OrbStack's NAT eating outbound UDP/443 (QUIC).
-HTTP/2 over TCP traverses the NAT cleanly. Both settings are harmless on a
-target that doesn't need them; neither should be removed without testing the
-handshake on a fresh VM.
+`hostNetwork: true` (the OrbStack CNI bridge gets the tunnel handshake on
+TCP/7844 RSTed) and `--protocol http2` (OrbStack's NAT eats outbound UDP/443,
+so QUIC never connects). Neither should be removed without testing the
+handshake on a fresh VM; the evidence and the alternatives are in
+[the tunnel ADR](../../../docs/decisions/002-public-traffic-enters-through-a-cloudflare-tunnel.md).
