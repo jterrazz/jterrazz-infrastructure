@@ -32,6 +32,9 @@ on:
 
 permissions:
   contents: read
+  # invariant: infra-connect joins the tailnet with this job's GitHub OIDC token
+  # (Tailscale workload identity); there is no Tailscale secret any more.
+  id-token: write
 
 # invariant: never cancel a run in flight: each one is a point-in-time observation, and a
 # cancelled smoke test reads as "unknown", not "fine".
@@ -59,7 +62,7 @@ jobs:
       # without it the --private and the private half of --certs cannot resolve
       # or connect, since Traefik's 443 only accepts Tailscale CGNAT sources.
       - name: Setup infrastructure
-        uses: jterrazz/jterrazz-actions/actions/infra-connect@796f105597d23e266df4f12f99afbd481428c6e2 # main, 2026-10-24
+        uses: jterrazz/jterrazz-actions/actions/infra-connect@b499f0d6ae8aad31c8335b8b976103b726bc5574 # main, 2026-10-24
         with:
           infisical-client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           infisical-client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
