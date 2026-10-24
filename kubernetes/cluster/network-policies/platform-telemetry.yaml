@@ -1,9 +1,6 @@
 ---
-# invariant: the namespace BASELINE only (default-deny, same-namespace, namespace-wide
-# egress); per-workload rules live in each service.yaml's `network:`. None of the three
-# Victoria stores authenticates, so this is their only access control;
-# docs/decisions/011-every-namespace-is-default-deny.md
-
+# invariant: the namespace baseline only; the Victoria stores authenticate nothing, so their
+# clients all live here and the stores get no cross-namespace ingress (ADR-011).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -25,15 +22,12 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    # invariant: carries every store-facing flow (all clients live here); the stores get NO
-    # cross-namespace ingress. node-exporter (hostNetwork) is never filtered.
     - from:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: platform-telemetry
 
 ---
-# invariant: egress is default-deny here; a telemetry flow not listed below stops working.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -51,14 +45,11 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    # outside: the mirror of allow-same-namespace.
     - to:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: platform-telemetry
-    # hazard: NO `except` RFC1918: the apiserver is 10.43.0.1:443 DNATed to the node's
-    # 192.168.x.x:6443, so the internet-only shape breaks four of six workloads here.
-    # docs/decisions/011-every-namespace-is-default-deny.md
+    # hazard: no `except`: the apiserver is RFC1918 (10.43.0.1:443 -> node:6443) (ADR-011).
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0

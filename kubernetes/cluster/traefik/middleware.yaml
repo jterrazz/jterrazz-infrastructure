@@ -1,5 +1,5 @@
 ---
-# value: 100 req/s, burst 200: browsing passes, scrapers do not. Global, on websecure.
+# value: 100 req/s, burst 200: browsing passes, scrapers do not.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -12,9 +12,7 @@ spec:
   rateLimit:
     average: 100
     burst: 200
-    # invariant: keyed on Cf-Connecting-Ip, which Cloudflare's edge always overwrites (not
-    # spoofable); tailnet traffic, MASQUERADEd by klipper-lb, shares one bucket;
-    # docs/decisions/003-traefiks-service-is-the-tailnet-gate.md
+    # invariant: the edge always overwrites Cf-Connecting-Ip; tailnet traffic shares one bucket.
     sourceCriterion:
       requestHeaderName: Cf-Connecting-Ip
 
@@ -56,9 +54,8 @@ spec:
       Server: ""
 
 ---
-# hazard: 10.42/16 is load-bearing: klipper-lb MASQUERADEs every tailnet request to an svclb
-# pod source. The tailnet gate is loadBalancerSourceRanges, and allow-traefik-ingress keeps
-# every other pod off Traefik; docs/decisions/003-traefiks-service-is-the-tailnet-gate.md
+# hazard: klipper-lb MASQUERADEs every tailnet request to an svclb pod address, hence 10.42/16;
+# allow-traefik-ingress keeps every other pod off Traefik (ADR-003).
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -70,6 +67,6 @@ metadata:
 spec:
   ipAllowList:
     sourceRange:
-      - "100.64.0.0/10" # Tailscale CGNAT: humans on the tailnet.
-      - "127.0.0.1/32" # node-local (hostPort / host-network clients).
-      - "10.42.0.0/16" # k3s pod CIDR: the svclb SNAT source (see header).
+      - "100.64.0.0/10"
+      - "127.0.0.1/32"
+      - "10.42.0.0/16"

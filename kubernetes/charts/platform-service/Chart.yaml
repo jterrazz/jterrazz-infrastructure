@@ -1,11 +1,11 @@
 apiVersion: v2
 name: platform-service
-description: Shared chart for platform service ingress, certificates, and storage
+description: A platform service's route, certificates, volumes, credentials and network policy
 type: application
-# invariant: bookkeeping only: never published, nothing pulls it by version.
+# invariant: never published; the version is bookkeeping.
 version: 2.15.0
 
-# invariant: common's exact version (file:// resolves by exact version).
+# invariant: common's exact version.
 dependencies:
   - name: common
     version: 1.6.0

@@ -1,8 +1,5 @@
 ---
-# hazard: static hostPath PVs under /var/lib/k8s-data (the Mac share, so data survives a
-# repave), Retain on PVC delete; only the two charts emit `manual` PVs. A nodeLocalPath
-# volume lives in the VM and does not survive; docs/decisions/008-storage-on-orbstack-spends-fsyncs-not-bytes.md
-
+# invariant: static hostPath PVs, emitted by the two charts only, kept on PVC delete (ADR-008).
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:

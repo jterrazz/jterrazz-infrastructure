@@ -1,20 +1,14 @@
-# invariant: platform-service values: IngressRoute, Certificate, the hostPath PV/PVC.
-# The workload is app.yaml beside this file.
 name: registry
 host: registry.internal.jterrazz.com
 port: 5000
 
-# invariant: 401 is correct: containerd relies on the challenge; 200 means anonymous reads.
+# invariant: 401: containerd relies on the challenge, and a 200 would mean anonymous reads.
 smoke:
   path: /v2/
   expect: "401"
 
 storage:
-  # hazard: without the explicit hostPath PV the PVC binds to local-path, which a
-  # `make destroy && make deploy` wipes with every blob.
-  # value: `data` is distribution's store, kept unmounted as the rollback of the
-  # 2026-10-24 move to Zot; delete it (and /var/lib/k8s-data/registry/docker)
-  # once Zot has run clean for a while.
+  # value: distribution's old store, unmounted, kept as the rollback of the move to Zot (ADR-014).
   data:
     size: 10Gi
   zot:

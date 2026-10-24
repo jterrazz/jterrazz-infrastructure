@@ -1,6 +1,5 @@
 ---
-# outside: the values of k3s' bundled Traefik release (a HelmChart in kube-system).
-# Applied explicitly and first by roles/platform/tasks/cluster-manifests.yml.
+# outside: the values of k3s' bundled Traefik release (ADR-003).
 apiVersion: helm.cattle.io/v1
 kind: HelmChartConfig
 metadata:

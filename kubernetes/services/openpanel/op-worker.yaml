@@ -1,4 +1,3 @@
-# outside: op-worker drains the Redis queue into ClickHouse; no route.
 metadata:
   name: op-worker
 
@@ -7,11 +6,9 @@ spec:
   port: 3000
   servicePort: 3000
 
-  # invariant: no uid pin; see the note in op-api.yaml.
   runAsRoot: true
 
   env:
-    # invariant: same V8 heap-ceiling guard as op-api; the worker buffers events.
     NODE_OPTIONS: "--max-old-space-size=512"
 
   resources:
@@ -23,8 +20,6 @@ spec:
     path: /healthcheck
 
   network:
-    # invariant: no `exposeTo`: nothing reaches it, and kubelet probes come from the node,
-    # which NetworkPolicy does not filter.
     egress:
       - to: namespace:platform-analytics
       - to: internet

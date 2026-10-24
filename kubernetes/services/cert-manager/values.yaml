@@ -1,11 +1,9 @@
-# invariant: `crds.enabled`, not the deprecated `installCRDs: true`.
 crds:
   enabled: true
 global:
-  # invariant: this one key covers controller, webhook and cainjector.
+  # invariant: covers the controller, webhook and cainjector.
   revisionHistoryLimit: 3
-# hazard: 128Mi floor: reconcile spikes OOM-kill the webhook, which times out
-# `helm --wait` for the whole platform deploy.
+# hazard: below 128Mi, reconcile spikes OOM-kill the webhook and time out `helm --wait`.
 resources:
   requests:
     cpu: 100m

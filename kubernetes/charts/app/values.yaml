@@ -1,27 +1,21 @@
-# invariant: every key the templates read is defaulted here and nowhere else; empty means
-# unset. Each field's shape and semantics is README.md beside this file.
+# invariant: every key the templates read is defaulted here and nowhere else (README.md).
 
 metadata:
   name: ""
 
-# invariant: set by app CI only. meta.repository becomes the app.jterrazz.com/repository
-# annotation, the only way `make redeploy-apps` learns the app exists.
+# invariant: set by app CI: the repository annotation `make redeploy-apps` reads, and the run
+# id that rolls the pods on every app deploy.
 meta:
   repository: ""
-  # invariant: set by app CI (jterrazz-actions docker-deploy, the run id) so every app
-  # deploy rolls its pods; unset for platform releases, which roll only when their
-  # config or image changes.
   deployId: ""
 
 spec:
-  # invariant: set by app CI; empty falls back to <registry>/<app>:latest.
   image: ""
   port: 3000
   servicePort: 80
   replicas: 1
   command: []
   args: []
-  # invariant: empty derives it: Recreate when storage is mounted (never two writers).
   strategy: ""
   resources:
     cpu: 100m
@@ -33,7 +27,6 @@ spec:
   dashboards: {}
   alerts: {}
   cronJobs: {}
-  # value: merged OVER the hardened defaults (app.containerSecurityContext).
   securityContext: {}
   runAsRoot: false
   env: {}
@@ -44,27 +37,22 @@ spec:
     isolated: false
     exposeTo: []
     egress: []
-  # invariant: resolved against app.platformCatalog; an unknown name hard-fails the render.
   platformServices: []
   health:
     path: /health
     livenessPath: ""
-    # invariant: the first one set wins: exec, then tcp, then path.
     exec: []
     tcp: false
-    # value: Kubernetes' 1s is too tight for a Node app doing in-process background work.
+    # value: 1s is too tight for a Node app doing in-process background work.
     timeoutSeconds: 5
-    # value: 30 x the default 10s period = 300s of boot grace.
+    # value: 30 x the default 10s period: 300s of boot grace.
     startupFailureThreshold: 30
 
 environments: {}
 
-# outside: set by app CI during helm upgrade --install
 environment: ""
 
-# invariant: NO credential here: the pull secret is synced from Infisical. The hostname
-# picks which images get it plus `Always`, and what the dockerconfigjson authenticates.
+# invariant: no credential: the pull secret is synced from this Infisical project.
 registry:
   server: registry.internal.jterrazz.com
-  # invariant: the Infisical project holding the registry account, alone.
   infisicalProject: jterrazz-ci-v-nh-8

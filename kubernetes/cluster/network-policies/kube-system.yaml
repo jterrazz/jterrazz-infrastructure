@@ -1,8 +1,6 @@
 ---
-# hazard: a wrong rule here takes the whole cluster down. Ports are containerPorts (post
-# DNAT: Traefik pod 8000/8443, not 80/443); hostNetwork clients (cloudflared, apiserver)
-# match only an ipBlock; docs/decisions/011-every-namespace-is-default-deny.md
-
+# hazard: a wrong rule here takes the cluster down; ports are pod ports, and hostNetwork
+# clients match only an ipBlock (ADR-011).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -14,7 +12,7 @@ spec:
     - Ingress
 
 ---
-# hazard: DNS from every namespace; scoping it would break the next namespace created.
+# invariant: DNS from every namespace, the next one created included.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -38,10 +36,8 @@ spec:
           protocol: TCP
 
 ---
-# hazard: only klipper-lb's svclb pods and the host netns may dial Traefik. The pod CIDR is
-# excepted so a pod cannot pass private-access's 10.42.0.0/16 allowance; a pod needing a
-# private hostname via Traefik gets its namespace added by name;
-# docs/decisions/003-traefiks-service-is-the-tailnet-gate.md
+# hazard: only svclb pods and the node may dial Traefik; excepting the pod CIDR is what keeps
+# pods from passing private-access's 10.42/16 allowance (ADR-003).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -73,8 +69,7 @@ spec:
           protocol: UDP
 
 ---
-# hazard: missing, every tailnet client (CI included) gets `connection refused` on 443 while
-# public traffic via cloudflared keeps working. Source is the node address: ipBlock only.
+# hazard: without it every tailnet client gets `connection refused` while public traffic works.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -99,7 +94,6 @@ spec:
           protocol: UDP
 
 ---
-# outside: the apiserver dials metrics-server from the host, hence an ipBlock.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -120,7 +114,6 @@ spec:
           protocol: TCP
 
 ---
-# outside: VictoriaMetrics scrapes CoreDNS on 9153 and Traefik on 9100; the only scraper.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

@@ -1,19 +1,16 @@
-# invariant: op-redis is the BullMQ queue and event buffer, not a cache (`--appendonly
-# yes`). No auth: `network:` below is all that keeps other namespaces off it.
+# hazard: the BullMQ queue, unauthenticated: the `network:` block is all that guards it (ADR-019).
 metadata:
   name: op-redis
 
 environment: prod
 
 spec:
-  # outside: 7.x as upstream pins, not 8; 7.4's AOF is unreadable by 7.2, so forward
-  # only; docs/decisions/019-openpanel-datastores-run-supported-versions.md
+  # hazard: 7.x, not 8; 7.4's AOF is unreadable by 7.2, so forward only (ADR-019).
   image: redis:7.4.11-alpine
   port: 6379
-  # invariant: `redis://op-redis:6379` is REDIS_URL in config.yaml.
   servicePort: 6379
 
-  # invariant: the image's `redis` user is uid 999, group 1000.
+  # outside: the image's `redis` user.
   securityContext:
     runAsUser: 999
     runAsGroup: 1000
@@ -22,8 +19,7 @@ spec:
     - "redis-server"
     - "--appendonly"
     - "yes"
-    # value: `no`, not the `everysec` default: an fsync over virtiofs costs far more
-    # than its bytes; a pod restart still replays the AOF; docs/decisions/008-storage-on-orbstack-spends-fsyncs-not-bytes.md
+    # value: not `everysec`: an fsync per second over virtiofs (ADR-008).
     - "--appendfsync"
     - "no"
 

@@ -22,10 +22,10 @@ Nothing is vendored: `charts/` and `Chart.lock` are gitignored.
 | `common.infisicalSecret` | an `InfisicalSecret` | when `spec.secrets.path` is set | when `secrets:` is set |
 | `common.smokeAnnotations` | the `smoke.jterrazz.com/*` annotations on an `IngressRoute` | derived per ingress entry, `smoke:` overrides it | from the `smoke:` block |
 
-Each template's own header is the reference for its inputs and for the traps it
-exists to absorb: the NetworkPolicy peer vocabulary in `_network-policy.tpl`,
-the data-safety rules in `_storage.tpl`, the never-chain-ipAllowLists rule in
-`_ingress.tpl`, the smoke annotation contract in `_smoke.tpl`.
+Each template's header lists its inputs and the hazard it absorbs. The peer
+vocabulary and its traps are documented once, in
+[the platform-service README](../platform-service/README.md#network-the-per-service-policy);
+the smoke annotations in [the app README](../app/README.md#smoke-names-what-the-probe-should-get-back).
 
 ## Two rules for anything added here
 

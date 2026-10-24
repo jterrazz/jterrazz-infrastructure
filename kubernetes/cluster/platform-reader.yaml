@@ -1,8 +1,6 @@
 ---
-# invariant: the platform contract suite's identity in CI (harness/, .github/workflows/smoke.yaml):
-# this repository's own GitHub OIDC user, reading what the suite discovers and asking the
-# authorizer questions, with no stored credential. It writes nothing and reads no Secret.
-# docs/decisions/022-the-platform-contract-is-a-typescript-suite-run-from-two-vantages.md
+# invariant: smoke.yaml's identity, this repository's OIDC user: it writes nothing and reads no
+# Secret (ADR-022).
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -17,7 +15,7 @@ rules:
   - apiGroups: [traefik.io]
     resources: [ingressroutes]
     verbs: [get, list, watch]
-  # outside: a SubjectAccessReview asks the authorizer about ANOTHER identity; it grants nothing.
+  # invariant: asks the authorizer about another identity; grants nothing.
   - apiGroups: [authorization.k8s.io]
     resources: [subjectaccessreviews]
     verbs: [create]

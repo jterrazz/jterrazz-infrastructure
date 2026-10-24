@@ -1,6 +1,5 @@
 suite: network -> NetworkPolicy peer vocabulary
-# hazard: a wrong peer shape applies cleanly and drops the packet with nothing logged, so
-# each arm is pinned by its RENDERED shape; docs/decisions/011-every-namespace-is-default-deny.md
+# hazard: a wrong peer shape applies cleanly and drops packets silently (ADR-011).
 templates:
   - templates/network-policy.yaml
 values:

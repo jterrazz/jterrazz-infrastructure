@@ -1,20 +1,14 @@
-# outside: VictoriaMetrics single-node: scrapes (server.scrape) and takes the collector's
-# remote-write on :8428. The headless Service is the chart's StatefulSet default; docs/decisions/005-telemetry-runs-on-the-victoriametrics-family.md
-
 server:
-  # invariant: consumers address the Service by this name.
   fullnameOverride: victoria-metrics
 
-  # hazard: data loss if changed: names the PVC service.yaml declares; unset
-  # `existingClaim` and the StatefulSet starts on an empty TSDB.
+  # hazard: the PVC service.yaml declares; unset, the store starts empty.
   persistentVolume:
     existingClaim: victoria-metrics-data
 
-  # hazard: age-based only; a `-retention.maxDiskSpaceUsageBytes` cap silently clips the window.
+  # hazard: by age only; a disk-space cap would silently clip the window.
   retentionPeriod: "30d"
 
-  # value: 60s against the 5s default: fewer fsyncs, at the cost of RAM-held data on an
-  # unclean exit; docs/decisions/008-storage-on-orbstack-spends-fsyncs-not-bytes.md
+  # value: 60s, not 5s: fewer fsyncs over virtiofs (ADR-008).
   extraArgs:
     inmemoryDataFlushInterval: 60s
 
@@ -25,14 +19,13 @@ server:
     limits:
       memory: 896Mi
 
-  # outside: the scrape surface of prometheus-community/prometheus 29.19.0's defaults,
-  # minus kubernetes-services and pushgateway; the `*-slow` jobs stay (the fast ones'
-  # `drop` rules reference them); docs/decisions/005-telemetry-runs-on-the-victoriametrics-family.md
+  # outside: prometheus-community/prometheus 29.19.0's default jobs, minus the blackbox probe,
+  # pushgateway and the `-slow` jobs no target opts into (ADR-005).
   scrape:
     enabled: true
     config:
       global:
-        # value: 1m, not 15s: resolution is sample rate on a memory-bound node.
+        # value: 1m, not 15s: resolution is memory on this node.
         scrape_interval: 1m
 
       scrape_configs:
@@ -54,8 +47,7 @@ server:
           scheme: https
           tls_config:
             ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-          # invariant: cardinality: these histograms grow with the API surface and nothing reads
-          # them; only `_bucket` is dropped, so _count/_sum survive.
+          # value: unread histograms that grow with the API surface; _count and _sum survive.
           metric_relabel_configs:
             - action: drop
               source_labels:
@@ -74,7 +66,6 @@ server:
             ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
             insecure_skip_verify: true
 
-        # invariant: both Grafana dashboards read container_* metrics from cadvisor only.
         - job_name: kubernetes-nodes-cadvisor
           bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
           kubernetes_sd_configs:
@@ -100,10 +91,6 @@ server:
               regex: true
               source_labels:
                 - __meta_kubernetes_pod_annotation_prometheus_io_scrape
-            - action: drop
-              regex: true
-              source_labels:
-                - __meta_kubernetes_pod_annotation_prometheus_io_scrape_slow
             - action: replace
               regex: (https?)
               source_labels:
@@ -150,65 +137,6 @@ server:
                 - __meta_kubernetes_pod_node_name
               target_label: node
 
-        - job_name: kubernetes-pods-slow
-          honor_labels: true
-          kubernetes_sd_configs:
-            - role: pod
-          relabel_configs:
-            - action: keep
-              regex: true
-              source_labels:
-                - __meta_kubernetes_pod_annotation_prometheus_io_scrape_slow
-            - action: replace
-              regex: (https?)
-              source_labels:
-                - __meta_kubernetes_pod_annotation_prometheus_io_scheme
-              target_label: __scheme__
-            - action: replace
-              regex: (.+)
-              source_labels:
-                - __meta_kubernetes_pod_annotation_prometheus_io_path
-              target_label: __metrics_path__
-            - action: replace
-              regex: (\d+);(([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4})
-              replacement: "[$2]:$1"
-              source_labels:
-                - __meta_kubernetes_pod_annotation_prometheus_io_port
-                - __meta_kubernetes_pod_ip
-              target_label: __address__
-            - action: replace
-              regex: (\d+);((([0-9]+?)(\.|$)){4})
-              replacement: $2:$1
-              source_labels:
-                - __meta_kubernetes_pod_annotation_prometheus_io_port
-                - __meta_kubernetes_pod_ip
-              target_label: __address__
-            - action: labelmap
-              regex: __meta_kubernetes_pod_annotation_prometheus_io_param_(.+)
-              replacement: __param_$1
-            - action: labelmap
-              regex: __meta_kubernetes_pod_label_(.+)
-            - action: replace
-              source_labels:
-                - __meta_kubernetes_namespace
-              target_label: namespace
-            - action: replace
-              source_labels:
-                - __meta_kubernetes_pod_name
-              target_label: pod
-            - action: drop
-              regex: Pending|Succeeded|Failed|Completed
-              source_labels:
-                - __meta_kubernetes_pod_phase
-            - action: replace
-              source_labels:
-                - __meta_kubernetes_pod_node_name
-              target_label: node
-          scrape_interval: 5m
-          scrape_timeout: 30s
-
-        # invariant: picks up kube-state-metrics and node-exporter by annotation, so there is no
-        # install order between those releases and this one.
         - job_name: kubernetes-service-endpoints
           honor_labels: true
           kubernetes_sd_configs:
@@ -218,13 +146,8 @@ server:
               regex: true
               source_labels:
                 - __meta_kubernetes_service_annotation_prometheus_io_scrape
-            - action: drop
-              regex: true
-              source_labels:
-                - __meta_kubernetes_service_annotation_prometheus_io_scrape_slow
-            # hazard: dedups multi-port Services (RE2 has no backreferences, hence keep_if_equal).
-            # The `if` guard is load-bearing: without it the port-less kube-state-metrics and
-            # node-exporter targets are dropped, and both dashboards with them.
+            # hazard: dedups multi-port Services; without the `if` guard the port-less
+            # kube-state-metrics and node-exporter targets go, with both dashboards.
             - action: keep_if_equal
               if: '{__meta_kubernetes_service_annotation_prometheus_io_port=~".+"}'
               source_labels:
@@ -264,55 +187,3 @@ server:
               source_labels:
                 - __meta_kubernetes_pod_node_name
               target_label: node
-
-        - job_name: kubernetes-service-endpoints-slow
-          honor_labels: true
-          kubernetes_sd_configs:
-            - role: endpointslice
-          relabel_configs:
-            - action: keep
-              regex: true
-              source_labels:
-                - __meta_kubernetes_service_annotation_prometheus_io_scrape_slow
-            # invariant: same dedup and guard as the fast job above.
-            - action: keep_if_equal
-              if: '{__meta_kubernetes_service_annotation_prometheus_io_port=~".+"}'
-              source_labels:
-                - __meta_kubernetes_endpointslice_port
-                - __meta_kubernetes_service_annotation_prometheus_io_port
-            - action: replace
-              regex: (https?)
-              source_labels:
-                - __meta_kubernetes_service_annotation_prometheus_io_scheme
-              target_label: __scheme__
-            - action: replace
-              regex: (.+)
-              source_labels:
-                - __meta_kubernetes_service_annotation_prometheus_io_path
-              target_label: __metrics_path__
-            - action: replace
-              regex: (.+?)(?::\d+)?;(\d+)
-              replacement: $1:$2
-              source_labels:
-                - __address__
-                - __meta_kubernetes_service_annotation_prometheus_io_port
-              target_label: __address__
-            - action: labelmap
-              regex: __meta_kubernetes_service_annotation_prometheus_io_param_(.+)
-              replacement: __param_$1
-            - action: labelmap
-              regex: __meta_kubernetes_service_label_(.+)
-            - action: replace
-              source_labels:
-                - __meta_kubernetes_namespace
-              target_label: namespace
-            - action: replace
-              source_labels:
-                - __meta_kubernetes_service_name
-              target_label: service
-            - action: replace
-              source_labels:
-                - __meta_kubernetes_pod_node_name
-              target_label: node
-          scrape_interval: 5m
-          scrape_timeout: 30s

@@ -2,30 +2,21 @@ persistence:
   enabled: true
   existingClaim: grafana-data
 
-# hazard: inert on this image (the CGO-free sqlite driver ignores it); WAL is set on
-# the db file offline, and a fresh grafana.db needs the pragma again; docs/decisions/013-grafana-gets-768mi-and-configmap-only-reach.md
-grafana.ini:
-  database:
-    wal: true
-
 resources:
   requests:
     cpu: 50m
     memory: 256Mi
   limits:
-    # value: caps a reclaim storm to Grafana instead of starving the node.
+    # value: contains a reclaim storm to Grafana.
     cpu: 1500m
-    # value: 768Mi; below ~512Mi the db and index file pages thrash in direct reclaim and
-    # Grafana spirals at its CPU cap; docs/decisions/013-grafana-gets-768mi-and-configmap-only-reach.md
+    # hazard: below ~512Mi Grafana spirals in direct reclaim at its CPU cap (ADR-013).
     memory: 768Mi
 
-# value: 3, not the chart's 10: ReplicaSets are objects in a SQLite-backed apiserver,
-# for rollbacks nobody performs.
+# value: 3, not 10: each ReplicaSet is a row in a SQLite-backed apiserver (ADR-013).
 revisionHistoryLimit: 3
 
 sidecar:
-  # hazard: one block sizes all five sidecars; an evicted sidecar silently stops
-  # dashboard and alert updates while Grafana stays green.
+  # hazard: one block sizes all five sidecars; an evicted one stops updates silently.
   resources:
     requests:
       cpu: 10m
@@ -35,23 +26,21 @@ sidecar:
   dashboards:
     enabled: true
     searchNamespace: ALL
-    # invariant: ConfigMaps only, matching the RBAC below; `both` gets a 403 on every loop.
+    # invariant: ConfigMaps only, matching the RBAC below.
     resource: configmap
     labelValue: "1"
     folderAnnotation: grafana_folder
     provider:
       foldersFromFilesStructure: true
-  # invariant: alert rules ship with the app (`spec.alerts`, label grafana_alert=1); this
-  # repo applies none.
+  # invariant: alert rules ship with each app (`spec.alerts`); this repo applies none.
   alerts:
     enabled: true
     searchNamespace: ALL
     resource: configmap
     labelValue: "1"
 
-# hazard: the chart's own ClusterRole reads every Secret; this narrower one is bound
-# instead. roleRef is immutable: renaming it means deleting
-# `grafana-clusterrolebinding` first; docs/decisions/013-grafana-gets-768mi-and-configmap-only-reach.md
+# hazard: the chart's ClusterRole reads every Secret, hence this one; roleRef is immutable, so a
+# rename deletes `grafana-clusterrolebinding` first (ADR-013).
 rbac:
   useExistingClusterRole: grafana-sidecar-configmaps
 extraObjects:
@@ -64,8 +53,7 @@ extraObjects:
         resources: ["configmaps"]
         verbs: ["get", "watch", "list"]
 
-# invariant: alert delivery, from the `grafana-alerting` Secret (service.yaml). A subPath
-# mount does not follow updates: a new webhook lands at the next pod restart.
+# invariant: a subPath mount does not follow updates: a new webhook lands at the next restart.
 extraSecretMounts:
   - name: grafana-alerting
     secretName: grafana-alerting
@@ -74,16 +62,14 @@ extraSecretMounts:
     subPath: contact-point-slack.yaml
     readOnly: true
 
-# outside: VictoriaLogs needs this signed catalog plugin, installed at every pod start
-# (egress to grafana.com); metrics and traces use core datasources.
+# outside: installed from grafana.com at every pod start.
 plugins:
   - victoriametrics-logs-datasource
 
 datasources:
   datasources.yaml:
     apiVersion: 1
-    # invariant: deleted by name first so the uids below are free; keep them, a restored
-    # grafana.db reads this file too.
+    # invariant: frees the uids below from the pre-Victoria rows, a restored grafana.db included.
     deleteDatasources:
       - name: Prometheus
         orgId: 1
@@ -92,26 +78,21 @@ datasources:
       - name: Tempo
         orgId: 1
     datasources:
-      # hazard: the uids `prometheus` / `loki` / `tempo` are the stable identifiers every
-      # dashboard and app alert rule references; renaming one silently breaks them; docs/decisions/005-telemetry-runs-on-the-victoriametrics-family.md
+      # hazard: every dashboard and app alert names a datasource by these uids (ADR-005).
       - name: VictoriaMetrics
-        # outside: the Prometheus API on :8428; MetricsQL is a superset of PromQL.
         type: prometheus
         uid: prometheus
         url: http://victoria-metrics.platform-telemetry.svc:8428
         isDefault: true
       - name: VictoriaLogs
-        # invariant: query language is LogsQL, not LogQL.
         type: victoriametrics-logs-datasource
         uid: loki
         url: http://victoria-logs.platform-telemetry.svc:9428
       - name: VictoriaTraces
-        # outside: the Jaeger API path is part of the URL, not a jsonData option.
         type: jaeger
         uid: tempo
         url: http://victoria-traces.platform-telemetry.svc:10428/select/jaeger
         jsonData:
-          # invariant: these point at the uids above.
           tracesToLogsV2:
             datasourceUid: loki
           tracesToMetrics:

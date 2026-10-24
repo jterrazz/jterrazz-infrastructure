@@ -1,7 +1,4 @@
-# invariant: cloudflared's tunnel token (Infisical /jterrazz-infrastructure, key
-# CLOUDFLARE_TUNNEL_TOKEN) and nothing else; hostNetwork hides it from policies.
-# deployment.yaml names `cloudflared-secrets` literally. A rotation needs
-# `kubectl rollout restart deploy/cloudflared`: the token is read once at start.
+# invariant: deployment.yaml reads `cloudflared-secrets` by name, once, at start.
 name: cloudflared
 
 secrets:

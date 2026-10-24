@@ -1,7 +1,4 @@
-# outside: kube-state-metrics, the source of every kube_* series; scraped by annotation
-# (victoria-metrics' kubernetes-service-endpoints job), so install order is free.
-
-# value: 3, not the chart's 10; see grafana/values.yaml.
+# value: 3, not 10 (ADR-013).
 revisionHistoryLimit: 3
 
 resources:

@@ -1,7 +1,6 @@
 apiVersion: v2
 name: common
 description: Library chart, the one implementation of every concern app and platform-service share
-# invariant: never installed; only named templates in templates/_*.tpl.
 type: library
-# invariant: pinned exactly by app's and platform-service's Chart.yaml; bump all three.
+# invariant: pinned exactly by app and platform-service; a bump moves all three.
 version: 1.6.0

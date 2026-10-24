@@ -1,7 +1,6 @@
 suite: full fixture render (snapshot)
-# invariant: pins the ENTIRE manifest set from ci/test-values.yaml for what the targeted suites
-# miss. Read the diff before `helm unittest -u`; list EVERY template here or it renders
-# unwatched; docs/decisions/010-every-workload-renders-through-two-charts.md
+# invariant: the whole fixture render; every template is listed, and a diff is read before
+# `helm unittest -u` (ADR-010).
 templates:
   - templates/alert-configmap.yaml
   - templates/configmap.yaml

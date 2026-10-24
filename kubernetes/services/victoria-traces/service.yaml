@@ -1,7 +1,6 @@
-# hazard: storage only, no host. The PVC <name>-<key> = victoria-traces-data is pinned by
-# values.yaml's `existingClaim`; rename either half and it starts on a fresh volume.
+# hazard: values.yaml mounts victoria-traces-data by name; rename either and the store starts empty.
 name: victoria-traces
 storage:
-  # invariant: no pathSuffix: /var/lib/k8s-data/victoria-traces; nominal size, the Mac disk is the cap.
+  # value: nominal; the Mac disk is the cap.
   data:
     size: 10Gi

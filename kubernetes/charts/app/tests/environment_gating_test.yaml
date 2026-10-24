@@ -1,7 +1,6 @@
 suite: undeclared environment renders NOTHING (chart 2.x behaviour)
-# hazard: READ BEFORE "FIXING": an undeclared environment renders an EMPTY release, which
-# `helm upgrade` applies by deleting everything. Pinned, not endorsed: chart 3.0 makes it a
-# failedTemplate and rewrites this suite; docs/decisions/010-every-workload-renders-through-two-charts.md
+# hazard: an undeclared environment renders an empty release, which `helm upgrade` applies by
+# deleting everything; pinned, not endorsed (ADR-010).
 tests:
   - it: renders zero manifests with the chart's own default values
     # outside: no values at all, which is why ci/test-values.yaml IS the contract.

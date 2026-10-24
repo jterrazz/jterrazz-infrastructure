@@ -1,12 +1,11 @@
 ---
-# outside: every platform namespace is declared here, never by `kubectl create ns`.
-
+# invariant: every platform namespace, with its Pod Security labels; never `kubectl create ns`.
 apiVersion: v1
 kind: Namespace
 metadata:
   name: platform-networking
   labels:
-    # invariant: cloudflared and node-exporter need hostNetwork/hostPath, which baseline forbids.
+    # invariant: cloudflared runs hostNetwork, which baseline forbids.
     pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
@@ -40,8 +39,7 @@ kind: Namespace
 metadata:
   name: platform-telemetry
   labels:
-    # invariant: node-exporter runs hostNetwork + hostPath here; baseline forbids both, so
-    # enforcing it would evict it.
+    # invariant: node-exporter runs hostNetwork and hostPath, which baseline forbids.
     pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
@@ -59,8 +57,8 @@ metadata:
     app.kubernetes.io/component: analytics
 
 ---
-# hazard: pre-declared so PSA labels exist before the app's first `helm --create-namespace`,
-# which would create it unlabelled; docs/decisions/018-pod-security-baseline-is-enforced-by-default.md
+# hazard: the one app namespace declared here, so it must carry its owner label too: every
+# platform deploy re-applies this file (ADR-017, ADR-018).
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -70,8 +68,4 @@ metadata:
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
     app.kubernetes.io/component: app-gateway
-    # invariant: the one app namespace this repo also declares, so it must carry the
-    # owner label itself: every platform deploy re-applies this file, and an
-    # unlisted label set by the app's first deploy was dropped (2026-10-24);
-    # docs/decisions/017-app-repositories-deploy-as-their-github-oidc-identity.md
     app.jterrazz.com/repository: gateway-intelligence

@@ -1,7 +1,5 @@
 suite: NODE_OPTIONS heap cap and its 512Mi floor
-# hazard: NODE_OPTIONS caps the heap at 75% of the REQUEST only from 512Mi up; below, a
-# 96MB cap crash-looped spwn.sh's SSR boot, so nothing is injected;
-# docs/decisions/010-every-workload-renders-through-two-charts.md
+# hazard: the heap cap is 75% of the request, from 512Mi up only (ADR-010).
 templates:
   - templates/deployment.yaml
 values:

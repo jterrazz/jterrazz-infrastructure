@@ -1,14 +1,11 @@
-# invariant: platform-service values for the storage and certificates the op-* releases
-# share. No `host`: each route lives with its release, but op-api and op-dashboard
-# share a hostname, so its certificate lives here.
+# invariant: no `host`: each route lives with its release; op-api and op-dashboard share a
+# hostname, so its certificate lives here.
 name: openpanel
 
 certificates:
-  # invariant: both routes of the private host name this secret.
   openpanel-tls:
     dnsNames:
       - openpanel.internal.jterrazz.com
-  # invariant: analytics.jterrazz.com, public ingest, /api/track and nothing else.
   openpanel-analytics-tls:
     dnsNames:
       - analytics.jterrazz.com
@@ -21,7 +18,6 @@ storage:
   redis:
     size: 1Gi
     pathSuffix: redis
-  # invariant: the event store: every analytics event ever received.
   clickhouse:
     size: 10Gi
     pathSuffix: clickhouse

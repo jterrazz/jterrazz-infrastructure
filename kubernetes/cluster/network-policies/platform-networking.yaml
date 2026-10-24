@@ -1,6 +1,5 @@
 ---
-# outside: cert-manager (+ webhook, cainjector) and cloudflared; Traefik is in kube-system.
-
+# invariant: cert-manager and cloudflared; cloudflared's hostNetwork traffic is never filtered.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -12,15 +11,13 @@ spec:
     - Ingress
   ingress:
     - ports:
-        # outside: apiserver -> cert-manager's webhook; without it every Certificate write fails.
+        # invariant: the apiserver to cert-manager's webhook.
         - protocol: TCP
           port: 10250
-        # outside: VictoriaMetrics -> cert-manager metrics.
         - protocol: TCP
           port: 9402
 
 ---
-# invariant: egress is default-deny here; each rule below is load-bearing.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -38,8 +35,7 @@ spec:
       ports:
         - protocol: UDP
           port: 53
-    # hazard: cloudflared -> the Cloudflare edge; unused while it runs hostNetwork, declared so
-    # dropping hostNetwork does not silently kill the tunnel.
+    # invariant: the tunnel edge, in case cloudflared ever leaves hostNetwork.
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
@@ -52,14 +48,11 @@ spec:
           port: 7844
         - protocol: TCP
           port: 7844
-    # outside: cloudflared -> Traefik and any in-cluster backend.
     - to:
         - namespaceSelector: {}
       ports:
         - protocol: TCP
-    # hazard: NO `except`: covers the apiserver (10.43.0.1:443 -> node:6443) as well as ACME
-    # and the Cloudflare API. Denied, pods die only when RECREATED (conntrack hides it);
-    # docs/decisions/011-every-namespace-is-default-deny.md
+    # hazard: no `except`: the apiserver is RFC1918 (10.43.0.1:443 -> node:6443) (ADR-011).
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
@@ -68,7 +61,6 @@ spec:
           port: 443
         - protocol: TCP
           port: 6443
-    # outside: cert-manager self-checks its DNS-01 records against public DNS.
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0

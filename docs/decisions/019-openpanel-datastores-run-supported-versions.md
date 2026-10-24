@@ -33,7 +33,7 @@ live data covers, and no further.
 - **PostgreSQL: `17-alpine`.** The only statement reaching above 14 is
   Prisma 6's supported-databases list (9.6 to 18), the ORM rather than the
   application. Moved from 14 on 2026-09-19 by dump and restore
-  ([Operate](../guides/operate.md#the-postgresql-major-migration-14-to-17-was-run-this-way-on-2026-09-19));
+  ([Operate](../guides/operate.md#the-postgresql-major-migration));
   `pgdata-pg14-2026-09-19` is the rollback. Not 18: its image moved the
   default data layout; 17 is supported until 2029. The tag floats to the
   latest 17 patch.

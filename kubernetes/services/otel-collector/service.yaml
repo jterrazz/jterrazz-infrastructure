@@ -1,17 +1,12 @@
-# outside: platform-service values for the collector: credentials and its ingress rule;
-# the upstream chart's values are values.yaml beside this file.
 name: otel-collector
 
-# invariant: the Langfuse OTLP Basic-Auth header, base64("pk:sk"), lives in Infisical;
-# values.yaml's extraEnvs reads `otel-collector-secrets` by a literal string.
+# invariant: LANGFUSE_BASIC_AUTH, base64("pk:sk"); values.yaml reads the Secret by name.
 secrets:
   path: /jterrazz-infrastructure/otel-collector
   secretName: otel-collector-secrets
 
-# invariant: any namespace may write to the two OTLP ports, namespace-wide because
-# nothing narrower is expressible yet; docs/decisions/011-every-namespace-is-default-deny.md
+# invariant: any namespace may write OTLP; nothing narrower is expressible yet (ADR-011).
 network:
-  # outside: the upstream chart's labels, not ours.
   podSelector:
     app.kubernetes.io/name: opentelemetry-collector
     app.kubernetes.io/instance: otel-collector

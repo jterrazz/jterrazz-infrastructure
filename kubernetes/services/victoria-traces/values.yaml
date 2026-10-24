@@ -1,33 +1,25 @@
-# outside: VictoriaTraces single-node, 0.x knowingly (trace history is the one stream we
-# can lose; never extend that to metrics or logs). OTLP/HTTP ingest and the Jaeger
-# query API on :10428; docs/decisions/005-telemetry-runs-on-the-victoriametrics-family.md
-
 server:
-  # invariant: without this the objects are named <release>-vt-single-server.
   fullnameOverride: victoria-traces
 
-  # hazard: data loss if changed: names the PVC service.yaml declares.
+  # hazard: the PVC service.yaml declares; unset, the store starts empty.
   persistentVolume:
     existingClaim: victoria-traces-data
 
-  # value: 30d.
   retentionPeriod: "720h"
 
-  # value: 300s, longer than the other stores' 60s because trace history is expendable;
-  # docs/decisions/008-storage-on-orbstack-spends-fsyncs-not-bytes.md
+  # value: 300s: trace history is the one stream that may be lost (ADR-005, ADR-008).
   extraArgs:
     inmemoryDataFlushInterval: 300s
 
-  # hazard: caches are budgeted from the LIMIT; the request is small on purpose.
+  # invariant: caches are budgeted from the limit; the request is small on purpose.
   resources:
     requests:
       cpu: 25m
       memory: 96Mi
     limits:
-      # hazard: too tight OOMKills in a loop and flakes `helm --wait`; measure first.
       memory: 512Mi
 
-  # outside: same as victoria-logs/values.yaml: hostPath arrives root-owned on first boot.
+  # outside: fsGroup never applies to hostPath, so a fresh data directory is root-owned.
   initContainers:
     - name: fix-permissions
       image: busybox:1.38@sha256:fd8d9aa63ba2f0982b5304e1ee8d3b90a210bc1ffb5314d980eb6962f1a9715d
@@ -36,6 +28,5 @@ server:
         runAsUser: 0
         runAsNonRoot: false
       volumeMounts:
-        # invariant: `server-volume` is the chart's fixed name for the data volume.
         - name: server-volume
           mountPath: /storage

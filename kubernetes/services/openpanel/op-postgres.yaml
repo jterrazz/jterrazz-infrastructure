@@ -1,5 +1,4 @@
-# outside: op-postgres: orgs, projects, dashboards, users. 17, above OpenPanel's 14 pin
-# (14 is EOL 2026-11-12; 18 moved its data layout); docs/decisions/019-openpanel-datastores-run-supported-versions.md
+# hazard: a major is a dump and restore (docs/guides/operate.md), never an image swap (ADR-019).
 metadata:
   name: op-postgres
 
@@ -8,10 +7,9 @@ environment: prod
 spec:
   image: postgres:17-alpine
   port: 5432
-  # outside: DATABASE_URL in Infisical dials op-postgres:5432.
   servicePort: 5432
 
-  # outside: uid 70 is the alpine image's `postgres` user (Debian images use 999).
+  # outside: the alpine image's `postgres` user.
   securityContext:
     runAsUser: 70
     runAsGroup: 70
@@ -19,7 +17,7 @@ spec:
   env:
     POSTGRES_USER: openpanel
     POSTGRES_DB: openpanel
-    # invariant: PGDATA in a subdir so the mount root never fails initdb's empty-dir check.
+    # invariant: a subdirectory, so initdb's empty-directory check never sees the mount root.
     PGDATA: /var/lib/postgresql/data/pgdata
 
   secrets:
@@ -29,7 +27,6 @@ spec:
 
   storage:
     mountPath: /var/lib/postgresql/data
-    # invariant: openpanel-platform owns this claim (service.yaml, Retain); this mounts it.
     claimName: openpanel-postgres
     owner: "70:70"
 
@@ -42,8 +39,6 @@ spec:
     memoryLimit: 384Mi
 
   network:
-    # hazard: reachable only from this namespace, dialling only DNS, like the two
-    # unauthenticated stores beside it.
     isolated: true
 
 environments:

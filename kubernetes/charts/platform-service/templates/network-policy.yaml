@@ -1,16 +1,4 @@
-{{- /*
-The `network:` block, lowered by common.networkPolicy (kubernetes/charts/common,
-which documents the peer vocabulary and the two NetworkPolicy traps).
-
-ONE policy per service, named after the release's service, carrying both
-directions. NetworkPolicies union, so this is additive to whatever the
-namespace baseline in kubernetes/cluster/network-policies/ already grants,
-which is exactly how the hand-written per-service files it replaces behaved.
-
-`podSelector` is REQUIRED and cannot be derived: the workload these rules apply
-to is rendered by a DIFFERENT chart (the upstream Grafana or VictoriaMetrics
-chart), and its pod labels are that chart's, not ours.
-*/ -}}
+{{- /* invariant: the workload is another chart's, so its podSelector cannot be derived. */ -}}
 {{- if .Values.network }}
 {{- $net := .Values.network }}
 {{- $selector := $net.podSelector | required "network.podSelector is required; the workload is rendered by another chart, so its labels cannot be derived" }}

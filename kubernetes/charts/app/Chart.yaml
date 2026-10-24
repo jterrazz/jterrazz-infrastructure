@@ -1,13 +1,13 @@
 apiVersion: v2
 name: app
-description: Standard application chart for jterrazz infrastructure
+description: The chart every workload of the fleet deploys through
 type: application
-# hazard: BUMP with any template change: apps pull it unversioned and the publisher never
-# overwrites a version, so an unbumped change ships nothing; docs/decisions/010-every-workload-renders-through-two-charts.md
+# hazard: bump with any template change: apps pull it unversioned and the publisher never
+# overwrites a version, so an unbumped change ships nothing (ADR-010).
 version: 2.22.0
 appVersion: "1.17.1"
 
-# invariant: common's exact version (file:// resolves by exact version); bundled into the .tgz.
+# invariant: common's exact version; bundled into the .tgz.
 dependencies:
   - name: common
     version: 1.6.0

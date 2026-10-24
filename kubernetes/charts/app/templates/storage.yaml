@@ -1,18 +1,13 @@
 {{- if eq (include "app.envExists" .) "true" -}}
 {{- $spec := fromYaml (include "app.merged" .) -}}
-{{- /* `claimName` says the PVC belongs to someone else: a `<svc>-platform`
-       release, whose storage map created it and whose release name is the
-       identity of that live data. This chart then only MOUNTS it, and must not
-       render a PV/PVC of its own: two releases owning one volume is how a
-       `helm uninstall` of the wrong one deletes the claim. */ -}}
+{{- /* hazard: a `claimName` belongs to another release; owning it too would let the wrong
+       `helm uninstall` delete it. */ -}}
 {{- if $spec.storage -}}
 {{- $appName := include "app.name" . -}}
 {{- $_ := $spec.storage.mountPath | required (printf "spec.storage.mountPath is required when spec.storage is set (app %s)" $appName) -}}
 {{- if not $spec.storage.claimName -}}
 {{- $size := $spec.storage.size | required (printf "spec.storage.size is required when spec.storage is set without a claimName (app %s)" $appName) -}}
-{{- /* No nodeAffinity: app CI passes no node name. A second node would need one
-       here AND on every platform-service volume, or a hostPath PV can bind
-       where the disk is empty. The PV/PVC pair itself is common.volume. */ -}}
+{{- /* hazard: no nodeAffinity, since app CI passes no node name; a second node needs one. */ -}}
 {{- include "common.volume" (dict
       "name" (printf "%s-%s-data" $appName .Values.environment)
       "claimName" (printf "%s-data" $appName)

@@ -1,23 +1,16 @@
-# hazard: op-api owns the database schema (`migrate:deploy` before start). To add users
-# flip ALLOW_REGISTRATION here AND in op-dashboard.yaml, invite, flip back; keep a
-# password login (OAuth-only plus signup-disabled locks you out, upstream #363).
+# invariant: op-api migrates the schema before it starts.
 metadata:
   name: op-api
 
 spec:
-  # value: pinned to a 2.x minor; upstream ships a floating `2`.
   image: lindesvard/openpanel-api:2.3.0
   port: 3000
-  # invariant: both IngressRoutes below name this Service, and its port is written into
-  # the routes rather than the chart's default 80.
   servicePort: 3000
 
-  # hazard: the images document no uid, and runAsNonRoot on a root image fails the pod;
-  # capabilities are still dropped. Open: read the uid and pin it for all three op-*.
+  # outside: the op-* images document no uid; capabilities are still dropped.
   runAsRoot: true
 
-  # invariant: recreate WITHOUT storage to derive it from: two pods would run
-  # `migrate:deploy` against one database at the same time.
+  # invariant: never two migrators against one database.
   strategy: Recreate
 
   command:
@@ -30,11 +23,10 @@ spec:
 
   env:
     ALLOW_REGISTRATION: "false"
-    # value: without it V8 picks a ~256Mi heap and aborts before the cgroup limit.
+    # value: the V8 default heap aborts long before the 1Gi limit.
     NODE_OPTIONS: "--max-old-space-size=768"
 
   resources:
-    # hazard: the 768Mi heap is bounded by the limit, not the request; keep the limit.
     cpu: 50m
     memory: 480Mi
     memoryLimit: 1Gi
@@ -42,9 +34,8 @@ spec:
   health:
     path: /healthcheck
 
-  # invariant: private host /api/* comes here (the rest goes to op-dashboard); public
-  # analytics.jterrazz.com serves /api/track alone, everything else 404s. Both TLS
-  # secrets belong to openpanel-platform (service.yaml), as two releases share a host.
+  # invariant: /api of the private host, and the public ingest alone; openpanel-platform owns
+  # both certificates.
   ingress:
     - host: openpanel.internal.jterrazz.com
       path: /api
@@ -53,23 +44,20 @@ spec:
     - host: analytics.jterrazz.com
       path: /api/track
       access: public
-      # invariant: the ROUTE is /api/track; the backend serves /track. Stripping the
-      # route's own path (the default) would leave it nothing to serve.
+      # invariant: routed on /api/track, served on /track.
       stripPrefix: /api
       tlsSecret: openpanel-analytics-tls
       smoke:
         method: POST
         path: /api/track
-        # invariant: 400 since 2.3.0: the empty `{}` body fails validation before the
-        # client check; either code proves the public route reaches op-api.
+        # invariant: 2.3.0 refuses the empty body with 400, which proves the route reaches op-api.
         expect: "400"
 
   network:
     exposeTo:
       - traefik
     egress:
-      # invariant: -> op-postgres:5432, op-redis:6379, op-clickhouse:8123.
       - to: namespace:platform-analytics
-      # outside: geo/IP enrichment and avatars; the hosts are not enumerated, so no ipBlock.
+      # outside: enrichment and avatars from hosts nobody has enumerated.
       - to: internet
         ports: [443]

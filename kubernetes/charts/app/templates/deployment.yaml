@@ -3,19 +3,8 @@
 {{- $resources := $spec.resources -}}
 {{- $platformClientLabels := fromYaml (include "app.platformClientLabels" .) -}}
 {{- $storage := $spec.storage -}}
-{{- /* Recreate is DERIVED from storage rather than asked for: every volume this
-       chart mounts is an RWO hostPath, and two writers on one is the trap the
-       datastores exist to avoid. `spec.strategy` overrides it for the workload
-       that needs Recreate WITHOUT a volume: op-api runs its migrations on
-       boot, so a rolling update would put two migration runners on the same
-       database. */ -}}
+{{- /* invariant: an RWO hostPath never gets two writers, so storage implies Recreate. */ -}}
 {{- $strategy := $spec.strategy | default (ternary "Recreate" "" (not (not $storage))) -}}
-{{- /* The chown initContainer is what makes a hostPath volume writable by a
-       non-root container: the directory is created root-owned and only root
-       can hand it over. `storage.owner` names the uid:gid the IMAGE runs as
-       (70:70 for alpine postgres, 101:101 for clickhouse, and so on); the empty
-       string skips the container entirely, for an image that runs as root and
-       whose data must stay root-owned. */ -}}
 {{- $owner := "1000:1000" -}}
 {{- if and $storage (hasKey $storage "owner") -}}
 {{- $owner = $storage.owner | toString -}}
@@ -24,11 +13,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "app.name" . }}
-  {{- /* The one place the cluster records WHICH REPO builds this workload.
-         `make redeploy-apps` reads it off every app Deployment
-         instead of holding a list; an app whose CI predates
-         `--set meta.repository` stamps nothing and is reported as missing,
-         rather than silently dropping out of the fleet rebuild. */}}
   {{- if .Values.meta.repository }}
   annotations:
     app.jterrazz.com/repository: {{ .Values.meta.repository | quote }}
@@ -37,7 +21,6 @@ metadata:
     {{- include "app.labels" . | nindent 4 }}
 spec:
   replicas: {{ $spec.replicas }}
-  # invariant: 3, not the k8s default 10; see kubernetes/services/grafana/values.yaml.
   revisionHistoryLimit: 3
   {{- if $strategy }}
   strategy:
@@ -48,11 +31,8 @@ spec:
       {{- include "app.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- /* A pod restarts when its config changes, or when app CI deploys (meta.deployId,
-             so a redeploy re-reads the app's synced secrets). Never on a bare
-             helm upgrade: `.Release.Revision` here restarted every app-chart
-             platform release (the registry, OpenPanel) on every platform
-             deploy, and a push landing on the restarting registry failed. */}}
+      {{- /* invariant: a pod rolls on a config change or an app deploy, never on a bare upgrade,
+             which would restart the registry under every platform deploy. */}}
       annotations:
         checksum/config: {{ $spec.configFiles | default dict | toJson | sha256sum | quote }}
         {{- with .Values.meta.deployId }}
@@ -60,25 +40,15 @@ spec:
         {{- end }}
       labels:
         {{- include "app.selectorLabels" . | nindent 8 }}
-        {{- /* Platform-client labels: stamped on pod template labels ONLY
-               (never selectorLabels, which are immutable). The target
-               platform service's ingress NetworkPolicy selects on these. */}}
+        {{- /* invariant: pod labels only: selectorLabels are immutable. */}}
         {{- range $key, $value := $platformClientLabels }}
         {{ $key }}: {{ $value | quote }}
         {{- end }}
     spec:
-      {{- /* No workload here talks to the API server, and the namespace's default
-             ServiceAccount has no rights; an unmounted token is one less
-             credential in a compromised container. */}}
       automountServiceAccountToken: false
       {{- with include "app.podSecurityContext" . }}
       {{- . | nindent 6 }}
       {{- end }}
-      {{- /* Only for an image on OUR registry: that is the only one the
-             credential can authenticate, and naming a Secret that does not
-             exist in the namespace earns a FailedToRetrieveImagePullSecret
-             warning on every pod start. Same fact decides imagePullPolicy
-             below. */}}
       {{- if eq (include "app.privateImage" .) "true" }}
       imagePullSecrets:
         - name: registry-credentials
@@ -88,10 +58,6 @@ spec:
         - name: fix-permissions
           image: busybox:1.38@sha256:fd8d9aa63ba2f0982b5304e1ee8d3b90a210bc1ffb5314d980eb6962f1a9715d
           command: ["sh", "-c", "chown -R {{ $owner }} {{ $storage.mountPath }}"]
-          # invariant: must stay root: hostPath dirs are created root-owned and only root
-          # can chown them to the app's uid. Every capability is still dropped
-          # except the three `chown -R` needs: CHOWN to change ownership,
-          # FOWNER + DAC_OVERRIDE to traverse and modify dirs root does not own.
           securityContext:
             runAsUser: 0
             runAsNonRoot: false
@@ -108,11 +74,6 @@ spec:
       containers:
         - name: {{ include "app.name" . }}
           image: {{ include "app.image" . }}
-          {{- /* Always for our own registry: `main` / `next` tags are mutable,
-                 so IfNotPresent would keep serving whatever the node cached at
-                 the first pull. A third-party image is left at Kubernetes' own
-                 default, which is what its pinned tag deserves, and what
-                 keeps a pod restart off Docker Hub's anonymous pull quota. */}}
           {{- if eq (include "app.privateImage" .) "true" }}
           imagePullPolicy: Always
           {{- end }}
@@ -144,11 +105,6 @@ spec:
               memory: {{ $resources.memory }}
             limits:
               memory: {{ include "app.memoryLimit" . }}
-          # outside: the startupProbe is what makes a slow boot safe, so liveness and
-          # readiness keep Kubernetes' own timings: a wedged pod is restarted
-          # in ~30s rather than the ~150s a lenient liveness probe would take.
-          # Only timeoutSeconds is raised: 1s is not enough for a Node app that
-          # also runs in-process background work.
           startupProbe:
             {{- include "app.probe" (dict "ctx" . "liveness" true) | nindent 12 }}
             timeoutSeconds: {{ $spec.health.timeoutSeconds }}

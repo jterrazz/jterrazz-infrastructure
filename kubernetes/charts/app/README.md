@@ -43,7 +43,7 @@ kind: Application
 metadata:
   name: my-app                  # required; names every object and the namespace
 spec:
-  port: 3000                    # container port; the Service always listens on 80
+  port: 3000                    # container port; the Service listens on servicePort (80)
   resources:
     cpu: 100m
     memory: 256Mi
@@ -57,7 +57,6 @@ spec:
     path: /my-app               # Infisical path -> InfisicalSecret
     env: [DATABASE_URL, API_TOKEN]
   ingress:                      # base default; an environment may replace it
-
     - host: my-app.jterrazz.com
       path: /
       public: true
@@ -196,9 +195,8 @@ health:
   tcp: true          # tcpSocket on spec.port
 ```
 
-`tcp` is not a lazier `exec`: mongod's own client is a Node REPL whose cold
-start alone exceeds the probe timeout, so an exec probe crash-loops a perfectly
-healthy database on the liveness kill.
+`tcp` is for a server whose own client is too slow to start inside the probe
+timeout: an exec probe would crash-loop it on the liveness kill.
 
 ### `spec.ingress`: a list, always
 
@@ -326,8 +324,7 @@ Renders an `InfisicalSecret` (`<app>-infisical`) that syncs into Secret
 `<app>-secrets` in the app's namespace at the operator's own resync interval,
 using the shared `infisical-credentials` in `platform-secrets`. The Infisical **env slug**
 defaults to the deploy environment name; an environment that has no matching
-Infisical env sets `secretsEnv:` to borrow another one (that's what `next`
-does, with `secretsEnv: prod`).
+Infisical env sets `secretsEnv:` to borrow another one (`secretsEnv: prod`).
 
 ### `spec.env`
 
@@ -553,9 +550,7 @@ Ports are pinned per namespace, so `gateway-intelligence` resolves to the
 `prod-` namespace regardless of which environment the consumer runs in.
 
 An unknown name **hard-fails the render** with the valid list. Telemetry is
-opt-in: an app that doesn't declare `otel-collector` gets no OTLP endpoint;
-previously it was an unconditional default that was inert anyway, because
-nothing opened the egress hole.
+opt-in: an app that doesn't declare `otel-collector` gets no OTLP endpoint.
 
 Env names are derived from the service name (`GATEWAY_INTELLIGENCE_BASE_URL`);
 `OTEL_EXPORTER_OTLP_ENDPOINT` is the one exception, because the OTel SDK owns
@@ -625,15 +620,13 @@ registry decides two more things, with no knob for either:
   credential authenticates that registry alone, and naming a Secret that is not
   in the namespace earns a `FailedToRetrieveImagePullSecret` warning on every
   pod start. That Secret is not built from values: the chart renders a second
-  `InfisicalSecret` (`<app>-registry-infisical`) and the operator syncs
-  `DOCKER_REGISTRY_USERNAME` / `DOCKER_REGISTRY_PASSWORD` from the
-  `jterrazz-ci` Infisical project (the one copy, which CI also reads over OIDC)
-  into a `kubernetes.io/dockerconfigjson`. The password is never a chart value,
-  so it never lands in a release Secret or on a runner's argv, and rotating it
-  needs no app deploy at all (`docs/guides/operate.md`, § Rotating the registry
-  password);
-- `imagePullPolicy: Always` is set only then: our tags (`main`, `next`) are
-  mutable, so `IfNotPresent` would keep serving whatever the node cached first.
+  `InfisicalSecret` (`<app>-registry-infisical`) and the operator syncs the
+  registry's read-only account (`REGISTRY_PULL_USERNAME` /
+  `REGISTRY_PULL_PASSWORD`, project `jterrazz-ci`) into a
+  `kubernetes.io/dockerconfigjson`. The password is never a chart value, so it
+  never lands in a release Secret or on a runner's argv, and rotating it needs
+  no app deploy;
+- `imagePullPolicy: Always` is set only then: our tags are mutable, so `IfNotPresent` would keep serving whatever the node cached first.
   A third-party image keeps Kubernetes' default, which is what its pinned tag
   deserves and what keeps a pod restart off Docker Hub's anonymous pull quota.
 
@@ -702,53 +695,12 @@ Two rules follow from apps pulling the chart **unversioned**:
    you're prepared to redeploy the fleet. On a fresh cluster the same step
    is what makes the chart exist at all; until then no app can deploy.
 
-## Upgrading from 2.11
-
-**The first upgrade onto 2.12.0 deletes the pull secret it depends on.** 2.11
-rendered `Secret registry-credentials` from a chart value; 2.12.0 renders an
-`InfisicalSecret` instead and lets the operator write that Secret. The old
-revision's manifest therefore OWNS a Secret the new one does not render, and
-`helm upgrade` prunes it, including the copy the operator had already synced,
-because Helm matches on name, not on who wrote it.
-
-The rest follows on its own:
-
-- the new pod names an `imagePullSecret` that no longer exists, so
-  `ImagePullBackOff`;
-- `--wait --timeout 5m` expires while kubelet backs off between pull attempts;
-- `--atomic` rolls back, and the rollback fails too, with `no Secret with the
-  name "registry-credentials" found`;
-- the operator does not repair it: the Infisical value has not changed, so it
-  matches its cached ETag and skips reconciliation entirely (the infrastructure
-  runbook's
-  [deleted managed Secret](../../../docs/guides/operate.md#a-deleted-managed-secret-does-not-come-back)).
-
-Every release in this estate has already crossed that boundary, so it is
-history here, but any other consumer of this chart meets it once per release.
-Two ways through, both with `--timeout` set well above the default (the pull
-backoff, not the pod, is what runs out the clock):
-
-- **Pre-create** the release's registry `InfisicalSecret` with the adoption
-  metadata Helm demands (annotations `meta.helm.sh/release-name` and
-  `meta.helm.sh/release-namespace`, label `app.kubernetes.io/managed-by: Helm`)
-  so the upgrade adopts the object instead of racing it.
-- **Recreate** that CR a few seconds after the upgrade starts, which is what
-  was done here: the operator writes the Secret back while Helm is still
-  waiting on the pod, and the pull succeeds before the timeout.
-
 ## Working on the chart
 
 ```bash
-# Resolve the `common` library dependency first: nothing is vendored, and
-# helm refuses to render a chart whose declared dependency is not in charts/.
-helm dependency update kubernetes/charts/app
-
-# Render everything the CI fixture covers
-helm template ci-test kubernetes/charts/app \
-  -f kubernetes/charts/app/ci/test-values.yaml
-
-# What CI actually runs (lint + render + schema-check both charts)
-make lint
+helm dependency update kubernetes/charts/app   # resolves ../common; nothing is vendored
+helm template ci-test kubernetes/charts/app -f kubernetes/charts/app/ci/test-values.yaml
+make check
 ```
 
 If you add a template branch, add a value that reaches it to

@@ -1,19 +1,4 @@
-{{/*
-Traefik routing: the IngressRoute and the two Middlewares that hang off it.
-Both charts render routes; only their NAMES and their match expressions differ,
-so every name is an input and this file invents none.
-*/}}
-
-{{/*
-`access` -> the Traefik ipAllowList middleware for a route, or "" for none.
-
-  private  tailnet humans only. The default, and the narrow one: a values file
-           that forgets the key gets tailnet-only.
-  public   no ipAllowList. The route is still behind the rate-limit / compress
-           / security-headers chain the websecure entrypoint attaches globally.
-
-Input: the access string. Output: the middleware name, or "".
-*/}}
+{{/* hazard: one access middleware per route, never chained; `private` is the default. */}}
 {{- define "common.accessMiddleware" -}}
 {{- $access := . | default "private" -}}
 {{- if eq $access "private" -}}
@@ -23,24 +8,10 @@ private-access
 {{- end -}}
 {{- end -}}
 
-{{/*
-One IngressRoute on the websecure entrypoint.
-
-Input dict:
-  name         metadata.name
-  labels       rendered label lines (a STRING, so each chart keeps its own
-               label order rather than toYaml's alphabetical one)
-  match        the whole Traefik match expression. The caller builds it: the
-               app chart's Host() && PathPrefix(), platform-service's
-               Host(a) || Host(b), never the v2 Host(a, b), which the CRD
-               schema accepts and Traefik v3 then fails to build a router for
-               (404 on every name, nothing in `kubectl get` to say so).
-  middlewares  list of { name, namespace? }, in attachment order
-  serviceName  / servicePort  the backend
-  tlsSecret    the Certificate's secret
-  annotations  rendered annotation lines (a STRING), or ""; the smoke contract
-               (common.smokeAnnotations) is the only thing that writes them
-*/}}
+{{/* Input dict: name, labels and annotations (rendered lines), match, middlewares
+({ name, namespace? }, in order), serviceName, servicePort, tlsSecret.
+hazard: `match` is `Host(a) || Host(b)`, never v2's `Host(a, b)`, which the CRD accepts and
+Traefik v3 routes nowhere. */}}
 {{- define "common.ingressRoute" -}}
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
@@ -74,9 +45,7 @@ spec:
     secretName: {{ .tlsSecret }}
 {{- end -}}
 
-{{/*
-stripPrefix Middleware. Input dict: name, labels, prefix.
-*/}}
+{{/* Input dict: name, labels, prefix. */}}
 {{- define "common.middleware.stripPrefix" -}}
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
@@ -90,14 +59,8 @@ spec:
       - {{ .prefix }}
 {{- end -}}
 
-{{/*
-Canonical-host redirect Middleware. Input dict: name, labels, host, replacement.
-
-The regex is anchored on the SCHEME too: Traefik matches against the full URL,
-so an unanchored pattern would also rewrite a request whose PATH happens to
-contain the host. 301, not 302: this host is not coming back, and a permanent
-redirect is what moves search rankings to the canonical host.
-*/}}
+{{/* Input dict: name, labels, host, replacement. The regex anchors the scheme, so a path that
+contains the host is never rewritten. */}}
 {{- define "common.middleware.redirect" -}}
 apiVersion: traefik.io/v1alpha1
 kind: Middleware

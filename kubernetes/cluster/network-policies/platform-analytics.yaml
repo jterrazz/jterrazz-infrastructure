@@ -1,8 +1,5 @@
 ---
-# invariant: the namespace BASELINE only; per-workload rules live in the `network:` blocks
-# of kubernetes/services/openpanel/. ClickHouse and Redis run passwordless: this is their
-# only access control.
-
+# invariant: the namespace baseline only; each workload declares its own rules (ADR-011).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -24,15 +21,12 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    # invariant: the whole of what the three datastores admit; Traefik reaches op-api and
-    # op-dashboard through their own policies.
     - from:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: platform-analytics
 
 ---
-# invariant: egress default-deny with the namespace-wide minimum; apps declare the rest.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

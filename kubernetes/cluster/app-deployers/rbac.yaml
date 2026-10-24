@@ -1,7 +1,5 @@
 ---
-# invariant: an app CI job authenticates by GitHub OIDC (group github-actions:jterrazz) and
-# owns the namespaces it creates, enforced by policy.yaml. hazard: admission never sees
-# reads, so grant no cross-namespace read here; docs/decisions/017-app-repositories-deploy-as-their-github-oidc-identity.md
+# hazard: admission never sees reads, so nothing here may grant one across namespaces (ADR-017).
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -10,7 +8,6 @@ rules:
   - apiGroups: [""]
     resources: [namespaces]
     verbs: [get, create, update, patch]
-  # outside: the app chart's hostPath PV is cluster-scoped; policy.yaml pins its path.
   - apiGroups: [""]
     resources: [persistentvolumes]
     verbs: [get, create, update, patch, delete]
@@ -35,7 +32,7 @@ subjects:
     kind: Group
     name: github-actions:jterrazz
 ---
-# invariant: bound by the app itself inside a namespace it owns; no exec, RBAC or PSA labels.
+# invariant: an app binds it to itself in the namespaces it owns; no exec, no RBAC.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:

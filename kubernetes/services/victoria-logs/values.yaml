@@ -1,22 +1,17 @@
-# outside: VictoriaLogs single-node; OTLP/HTTP ingest on :9428. LogsQL, not LogQL
-# (docs/guides/operate.md); docs/decisions/005-telemetry-runs-on-the-victoriametrics-family.md
-
 server:
-  # invariant: without this the objects are named <release>-victoria-logs-single-server.
   fullnameOverride: victoria-logs
 
-  # hazard: data loss if changed: names the PVC service.yaml declares.
+  # hazard: the PVC service.yaml declares; unset, the store starts empty.
   persistentVolume:
     existingClaim: victoria-logs-data
 
-  # value: 90d, enforced: older entries are deleted and rejected at ingest.
   retentionPeriod: "90d"
 
-  # value: 60s against the 5s default; docs/decisions/008-storage-on-orbstack-spends-fsyncs-not-bytes.md
+  # value: 60s, not 5s: fewer fsyncs over virtiofs (ADR-008).
   extraArgs:
     inmemoryDataFlushInterval: 60s
 
-  # hazard: caches are budgeted from the LIMIT, so keep 512Mi; the request is small on purpose.
+  # invariant: caches are budgeted from the limit; the request is small on purpose.
   resources:
     requests:
       cpu: 25m
@@ -24,8 +19,7 @@ server:
     limits:
       memory: 512Mi
 
-  # outside: fsGroup never applies to hostPath, so the fresh data dir is root-owned and
-  # unwritable on first boot; the container-level root overrides the pod's runAsNonRoot.
+  # outside: fsGroup never applies to hostPath, so a fresh data directory is root-owned.
   initContainers:
     - name: fix-permissions
       image: busybox:1.38@sha256:fd8d9aa63ba2f0982b5304e1ee8d3b90a210bc1ffb5314d980eb6962f1a9715d
@@ -34,6 +28,5 @@ server:
         runAsUser: 0
         runAsNonRoot: false
       volumeMounts:
-        # invariant: `server-volume` is the chart's fixed name for the data volume.
         - name: server-volume
           mountPath: /storage

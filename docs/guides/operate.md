@@ -448,7 +448,7 @@ survives one, so deleting a directory here is the deletion the `Retain` policy
 was protecting against.
 
 For consistent database dumps rather than a file copy, see the backup section
-of [openpanel](../../kubernetes/services/openpanel/README.md#backup--restore).
+of [openpanel](../../kubernetes/services/openpanel/README.md#backup-and-restore).
 
 ## Rotating credentials
 
@@ -723,7 +723,7 @@ evidence; the reasoning is
 | ClickHouse | `26.3` LTS     | Above OpenPanel's compose pin (26.1.3.52, out of support since 2026-05 and affected by CVE-2026-51992), moved 2026-10-24 after booting 26.3.60.2 on a copy of the live data. Not past 26.4: 26.5/26.7 change event-ingest datetime parsing and reject the AggregatingMergeTree schema shape OpenPanel uses. `clickhouse-26.1-2026-10-24` beside the live dir is the rollback. |
 | Redis 8.x  | staying on 7.x | Neither OpenPanel nor BullMQ publishes a Redis 8 support statement.                                                                                                                                |
 
-### The PostgreSQL major migration (14 to 17 was run this way on 2026-09-19)
+### The PostgreSQL major migration
 
 Kept as the procedure for the next major. DB was ~26 MB, ~5 minutes of
 dashboard/ingest downtime end to end. **Dump with the *newer* server's

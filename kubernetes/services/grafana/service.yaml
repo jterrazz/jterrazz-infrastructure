@@ -1,14 +1,12 @@
-# outside: platform-service values for Grafana; the upstream chart's are values.yaml.
 name: grafana
 host: grafana.internal.jterrazz.com
 access: private
 
-# outside: an unauthenticated browser is bounced to /login; 200 is accepted too.
+# invariant: an unauthenticated browser is sent to /login.
 smoke:
   expect: "302,200"
 
-# hazard: the operator's template (not Helm's): a missing SLACK_WEBHOOK_URL renders a
-# bare `apiVersion: 1` and Grafana keeps its built-in policy, never a sync error.
+# invariant: the operator's template, not Helm's; without SLACK_WEBHOOK_URL it provisions nothing.
 secrets:
   path: /jterrazz-infrastructure/grafana
   secretName: grafana-alerting
@@ -32,19 +30,16 @@ secrets:
         {{- end }}
 
 storage:
-  # invariant: grafana.db (users, keys, alert state); dashboards are provisioned, not stored.
   data:
     size: 1Gi
-    # outside: node-local, off virtiofs, on purpose; a repave resets logins and history,
-    # nothing provisioned; docs/decisions/008-storage-on-orbstack-spends-fsyncs-not-bytes.md
+    # value: in the VM, off virtiofs; a repave resets logins and history only (ADR-008).
     nodeLocalPath: /var/lib/grafana-node-local
 
-# outside: Traefik only; the rest is the namespace baseline in platform-telemetry.yaml.
 network:
   podSelector:
     app.kubernetes.io/name: grafana
     app.kubernetes.io/instance: grafana
   ingress:
-    # hazard: 3000, not the Service's 80: a NetworkPolicy sees the pod port.
+    # hazard: the pod port, never the Service's 80.
     - from: traefik
       ports: [3000]

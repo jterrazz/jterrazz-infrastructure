@@ -1,21 +1,5 @@
-{{- /*
-The named-volume map is this chart's; the PV/PVC pair is common.volume
-(kubernetes/charts/common), which carries the data-safety notes.
-
-  PV   <name>-<key>
-  PVC  <name>-<key>, unless `claimName` overrides metadata.name
-  path /var/lib/k8s-data/<name>[/<pathSuffix>], e.g. openpanel + `postgres` ->
-       /var/lib/k8s-data/openpanel/postgres. Renaming a key moves the directory
-       and the pod comes up on an empty volume.
-
-`nodeLocalPath` opts a volume OUT of /var/lib/k8s-data, which on this target is
-a symlink to the Mac over OrbStack's virtiofs share. Use it for data a service
-reads and writes constantly rather than merely stores: virtiofs adds
-per-syscall latency, and a SQLite-plus-index workload (Grafana's unified
-storage) turns that into a CPU spin that pegs the pod. The cost is that this
-data does NOT survive a repave, so only ever point it at something
-reconstructible.
-*/ -}}
+{{- /* hazard: PV <name>-<key> at /var/lib/k8s-data/<name>[/<pathSuffix>]: renaming either
+       moves live data. */ -}}
 {{- $name := include "platform-service.name" . -}}
 {{- $labels := include "platform-service.labels" . -}}
 {{- $nodeName := .Values.infrastructure.nodeName | default "" -}}

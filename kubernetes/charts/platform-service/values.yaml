@@ -1,41 +1,28 @@
-
-# invariant: every key's shape, recipe and trap is README.md beside this file; this file
-# owns the defaults.
+# invariant: every default; each key's shape and traps are README.md.
 name: ""
 host: ""
 port: 80
 
-# hazard: transitional SANs for a rename only (old and new name served at once), never a
-# place to park unrelated hostnames.
+# invariant: for a rename only: the old and the new name served at once.
 aliases: []
 
-# invariant: private -> the private-access ipAllowList (tailnet only); public -> none, the
-# websecure chain still applies. A leftover boolean `private:` hard-fails the render.
 access: private
 
-# hazard: what the platform contract must get back from `host`, stamped as smoke.jterrazz.com/*
-# annotations (contract: common/templates/_smoke.tpl). Never accept a 5xx or 000.
+# hazard: never accept a 5xx or 000.
 smoke:
   path: /
   expect: "200"
 
-# invariant: <name> -> { dnsNames }; <name> is both the Certificate and its TLS Secret, so
-# it is never derived. For a host several app-chart releases share (OpenPanel only).
 certificates: {}
 
-# outside: Infisical -> InfisicalSecret `<name>-infisical` -> Secret `secretName`, a
-# REQUIRED name its consumer reads literally; the Secret outlives the release (Orphan).
 secrets: {}
 
-# hazard: <key> -> { size, pathSuffix?, claimName?, nodeLocalPath? }; names and paths
-# address live data (templates/storage.yaml). nodeLocalPath lives in the VM, lost on repave.
+# hazard: names and paths address live data.
 storage: {}
 
-# hazard: the per-service NetworkPolicy, additive to the namespace baseline. podSelector is
-# REQUIRED (upstream chart's labels); ports are POD ports, never Service ports.
+# hazard: ports are pod ports, never Service ports.
 network: {}
 
-# invariant: set from $NODE_NAME by the `platform-service` release template in
-# kubernetes/helmfile.yaml.gotmpl; the hostPath PV's nodeAffinity.
+# invariant: set by the helmfile from $NODE_NAME.
 infrastructure:
   nodeName: ""

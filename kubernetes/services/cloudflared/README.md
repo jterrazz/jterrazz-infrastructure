@@ -1,122 +1,42 @@
-# Cloudflared
+# cloudflared
 
-Cloudflare Tunnel runtime that brings public traffic into the cluster
-without exposing any host port. Cloudflared maintains an outbound connection
-(HTTP/2, see below) to the Cloudflare edge; traffic for any of our public
-hostnames flows back through that tunnel and lands on the cluster-
-internal Traefik service.
-
-## How it routes
+The public ingress: an outbound tunnel from the Cloudflare edge to Traefik's
+ClusterIP, with no port open on the host. Why it is a raw Deployment with
+`hostNetwork: true` and `--protocol http2` is
+[ADR-002](../../../docs/decisions/002-public-traffic-enters-through-a-cloudflare-tunnel.md).
 
 ```text
-client ──https──► Cloudflare edge ──http2 tunnel──► this Deployment
-                                                       │
-                                                       ▼
-                                  traefik.kube-system.svc.cluster.local:443
-                                                       │
-                                                       ▼
-                                            IngressRoute → app
+client ─► Cloudflare edge ─► tunnel (HTTP/2) ─► cloudflared ─► traefik.kube-system:443 ─► IngressRoute
 ```
 
-Per-hostname routing is configured in Cloudflare's Zero Trust UI under
-the tunnel's "Public Hostname" tab; adding a hostname there creates the
-DNS CNAME automatically. The tunnel forwards everything to Traefik with
-`No TLS Verify: ON` (internal traffic, no need to validate the cluster's
-self-signed serving cert).
+`service.yaml` is the `cloudflared-platform` release, which syncs the tunnel
+token into `cloudflared-secrets`; `deployment.yaml` is applied after it by
+`roles/platform/tasks/raw-manifests.yml`.
 
-## One-time setup
+## Setting up a tunnel
 
-Done once per tunnel; recorded here for reference and recovery.
+1. In Zero Trust, Networks, Tunnels, create a **Cloudflared** tunnel named
+   `jterrazz-infrastructure` and copy its token (`eyJ...`).
+2. Store it as `CLOUDFLARE_TUNNEL_TOKEN` in Infisical, project `jterrazz`,
+   env `prod`, path `/jterrazz-infrastructure`.
+3. Add one **Public Hostname** per public hostname, apex zones included
+   (`jterrazz.com`, `sig.news`, `spwn.sh`): service HTTPS, URL
+   `traefik.kube-system.svc.cluster.local:443`, TLS **No TLS Verify** on. The
+   rule creates the CNAME, except for `analytics.jterrazz.com`, whose record is
+   `dns_records`'.
 
-### 1. Create the tunnel
-
-In Cloudflare, open Zero Trust, then Networks, then Tunnels, and create a tunnel.
-Connector type **Cloudflared**, name `jterrazz-infrastructure`. On the next
-screen Cloudflare shows a connection token (it starts with `eyJ`).
-
-### 2. Store the token in Infisical
-
-At `https://eu.infisical.com`, in project `jterrazz`, env `prod`, path
-`/jterrazz-infrastructure`, add the secret `CLOUDFLARE_TUNNEL_TOKEN` with that
-value. Ansible decodes the token at deploy time to derive the tunnel
-hostname (`<tunnel-id>.cfargotunnel.com`) used as the DNS target for
-public records.
-
-### 3. Public Hostname per hostname
-
-The tunnel routes **per hostname, not by wildcard**: every public hostname
-gets its own Public Hostname rule (apex zones AND subdomains). In the tunnel
-detail page, "Public Hostname" tab, add one for each:
-
-- apex zones: `jterrazz.com`, `sig.news`, `spwn.sh` (Subdomain: empty)
-- subdomains: e.g. `signews.jterrazz.com`, `analytics.jterrazz.com`
-  (Subdomain: the label, e.g. `signews` / `analytics`)
-
-For each:
-
-- Service type: HTTPS
-- URL: `traefik.kube-system.svc.cluster.local:443`
-- Under Additional application settings, then TLS: **No TLS Verify: ON**
-
-Adding the rule auto-creates the CNAME. Exception: `analytics.jterrazz.com`
-(OpenPanel ingest), whose CNAME the platform deploy owns (`dns_records`, see
-"DNS records" in [docs/guides/operate.md](../../../docs/guides/operate.md)), so
-there only the routing rule is added in the dashboard.
-
-## Deploy
-
-Two halves, and only one of them is a manifest. `service.yaml` is
-platform-service values for the `cloudflared-platform` release, which carries
-the InfisicalSecret that becomes `cloudflared-secrets`; `deployment.yaml` is
-**the one raw Deployment left in this repo**, applied by
-`roles/platform/tasks/raw-manifests.yml` after that release exists.
-
-It stays raw on purpose: `hostNetwork: true` plus
-`dnsPolicy: ClusterFirstWithHostNet` are what make the tunnel work here at all
-(the CNI bridge mangles outbound TCP/7844; see
-[ADR-002](../../../docs/decisions/002-public-traffic-enters-through-a-cloudflare-tunnel.md)), and
-the app chart expresses neither. It is the exception; anything else new should
-be a chart release.
-
-For a targeted apply from the cluster host:
-
-```bash
-kubectl apply -f /tmp/k8s-manifests/kubernetes/services/cloudflared/deployment.yaml
-```
+A tunnel load-balances up to four connectors, so a second cluster with the same
+token serves at once; `kubectl scale -n platform-networking deploy/cloudflared
+--replicas=0` takes one out.
 
 ## Verify
 
 ```bash
-# Pod healthy?
-kubectl get pod -n platform-networking -l app.kubernetes.io/name=cloudflared
-
-# Connected to Cloudflare edge?
 kubectl logs -n platform-networking deploy/cloudflared --tail=30 | grep -E 'Registered|edge'
-
-# Token synced from Infisical?
-kubectl get secret cloudflared-secrets -n platform-networking \
-  -o jsonpath='{.data.CLOUDFLARE_TUNNEL_TOKEN}' | base64 -d | head -c 20; echo
-
-# Live traffic counter
-POD_IP=$(kubectl get pod -n platform-networking -l app.kubernetes.io/name=cloudflared -o jsonpath='{.items[0].status.podIP}')
+POD_IP=$(kubectl get pod -n platform-networking -l app.kubernetes.io/name=cloudflared \
+  -o jsonpath='{.items[0].status.podIP}')
 curl -s "http://$POD_IP:2000/metrics" | grep '^cloudflared_tunnel_total_requests '
 ```
 
-The Cloudflare dashboard shows the tunnel as **HEALTHY** within ~30s of
-pod start.
-
-A tunnel accepts up to 4 connectors and Cloudflare load-balances between them,
-so a second cluster brought up with the same `CLOUDFLARE_TUNNEL_TOKEN` starts
-serving traffic immediately. To stop one from serving without deleting it:
-
-```bash
-kubectl scale -n platform-networking deploy/cloudflared --replicas=0
-```
-
-## Two settings that are load-bearing here
-
-`hostNetwork: true` (the OrbStack CNI bridge gets the tunnel handshake on
-TCP/7844 RSTed) and `--protocol http2` (OrbStack's NAT eats outbound UDP/443,
-so QUIC never connects). Neither should be removed without testing the
-handshake on a fresh VM; the evidence and the alternatives are in
-[the tunnel ADR](../../../docs/decisions/002-public-traffic-enters-through-a-cloudflare-tunnel.md).
+The token is read once at start: after a rotation,
+`kubectl rollout restart deploy/cloudflared -n platform-networking`.

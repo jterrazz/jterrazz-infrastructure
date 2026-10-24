@@ -1,7 +1,5 @@
 ---
-# hazard: DNS-01, not HTTP-01: no public inbound path could answer an HTTP-01
-# challenge. A new public zone goes in the dnsZones of BOTH issuers;
-# docs/decisions/001-certificates-are-issued-over-dns-01.md
+# invariant: DNS-01, since nothing could answer HTTP-01; a new zone goes in both issuers (ADR-001).
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -24,7 +22,7 @@ spec:
             - sig.news
             - spwn.sh
 ---
-# invariant: staging, with higher rate limits, untrusted chain. For testing issuance only.
+# value: for testing issuance: higher rate limits, untrusted chain.
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:

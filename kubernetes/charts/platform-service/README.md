@@ -45,7 +45,7 @@ canonical `host`; this is not a place to park unrelated hostnames.
 
 ```yaml
 storage:
-  data:      { size: 3Gi, pathSuffix: mongo, claimName: storage-svc-0 }
+  data:      { size: 3Gi, pathSuffix: postgres, claimName: storage-svc-0 }
   uploads:   { size: 5Gi, pathSuffix: uploads }
 ```
 
@@ -105,11 +105,6 @@ secrets:
   missing at the path renders as an empty `.Value` rather than failing the
   sync, which is what lets a template guard on a secret not yet created.
 
-Declaring this here is what replaced the hand-applied InfisicalSecrets in
-`ansible/roles/platform/tasks/bootstrap.yml`: the operator provides the CRD
-(`needs: platform-secrets/infisical`), and the release that mounts the Secret
-orders itself after this one.
-
 ## `certificates:`, a hostname several releases answer on
 
 ```yaml
@@ -164,10 +159,11 @@ than by file convenience:
 | anything that names ONE workload rendered by the **app** chart | that workload's `spec.network` (`isolated:`, `exposeTo:`, `egress:`) |
 | anything that names a workload with no release of its own (cloudflared, whose `hostNetwork: true` means NetworkPolicy never sees its traffic anyway) | still `cluster/network-policies/<ns>.yaml` |
 
+`podSelector` is required and never derived: the pods are the upstream chart's,
+so read their labels off `kubectl get pod --show-labels`.
+
 ```yaml
 network:
-  # REQUIRED, and not derivable: these pods are rendered by the UPSTREAM chart,
-  # so the labels are that chart's. Read them off `kubectl get pod --show-labels`.
   podSelector:
     app.kubernetes.io/name: grafana
     app.kubernetes.io/instance: grafana
@@ -204,7 +200,7 @@ pods dial the `kubernetes` ClusterIP `10.43.0.1:443`, which iptables DNATs to
 the node's own `192.168.x.x:6443`, so anything that must reach it, or must
 scrape a target set no static list can enumerate, needs `anywhere`.
 
-### The two traps
+### The traps
 
 **Ports are POD ports, never Service ports.** A policy is evaluated *after*
 kube-proxy's DNAT, so the destination it sees is the containerPort. Grafana's
@@ -230,7 +226,7 @@ out.
 helm dependency update kubernetes/charts/platform-service   # resolves ../common
 helm template ci-test kubernetes/charts/platform-service \
   -f kubernetes/charts/platform-service/ci/test-values.yaml
-make lint
+make check
 ```
 
 `ci/test-values.yaml` is the validation contract: every template here is gated

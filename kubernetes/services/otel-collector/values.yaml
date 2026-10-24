@@ -1,20 +1,17 @@
 image:
   repository: otel/opentelemetry-collector-contrib
 
-# hazard: one node, so one Deployment sees every pod's log file. The day a second node
-# exists this must become `mode: daemonset` (plus a k8s_attributes node filter),
-# or it silently collects one node's logs; docs/decisions/005-telemetry-runs-on-the-victoriametrics-family.md
+# hazard: one node, one Deployment; a second node needs `mode: daemonset` (ADR-005).
 mode: deployment
 
-# value: 3, not the chart's 10; see grafana/values.yaml.
+# value: 3, not 10 (ADR-013).
 revisionHistoryLimit: 3
 
-# hazard: Recreate, not RollingUpdate: file_storage is a bolt DB one process can hold,
-# so a surged pod dies on the lock and `helm --wait` fails the deploy; docs/decisions/005-telemetry-runs-on-the-victoriametrics-family.md
+# hazard: one process holds file_storage's bolt DB, so a surged pod dies on the lock (ADR-005).
 rollout:
   strategy: Recreate
 
-# invariant: no manual GOMEMLIMIT: the chart injects it at 80% of limits.memory.
+# invariant: the chart sets GOMEMLIMIT to 80% of limits.memory.
 resources:
   requests:
     cpu: 25m
@@ -22,20 +19,17 @@ resources:
   limits:
     memory: 320Mi
 
-# outside: root, because containerd's /var/log/pods files are not readable by the
-# image's 10001; a wrong uid starts fine and ships nothing; docs/decisions/005-telemetry-runs-on-the-victoriametrics-family.md
+# hazard: the image's uid cannot read /var/log/pods, and fails by shipping nothing (ADR-005).
 securityContext:
   runAsUser: 0
   runAsGroup: 0
 
-# outside: /var/log covers /var/log/pods and its /var/log/containers symlinks; read-only.
 extraVolumes:
   - name: varlog
     hostPath:
       path: /var/log
       type: Directory
-  # hazard: a hostPath, not an emptyDir, so read offsets survive a pod replacement; off
-  # virtiofs on purpose (bbolt, worthless after a repave); docs/decisions/008-storage-on-orbstack-spends-fsyncs-not-bytes.md
+  # invariant: read offsets survive a pod replacement, off virtiofs (ADR-008).
   - name: filestorage
     hostPath:
       path: /var/lib/otelcol-file-storage
@@ -47,8 +41,7 @@ extraVolumeMounts:
   - name: filestorage
     mountPath: /var/lib/otelcol-file-storage
 
-# invariant: the rules `presets.kubernetesAttributes` would create, without the preset,
-# which would inject k8s_attributes into every pipeline (traces/langfuse included).
+# invariant: the preset's rules without the preset, which would put k8s_attributes in every pipeline.
 clusterRole:
   create: true
   rules:
@@ -59,8 +52,7 @@ clusterRole:
       resources: ["replicasets"]
       verbs: ["get", "list", "watch"]
 
-# invariant: pins the Service DNS name of every OTEL_EXPORTER_OTLP_ENDPOINT
-# (app.platformCatalog in kubernetes/charts/app/templates/_helpers.tpl).
+# invariant: the Service name app.platformCatalog's OTLP endpoint dials.
 fullnameOverride: otel-collector
 
 ports:
@@ -73,7 +65,6 @@ ports:
   zipkin:
     enabled: false
 
-# invariant: read by the otlp_http/langfuse exporter; the Secret is secret.yaml's.
 extraEnvs:
   - name: LANGFUSE_BASIC_AUTH
     valueFrom:
@@ -83,7 +74,6 @@ extraEnvs:
 
 config:
   extensions:
-    # invariant: persisted read offsets are what make `start_at: beginning` safe.
     file_storage:
       directory: /var/lib/otelcol-file-storage
       timeout: 10s
@@ -96,20 +86,16 @@ config:
         http:
           endpoint: 0.0.0.0:4318
 
-    # hazard: /var/log/pods, never /var/log/containers: the container operator derives
-    # pod/namespace/uid only from this path layout, and pod_association keys on the uid.
+    # hazard: never /var/log/containers: the container operator parses this path layout only.
     file_log:
       include: [/var/log/pods/*/*/*.log]
-      # invariant: excludes the collector's own logs (no feedback loop).
       exclude:
         - /var/log/pods/platform-telemetry_otel-collector-*_*/opentelemetry-collector/*.log
-      # hazard: `beginning` is safe only with `storage:` set (else every restart re-reads every
-      # file); `end` silently drops what was written while the collector was down.
+      # hazard: `beginning` is safe only with `storage:`; `end` drops what arrived while down.
       start_at: beginning
       storage: file_storage
       retry_on_failure:
         enabled: true
-      # invariant: add_metadata_from_filepath reads log.file.path, which needs this.
       include_file_path: true
       include_file_name: false
       operators:
@@ -122,12 +108,10 @@ config:
       timeout: 5s
       send_batch_size: 1024
 
-    # invariant: enriches the filelog stream only (logs/pods). The underscore spellings are
-    # canonical at Collector 0.160 and fail config load below 0.149.0.
+    # invariant: the underscore spellings fail config load below Collector 0.149.
     k8s_attributes:
       passthrough: false
-      # hazard: k8s.pod.uid only: the default `from: connection` would label every
-      # file-tailed log as the collector's own.
+      # hazard: the default `from: connection` labels every tailed log as the collector's own.
       pod_association:
         - sources:
             - from: resource_attribute
@@ -140,21 +124,18 @@ config:
           - k8s.node.name
           - k8s.deployment.name
         labels:
-          # invariant: both charts stamp the `app` label on every workload.
           - tag_name: app
             key: app
             from: pod
 
-    # outside: drops parentless client spans (undici opens a root span per fetch outside a
-    # request, ~99% of all traces); spans under a parent are kept; docs/decisions/005-telemetry-runs-on-the-victoriametrics-family.md
+    # value: parentless client spans were 99% of all traces (ADR-005).
     filter/drop-orphan-client-spans:
       error_mode: ignore
       traces:
         span:
           - 'kind == SPAN_KIND_CLIENT and IsRootSpan()'
 
-    # outside: Langfuse bills per span, so it gets one `chat` span per LLM call, prod only;
-    # the filter DROPS what a condition matches; docs/decisions/005-telemetry-runs-on-the-victoriametrics-family.md
+    # value: Langfuse bills per span, so it gets prod's `chat` span alone; a match DROPS (ADR-005).
     filter/genai:
       error_mode: ignore
       traces:
@@ -164,42 +145,36 @@ config:
 
   exporters:
     otlp_http/victoria-traces:
-      # outside: `traces_endpoint`, not `endpoint`, which would append /v1/traces.
+      # hazard: `traces_endpoint`, not `endpoint`, which would append /v1/traces.
       traces_endpoint: http://victoria-traces.platform-telemetry.svc:10428/insert/opentelemetry/v1/traces
       tls:
         insecure: true
     otlp_http/victoria-logs:
-      # outside: same as above for logs; no VL-Stream-Fields, the default stream set is small here.
       logs_endpoint: http://victoria-logs.platform-telemetry.svc:9428/insert/opentelemetry/v1/logs
       tls:
         insecure: true
     otlp_http/victoria-logs-pods:
-      # invariant: same destination, different stream-field policy: the only reason it exists.
+      # invariant: same store, its own stream fields: the one reason for a second exporter.
       logs_endpoint: http://victoria-logs.platform-telemetry.svc:9428/insert/opentelemetry/v1/logs
       tls:
         insecure: true
       headers:
-        # hazard: keep this list short; without it every attribute (k8s.pod.uid included) becomes
-        # a stream field and cardinality explodes.
+        # hazard: unpinned, every attribute becomes a stream field.
         VL-Stream-Fields: "k8s.namespace.name,k8s.pod.name,k8s.container.name,app"
     prometheus_remote_write:
-      # outside: VictoriaMetrics takes remote-write v1 natively; kept over OTLP because it
-      # changes nothing; docs/decisions/005-telemetry-runs-on-the-victoriametrics-family.md
       endpoint: http://victoria-metrics.platform-telemetry.svc:8428/api/v1/write
       tls:
         insecure: true
-      # invariant: without it an app's prod/next/staging series collide into one.
+      # invariant: without it an app's environments collide into one series.
       resource_to_telemetry_conversion:
         enabled: true
     otlp_http/langfuse:
-      # outside: Langfuse accepts OTLP/HTTP only, never gRPC.
       endpoint: https://cloud.langfuse.com/api/public/otel
       headers:
         Authorization: "Basic ${env:LANGFUSE_BASIC_AUTH}"
 
   service:
-    # hazard: must list health_check: Helm replaces lists, and health_check backs the
-    # probes; drop it and the collector fails its probes forever.
+    # hazard: lists replace: drop health_check and the probes fail forever.
     extensions:
       - health_check
       - file_storage
@@ -216,8 +191,6 @@ config:
         receivers: [otlp]
         processors: [batch]
         exporters: [otlp_http/victoria-logs]
-      # invariant: pod stdout/stderr in a separate pipeline: k8s_attributes and the stream-field
-      # policy apply to file-tailed logs only.
       logs/pods:
         receivers: [file_log]
         processors: [k8s_attributes, batch]

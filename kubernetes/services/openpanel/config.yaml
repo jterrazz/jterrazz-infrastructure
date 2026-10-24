@@ -1,6 +1,4 @@
-# invariant: the non-secret env op-api, op-worker and op-dashboard load before their
-# own values; the datastores do not read it. The dashboard SSRs through
-# API_URL_SSR; if an image drops it, docs/decisions/010-every-workload-renders-through-two-charts.md
+# invariant: the env op-api, op-worker and op-dashboard load before their own values.
 
 environment: prod
 
@@ -11,23 +9,17 @@ spec:
     BATCH_SIZE: "5000"
     BATCH_INTERVAL: "10000"
     ALLOW_INVITATION: "true"
-    # invariant: ALLOW_REGISTRATION is deliberately NOT here: it is per-release in
-    # op-api.yaml and op-dashboard.yaml so the true/false flip stays greppable.
     REDIS_URL: "redis://op-redis:6379"
-    # invariant: the /openpanel path segment is the DB init-db.sh creates.
+    # invariant: op-clickhouse.yaml's init-db.sh creates the `openpanel` database.
     CLICKHOUSE_URL: "http://op-clickhouse:8123/openpanel"
     DASHBOARD_URL: "https://openpanel.internal.jterrazz.com"
     API_URL: "https://openpanel.internal.jterrazz.com/api"
-    # invariant: dashboard SSR only: the in-cluster Service, so no hairpin through
-    # Traefik. The browser keeps API_URL.
+    # invariant: the dashboard's server-side fetches; dropping it brings back three workarounds
+    # together (ADR-010).
     API_URL_SSR: "http://op-api:3000"
-    # outside: browser origins allowed to POST /api/track; each site embeds OpenPanel's
-    # snippet itself, so a new sender adds its apex (and www.) here.
+    # hazard: a sending site missing here is refused at the CORS preflight, silently.
     API_CORS_ORIGINS: "https://openpanel.internal.jterrazz.com,https://jterrazz.com,https://www.jterrazz.com,https://spwn.sh,https://sig.news"
 
-  # outside: Infisical /jterrazz-infrastructure/openpanel, env prod: DATABASE_URL and
-  # DATABASE_URL_DIRECT (postgresql://openpanel:<POSTGRES_PASSWORD>@op-postgres:5432/openpanel),
-  # COOKIE_SECRET (32+ random bytes). ClickHouse and Redis run unauthenticated.
   secrets:
     path: /jterrazz-infrastructure/openpanel
     env:
@@ -35,7 +27,6 @@ spec:
       - DATABASE_URL_DIRECT
       - COOKIE_SECRET
 
-  # invariant: no app-derived reach; every flow is declared per release.
   network:
     isolated: true
 

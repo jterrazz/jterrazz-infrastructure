@@ -1,11 +1,4 @@
-{{- /*
-Access, aliases, the match expression and the smoke contract are this chart's;
-the IngressRoute itself is common.ingressRoute (kubernetes/charts/common).
-
-A leftover boolean `private:` key fails the render rather than being ignored:
-ignoring it would silently apply the `private` DEFAULT to a values file that
-meant `private: false`, i.e. change network exposure by omission.
-*/ -}}
+{{- /* hazard: a leftover `private: false` would silently fall to the private default. */ -}}
 {{- if hasKey .Values "private" }}
 {{- fail "`private` was replaced by `access: private|public`; remove it from this values file" }}
 {{- end }}
@@ -15,7 +8,6 @@ meant `private: false`, i.e. change network exposure by omission.
 {{- $middlewares = list (dict "name" $middleware "namespace" "platform-networking") -}}
 {{- end }}
 {{- if .Values.host }}
-{{- /* One rule matching the canonical host plus any `aliases` (see values.yaml). */ -}}
 {{- $hosts := concat (list (include "platform-service.host" .)) (.Values.aliases | default list) -}}
 {{- $match := "" -}}
 {{- range $i, $h := $hosts }}{{ if $i }}{{ $match = printf "%s || " $match }}{{ end }}{{ $match = printf "%sHost(`%s`)" $match $h }}{{ end }}

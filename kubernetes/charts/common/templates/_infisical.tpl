@@ -1,32 +1,7 @@
-{{/*
-One InfisicalSecret. Everything that is a property of THIS Infisical project
-rather than of a workload (the API host, the project slug, the shared
-machine-identity credentials in platform-secrets) is pinned here, so a new
-consumer supplies only its own path and destination.
-
-LIST form (`managedKubeSecretReferences`), not the deprecated singular
-`managedSecretReference:` map. Same fields, same behaviour for one entry, and
-`creationPolicy` is left at its default `Orphan`, which is what the singular
-field always did: the managed Secret outlives the CR rather than being
-garbage-collected with it.
-
-Input dict: name, labels (rendered lines), envSlug, secretsPath, secretName,
-secretNamespace, and three optional ones:
-
-  projectSlug the Infisical project, `jterrazz` unless given. The registry
-              account alone lives in its own project (`jterrazz-ci`) so that
-              CI's OIDC identity can view it and nothing else.
-  secretType  the Kubernetes Secret type, `Opaque` unless given. The operator
-              copies it straight into the managed Secret's `type:`, which is
-              the only way a synced Secret can be the dockerconfigjson an
-              imagePullSecret accepts.
-  template    the operator's own transform, `{ data: { key: <template> } }`.
-              Those templates are rendered by the OPERATOR (text/template with
-              sprig in scope), never by Helm, and they REPLACE the default
-              key-per-secret projection: `includeAllSecrets` would put the raw
-              values back beside them, so a caller that names a template wants
-              only what it named.
-*/}}
+{{/* Input dict: name, labels, envSlug, secretsPath, secretName, secretNamespace; optional
+projectSlug (default jterrazz), secretType (default Opaque) and template, the operator's own
+transform, which replaces the key-per-secret copy. The managed Secret is Orphan: it outlives
+the CR. */}}
 {{- define "common.infisicalSecret" -}}
 apiVersion: secrets.infisical.com/v1alpha1
 kind: InfisicalSecret

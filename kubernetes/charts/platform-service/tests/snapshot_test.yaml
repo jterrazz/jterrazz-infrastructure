@@ -1,7 +1,6 @@
 suite: full fixture render (snapshot)
-# hazard: pins the ENTIRE manifest set: a moved hostPath, Retain flipped to Delete, a lost
-# `manual` class are one-word data-loss edits. Read the diff before `helm unittest -u`;
-# docs/decisions/010-every-workload-renders-through-two-charts.md
+# hazard: a moved hostPath or a flipped reclaim policy is a one-word data loss; read the diff
+# before `helm unittest -u` (ADR-010).
 values:
   - ../ci/test-values.yaml
 tests:

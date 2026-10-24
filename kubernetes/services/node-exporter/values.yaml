@@ -1,9 +1,6 @@
-# outside: node-exporter, the source of every node_* series; scraped by annotation.
-
-# invariant: without it every object is `node-exporter-prometheus-node-exporter`.
 fullnameOverride: node-exporter
 
-# value: 3, not the chart's 10 (ControllerRevisions); see grafana/values.yaml.
+# value: 3, not 10 (ADR-013).
 revisionHistoryLimit: 3
 
 resources:

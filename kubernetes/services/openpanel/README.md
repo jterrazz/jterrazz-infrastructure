@@ -1,215 +1,82 @@
-# OpenPanel (self-hosted product analytics)
+# OpenPanel
 
-Private dashboard on **`openpanel.internal.jterrazz.com`** (Tailscale-only) + public
-event ingest on **`analytics.jterrazz.com/api/track`** (cloudflared tunnel).
-Namespace **`platform-analytics`**.
-
-**Who sends events:** the externally-hosted `jterrazz.com` site (origins
-`https://jterrazz.com` and `https://www.jterrazz.com`), which POSTs directly
-to the public ingest host. That is the only live sender. There is no shared
-SDK: a `@jterrazz/analytics` package was planned and never built, so the site
-integrates OpenPanel's browser snippet itself. Other origins listed in
-`API_CORS_ORIGINS` are pre-authorised for sites that do not send yet.
-
-## Architecture
+Self-hosted product analytics in `platform-analytics`: the dashboard is private at
+`openpanel.internal.jterrazz.com`, the ingest is public at
+`analytics.jterrazz.com/api/track`. Why it is six app-chart releases, and what
+`API_URL_SSR` replaced, is
+[ADR-010](../../../docs/decisions/010-every-workload-renders-through-two-charts.md);
+the datastore versions are
+[ADR-019](../../../docs/decisions/019-openpanel-datastores-run-supported-versions.md).
 
 ```text
- jterrazz.com (browser) ─► analytics.jterrazz.com/api/track ──► Cloudflare edge
-        │                                                          │ tunnel
-        ▼                                                          ▼
-   op-api (/track only, public IngressRoute, stripPrefix /api) ◄─ Traefik
-        │                                                          ▲
-   me on tailnet ──► openpanel.internal.jterrazz.com (private IngressRoute) ┘
-        │  /api/*  → op-api (dashboard tRPC + realtime /api/live/*)
-        │  /*      → op-dashboard (UI)
-        ▼
-   op-worker (BullMQ)   Postgres   ClickHouse   Redis
+browser ─► analytics.jterrazz.com/api/track ─► tunnel ─► Traefik ─► op-api (/track)
+tailnet ─► openpanel.internal.jterrazz.com ──────────────► Traefik ─┬─ /api/* ─► op-api
+                                                                    └─ /*     ─► op-dashboard
+op-api, op-worker ─► op-postgres · op-clickhouse · op-redis
 ```
 
-- **op-api** owns DB migrations (`pnpm -r run migrate:deploy` on boot: Prisma
-  for Postgres + code-migrations for ClickHouse), then `pnpm start`.
-- **op-worker** runs the BullMQ queues/crons (event/session/profile flushers).
-- **op-dashboard** is the Next.js UI, and it SSRs through op-api's Service
-  (`API_URL_SSR`) rather than its own public URL. Why, and what returns if a
-  future image drops the variable, is
-  [the OpenPanel ADR](../../../docs/decisions/010-every-workload-renders-through-two-charts.md).
-- Public host routes **only** `/api/track`; everything else (dashboard,
-  `/api/export`, `/api/live`, admin) is reachable only via the tailnet.
+| Release         | Role                                                                   |
+| --------------- | ---------------------------------------------------------------------- |
+| `op-api`        | the API; runs the Prisma and ClickHouse migrations on boot            |
+| `op-worker`     | the BullMQ queues and crons                                           |
+| `op-dashboard`  | the Next.js UI, rendering server-side through op-api's Service        |
+| `op-postgres`, `op-clickhouse`, `op-redis` | the datastores, `isolated`: reachable from this namespace only |
+| `openpanel-platform` | the three volumes and the two certificates (`service.yaml`)       |
 
-## Deployed versions (pinned)
+The three applications load `config.yaml` first. The public host serves
+`/api/track` alone; the dashboard, `/api/export` and `/api/live` stay on the
+tailnet.
 
-| Component     | Image                                          |
-|---------------|------------------------------------------------|
-| op-api        | `lindesvard/openpanel-api:2.3.0`                 |
-| op-worker     | `lindesvard/openpanel-worker:2.3.0`              |
-| op-dashboard  | `lindesvard/openpanel-dashboard:2.3.0`           |
-| ClickHouse    | `clickhouse/clickhouse-server:26.3.60.2` (LTS) |
-| PostgreSQL    | `postgres:17-alpine`                           |
-| Redis         | `redis:7.4.11-alpine`                          |
-| (init) chown  | `busybox:1.38` (digest-pinned in the app chart) |
+## Data
 
-The namespace itself is **not** declared here; it lives with every other
-platform namespace in
-`kubernetes/cluster/namespaces.yaml` and is applied with the rest of that
-directory.
+| PVC                    | Size | Path under `/var/lib/k8s-data` |
+| ---------------------- | ---- | ------------------------------ |
+| `openpanel-postgres`   | 3Gi  | `openpanel/postgres` (PGDATA in `pgdata/`) |
+| `openpanel-clickhouse` | 10Gi | `openpanel/clickhouse`         |
+| `openpanel-redis`      | 1Gi  | `openpanel/redis`              |
 
-**Six app-chart releases, one values file each**, declared in
-`kubernetes/helmfile.yaml.gotmpl`: `op-postgres`, `op-redis`, `op-clickhouse`,
-then `op-api` (which owns the schema), then `op-worker` and `op-dashboard`. The
-three application releases load `config.yaml` first: the non-secret env they
-share, which used to be the `openpanel-config` ConfigMap and three `envFrom`
-blocks. `openpanel-platform` (the platform-service chart) owns the storage and
-the two certificates.
+## Secrets and config
 
-All six run with a hardened container `securityContext`
-(`allowPrivilegeEscalation: false`, `capabilities.drop: [ALL]`,
-`seccompProfile: RuntimeDefault`). The three datastores additionally pin a
-non-root uid (ClickHouse 101, Postgres 70 for the alpine variant, Redis 999), each
-paired with the app chart's root `fix-permissions` initContainer, pointed at
-the same uid by `storage.owner`, since pinning the uid bypasses the
-entrypoint's own chown. The `op-*` app images do not document their user, so
-they set `runAsRoot: true` ("do not impose 1000") and are hardened without a
-uid pin (see the open item in `op-api.yaml`).
+Infisical `/jterrazz-infrastructure/openpanel` (env `prod`) holds
+`POSTGRES_PASSWORD`, `COOKIE_SECRET`, `DATABASE_URL` and `DATABASE_URL_DIRECT`
+(`postgresql://openpanel:<POSTGRES_PASSWORD>@op-postgres:5432/openpanel`). Each
+release projects only the keys it names. ClickHouse and Redis hold no
+credential.
 
-ClickHouse config (`spec.configFiles` in `op-clickhouse.yaml`, rendered as the
-`op-clickhouse-config` ConfigMap) is upstream's self-hosting config = the
-**issue #324 mitigation**: logger to console, all heavy system log tables removed,
-plus a per-query `max_memory_usage` 1 GiB cap (issue #382). No
-ClickHouse/Redis password (upstream design); each datastore is `isolated:` in
-its own `network:` block, reachable only from this namespace, dialling nothing
-but DNS.
+A new sending site adds every origin a browser can be on (`https://x.com` and
+`https://www.x.com`) to `API_CORS_ORIGINS` in `config.yaml`; a missing one is
+refused at the CORS preflight with nothing in op-api's logs.
 
-## Where the data lives
-
-All three datastores use manual **hostPath PVs (`Retain`)** under
-`/var/lib/k8s-data`; on OrbStack that's a symlink to
-`/mnt/mac/Users/jterrazz.agent/.jterrazz-infrastructure/data` (the Mac), so data
-survives pod restarts, `kubectl delete`, helm/redeploys and `make destroy`.
-
-| PVC / PV               | Size  | Path (`/var/lib/k8s-data/...`) |
-|------------------------|-------|--------------------------------|
-| `openpanel-postgres`   | 3Gi   | `openpanel/postgres/pgdata`    |
-| `openpanel-clickhouse` | 10Gi  | `openpanel/clickhouse`         |
-| `openpanel-redis`      | 1Gi   | `openpanel/redis`              |
-
-One directory per app (repo convention): the three datastores nest under
-`openpanel/` even though each has its own PV/PVC.
-
-All three PV/PVC pairs come from the **platform-service chart**, declared as
-the `storage` map in `service.yaml`; the datastore releases mount them by
-`storage.claimName` and render no volume of their own, so there is exactly one
-owner of each. `service.yaml` sets no `host`: this service has no single
-route, so each route is declared by the release that answers it. What
-`service.yaml` does own besides the volumes is the two **certificates**:
-op-api and op-dashboard both answer on `openpanel.internal.jterrazz.com`, and
-only one object may own a hostname's certificate.
-
-## Secrets & config
-
-- **Secrets**: Infisical `/jterrazz-infrastructure/openpanel` (prod). Keys:
-  `POSTGRES_PASSWORD`, `COOKIE_SECRET`, `DATABASE_URL`, `DATABASE_URL_DIRECT`.
-  The project **clientId/clientSecret** (from the OpenPanel UI) should also be
-  stored here once created. Each release that needs credentials declares
-  `spec.secrets` and gets its own InfisicalSecret, rendering `<release>-secrets`, and
-  projects only the keys it names: `POSTGRES_PASSWORD` for op-postgres, the
-  three connection/cookie keys for the applications. The one
-  `openpanel-secrets` Secret they all read wholesale is gone, and with it the
-  Ansible task that had to create it before any of them started.
-- **Non-secret config**: `config.yaml`, the values file the three application
-  releases load first (URLs, CORS origins, `SELF_HOSTED=true`). Add a new
-  sending site's origin to
-  `API_CORS_ORIGINS`: the ingest is a **browser** POST, so an origin missing
-  from that list is rejected at the CORS preflight and the events are simply
-  never delivered, with nothing in op-api's logs to say so. List every variant
-  a browser can actually be on; `jterrazz.com` **and** `www.jterrazz.com` are
-  both present for that reason.
-
-## Common operations
+## Operations
 
 ```bash
-export KUBECONFIG=./kubeconfig.yaml
-kubectl get pods -n platform-analytics
-kubectl get certificate -n platform-analytics
 kubectl logs -n platform-analytics deploy/op-api --tail=50
-# ClickHouse shell
-kubectl exec -n platform-analytics deploy/op-clickhouse -- clickhouse-client --query "SELECT count() FROM openpanel.events"
+kubectl exec -n platform-analytics deploy/op-clickhouse -- \
+  clickhouse-client --query "SELECT count() FROM openpanel.events"
 ```
 
-### Upgrade OpenPanel
+- **Upgrade OpenPanel**: bump the tag of op-api, op-worker and op-dashboard
+  together and watch op-api's log for "Migrations finished". A PostgreSQL major
+  is the dump and restore in [Operate](../../../docs/guides/operate.md#the-postgresql-major-migration).
+- **Add a user**: set `ALLOW_REGISTRATION: "true"` in `op-api.yaml` and
+  `op-dashboard.yaml`, deploy, invite, set both back. Always keep a password
+  login: OAuth-only with signup disabled locks you out (upstream #363).
+- **Public ingest**: the `analytics` CNAME is `dns_records`'; its routing rule
+  is a Public Hostname in the Zero Trust dashboard. A CNAME with no rule 404s
+  at cloudflared.
 
-Bump the `2.3.0` tag in `op-api.yaml`, `op-worker.yaml` and
-`op-dashboard.yaml` (keep the three in lockstep), then push, or re-run the
-playbook. op-api runs any new migrations on boot, so watch its logs
-for "Migrations finished" before trusting the new version. Bump ClickHouse /
-Postgres / Redis only deliberately (Postgres major bumps need a dump/restore,
-not an in-place image swap). The datastores deliberately run above OpenPanel's
-compose pins; the bounds are in
-[the datastore-versions ADR](../../../docs/decisions/019-openpanel-datastores-run-supported-versions.md).
-
-### Registration
-
-`ALLOW_REGISTRATION` is `"false"` in `op-api.yaml` and `op-dashboard.yaml`:
-the admin account exists and public signup is closed. To add a user later, flip
-both to `"true"`, redeploy, invite/sign up, then flip back. Keep a
-password login (OAuth-only + signup-disabled can lock you out, issue #363).
-
-## Backup & restore
-
-Data is `Retain` hostPath on the Mac; the simplest durable backup is a
-file-level snapshot of the three dirs, but for consistency use the DB-native
-tools below.
-
-### PostgreSQL
+## Backup and restore
 
 ```bash
-# Backup
+# PostgreSQL
 kubectl exec -n platform-analytics deploy/op-postgres -- \
   pg_dump -U openpanel -d openpanel --clean --if-exists > openpanel-pg-$(date +%F).sql
-# Restore (into a running, empty op-postgres)
 kubectl exec -i -n platform-analytics deploy/op-postgres -- \
   psql -U openpanel -d openpanel < openpanel-pg-YYYY-MM-DD.sql
+
+# ClickHouse: lands in openpanel/clickhouse/backups/ on the Mac
+kubectl exec -n platform-analytics deploy/op-clickhouse -- clickhouse-client --query \
+  "BACKUP DATABASE openpanel TO File('/var/lib/clickhouse/backups/openpanel-$(date +%F).zip')"
 ```
 
-### ClickHouse
-
-Native BACKUP to a file inside the data volume, then copy it off the Mac:
-
-```bash
-kubectl exec -n platform-analytics deploy/op-clickhouse -- \
-  clickhouse-client --query "BACKUP DATABASE openpanel TO File('/var/lib/clickhouse/backups/openpanel-$(date +%F).zip')"
-# The file lands at /var/lib/k8s-data/openpanel/clickhouse/backups/ on the Mac.
-# Restore: RESTORE DATABASE openpanel FROM File('...').
-```
-
-For a cold copy instead: scale `op-clickhouse` to 0, `tar` the
-`openpanel/clickhouse/` dir on the Mac, scale back to 1.
-
-### Redis
-
-It's a durable BullMQ queue (AOF on), not a source of truth; losing it drops
-only in-flight jobs. `appendonly.aof`/`dump.rdb` live in `openpanel/redis/` on
-the Mac; a file snapshot is sufficient. No scheduled backup needed.
-
-## Gotchas seen during deploy
-
-- **cert-manager webhook** was down at first apply (`no endpoints available`),
-  the documented post-k3s-churn issue. Fix: `kubectl rollout restart -n
-  platform-networking deploy/cert-manager deploy/cert-manager-webhook
-  deploy/cert-manager-cainjector`, then re-run the deploy.
-- **Public ingest: the CNAME and the tunnel route are managed separately.** The
-  cloudflared tunnel routes per-hostname (not a wildcard):
-  - CNAME `analytics`, pointing at the tunnel, is converged by the platform
-    deploy (`dns_records` in `ansible/inventories/group_vars/all.yml`): its Public
-    Hostname did not create it.
-  - The per-hostname **routing rule** must be added in the Zero Trust
-    dashboard (Service: HTTPS to `traefik.kube-system.svc.cluster.local:443`,
-    No TLS Verify ON); it needs Tunnel:Edit, which the DNS token lacks.
-  A CNAME with no matching route returns a 404 from cloudflared; a route with
-  no CNAME never resolves. Both are required.
-- **ClickHouse hostPath perms**: the pod runs as uid 101; an init container
-  chowns `/var/lib/clickhouse` because hostPath dirs are created root-owned.
-- **The private host is served by two releases.** `op-api.yaml` routes
-  `/api/*` and `op-dashboard.yaml` everything else; Traefik ranks the more
-  specific rule first. Both name `tlsSecret: openpanel-tls`, whose Certificate
-  belongs to `openpanel-platform`: if either release owned it, the other would
-  need a second certificate for the same hostname.
+Redis is a rebuildable queue: a file copy of `openpanel/redis/` is enough.

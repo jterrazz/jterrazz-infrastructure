@@ -1,7 +1,5 @@
 suite: the datastore shape, everything an app never sets
-# invariant: branches no app repo reaches (OpenPanel's components, the registry), pinned
-# because nothing in the fleet would notice them stop rendering. `staging` is the
-# datastore shape; docs/decisions/010-every-workload-renders-through-two-charts.md
+# invariant: the branches only platform workloads reach; `staging` is the datastore shape (ADR-010).
 values:
   - ../ci/test-values.yaml
 tests:
@@ -118,7 +116,7 @@ tests:
           path: spec.template.spec.containers[0].livenessProbe.httpGet
 
   - it: probes with tcpSocket when the client is too heavy to run per probe
-    # hazard: mongosh's cold start exceeds the probe timeout and crash-loops a healthy mongod.
+    # hazard: a client slower to start than the probe timeout would crash-loop a healthy server.
     set:
       metadata.name: db
       environment: prod

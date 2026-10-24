@@ -1,6 +1,5 @@
-# invariant: the only public ingress path. Each public hostname is a Public Hostname
-# rule in the Zero Trust dashboard, never an edit here (README.md). CrashLoops until
-# `cloudflared-secrets` (service.yaml) exists; docs/decisions/002-public-traffic-enters-through-a-cloudflare-tunnel.md
+# invariant: the one raw Deployment: hostNetwork and ClusterFirstWithHostNet, which the app
+# chart does not express (ADR-002).
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -11,7 +10,7 @@ metadata:
     app.kubernetes.io/name: cloudflared
     app.kubernetes.io/component: tunnel
 spec:
-  # value: one replica holds 4 redundant edge connections.
+  # value: one replica holds four redundant edge connections.
   replicas: 1
   selector:
     matchLabels:
@@ -24,8 +23,7 @@ spec:
         app.kubernetes.io/name: cloudflared
         app.kubernetes.io/component: tunnel
     spec:
-      # hazard: hostNetwork: the OrbStack CNI bridge gets the tunnel handshake on
-      # TCP/7844 RSTed. Safe: outbound-only, no listening port but metrics.
+      # hazard: the OrbStack CNI bridge gets the tunnel handshake on TCP/7844 reset.
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       containers:
@@ -34,10 +32,9 @@ spec:
           args:
             - tunnel
             - --no-autoupdate
-            # outside: OrbStack's NAT eats outbound UDP/443 (QUIC); HTTP/2 rides TCP/443.
+            # hazard: OrbStack's NAT eats outbound UDP/443, so no QUIC.
             - --protocol
             - http2
-            # invariant: also serves /ready, which both probes below use.
             - --metrics
             - 0.0.0.0:2000
             - run
@@ -51,7 +48,7 @@ spec:
             - name: metrics
               containerPort: 2000
               protocol: TCP
-          # invariant: 200 once an edge connection is up; liveness too, so a stuck process restarts.
+          # invariant: /ready answers 200 once an edge connection is up.
           livenessProbe:
             httpGet:
               path: /ready

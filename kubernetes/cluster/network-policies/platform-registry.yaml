@@ -1,7 +1,5 @@
 ---
-# invariant: the namespace BASELINE only; the Traefik -> :5000 rule is the workload's, in
-# kubernetes/services/registry/app.yaml. Nothing but Traefik reaches the registry.
-
+# invariant: the namespace baseline only; Zot dials nothing but DNS (ADR-011, ADR-014).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -46,8 +44,3 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    # outside: OPEN: confirm distribution 3.x makes no outbound call before removing this;
-    # storage is local, but a wrong guess breaks every app deploy in CI.
-    - ports:
-        - protocol: TCP
-          port: 443

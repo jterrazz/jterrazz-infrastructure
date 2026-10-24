@@ -1,6 +1,5 @@
 suite: what the cluster records about the app repo and its clients
-# invariant: the stamps that spare a list outside the cluster: the repository annotation and
-# the `exposeTo` ingress rule; docs/decisions/016-every-fact-has-one-home.md
+# invariant: the stamps that spare a list outside the cluster (ADR-016).
 tests:
   - it: annotates the Deployment with the repo CI passed
     templates:

@@ -1,4 +1,3 @@
-# outside: op-dashboard, the Next.js admin UI; it SSRs through op-api (config.yaml).
 metadata:
   name: op-dashboard
 
@@ -7,7 +6,6 @@ spec:
   port: 3000
   servicePort: 3000
 
-  # invariant: no uid pin; see the note in op-api.yaml.
   runAsRoot: true
 
   env:
@@ -23,11 +21,11 @@ spec:
     path: /api/healthcheck
 
   ingress:
-    # invariant: the catch-all of the private host; op-api's more specific /api route wins.
+    # invariant: the private host's catch-all; op-api's /api route is more specific.
     - host: openpanel.internal.jterrazz.com
       access: private
       tlsSecret: openpanel-tls
-      # invariant: the derived /api/healthcheck would hit op-api; 307 to /login is normal.
+      # invariant: the derived /api/healthcheck would reach op-api instead.
       smoke:
         path: /
         expect: "307,200"
@@ -36,8 +34,6 @@ spec:
     exposeTo:
       - traefik
     egress:
-      # hazard: no Traefik egress since API_URL_SSR; if an image loses it, see
-      # docs/decisions/010-every-workload-renders-through-two-charts.md
       - to: namespace:platform-analytics
       - to: internet
         ports: [443]

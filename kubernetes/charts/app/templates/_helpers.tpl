@@ -2,27 +2,8 @@
 {{- .Values.metadata.name | required "metadata.name is required" -}}
 {{- end -}}
 
-{{/*
-THE resolver: the fully-resolved `spec` for the environment being rendered.
-Every template starts with
-
-  {{- $spec := fromYaml (include "app.merged" .) -}}
-
-and then reads plain keys ($spec.port, $spec.env, $spec.resources.memory, and so on).
-An environment may override ANY spec key. Merge rules (sprig mergeOverwrite,
-spec first, environment second):
-
-  * scalars:  environment wins, else spec, else the caller's `| default`.
-  * maps:     DEEP merged, environment wins per key. `resources: {memory: ...}`
-               in an environment keeps the base `cpu`; `env:` / `secrets:`
-               merge key-by-key with THE ENVIRONMENT WINNING on a collision.
-  * lists:    REPLACED wholesale. An environment's `ingress` or
-               `platformServices` list fully supersedes spec's, deliberately:
-               a half-merged list of network surfaces is unreadable.
-
-deepCopy because mergeOverwrite mutates its first argument, and .Values is
-shared across every template in the render.
-*/}}
+{{/* invariant: the resolved `spec` of the environment being rendered; maps deep-merge with the
+environment winning, lists are replaced (README.md, Merge semantics). */}}
 {{- define "app.merged" -}}
 {{- $env := .Values.environment -}}
 {{- $envConfig := dict -}}
@@ -32,12 +13,7 @@ shared across every template in the render.
 {{- mergeOverwrite (deepCopy .Values.spec) (deepCopy $envConfig) | toYaml -}}
 {{- end -}}
 
-{{/*
-Nothing renders for an environment that isn't declared under `environments:`;
-a typo'd `--set environment=prd` produces an empty release rather than an
-error. Turning that into a hard failure is a breaking change owned by a later
-coordinated release; deliberately NOT done here.
-*/}}
+{{/* hazard: an undeclared environment renders an empty release (ADR-010). */}}
 {{- define "app.envExists" -}}
 {{- $env := .Values.environment -}}
 {{- if and $env (hasKey .Values.environments $env) -}}
@@ -47,11 +23,6 @@ false
 {{- end -}}
 {{- end -}}
 
-{{/*
-Resolved ingress list plus the one check a values file can't express: entries
-are { host, path?, public?, stripPrefix? } objects. Returns YAML; consume via
-fromYamlArray.
-*/}}
 {{- define "app.ingressList" -}}
 {{- $list := (fromYaml (include "app.merged" .)).ingress -}}
 {{- if not (kindIs "slice" $list) -}}
@@ -65,15 +36,11 @@ fromYamlArray.
 {{- if $spec.image -}}
 {{- $spec.image -}}
 {{- else -}}
-registry.internal.jterrazz.com/{{ include "app.name" . }}:latest
+{{ .Values.registry.server }}/{{ include "app.name" . }}:latest
 {{- end -}}
 {{- end -}}
 
-{{/*
-Parse a memory quantity to an integer number of MiB. Returns "" for anything
-that is not `<n>Mi` or `<n>Gi`; both callers treat that as "can't reason
-about this, leave it alone".
-*/}}
+{{/* invariant: `<n>Mi` or `<n>Gi` in MiB, else "", which every caller leaves alone. */}}
 {{- define "app.memMi" -}}
 {{- $mem := . | toString -}}
 {{- if hasSuffix "Mi" $mem -}}
@@ -83,12 +50,7 @@ about this, leave it alone".
 {{- end -}}
 {{- end -}}
 
-{{/*
-Memory limit: explicit `resources.memoryLimit`, else 2x the request. A
-derived limit is always emitted in Mi; a request in neither Mi nor Gi passes
-through unchanged. `app.memoryLimitOf` takes the resources map itself, so a
-cron job's own `resources` derive their limit by the same rule.
-*/}}
+{{/* invariant: memoryLimit, else twice the request in Mi; takes a resources map, a job's too. */}}
 {{- define "app.memoryLimit" -}}
 {{- include "app.memoryLimitOf" (fromYaml (include "app.merged" .)).resources -}}
 {{- end -}}
@@ -109,14 +71,7 @@ cron job's own `resources` derive their limit by the same rule.
 {{- end -}}
 {{- end -}}
 
-{{/*
-Node.js V8 old-space cap (MiB) ≈ 75% of the memory *request*, and ONLY at or
-above a 512Mi request: below that floor a derived cap (96MB for a 128Mi Next.js
-service) starves SSR boot and crash-loops the pod. Returns "" there, and for a
-non-Mi/Gi request, so the caller skips injection entirely.
-`app.nodeMaxOldSpaceOf` takes the resources map itself, so a cron job's heap cap
-follows its OWN request rather than the app's.
-*/}}
+{{/* invariant: 75% of the request, and nothing below 512Mi, where the cap starved SSR boot. */}}
 {{- define "app.nodeMaxOldSpace" -}}
 {{- include "app.nodeMaxOldSpaceOf" (fromYaml (include "app.merged" .)).resources -}}
 {{- end -}}
@@ -133,7 +88,6 @@ follows its OWN request rather than the app's.
 {{- (fromYaml (include "app.merged" .)).secretsEnv | default .Values.environment -}}
 {{- end -}}
 
-{{/* signews.jterrazz.com -> signews-jterrazz-com */}}
 {{- define "app.hostSlug" -}}
 {{- . | lower | replace "." "-" -}}
 {{- end -}}
@@ -142,28 +96,8 @@ follows its OWN request rather than the app's.
 {{ include "app.name" . }}-secrets
 {{- end -}}
 
-{{/*
-Single source of truth for the in-cluster platform services an app can opt
-into via `spec.platformServices: [ ... ]`. Declaring a service wires the whole
-bundle from this catalog: env injection (client side) + egress NetworkPolicy +
-(for a service that IS a catalog target, e.g. gateway-intelligence) the
-server-side ingress rule via a pod label selector.
-
-Per entry:
-  env         map of env var name -> value injected into opted-in consumers.
-              A user-set env of the same name always wins (app.containerEnv).
-  egress      { namespace, ports[] }: the consumer's egress NetworkPolicy hole.
-              ports are the POD ports (NOT the Service port). Namespace is
-              pinned (gateway-intelligence only exists in prod).
-  clientLabel (optional) pod label the consumer stamps on its own pods; the
-              target service's chart-rendered ingress rule selects on it, so a
-              new consumer needs ZERO edit on the target.
-
-OTEL_EXPORTER_OTLP_ENDPOINT keeps its spec-mandated name (the OTel SDK owns
-that contract, the one naming exception). gateway-intelligence carries no
-secret: it enforces no client API key, so consumers pass the non-secret
-placeholder the OpenAI SDK's non-empty-string check demands.
-*/}}
+{{/* invariant: the one catalog of platform services: the env a consumer gets, the egress it
+opens on POD ports, and the clientLabel the target's ingress selects on (README.md). */}}
 {{- define "app.platformCatalog" -}}
 otel-collector:
   env:
@@ -183,12 +117,7 @@ gateway-intelligence:
   clientLabel: platform-client.jterrazz.com/gateway-intelligence
 {{- end -}}
 
-{{/*
-Validated opt-in platform services for the current environment. Fails fast on
-an unknown name (typo protection) here, in the single accessor every consumer
-(env injection, client labels, netpol) already calls, so a bad name can never
-render a silently-broken manifest. Returns a YAML list (fromYamlArray).
-*/}}
+{{/* invariant: the one accessor every consumer calls, so an unknown name always fails. */}}
 {{- define "app.platformServices" -}}
 {{- $catalog := fromYaml (include "app.platformCatalog" .) -}}
 {{- $services := (fromYaml (include "app.merged" .)).platformServices -}}
@@ -216,11 +145,6 @@ render a silently-broken manifest. Returns a YAML list (fromYamlArray).
 {{- $out | toYaml -}}
 {{- end -}}
 
-{{/*
-Client labels (label -> "true") this consumer stamps on its own pods, so the
-target platform service's ingress NetworkPolicy selects it. Empty for a
-catalog entry with no clientLabel.
-*/}}
 {{- define "app.platformClientLabels" -}}
 {{- $catalog := fromYaml (include "app.platformCatalog" .) -}}
 {{- $out := dict -}}
@@ -248,25 +172,7 @@ app: {{ include "app.name" . }}
 environment: {{ .Values.environment }}
 {{- end -}}
 
-{{/*
-The probe action shared by all three probes: httpGet by default, and the two
-alternatives a datastore needs. Exactly one is emitted, in this order:
-
-  health.exec  [cmd, ...] an exec probe. Postgres answers `pg_isready`, Redis
-                         `redis-cli ping`; neither speaks HTTP at all.
-  health.tcp   true      a tcpSocket probe on spec.port. For a server that
-                         speaks its own protocol and whose CLIENT is too heavy
-                         to run per probe: mongosh's cold start alone exceeds
-                         the probe timeout, which crash-loops a healthy mongod.
-  health.path  <path>    the default: httpGet on spec.port.
-
-`health.livenessPath`, when set, is the httpGet path of the startup and liveness
-probes only; readiness keeps `health.path`, so a failing readiness route pulls
-the pod from the Service without restarting it.
-
-Input dict: ctx (the root context) and liveness (true for the startup and
-liveness probes). Emits YAML lines at column 0; the caller nindents them.
-*/}}
+{{/* invariant: exec, then tcp, then httpGet; livenessPath applies to startup and liveness. */}}
 {{- define "app.probe" -}}
 {{- $spec := fromYaml (include "app.merged" .ctx) -}}
 {{- $health := $spec.health -}}
@@ -286,29 +192,15 @@ httpGet:
 {{- end -}}
 {{- end -}}
 
-{{/*
-"true" when the image comes from OUR registry. Two things follow from it and
-from nothing else: the imagePullSecret (the credential authenticates that
-registry alone, and naming a Secret absent from the namespace earns a warning
-event on every pod start) and `imagePullPolicy: Always` (our tags are mutable;
-a third-party pinned tag is better left on Kubernetes' default, which also
-keeps a pod restart off Docker Hub's anonymous pull quota).
-*/}}
+{{/* invariant: an image on our registry gets the pull secret and `Always`; nothing else does. */}}
 {{- define "app.privateImage" -}}
 {{- if hasPrefix (printf "%s/" .Values.registry.server) (include "app.image" .) -}}
 true
 {{- end -}}
 {{- end -}}
 
-{{/*
-Where one `spec.configFiles` entry is mounted. A plain string value is content,
-mounted at /app/<filename>, the shape every app repo uses. A `{ path, content }`
-map puts the same file at an absolute path the IMAGE dictates
-(/etc/clickhouse-server/config.d/..., /docker-entrypoint-initdb.d/...), which is
-the only reason the map form exists.
-
-Input dict: filename, file.
-*/}}
+{{/* invariant: a string is content at /app/<filename>; a { path, content } map goes where the
+image wants it. */}}
 {{- define "app.configFilePath" -}}
 {{- if kindIs "map" .file -}}
 {{- .file.path | required (printf "spec.configFiles.%s is a map, so it must carry `path:` (and `content:`)" .filename) -}}
@@ -317,10 +209,6 @@ Input dict: filename, file.
 {{- end -}}
 {{- end -}}
 
-{{/*
-The CONTENT of one `spec.configFiles` entry: the value itself for the string
-form, `.content` for the map form. Input dict: filename, file.
-*/}}
 {{- define "app.configFileContent" -}}
 {{- if kindIs "map" .file -}}
 {{- .file.content | required (printf "spec.configFiles.%s is a map, so it must carry `content:` (and `path:`)" .filename) -}}
@@ -329,14 +217,8 @@ form, `.content` for the map form. Input dict: filename, file.
 {{- end -}}
 {{- end -}}
 
-{{/*
-The container securityContext: the chart's hardened defaults with
-`spec.securityContext` merged OVER them. readOnlyRootFilesystem is deliberately
-NOT among the defaults: every app here is a Next.js or Node service that writes
-caches at runtime, and setting it would crash-loop them. runAsNonRoot is
-dropped for an explicit spec.runAsRoot, which it would contradict. deepCopy
-because mergeOverwrite mutates its first argument. Returns YAML.
-*/}}
+{{/* invariant: the hardened defaults with spec.securityContext merged over them; anything past
+baseline Pod Security fails the render. */}}
 {{- define "app.containerSecurityContext" -}}
 {{- $spec := fromYaml (include "app.merged" .) -}}
 {{- $secDefaults := dict
@@ -354,9 +236,6 @@ because mergeOverwrite mutates its first argument. Returns YAML.
 {{- toYaml (mergeOverwrite (deepCopy $secDefaults) $override) -}}
 {{- end -}}
 
-{{/*
-The pod-level securityContext block, or nothing at all for spec.runAsRoot.
-*/}}
 {{- define "app.podSecurityContext" -}}
 {{- if not (fromYaml (include "app.merged" .)).runAsRoot -}}
 securityContext:
@@ -366,13 +245,7 @@ securityContext:
 {{- end -}}
 {{- end -}}
 
-{{/*
-The container `env:` list, shared by the Deployment and every cron job so a
-job runs with exactly the environment the app does: the same secrets, the
-same platform endpoints. Input dict: ctx (the root context), resources (the
-map the NODE_OPTIONS heap cap derives from: the app's, or a job's own).
-Emits list items at column 0.
-*/}}
+{{/* invariant: shared by the Deployment and every cron job, so a job runs with the app's env. */}}
 {{- define "app.containerEnv" -}}
 {{- $ctx := .ctx -}}
 {{- $spec := fromYaml (include "app.merged" $ctx) -}}
@@ -389,26 +262,17 @@ Emits list items at column 0.
 - name: OTEL_SERVICE_NAME
   value: {{ include "app.name" $ctx }}
 {{- end }}
-{{- /* Both spellings: `deployment.environment` is what the collector's
-       Langfuse filter, the remote-write label (deployment_environment) and
-       @jterrazz/telemetry read; `deployment.environment.name` is the current
-       semconv, which Langfuse maps to its Environment field. */}}
+{{- /* invariant: the collector reads `deployment.environment`; Langfuse the semconv `.name`. */}}
 {{- if not (hasKey $envVars "OTEL_RESOURCE_ATTRIBUTES") }}
 - name: OTEL_RESOURCE_ATTRIBUTES
   value: "deployment.environment={{ $ctx.Values.environment }},deployment.environment.name={{ $ctx.Values.environment }}"
 {{- end }}
-{{- /* Opt-in platform-service env (spec.platformServices, from the catalog
-       above). An app must declare `otel-collector` for telemetry to flow;
-       declaring it is also what opens the egress hole. A user-set env wins. */}}
 {{- range $key, $value := $platformEnv }}
 {{- if not (hasKey $envVars $key) }}
 - name: {{ $key }}
   value: {{ $value | quote }}
 {{- end }}
 {{- end }}
-{{- /* Default Node.js heap cap ≈ 75% of the memory request. Skipped entirely
-       if the app sets its own NODE_OPTIONS. Harmless on non-Node runtimes
-       (the var is ignored). */}}
 {{- $nodeHeap := include "app.nodeMaxOldSpaceOf" .resources }}
 {{- if and $nodeHeap (not (hasKey $envVars "NODE_OPTIONS")) }}
 - name: NODE_OPTIONS
@@ -425,12 +289,6 @@ Emits list items at column 0.
 {{- end }}
 {{- end -}}
 
-{{/*
-The container `volumeMounts:` / pod `volumes:` lists. Input dict: ctx, storage
-(whether the data volume is part of it: always for the Deployment when
-spec.storage is set, only on request for a cron job). Emit list items; callers
-`trim` and indent them.
-*/}}
 {{- define "app.volumeMounts" -}}
 {{- $spec := fromYaml (include "app.merged" .ctx) -}}
 {{- if .storage }}
@@ -470,22 +328,7 @@ spec.storage is set, only on request for a cron job). Emit list items; callers
 {{- end }}
 {{- end -}}
 
-{{/*
-The validated `spec.cronJobs` map (name -> job), for the environment being
-rendered. Every check a bad entry could otherwise turn into a silently wrong
-object fails the render here instead:
-
-  * the name must be a DNS-1123 label, and `<app>-<name>` at most 52
-    characters, as the CronJob controller appends an 11-character suffix to
-    name each Job, and a Job name is capped at 63;
-  * `schedule` is required;
-  * `command` is required and non-empty. The app's own entrypoint is its
-    server, and a server started on a schedule never exits: it would run
-    until activeDeadlineSeconds killed it, every time;
-  * `storage: true` needs spec.storage, or there is no volume to mount.
-
-Returns YAML; consume via fromYaml.
-*/}}
+{{/* invariant: each failure a bad job would otherwise apply silently fails the render. */}}
 {{- define "app.cronJobs" -}}
 {{- $spec := fromYaml (include "app.merged" .) -}}
 {{- $app := include "app.name" . -}}
@@ -511,35 +354,14 @@ Returns YAML; consume via fromYaml.
 {{- $jobs | toYaml -}}
 {{- end -}}
 
-{{/*
-The labels every cron job pod carries and, as importantly, the one it does
-NOT: `app`. The Service and the app's NetworkPolicy select on
-app.selectorLabels (`app` + `environment`), so a job pod stamped with them
-would be admitted as a Service endpoint. It has no readiness probe, so it would
-count as ready the moment it started, and Traefik would route live traffic to
-a process that is not listening. `app.kubernetes.io/component: cronjob` is what
-the jobs' own NetworkPolicy selects instead.
-*/}}
+{{/* hazard: never the `app` label: the Service would route live traffic to a job pod. */}}
 {{- define "app.cronJobSelectorLabels" -}}
 app.kubernetes.io/name: {{ include "app.name" . }}
 app.kubernetes.io/component: cronjob
 environment: {{ .Values.environment }}
 {{- end -}}
 
-{{/*
-The `spec.alerts` map (name -> provisioning YAML), checked before it reaches
-Grafana. Grafana reloads every file its alerts sidecar collects as one set, so
-one bad file is not one broken app: it fails the reload for every app on the
-cluster until it is removed. The checks are the ones Grafana's provisioning
-applies and a render can apply first:
-
-  * the payload is a YAML map with `apiVersion: 1` and a `groups` list;
-  * each group names its `name` and its `folder`;
-  * each rule carries a `uid` of at most 40 characters from [a-zA-Z0-9_-],
-    unique across every entry of the app.
-
-The payload itself is passed through untouched; this only reads it.
-*/}}
+{{/* hazard: one file Grafana refuses stops alerting for every app, so it fails here first. */}}
 {{- define "app.alerts" -}}
 {{- $spec := fromYaml (include "app.merged" .) -}}
 {{- $alerts := $spec.alerts | default dict -}}
@@ -578,13 +400,7 @@ The payload itself is passed through untouched; this only reads it.
 {{- $alerts | toYaml -}}
 {{- end -}}
 
-{{/*
-The PersistentVolume's labels: the app's, plus `app.jterrazz.com/repository` set
-to the bare repository name of meta.repository. A PV is cluster-scoped, so this
-label is how the app-deployer-ownership admission policy
-(kubernetes/cluster/app-deployers/policy.yaml in jterrazz-infrastructure) knows
-which repository may create, change or delete it; a value cannot hold the `/`.
-*/}}
+{{/* invariant: the label the ownership policy judges a PV by; a value cannot hold the `/`. */}}
 {{- define "app.volumeLabels" -}}
 {{ include "app.labels" . }}
 {{- with .Values.meta.repository }}

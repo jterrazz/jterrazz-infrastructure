@@ -3,16 +3,10 @@
 {{- $appName := include "app.name" . -}}
 {{- $labels := include "app.labels" . -}}
 {{- $ingressList := fromYamlArray (include "app.ingressList" .) -}}
-{{- /* The app already declares where it answers "I am healthy", and that is what
-       makes the smoke contract below need no app-repo edit. */ -}}
 {{- $healthPath := $spec.health.path | default "/" -}}
 {{- if not (hasPrefix "/" $healthPath) }}{{ $healthPath = printf "/%s" $healthPath }}{{ end -}}
 
-{{- /* One Certificate per unique host: multiple ingress entries on the
-       same host share one TLS secret. An entry naming an EXISTING `tlsSecret`
-       renders none: the certificate for that host is owned elsewhere (the
-       service's `<svc>-platform` release), which is what lets two app
-       releases serve one hostname without two certificates for it. */ -}}
+{{- /* invariant: one Certificate per host, none for an entry naming a foreign `tlsSecret`. */ -}}
 {{- $hosts := dict -}}
 {{- range $entry := $ingressList -}}
   {{- if and $entry.host (not $entry.tlsSecret) -}}
@@ -30,25 +24,15 @@
      "dnsNames" (list $host)) }}
 {{- end }}
 
-{{- /* Resource name is {app}-{idx} so two entries sharing a host or path
-       still get unique object names. */ -}}
 {{- range $idx, $entry := $ingressList }}
 {{- if and (not (hasKey $entry "public")) (not (hasKey $entry "access")) }}
   {{- fail (printf "ingress entry %d for %s is missing the required `public: true|false` field; declare network visibility explicitly" $idx $appName) }}
 {{- end }}
 {{- $hostSlug := include "app.hostSlug" $entry.host }}
-{{- /* `public: true|false` is the everyday spelling and covers every app.
-       `access: private|public` is the same decision in platform-service's
-       vocabulary. */ -}}
 {{- $access := $entry.access | default (ternary "public" "private" (eq (toString $entry.public) "true")) }}
 {{- $isPublic := eq $access "public" }}
 {{- $path := $entry.path | default "/" }}
 {{- $hasPath := ne $path "/" }}
-{{- /* Defaults TRUE: backends mount routes at /<resource>, without the /api
-       prefix. An app serving the literal path (e.g. an MCP server at /mcp)
-       sets stripPrefix: false. A STRING strips something other than the
-       route's own path: OpenPanel's ingest is routed on /api/track and the
-       backend serves /track, so it strips /api. */ -}}
 {{- $stripPrefix := $path }}
 {{- if hasKey $entry "stripPrefix" }}
 {{- if kindIs "bool" $entry.stripPrefix }}
@@ -59,12 +43,6 @@
 {{- end }}
 {{- $emitStripPrefix := and $hasPath (ne $stripPrefix "") }}
 {{- $routeName := printf "%s-%d" $appName $idx }}
-{{- /* A redirect entry answers on its host and sends the client elsewhere; it
-       never reaches the app. `preservePath` defaults TRUE because the common
-       case is a canonical-host redirect, and dropping the path there breaks
-       every deep link and inbound URL that ever pointed at the old host,
-       silently, with a 301 that looks correct. Set it false for a redirect to
-       one fixed page. */ -}}
 {{- $redirectTo := $entry.redirectTo | default "" }}
 {{- $isRedirect := ne $redirectTo "" }}
 {{- $preservePath := true }}
@@ -90,9 +68,6 @@
      "host" $entry.host
      "replacement" (ternary (printf "%s/${1}" $redirectTo) $redirectTo $preservePath)) }}
 {{- end }}
-{{- /* Exactly one access middleware, never chained: common.accessMiddleware.
-       A private entry gets private-access; a public one gets none and stays
-       behind the global websecure chain. */ -}}
 {{- $middlewares := list }}
 {{- $accessMiddleware := include "common.accessMiddleware" $access }}
 {{- if $accessMiddleware }}
@@ -104,21 +79,7 @@
 {{- if and $emitStripPrefix (not $isRedirect) }}
 {{- $middlewares = append $middlewares (dict "name" (printf "%s-strip-prefix" $routeName)) }}
 {{- end }}
-{{- /* THE SMOKE CONTRACT (kubernetes/charts/common/templates/_smoke.tpl).
-       Derived, so an app repo needs no edit to be probed:
-
-         redirect        `/` must answer with the middleware's 301, AND land on
-                         the replacement the middleware was built from: a 301
-                         to the wrong host is still a 301.
-         stripPrefix     the route's prefix + the app's own health path, which
-                         is what an outside caller has to ask for to reach it.
-         literal prefix  NOT probed. With stripPrefix false the app serves its
-                         own routing under the prefix, and nothing here knows
-                         which URL below it answers, and a guessed one would fail
-                         for a route that is perfectly healthy. `smoke:` on the
-                         entry is how such a route opts back in.
-
-       `smoke: false` opts out; `smoke: { path, expect, method }` overrides. */}}
+{{- /* invariant: the derived smoke contract; README.md tabulates it. */}}
 {{- $smoke := dict "probe" true "path" (printf "%s%s" (ternary $path "" $hasPath) $healthPath) "expect" "200" }}
 {{- if $isRedirect }}
 {{- $_ := set $smoke "path" "/" }}
@@ -137,8 +98,7 @@
 {{- if $entry.smoke.method }}{{ $_ := set $smoke "method" $entry.smoke.method }}{{ end }}
 {{- end }}
 {{- end }}
-{{- /* A redirect still names a service: Traefik requires one on every route,
-       and the redirect middleware answers before it is ever dialled. */}}
+{{- /* invariant: Traefik requires a service even on a redirect route. */}}
 ---
 {{ include "common.ingressRoute" (dict
      "name" $routeName
