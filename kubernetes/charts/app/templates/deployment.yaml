@@ -59,6 +59,10 @@ spec:
         {{ $key }}: {{ $value | quote }}
         {{- end }}
     spec:
+      {{- /* No workload here talks to the API server, and the namespace's default
+             ServiceAccount has no rights; an unmounted token is one less
+             credential in a compromised container. */}}
+      automountServiceAccountToken: false
       {{- with include "app.podSecurityContext" . }}
       {{- . | nindent 6 }}
       {{- end }}

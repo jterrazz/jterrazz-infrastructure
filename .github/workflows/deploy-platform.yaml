@@ -65,7 +65,7 @@ jobs:
       # is how it's meant to pick up changes across the fleet of app repos
       # that also consume it.
       - name: Setup infrastructure
-        uses: jterrazz/jterrazz-actions/actions/infra-connect@main
+        uses: jterrazz/jterrazz-actions/actions/infra-connect@796f105597d23e266df4f12f99afbd481428c6e2 # main, 2026-10-24
         with:
           infisical-client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
           infisical-client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}

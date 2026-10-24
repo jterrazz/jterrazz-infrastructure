@@ -82,6 +82,7 @@ spec:
             {{- end }}
         spec:
           restartPolicy: Never
+          automountServiceAccountToken: false
           {{- with include "app.podSecurityContext" $ }}
           {{- . | nindent 10 }}
           {{- end }}

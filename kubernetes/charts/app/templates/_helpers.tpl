@@ -346,7 +346,12 @@ because mergeOverwrite mutates its first argument. Returns YAML.
 {{- if not $spec.runAsRoot -}}
 {{- $_ := set $secDefaults "runAsNonRoot" true -}}
 {{- end -}}
-{{- toYaml (mergeOverwrite (deepCopy $secDefaults) $spec.securityContext) -}}
+{{- $override := $spec.securityContext | default dict -}}
+{{- $extraCaps := without (dig "capabilities" "add" (list) $override) "NET_BIND_SERVICE" -}}
+{{- if or $override.privileged $override.allowPrivilegeEscalation $extraCaps -}}
+{{- fail (printf "spec.securityContext of %s may not set privileged, allowPrivilegeEscalation or add a capability other than NET_BIND_SERVICE: Pod Security refuses them in an app namespace, and this chart refuses them first, at render time" (include "app.name" .)) -}}
+{{- end -}}
+{{- toYaml (mergeOverwrite (deepCopy $secDefaults) $override) -}}
 {{- end -}}
 
 {{/*

@@ -1,0 +1,40 @@
+suite: an app container cannot be made privileged, and carries no API token
+# invariant: the chart's securityContext defaults may be loosened by an app (runAsRoot,
+# a uid), never past what the cluster's baseline Pod Security admits. Failing at
+# render tells the app repo why in its own CI log, instead of an admission error
+# deep inside a `helm --atomic` rollback.
+values:
+  - ../ci/test-values.yaml
+templates:
+  - templates/deployment.yaml
+tests:
+  - it: refuses privileged
+    set:
+      spec.securityContext.privileged: true
+    asserts:
+      - failedTemplate:
+          errorPattern: may not set privileged
+  - it: refuses allowPrivilegeEscalation
+    set:
+      spec.securityContext.allowPrivilegeEscalation: true
+    asserts:
+      - failedTemplate:
+          errorPattern: may not set privileged
+  - it: refuses a capability beyond NET_BIND_SERVICE
+    set:
+      spec.securityContext.capabilities.add: [NET_BIND_SERVICE, NET_ADMIN]
+    asserts:
+      - failedTemplate:
+          errorPattern: may not set privileged
+  - it: still allows NET_BIND_SERVICE, which even restricted admits
+    set:
+      spec.securityContext.capabilities.add: [NET_BIND_SERVICE]
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].securityContext.capabilities.add
+          content: NET_BIND_SERVICE
+  - it: mounts no service-account token
+    asserts:
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false

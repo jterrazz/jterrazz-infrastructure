@@ -80,6 +80,7 @@ matches the recorded render of the CI fixture:
                 environment: prod
                 platform-client.jterrazz.com/gateway-intelligence: "true"
             spec:
+              automountServiceAccountToken: false
               containers:
                 - args:
                     - --since
@@ -210,6 +211,7 @@ matches the recorded render of the CI fixture:
             environment: prod
             platform-client.jterrazz.com/gateway-intelligence: "true"
         spec:
+          automountServiceAccountToken: false
           containers:
             - args:
                 - --enable-source-maps
