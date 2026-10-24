@@ -13,11 +13,24 @@
   become: true
   gather_facts: true
 
-  roles:
-    # invariant: skipped when site.yml already fetched the wider `site` scope on this run.
-    - role: secrets
+  # hazard: include_role, not a `roles:` entry with `when:`. A role's `when` is
+  # inherited by every task and evaluated per LOOP ITEM, so once the first
+  # secret was set the rest of the loop was skipped (the first CI deploy after
+  # roles/secrets landed failed on cloudflare_tunnel_token). An include's
+  # `when` is evaluated once. Skipped when site.yml already fetched the wider
+  # `site` scope on this run.
+  pre_tasks:
+    - name: Fetch the deploy's secrets from Infisical
+      ansible.builtin.include_role:
+        name: secrets
+        # invariant: an include does not hand its tags to the tasks it includes;
+        # `apply` does, so a targeted `--tags releases` still has its secrets.
+        apply:
+          tags: [always]
       when: cloudflare_api_token is not defined
       tags: [always]
+
+  roles:
     # hazard: KUBECONFIG once, here, instead of on ~36 individual tasks: every
     # kubectl/helm command in the role runs on the node against the k3s
     # kubeconfig, and a task that forgot the block silently talked to
