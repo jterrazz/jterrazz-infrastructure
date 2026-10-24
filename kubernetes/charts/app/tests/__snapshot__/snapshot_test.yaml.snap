@@ -205,7 +205,7 @@ matches the recorded render of the CI fixture:
       template:
         metadata:
           annotations:
-            rollout/release-revision: "0"
+            checksum/config: b3983c4ad012e8409ac26322266e0ae97c7b09732a5ef969b9175c18a899bf55
           labels:
             app: ci-test-app
             environment: prod

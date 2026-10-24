@@ -8,6 +8,10 @@ metadata:
 # annotation, the only way `make redeploy-apps` learns the app exists.
 meta:
   repository: ""
+  # invariant: set by app CI (jterrazz-actions docker-deploy, the run id) so every app
+  # deploy rolls its pods; unset for platform releases, which roll only when their
+  # config or image changes.
+  deployId: ""
 
 spec:
   # invariant: set by app CI; empty falls back to <registry>/<app>:latest.

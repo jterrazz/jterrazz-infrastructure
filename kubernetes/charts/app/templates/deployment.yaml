@@ -48,8 +48,16 @@ spec:
       {{- include "app.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      {{- /* A pod restarts when its config changes, or when app CI deploys (meta.deployId,
+             so a redeploy re-reads the app's synced secrets). Never on a bare
+             helm upgrade: `.Release.Revision` here restarted every app-chart
+             platform release (the registry, OpenPanel) on every platform
+             deploy, and a push landing on the restarting registry failed. */}}
       annotations:
-        rollout/release-revision: {{ .Release.Revision | quote }}
+        checksum/config: {{ $spec.configFiles | default dict | toJson | sha256sum | quote }}
+        {{- with .Values.meta.deployId }}
+        rollout/deploy-id: {{ . | quote }}
+        {{- end }}
       labels:
         {{- include "app.selectorLabels" . | nindent 8 }}
         {{- /* Platform-client labels: stamped on pod template labels ONLY

@@ -36,3 +36,18 @@ tests:
       - equal:
           path: spec.template.spec.automountServiceAccountToken
           value: false
+  - it: rolls on config changes, not on every helm upgrade
+    asserts:
+      - exists:
+          path: spec.template.metadata.annotations["checksum/config"]
+      - notExists:
+          path: spec.template.metadata.annotations["rollout/release-revision"]
+      - notExists:
+          path: spec.template.metadata.annotations["rollout/deploy-id"]
+  - it: rolls on every app CI deploy
+    set:
+      meta.deployId: "12345-1"
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["rollout/deploy-id"]
+          value: "12345-1"
