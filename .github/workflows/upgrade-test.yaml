@@ -86,6 +86,8 @@ jobs:
           cloudflare_tunnel_token: ci-dummy
           registry_username: ci
           registry_password: ci-dummy
+          registry_pull_username: ci-pull
+          registry_pull_password: ci-dummy
           grafana_admin_password: ci-dummy
           infisical_client_id: ci-dummy
           infisical_client_secret: ci-dummy
