@@ -34,11 +34,9 @@ tls-san:
 # dnsPolicy: Default), so CoreDNS forwards into itself and its loop plugin
 # fatals on startup.
 kubelet-arg:
-  - "max-pods=250"
   - "resolv-conf=/run/systemd/resolve/resolv.conf"
 
 kube-apiserver-arg:
-  - "enable-admission-plugins=NodeRestriction,ResourceQuota"
   # Audit trail for "who changed what". k3s writes no audit log by default, so
   # a compromised token leaves no record at all. metadata level only: it logs
   # request metadata, never request/response bodies, which is what keeps

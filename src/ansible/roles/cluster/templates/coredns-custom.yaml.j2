@@ -5,13 +5,15 @@ metadata:
   namespace: kube-system
 data:
   private-hosts.server: |
-    jterrazz.com:53 {
-      template IN A jterrazz.com {
+    {{ dns_zone }}:53 {
+      errors
+      cache 30
+      template IN A {{ dns_zone }} {
         match "{{ coredns_private_zones_regexp }}"
         answer "{% raw %}{{ .Name }}{% endraw %} 60 IN A {{ tailscale_ip }}"
         fallthrough
       }
-      template IN AAAA jterrazz.com {
+      template IN AAAA {{ dns_zone }} {
         match "{{ coredns_private_zones_regexp }}"
         rcode NOERROR
         fallthrough
