@@ -1,7 +1,13 @@
 ---
-# invariant: every helmfile release, in three passes: the Secrets Infisical cannot provide,
+# invariant: every helmfile release, in four passes: `pass: cluster` (the namespaces, which the
+# next Secrets land in; a repave has none yet), the Secrets Infisical cannot provide,
 # `pass: operators` (the CRDs), the ClusterIssuers, `pass: claims` (the volumes and Secrets later
 # passes mount), then every release (ADR-009).
+- name: Install the cluster's own objects
+  ansible.builtin.include_tasks: apply.yml
+  vars:
+    helmfile_pass: cluster
+
 # hazard: Secrets go through the k8s module, never a shell, which mangles `$` and backticks.
 - name: Create the Cloudflare API token Secret
   kubernetes.core.k8s:

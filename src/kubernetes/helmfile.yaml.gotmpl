@@ -46,7 +46,7 @@ releases:
     namespace: kube-system
     chart: ./charts/cluster
     labels:
-      pass: operators
+      pass: cluster
 
   # invariant: `pass: operators` goes first: later passes need its CRDs (ADR-009).
   - name: cert-manager

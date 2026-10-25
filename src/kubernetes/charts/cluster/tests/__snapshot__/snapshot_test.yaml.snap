@@ -598,6 +598,8 @@ matches the recorded render:
           - persistentvolumes
         verbs:
           - get
+          - list
+          - watch
           - create
           - update
           - patch

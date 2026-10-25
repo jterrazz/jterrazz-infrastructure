@@ -24,7 +24,7 @@ The best comment is a deleted line of config. Apply these rules to every
 values file, manifest, template, role and workflow.
 
 1. **Check the upstream default before writing a value** (`helm show values
-   <chart> --version <pin>`, the binary's `--help`, the Kubernetes API
+<chart> --version <pin>`, the binary's `--help`, the Kubernetes API
    defaults). A value equal to the default is deleted with its comment; one
    that differs keeps one line naming the reason.
 2. **A knob nothing sets is dead weight.** Grep before adding a key, and never
@@ -66,9 +66,10 @@ fires its handler, a k3s restart for the k3s templates.
 - **Immutable fields mean delete and recreate**: a Deployment selector, a PV's
   `hostPath.type`, a binding's `roleRef`. A changed `pathSuffix`, PV name or
   `<svc>-platform` release name moves or orphans live data.
-- **One helmfile, three passes.** Every platform release is declared in
+- **One helmfile, four passes.** Every platform release is declared in
   `src/kubernetes/helmfile.yaml.gotmpl` and nowhere else; its `.gotmpl` suffix
-  is what renders its `requiredEnv` calls. The play applies it three times:
+  is what renders its `requiredEnv` calls. The play applies it four times:
+  `pass: cluster` (the namespaces the bootstrap Secrets land in),
   `pass: operators` (cert-manager and the Infisical operator, whose CRDs the
   rest uses), `pass: claims` (the `<svc>-platform` releases: volumes,
   certificates and Secrets that workloads mount by name), then every release

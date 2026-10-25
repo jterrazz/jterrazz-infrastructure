@@ -109,7 +109,7 @@ Two words carry more than one meaning here:
   `make deploy-platform`, the `platform-*` namespaces, the `<svc>-platform` releases of `charts/platform-service` and
   the app chart's `platformServices` all name the layer, never the chart.
 - **tier** is only the namespace label above. The helmfile's deploy passes are
-  `pass: operators | claims` ([ADR-009](../decisions/009-one-helmfile-declares-every-platform-release.md)).
+  `pass: cluster | operators | claims` ([ADR-009](../decisions/009-one-helmfile-declares-every-platform-release.md)).
 
 ## The tree
 

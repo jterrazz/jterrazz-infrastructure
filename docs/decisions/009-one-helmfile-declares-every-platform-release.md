@@ -8,7 +8,9 @@ Written 2026-10-24 from the comments in `src/kubernetes/helmfile.yaml.gotmpl`,
 move of 2026-09-19) that this record replaces.
 
 Revised 2026-10-25: the passes are selected by `pass: operators | claims`, no
-longer `tier:`, which names the namespace label alone.
+longer `tier:`, which names the namespace label alone. Later that day a
+`pass: cluster` went first: the `cluster` release owns the namespaces, and the
+bootstrap Secrets need them to exist on a repave.
 
 ## Context
 
@@ -35,8 +37,9 @@ node, and `make diff` reads it from the Mac.
   `GRAFANA_ADMIN_PASSWORD`, set as an inline values map, never `--set`, which
   would put it in argv for `ps` to read. `inherit:` replaces YAML anchors,
   which helmfile 1.x dropped.
-- **Three passes in dependency order**, selected by a `pass:` label.
-  `pass: operators` first
+- **Passes in dependency order**, selected by a `pass:` label.
+  `pass: cluster` first (the namespaces, baselines, RBAC and admission), then
+  `pass: operators`
   (cert-manager and the Infisical operator, whose CRDs later passes apply),
   after the three Secrets Infisical cannot provide and before the
   ClusterIssuers; `pass: claims` second (the `<name>-platform` releases:

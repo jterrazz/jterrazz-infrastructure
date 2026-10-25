@@ -8,9 +8,11 @@ rules:
   - apiGroups: [""]
     resources: [namespaces]
     verbs: [get, create, update, patch]
+  # invariant: list and watch because Helm 4's --wait watches every kind of the release at its
+  # scope, and a PV is cluster-scoped; a PV spec holds a path, never a credential (2026-10-25).
   - apiGroups: [""]
     resources: [persistentvolumes]
-    verbs: [get, create, update, patch, delete]
+    verbs: [get, list, watch, create, update, patch, delete]
   - apiGroups: [rbac.authorization.k8s.io]
     resources: [rolebindings]
     verbs: [get, create, update, patch]
