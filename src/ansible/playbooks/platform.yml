@@ -7,9 +7,6 @@
   gather_facts: true
   vars:
     kubeconfig: /etc/rancher/k3s/k3s.yaml
-    # invariant: staged by the pre_tasks with the repository's own layout, so a path relative to
-    # the helmfile (../../.infrastructure) is the same on the node; removed by the post_tasks.
-    manifest_dir: /tmp/k8s-manifests
     kubernetes_dir: "{{ manifest_dir }}/src/kubernetes"
   environment:
     KUBECONFIG: "{{ kubeconfig }}"
@@ -23,6 +20,14 @@
         apply:
           tags: [always]
       when: cloudflare_api_token is not defined
+      tags: [always]
+
+    # invariant: staged with the repository's own layout, so a path relative to the helmfile
+    # (../../.infrastructure) holds on the node; one directory per run, since a run from the Mac
+    # and one from CI once deleted each other's tree.
+    - name: Name this run's staging directory
+      ansible.builtin.set_fact:
+        manifest_dir: "/tmp/k8s-manifests-{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_lowercase', 'digits'], length=8) }}"
       tags: [always]
 
     # invariant: staging and its cleanup change nothing deployed, so a quiet deploy reports changed=0.
