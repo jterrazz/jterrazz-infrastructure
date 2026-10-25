@@ -4,10 +4,10 @@
 collections:
   - name: https://github.com/ansible-collections/kubernetes.core.git
     type: git
-    version: "6.5.0"
+    version: "6.6.0"
   - name: https://github.com/ansible-collections/community.general.git
     type: git
-    version: "13.2.0"
+    version: "13.5.0"
   - name: https://github.com/ansible-collections/community.library_inventory_filtering.git
     type: git
     version: "1.1.5"

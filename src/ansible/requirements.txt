@@ -1,4 +1,4 @@
 # invariant: the Python toolchain both workflows install, so what lints a playbook is what runs it;
 # ansible-core, not the `ansible` bundle, whose collections would shadow requirements.yml.
-ansible-core==2.21.4
-ansible-lint==26.8.0
+ansible-core==2.21.5
+ansible-lint==26.10.1

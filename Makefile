@@ -8,7 +8,7 @@ KUBECONFIG_FILE := kubeconfig.yaml
 NODE_FQDN := $(shell awk '/ansible_host:/ {print $$2; exit}' src/ansible/inventories/ci.yml)
 # invariant: snapshots reproduce only against the helm-unittest that wrote them; validate.yaml
 # reads this pin through `make print-helm-unittest-version`.
-HELM_UNITTEST_VERSION := v1.1.2
+HELM_UNITTEST_VERSION := v1.2.1
 
 # outside: the suite reaches the cluster and the node through OrbStack, with no tailnet;
 # `CLUSTER_KUBECTL=` falls back to $$KUBECONFIG, then ./kubeconfig.yaml.
