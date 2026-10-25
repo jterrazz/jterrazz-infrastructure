@@ -10,15 +10,15 @@ two vantages. The workflows that carry them are [CI](../reference/ci.md).
 
 `make check` (alias `make lint`) is the local form of `validate.yaml`:
 
-| Check                                                    | Proves                                                                                     |
-| -------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `shellcheck src/scripts/*.sh src/scripts/lib/*.sh`       | the shell is not quietly wrong: quoting, unset variables, word splitting                   |
-| `ansible-lint -c src/ansible/.ansible-lint src/ansible/` | the whole Ansible tree, roles, templates and inventories                                   |
-| `helm lint` of `common`, then `app` and `platform-service` against their fixtures | the charts render, and render something                           |
-| `helm unittest --strict` on both charts                  | what the templates computed; `--strict` makes a typo'd assertion an error                  |
-| `actionlint`                                             | the workflow files                                                                         |
-| `make docs`                                              | the repository as content: the manual's shape, the Markdown, the comments, the names, no secret |
-| `make specs-check`                                       | the specs project against its own toolchain: types, lint, format, `@jterrazz/test`'s conventions |
+| Check                                                                             | Proves                                                                                           |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `shellcheck src/scripts/*.sh src/scripts/lib/*.sh`                                | the shell is not quietly wrong: quoting, unset variables, word splitting                         |
+| `ansible-lint -c src/ansible/.ansible-lint src/ansible/`                          | the whole Ansible tree, roles, templates and inventories                                         |
+| `helm lint` of `common`, then `app` and `platform-service` against their fixtures | the charts render, and render something                                                          |
+| `helm unittest --strict` on both charts                                           | what the templates computed; `--strict` makes a typo'd assertion an error                        |
+| `actionlint`                                                                      | the workflow files                                                                               |
+| `make docs`                                                                       | the repository as content: the manual's shape, the Markdown, the comments, the names, no secret  |
+| `make specs-check`                                                                | the specs project against its own toolchain: types, lint, format, `@jterrazz/test`'s conventions |
 
 actionlint, helm-unittest, `make docs` and `make specs-check` skip softly on a
 machine without them, because CI runs every one unconditionally; any other
@@ -73,19 +73,21 @@ probed today with no edit here.
 
 `specs/` is a TypeScript project of its own, its suite under `specs/specs/`:
 
-| Specs                                  | Proves                                                                                                   | Runs from                |
-| -------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------ |
-| `api/routes/public.spec.ts`            | every public route answers its contract through the tunnel, a redirect its `Location`                    | either vantage           |
-| `api/routes/private.spec.ts`           | every tailnet-only route answers its contract                                                            | the tailnet              |
-| `api/certificates/{public,private}`    | every host presents a trusted certificate that covers it, 15 days or more from expiry                    | the host's vantage       |
-| `api/boundary/internet.spec.ts`        | a private host never answers, and a public host refuses a request naming a private one                   | the internet only        |
-| `cluster/rbac/secrets.test.ts`         | exactly the allow-listed service accounts may list Secrets cluster-wide                                  | the API server           |
-| `cluster/rbac/github-actions.test.ts`  | the app deployers may create namespaces, and neither list Secrets nor exec anywhere                      | the API server           |
-| `cluster/traefik/service.test.ts`      | no Service holds a nodePort, and Traefik admits `100.64.0.0/10` alone                                    | the API server           |
-| `cluster/namespaces/ownership.test.ts` | every app namespace carries `app.jterrazz.com/repository`                                                | the API server           |
-| `routes/private-hostnames/`            | `private_hostnames` names exactly the hosts served tailnet-only                                          | the API server           |
-| `admission/ownership/policy.test.ts`   | the ownership policy's cases, admitted and denied, as an app's identity                                  | k3d, in the upgrade test |
-| `host/`                                | sshd takes keys alone, the nft guard, unattended-upgrades, Secret encryption, the Pod Security default   | the node, as root        |
+| Specs                                  | Proves                                                                                                                        | Runs from                |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| `api/routes/public.spec.ts`            | every public route answers its contract through the tunnel, a redirect its `Location`                                         | either vantage           |
+| `api/routes/private.spec.ts`           | every tailnet-only route answers its contract                                                                                 | the tailnet              |
+| `api/certificates/{public,private}`    | every host presents a trusted certificate that covers it, 15 days or more from expiry                                         | the host's vantage       |
+| `api/boundary/internet.spec.ts`        | a private host never answers, and a public host refuses a request naming a private one                                        | the internet only        |
+| `cluster/rbac/secrets.test.ts`         | exactly the allow-listed service accounts may list Secrets cluster-wide                                                       | the API server           |
+| `cluster/rbac/github-actions.test.ts`  | the app deployers may create namespaces, and neither list Secrets nor exec anywhere                                           | the API server           |
+| `cluster/traefik/service.test.ts`      | no Service holds a nodePort, and Traefik admits `100.64.0.0/10` alone                                                         | the API server           |
+| `cluster/namespaces/ownership.test.ts` | every namespace states its tier; a platform one is `platform-*`, an app one `<app>-<env>` with its repository and environment | the API server           |
+| `cluster/network-policies/`            | every NetworkPolicy selects pods some controller creates, and every peer it names exists                                      | the API server           |
+| `routes/private-hostnames/`            | `private_hostnames` names exactly the hosts served tailnet-only                                                               | the API server           |
+| `admission/ownership/policy.test.ts`   | the ownership policy's cases, admitted and denied, as an app's identity                                                       | k3d, in the upgrade test |
+| `admission/host-access/policy.test.ts` | only kube-system and the two named telemetry agents may touch the host                                                        | k3d, in the upgrade test |
+| `host/`                                | sshd takes keys alone, the nft guard, unattended-upgrades, Secret encryption, the Pod Security default                        | the node, as root        |
 
 A status outside the annotated set fails (a 502, a 503 and `unreachable` never
 are in it), and so does a certificate within 15 days of expiry: cert-manager
