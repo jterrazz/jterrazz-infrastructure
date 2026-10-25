@@ -28,13 +28,13 @@ live data covers, and no further.
   materialized views use. Moved on 2026-10-24 after booting 26.3.60.2 on a
   copy of the live data directory: all 29 tables and 6 materialized views
   loaded, row counts matched, no server error. Patch bumps within 26.3 are
-  free; a minor bump re-runs that test. `clickhouse-26.1-2026-10-24` beside
-  the live directory is the rollback.
+  free; a minor bump re-runs that test. The 26.1 copy kept as the rollback
+  was deleted on 2026-10-25, a day of clean ingest later.
 - **PostgreSQL: `17-alpine`.** The only statement reaching above 14 is
   Prisma 6's supported-databases list (9.6 to 18), the ORM rather than the
   application. Moved from 14 on 2026-09-19 by dump and restore
   ([the OpenPanel README](../../src/kubernetes/services/openpanel/README.md#the-postgresql-major-migration));
-  `pgdata-pg14-2026-09-19` is the rollback. Not 18: its image moved the
+  its 14 copy is gone. Not 18: its image moved the
   default data layout; 17 is supported until 2029. The tag floats to the
   latest 17 patch.
 - **Redis: latest 7.x, not 8.** Neither OpenPanel nor BullMQ publishes a
