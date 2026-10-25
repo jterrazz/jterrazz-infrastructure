@@ -1,8 +1,8 @@
 # cloudflared
 
 The public ingress: an outbound tunnel from the Cloudflare edge to Traefik's
-ClusterIP, with no port open on the host. Why it runs on pod networking with
-`--protocol http2` and a token file is
+ClusterIP, with no port open on the host. Why it runs on pod networking, over
+QUIC, with a token file is
 [ADR-002](../../../../docs/decisions/002-public-traffic-enters-through-a-cloudflare-tunnel.md).
 
 ```text

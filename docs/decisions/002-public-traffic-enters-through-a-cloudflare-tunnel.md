@@ -42,8 +42,9 @@ ClusterIP. Nothing listens on a public address.
   OrbStack CNI reset of the tunnel handshake; a probe from a plain pod that
   day completed the HTTP/2 handshake, so the host network, the raw manifest
   and the namespace's `privileged` Pod Security level all went.
-  `--protocol http2`, because OrbStack's NAT eats outbound UDP/443 and QUIC
-  dials time out.
+  The protocol is cloudflared's own choice, QUIC over UDP 7844 with HTTP/2 as
+  its fallback: the `--protocol http2` pin, written against a NAT that ate
+  UDP/443, went once a pod registered four QUIC connections (2026-10-25).
 - **One replica, rolling.** A replica holds four redundant edge connections;
   during a rollout the old and the new connector serve together. `/ready`
   (200 once an edge connection is up) backs both probes.

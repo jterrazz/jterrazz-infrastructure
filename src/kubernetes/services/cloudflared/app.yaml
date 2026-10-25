@@ -13,9 +13,6 @@ spec:
   args:
     - tunnel
     - --no-autoupdate
-    # hazard: OrbStack's NAT eats outbound UDP/443, so no QUIC.
-    - --protocol
-    - http2
     - --metrics
     - 0.0.0.0:2000
     - run
