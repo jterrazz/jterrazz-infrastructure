@@ -199,7 +199,7 @@ environments:
     network:
       isolated: true
       exposeTo:
-        - pods:app.kubernetes.io/name=ci-test-app
+        - pods:app=ci-test-worker
     ingress:
       - host: ci-test-app-staging.jterrazz.com
         path: /

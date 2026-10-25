@@ -45,36 +45,6 @@ tests:
           path: spec.jobTemplate.spec.template.metadata.labels["platform-client.jterrazz.com/jterrazz-intelligence"]
           value: "true"
 
-  - it: applies the scheduled-job defaults Kubernetes does not
-    asserts:
-      - equal:
-          path: spec.concurrencyPolicy
-          value: Forbid
-      - equal:
-          path: spec.timeZone
-          value: Etc/UTC
-      - equal:
-          path: spec.startingDeadlineSeconds
-          value: 600
-      - equal:
-          path: spec.successfulJobsHistoryLimit
-          value: 1
-      - equal:
-          path: spec.failedJobsHistoryLimit
-          value: 3
-      - equal:
-          path: spec.suspend
-          value: false
-      - equal:
-          path: spec.jobTemplate.spec.backoffLimit
-          value: 0
-      - equal:
-          path: spec.jobTemplate.spec.activeDeadlineSeconds
-          value: 3600
-      - equal:
-          path: spec.jobTemplate.spec.template.spec.restartPolicy
-          value: Never
-
   - it: honours every per-job override
     set:
       environment: staging

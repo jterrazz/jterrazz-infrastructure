@@ -2,16 +2,29 @@ import { describe, expect, test } from 'vitest';
 
 import { onHost } from '../__setup__/shell.ts';
 
-describe('unattended', () => {
-    test('unattended-upgrades runs, and apt schedules it daily', async () => {
-        // Given - the service, and the periodic setting apt's timers read
-        const service = await onHost(['systemctl', 'is-active', 'unattended-upgrades']);
-        const periodic = await onHost(['apt-config', 'dump', 'APT::Periodic::Unattended-Upgrade']);
+// value: daily timer plus its randomized delay; three days is a run missed twice, not a late one.
+const STALE_AFTER_SECONDS = 3 * 24 * 60 * 60;
 
-        // Then - the service is active and the schedule asks for an upgrade every day
-        expect({ periodic: periodic.stdout.trim(), service: service.stdout.trim() }).toStrictEqual({
+describe('unattended', () => {
+    test('apt runs unattended-upgrades daily, and has run it within three days', async () => {
+        // Given - the timer that starts the run, the setting it reads, and the stamp a finished run leaves
+        const [timer, periodic, stamp, now] = await Promise.all([
+            onHost(['systemctl', 'is-enabled', 'apt-daily-upgrade.timer']),
+            onHost(['apt-config', 'dump', 'APT::Periodic::Unattended-Upgrade']),
+            onHost(['stat', '-c', '%Y', '/var/lib/apt/periodic/upgrade-stamp']),
+            onHost(['date', '+%s']),
+        ]);
+        const age = Number(now.stdout) - Number(stamp.stdout);
+
+        // Then - scheduled, asked for every day, and the last run recent: a configured timer that never fires stays red
+        expect({
+            periodic: periodic.stdout.trim(),
+            recent: stamp.code === 0 && age < STALE_AFTER_SECONDS,
+            timer: timer.stdout.trim(),
+        }).toStrictEqual({
             periodic: 'APT::Periodic::Unattended-Upgrade "1";',
-            service: 'active',
+            recent: true,
+            timer: 'enabled',
         });
     });
 });

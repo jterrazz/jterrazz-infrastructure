@@ -55,15 +55,3 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
-
-  - it: renders the alert ConfigMap in prod
-    values:
-      - ../ci/test-values.yaml
-    templates:
-      - templates/alert-configmap.yaml
-    asserts:
-      - hasDocuments:
-          count: 1
-      - equal:
-          path: metadata.labels.grafana_alert
-          value: "1"

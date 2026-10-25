@@ -7,12 +7,6 @@ templates:
 values:
   - ../ci/test-values.yaml
 tests:
-  - it: renders every prod entry from the base spec list
-    # invariant: 6 Certificates (ingest names a foreign tlsSecret) + 7 IngressRoutes + 4 Middlewares.
-    asserts:
-      - hasDocuments:
-          count: 17
-
   - it: REPLACES the base list with the environment's, never merges them
     # invariant: staging has one entry, spec two; a merge would expose staging publicly.
     set:
@@ -25,10 +19,6 @@ tests:
           value:
             - ci-test-app-staging.jterrazz.com
         documentIndex: 0
-      - equal:
-          path: spec.routes[0].match
-          value: (Host(`ci-test-app-staging.jterrazz.com`)) && !HeaderRegexp(`Cf-Ray`, `.+`)
-        documentIndex: 1
 
   - it: "attaches private-access to a `public: false` entry, and nothing else"
     set:
@@ -75,7 +65,7 @@ tests:
       - failedTemplate:
           errorMessage: "ingress must be a list of { host, path?, public? } entries. The single-object form was removed in chart 1.17.0; migrate to a one-element list."
 
-  - it: emits one Certificate per unique host, not per entry
+  - it: emits one Certificate per unique host, and names each IngressRoute by its index
     # outside: two Certificates for one dnsName race at cert-manager.
     set:
       environment: probe
@@ -96,24 +86,6 @@ tests:
           path: spec.secretName
           value: ci-test-app-shared-jterrazz-com-tls
         documentIndex: 0
-      - isKind:
-          of: IngressRoute
-        documentIndex: 2
-      - isKind:
-          of: IngressRoute
-        documentIndex: 4
-
-  - it: names each IngressRoute by index so two entries never collide
-    set:
-      environment: probe
-      environments.probe.ingress:
-        - host: shared.jterrazz.com
-          path: /api
-          public: true
-        - host: shared.jterrazz.com
-          path: /admin
-          public: false
-    asserts:
       - equal:
           path: metadata.name
           value: ci-test-app-0

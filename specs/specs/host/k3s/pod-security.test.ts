@@ -19,11 +19,9 @@ describe('pod-security', () => {
         // Given - a privileged pod, offered to the unlabelled `default` namespace
         const outcome = await onHost(DRY_RUN, probe({ privileged: true }));
 
-        // Then - Pod Security refuses it at baseline
-        expect({ code: outcome.code, stderr: outcome.stderr.trim() }).toStrictEqual({
-            code: 1,
-            stderr: 'Error from server (Forbidden): error when creating "STDIN": pods "pod-security-probe" is forbidden: violates PodSecurity "baseline:latest": privileged (container "probe" must not set securityContext.privileged=true)',
-        });
+        // Then - Pod Security refuses it at baseline, for privileged; the rest of the sentence is the API server's to reword
+        expect(outcome.code).toBe(1);
+        expect(outcome.stderr).toMatch(/violates PodSecurity "baseline:[^"]+": privileged/u);
     });
 
     test('an unlabelled namespace admits a pod baseline allows, so the refusal above is Pod Security', async () => {

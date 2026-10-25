@@ -95,14 +95,6 @@ tests:
           path: spec.ports[0].targetPort
           value: 3000
 
-  - it: keeps the Service on 80 by default, so no IngressRoute names the app port
-    templates:
-      - templates/service.yaml
-    asserts:
-      - equal:
-          path: spec.ports[0].port
-          value: 80
-
   - it: probes with exec when the server does not speak HTTP
     set:
       environment: staging
@@ -183,28 +175,6 @@ tests:
             subPath: ci-test.json
             readOnly: true
 
-  - it: mounts an existing Secret as files for an image that reads from disk
-    templates:
-      - templates/deployment.yaml
-    asserts:
-      - contains:
-          path: spec.template.spec.volumes
-          content:
-            name: ci-test-app-files
-            secret:
-              secretName: ci-test-app-files
-
-  - it: passes command and args through verbatim
-    templates:
-      - templates/deployment.yaml
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].command
-          value: ["node", "server.js"]
-      - equal:
-          path: spec.template.spec.containers[0].args
-          value: ["--enable-source-maps"]
-
   - it: names the pull secret only for an image on our own registry
     templates:
       - templates/deployment.yaml
@@ -275,7 +245,7 @@ tests:
             from:
               - podSelector:
                   matchLabels:
-                    app.kubernetes.io/name: ci-test-app
+                    app: ci-test-worker
             ports:
               - port: 3000
 

@@ -32,3 +32,23 @@ export const publicHosts = hostsOf(routes.filter((route) => !route.private));
 
 /** Each tailnet-only host once. */
 export const privateHosts = hostsOf(routes.filter((route) => route.private));
+
+// outside: cert-manager renews at 30 days left, so 15 means renewal has failed for two weeks.
+const MINIMUM_DAYS = 15;
+
+/** What a host's certificate shows over TLS: trusted, covering the host, and far enough from expiry. */
+export async function certificateOf(
+    host: string,
+): Promise<{ authorized: boolean | undefined; covers: boolean | undefined; margin: string }> {
+    const result = await api.get(`https://${host}/`);
+    const days = result.tls?.daysRemaining ?? 0;
+
+    return {
+        authorized: result.tls?.authorized,
+        covers: result.tls?.covers(host),
+        margin: days >= MINIMUM_DAYS ? 'enough' : `${String(days)} days`,
+    };
+}
+
+/** What every certificate must show. */
+export const SOUND_CERTIFICATE = { authorized: true, covers: true, margin: 'enough' };

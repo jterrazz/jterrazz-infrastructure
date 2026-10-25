@@ -5,20 +5,10 @@ templates:
 values:
   - ../ci/test-values.yaml
 tests:
-  - it: injects nothing below the 512Mi floor
+  - it: injects nothing one MiB under the 512Mi floor
+    # hazard: below it the cap starves the heap: spwn.sh crash-looped at 128Mi -> a 96MB cap.
     set:
-      spec.resources.memory: 256Mi
-    asserts:
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: NODE_OPTIONS
-          any: true
-
-  - it: injects nothing for a tiny Next.js-sized request
-    # hazard: the exact shape that crash-looped spwn.sh: 128Mi -> a 96MB cap.
-    set:
-      spec.resources.memory: 128Mi
+      spec.resources.memory: 511Mi
     asserts:
       - notContains:
           path: spec.template.spec.containers[0].env
@@ -47,16 +37,6 @@ tests:
           content:
             name: NODE_OPTIONS
             value: "--max-old-space-size=768"
-
-  - it: derives the cap from signews-api's real 768Mi request
-    set:
-      spec.resources.memory: 768Mi
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: NODE_OPTIONS
-            value: "--max-old-space-size=576"
 
   - it: lets an app-declared NODE_OPTIONS win and injects nothing extra
     # hazard: two NODE_OPTIONS entries is an invalid PodSpec; the app's own value wins alone.

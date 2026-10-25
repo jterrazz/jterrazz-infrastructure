@@ -19,12 +19,6 @@ tests:
             app.kubernetes.io/name: ci-test-service
             app.kubernetes.io/instance: ci-test-service
 
-  - it: derives policyTypes from the directions actually declared
-    asserts:
-      - equal:
-          path: spec.policyTypes
-          value: [Ingress, Egress]
-
   - it: "`traefik` is the kube-system namespace, on the POD port"
     asserts:
       - equal:

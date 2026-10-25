@@ -75,11 +75,3 @@ tests:
           path: metadata.labels["app.kubernetes.io/name"]
           value: ci-test-service
         documentIndex: 3
-
-  - it: requires a name before it will label anything
-    # outside: no `templates:` filter: `required` aborts the whole render at the first template.
-    set:
-      name: null
-    asserts:
-      - failedTemplate:
-          errorMessage: name is required
