@@ -6,6 +6,8 @@
 Written 2026-10-24 from the comments in `.github/workflows/upgrade-test.yaml`
 (commits c0d1f87 and eabdd15) that this record replaces.
 
+Revised 2026-10-25: the deploy waits for this test and Validate.
+
 ## Context
 
 Every tree-side check reads the deploy code; none runs it. On 2026-10-24 a
@@ -42,8 +44,8 @@ tree. Each pass ends on the play's own `helm list --failed` assertion.
 
 ## Consequences
 
-- An upgrade-only failure surfaces on the pull request, before
-  `deploy-platform.yaml` runs.
+- An upgrade-only failure stops the deploy: `deploy-platform.yaml` starts
+  only from a successful upgrade test on main, after that commit's Validate.
 - About one k3d cluster's worth of runner time per change to `src/ansible/` or
   `src/kubernetes/`.
 - What it cannot see (a pod that crash-loops, a route that no longer

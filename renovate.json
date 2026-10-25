@@ -2,9 +2,9 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": [
     "Boring, weekly-only Renovate config for this repo.",
-    "Watches: GitHub Actions in .github/workflows/, the Helm chart pins in src/kubernetes/helmfile.yaml.gotmpl (native helmfile manager), src/ansible/requirements.txt (native pip manager), specs/package.json and its lockfile (native npm manager), and through the customManagers below every other pin: bare `image:` lines in src/kubernetes/services/, the busybox digest wherever it is copied, k3s / helm / helmfile / helm-diff (group_vars), helm-unittest (Makefile), and the Ansible collections' git tags.",
+    "Watches: GitHub Actions, the helmfile's chart pins, src/ansible/requirements.txt, specs/package.json, and through the customManagers every other pin: image: lines under src/kubernetes/services/, the busybox digest, k3s / helm / helmfile / helm-diff (group_vars/all/versions.yml), helm-unittest and the docs toolchain (Makefile), k3d and the k8s client library (upgrade-test.yaml), and the Ansible collections' git tags.",
     "Every pin has one home; CI reads it from there rather than holding a copy.",
-    "Not watched: kubeconform and gitleaks (their SHA256 pins cannot be bumped by Renovate), Debian and Tailscale (unattended-upgrades and apt).",
+    "Not watched: kubeconform and gitleaks (a SHA256 pin Renovate cannot recompute); Debian and Tailscale move through unattended-upgrades.",
     "Automerge is disabled everywhere: every update lands as a PR for manual review."
   ],
   "extends": [
@@ -26,9 +26,9 @@
     },
     {
       "customType": "regex",
-      "description": "k3s, pinned in group_vars.",
+      "description": "k3s, pinned in group_vars/all/versions.yml.",
       "managerFilePatterns": [
-        "/^src/ansible/inventories/group_vars/all\\.yml$/"
+        "/^src/ansible/inventories/group_vars/all/versions\\.yml$/"
       ],
       "matchStrings": [
         "k3s_version:\\s+\"(?<currentValue>[^\"]+)\""
@@ -39,9 +39,9 @@
     },
     {
       "customType": "regex",
-      "description": "helm, pinned in group_vars (validate.yaml reads it from there).",
+      "description": "helm, pinned in group_vars/all/versions.yml (validate.yaml reads it from there).",
       "managerFilePatterns": [
-        "/^src/ansible/inventories/group_vars/all\\.yml$/"
+        "/^src/ansible/inventories/group_vars/all/versions\\.yml$/"
       ],
       "matchStrings": [
         "helm_version:\\s+\"(?<currentValue>v[^\"]+)\""
@@ -51,9 +51,9 @@
     },
     {
       "customType": "regex",
-      "description": "helmfile, pinned in group_vars (validate.yaml reads it from there).",
+      "description": "helmfile, pinned in group_vars/all/versions.yml (validate.yaml reads it from there).",
       "managerFilePatterns": [
-        "/^src/ansible/inventories/group_vars/all\\.yml$/"
+        "/^src/ansible/inventories/group_vars/all/versions\\.yml$/"
       ],
       "matchStrings": [
         "helmfile_version:\\s+\"(?<currentValue>v[^\"]+)\""
@@ -63,9 +63,9 @@
     },
     {
       "customType": "regex",
-      "description": "helm-diff, pinned in group_vars.",
+      "description": "helm-diff, pinned in group_vars/all/versions.yml.",
       "managerFilePatterns": [
-        "/^src/ansible/inventories/group_vars/all\\.yml$/"
+        "/^src/ansible/inventories/group_vars/all/versions\\.yml$/"
       ],
       "matchStrings": [
         "helm_diff_version:\\s+\"(?<currentValue>v[^\"]+)\""
@@ -106,6 +106,42 @@
         "(?<depName>busybox):(?<currentValue>[0-9][0-9.]*)@(?<currentDigest>sha256:[a-f0-9]{64})"
       ],
       "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "k3d, the upgrade test's throwaway cluster.",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/upgrade-test\\.yaml$/"
+      ],
+      "matchStrings": [
+        "K3D_VERSION=(?<currentValue>v[0-9.]+)"
+      ],
+      "depNameTemplate": "k3d-io/k3d",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "description": "The k8s client library the upgrade test installs beside Ansible.",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/upgrade-test\\.yaml$/"
+      ],
+      "matchStrings": [
+        "kubernetes==(?<currentValue>[0-9.]+)"
+      ],
+      "depNameTemplate": "kubernetes",
+      "datasourceTemplate": "pypi"
+    },
+    {
+      "customType": "regex",
+      "description": "The toolchain make check-docs runs.",
+      "managerFilePatterns": [
+        "/^Makefile$/"
+      ],
+      "matchStrings": [
+        "@jterrazz/typescript@(?<currentValue>[0-9.]+)"
+      ],
+      "depNameTemplate": "@jterrazz/typescript",
+      "datasourceTemplate": "npm"
     }
   ],
   "packageRules": [

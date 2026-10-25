@@ -32,11 +32,25 @@
       changed_when: false
       tags: [always]
 
-    - name: Copy the src/kubernetes/ tree to the node
-      ansible.builtin.copy:
-        src: "{{ playbook_dir }}/../../kubernetes/"
-        dest: "{{ manifest_dir }}/kubernetes/"
-        mode: "0644"
+    # value: one archive, not one round trip per file: the per-file copy was 266s of a 6-minute CI deploy.
+    - name: Pack the src/kubernetes/ tree on the controller
+      community.general.archive:
+        path: "{{ playbook_dir }}/../../kubernetes"
+        dest: "{{ lookup('ansible.builtin.env', 'TMPDIR') | default('/tmp', true) }}/jterrazz-kubernetes.tgz"
+        exclude_path:
+          - "{{ playbook_dir }}/../../kubernetes/charts/app/tests"
+          - "{{ playbook_dir }}/../../kubernetes/charts/platform-service/tests"
+        mode: "0600"
+      delegate_to: localhost
+      become: false
+      run_once: true
+      changed_when: false
+      tags: [always]
+
+    - name: Unpack the src/kubernetes/ tree on the node
+      ansible.builtin.unarchive:
+        src: "{{ lookup('ansible.builtin.env', 'TMPDIR') | default('/tmp', true) }}/jterrazz-kubernetes.tgz"
+        dest: "{{ manifest_dir }}"
       changed_when: false
       tags: [always]
 

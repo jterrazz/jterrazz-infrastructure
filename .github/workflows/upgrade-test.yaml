@@ -67,7 +67,8 @@ jobs:
       - name: Create the k3d cluster at the production k3s version
         run: |
           set -euo pipefail
-          curl -sSfL https://raw.githubusercontent.com/k3d-io/k3d/v5.9.0/install.sh | TAG=v5.9.0 bash
+          K3D_VERSION=v5.9.0
+          curl -sSfL "https://raw.githubusercontent.com/k3d-io/k3d/${K3D_VERSION}/install.sh" | TAG="${K3D_VERSION}" bash
           k3s=$(yq '.k3s_version' src/ansible/inventories/group_vars/all/versions.yml | tr '+' '-')
           k3d cluster create ci --image "rancher/k3s:$k3s" \
             --k3s-arg "--disable=local-storage@server:0" --wait

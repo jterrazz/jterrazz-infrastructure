@@ -2,22 +2,19 @@ name: Deploy Platform
 
 # hazard: platform.yml only: the host roles restart sshd and tailscaled under the runner's own
 # session, and creating the VM is orbctl on the Mac.
+# invariant: a push deploys only once its upgrade test passed, and its Validate run with it; the
+# upgrade test's path filter is this workflow's (ADR-021).
 on:
-  push:
+  workflow_run:
+    workflows: ["Upgrade test"]
+    types: [completed]
     branches: [main]
-    paths:
-      - 'src/ansible/**'
-      - 'src/kubernetes/services/**'
-      - 'src/kubernetes/cluster/**'
-      - 'src/kubernetes/charts/platform-service/**'
-      # invariant: platform workloads render through the local app chart, which this also publishes.
-      - 'src/kubernetes/charts/app/**'
-      - 'src/kubernetes/charts/common/**'
-      - 'src/kubernetes/helmfile.yaml.gotmpl'
   workflow_dispatch:
 
 permissions:
   contents: read
+  # invariant: reads the Validate run of the same commit.
+  actions: read
   # invariant: infra-connect joins the tailnet with this job's OIDC token.
   id-token: write
 
@@ -29,10 +26,32 @@ jobs:
   deploy:
     name: Apply platform via Ansible
     runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     # hazard: no `environment:`: it rewrites the OIDC subject, which Tailscale's trust
     # credential (`...:ref:refs/heads/main`) then refuses.
     steps:
+      - name: Require the commit's Validate run to pass
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 60); do
+            run=$(gh run list -R "$GITHUB_REPOSITORY" -w validate.yaml -c "$SHA" -L 1 --json status,conclusion -q '.[0] | "\(.status) \(.conclusion)"')
+            case "$run" in
+              "completed success") exit 0 ;;
+              completed*) echo "::error::Validate concluded '${run#completed }' for $SHA"; exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo "::error::no finished Validate run for $SHA after 10 minutes"; exit 1
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Join the tailnet
         uses: jterrazz/jterrazz-actions/actions/infra-connect@a56e32078360198f0262f9d6bacd0594ac310237 # main, 2026-10-24
