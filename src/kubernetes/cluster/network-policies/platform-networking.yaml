@@ -51,10 +51,8 @@ spec:
       ports:
         - protocol: UDP
           port: 53
-    - to:
-        - namespaceSelector: {}
-      ports:
         - protocol: TCP
+          port: 53
     # hazard: no `except`: the apiserver is RFC1918 (10.43.0.1:443 -> node:6443) (ADR-011).
     - to:
         - ipBlock:
