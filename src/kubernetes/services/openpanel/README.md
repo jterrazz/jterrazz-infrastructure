@@ -58,9 +58,9 @@ kubectl exec -n platform-analytics deploy/op-clickhouse -- \
 - **Upgrade OpenPanel**: bump the tag of op-api, op-worker and op-dashboard
   together and watch op-api's log for "Migrations finished". A PostgreSQL major
   is the dump and restore [below](#the-postgresql-major-migration).
-- **Add a user**: set `ALLOW_REGISTRATION: "true"` in `op-api.yaml` and
-  `op-dashboard.yaml`, deploy, invite, set both back. Always keep a password
-  login: OAuth-only with signup disabled locks you out (upstream #363).
+- **Add a user**: set `ALLOW_REGISTRATION: "true"` in `op-api.yaml`, the only
+  reader, deploy, invite, set it back. Always keep a password login: OAuth-only
+  with signup disabled locks you out (upstream #363).
 - **Public ingest**: the `analytics` CNAME is `dns_records`'; its routing rule
   is a Public Hostname in the Zero Trust dashboard. A CNAME with no rule 404s
   at cloudflared.

@@ -10,7 +10,7 @@ that this record replaces (the platform-service rename, 076bc79; app chart
 on 2026-09-19).
 
 Revised 2026-10-25: cloudflared became an app-chart release; no workload is a
-raw manifest.
+raw manifest; the op-* images run as non-root.
 
 ## Context
 
@@ -114,6 +114,6 @@ Its operating rules, adding a user among them, are in the
   manifests produced, on purpose.
 - An app chart change reaches production on the next unrelated app deploy,
   which is why the snapshots exist.
-- Open: the op-* images document no uid, so they run without a uid pin
-  (still dropping every capability), and op-api's enrichment egress cannot be
-  narrowed until someone enumerates what it dials.
+- The op-* images run as the `node` user (uid 1000) their image ships, like
+  every app; op-api's enrichment egress cannot be narrowed until someone
+  enumerates what it dials.

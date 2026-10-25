@@ -24,13 +24,19 @@ metadata:
   namespace: platform-networking
   labels:
     app.kubernetes.io/name: traefik
+# value: text alone: registry layers and images are compressed already, and the edge compresses
+# public traffic again.
 spec:
   compress:
-    excludedContentTypes:
-      - image/png
-      - image/jpeg
-      - image/gif
-      - image/webp
+    includedContentTypes:
+      - text/html
+      - text/css
+      - text/plain
+      - text/javascript
+      - application/javascript
+      - application/json
+      - application/xml
+      - image/svg+xml
 
 ---
 apiVersion: traefik.io/v1alpha1
@@ -47,15 +53,15 @@ spec:
     stsPreload: true
     frameDeny: true
     contentTypeNosniff: true
-    browserXssFilter: true
     referrerPolicy: strict-origin-when-cross-origin
     customResponseHeaders:
       X-Powered-By: ""
       Server: ""
 
 ---
-# hazard: klipper-lb MASQUERADEs every tailnet request to an svclb pod address, hence 10.42/16;
-# allow-traefik-ingress keeps every other pod off Traefik (ADR-003).
+# hazard: klipper-lb MASQUERADEs every tailnet request to an svclb pod address, so 10.42/16 is
+# the one source a request ever has; allow-traefik-ingress keeps every other pod off Traefik,
+# and the Cf-Ray guard the tunnel's requests (ADR-003).
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -67,6 +73,4 @@ metadata:
 spec:
   ipAllowList:
     sourceRange:
-      - "100.64.0.0/10"
-      - "127.0.0.1/32"
       - "10.42.0.0/16"

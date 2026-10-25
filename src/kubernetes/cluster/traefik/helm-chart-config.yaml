@@ -51,14 +51,15 @@ spec:
       limits:
         memory: 192Mi
 
-    # invariant: the websecure middlewares live in platform-networking.
+    # invariant: the websecure middlewares live in platform-networking; no route is an Ingress.
     providers:
       kubernetesCRD:
         allowCrossNamespace: true
+      kubernetesIngress:
+        enabled: false
 
     # hazard: trustedIPs are the direct peers allowed to set X-Forwarded-For; a wrong
-    # list silently drops the client IP. Never Cloudflare's CIDRs: cloudflared on the
-    # node is the peer. Pod, service, loopback, tailnet, link-local, OrbStack
-    # (198.19/16) and RFC1918 LAN ranges; docs/decisions/003-traefiks-service-is-the-tailnet-gate.md
+    # list silently drops the client IP. Both peers, cloudflared and klipper-lb's svclb,
+    # are pods; docs/decisions/003-traefiks-service-is-the-tailnet-gate.md
     additionalArguments:
-      - "--entryPoints.websecure.forwardedHeaders.trustedIPs=10.42.0.0/16,10.43.0.0/16,127.0.0.1/32,100.64.0.0/10,169.254.0.0/16,198.19.0.0/16,172.16.0.0/12,192.168.0.0/16"
+      - "--entryPoints.websecure.forwardedHeaders.trustedIPs=10.42.0.0/16"

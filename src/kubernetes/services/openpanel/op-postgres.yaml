@@ -35,7 +35,7 @@ spec:
 
   resources:
     cpu: 25m
-    memory: 128Mi
+    memory: 64Mi
     memoryLimit: 384Mi
 
   network:

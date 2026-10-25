@@ -26,17 +26,13 @@ spec:
       path: /etc/zot/config.json
       content: |
         {
-          "distSpecVersion": "1.1.1",
           "storage": {
             "rootDirectory": "/var/lib/zot",
-            "dedupe": true,
-            "gc": true,
-            "gcDelay": "1h",
             "gcInterval": "6h",
             "retention": {
               "delay": "24h",
               "policies": [
-                { "repositories": ["**"], "deleteReferrers": true, "deleteUntagged": true }
+                { "repositories": ["**"], "deleteReferrers": true }
               ]
             }
           },

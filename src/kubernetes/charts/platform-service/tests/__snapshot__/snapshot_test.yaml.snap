@@ -76,6 +76,8 @@ matches the recorded render of the CI fixture:
           template:
             data:
               config.yaml: '{{ with .CI_TEST_TOKEN.Value }}token: {{ quote . }}{{ end }}'
+      syncConfig:
+        resyncInterval: 5m
   5: |
     apiVersion: traefik.io/v1alpha1
     kind: IngressRoute

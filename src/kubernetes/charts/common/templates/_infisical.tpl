@@ -11,6 +11,10 @@ metadata:
     {{- .labels | nindent 4 }}
 spec:
   hostAPI: https://eu.infisical.com
+  # value: the operator's own default, spelled out: unset, it logs a deprecation banner on
+  # every reconcile, 40% of its lines.
+  syncConfig:
+    resyncInterval: 5m
   authentication:
     universalAuth:
       secretsScope:
