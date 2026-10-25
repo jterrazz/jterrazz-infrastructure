@@ -114,8 +114,16 @@ const PULL_THROUGH_THE_CHART = pullReference(chartRegistryTemplate());
 const PULL_OF_THE_PUSH_PASSWORD = pullReference('{{ .DOCKER_REGISTRY_PASSWORD.Value }}');
 const SECRET_DENIAL = `denied: an app InfisicalSecret reads /${A} or the registry pull pair, into its own namespace`;
 
+// invariant: the RoleBinding a's deploy grants itself, under its own name: its namespaced writes
+// reach admission only through it.
+const DEPLOY_BINDING = {
+    ...binding(NS_A, 'app-namespace-admin', `github:jterrazz/${A}`),
+    metadata: { name: 'contract-probe-deploy', namespace: NS_A },
+};
+
 const FIXTURES = [
     namespace(NS_A, { ...APP, [KEY]: A }),
+    DEPLOY_BINDING,
     namespace(NS_B, { ...APP, [KEY]: B }),
     volume(`${B}-data`, `/var/lib/k8s-data/${B}`, B),
 ];
