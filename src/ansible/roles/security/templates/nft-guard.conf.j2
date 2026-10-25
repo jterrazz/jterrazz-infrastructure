@@ -10,8 +10,8 @@ table inet jterrazz_guard {
     iif "{{ security_guard_interface }}" tcp dport 30000-32767 drop
     iif "{{ security_guard_interface }}" udp dport 30000-32767 drop
 
-    # invariant: unauthenticated metrics, scraped over the pod network only.
-    iifname "tailscale0" tcp dport { 9100, 2000 } drop
+    # invariant: node-exporter's unauthenticated metrics, scraped over the pod network only.
+    iifname "tailscale0" tcp dport 9100 drop
 
     # hazard: the hypervisor host (`orb`, Ansible); dropping it locks the operator out.
     iif "{{ security_guard_interface }}" ip saddr {{ security_guard_host_ip }} accept

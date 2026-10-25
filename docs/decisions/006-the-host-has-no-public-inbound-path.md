@@ -7,6 +7,9 @@ Written 2026-10-24 from the comments in `src/ansible/roles/{security,tailscale}`
 and the k3s templates (commit 2885ec2, extended by the 2026-10-24 audit) that
 this record replaces.
 
+Revised 2026-10-25: the guard no longer names port 2000, which nothing on the
+host binds since cloudflared left the host network.
+
 ## Context
 
 Nothing on the host faces the internet: public traffic arrives through the
@@ -26,11 +29,11 @@ answered a neighbouring machine.
   -10, ahead of k3s and UFW, scoped to eth0 so pod traffic via cni0 and
   tailnet traffic via tailscale0 pass): accept the hypervisor host (how
   `orb`, Ansible and every Mac tool reach the VM); drop the peer subnet on
-  22, 2000, 6443, 9100, 10250 and udp 5355; drop the NodePort range from
+  22, 6443, 9100, 10250 and udp 5355; drop the NodePort range from
   every source, the Mac included, because a NodePort answers on the node
-  address and bypasses the tailnet gate (audit 2026-10-24); drop 9100 and
-  2000 on tailscale0, unauthenticated metrics scraped over the pod network
-  only. It loads after UFW so a `ufw reload` cannot flush it.
+  address and bypasses the tailnet gate (audit 2026-10-24); drop 9100 on
+  tailscale0, node-exporter's unauthenticated metrics, scraped over the pod
+  network only. It loads after UFW so a `ufw reload` cannot flush it.
 - **UFW stays as the second gate**: 22 from anywhere (no public path exists,
   and a source rule could lock the Mac out), 80/443 and 6443 from
   100.64.0.0/10 only, IPv6 off (nothing listens on it). The first gate for

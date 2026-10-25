@@ -7,6 +7,9 @@ Written 2026-10-24 from the comments in `src/kubernetes/helmfile.yaml.gotmpl`,
 `src/ansible/roles/platform/` and `group_vars` (commit 4b69385, and the Helm 4
 move of 2026-09-19) that this record replaces.
 
+Revised 2026-10-25: the passes are selected by `pass: operators | claims`, no
+longer `tier:`, which names the namespace label alone.
+
 ## Context
 
 Platform releases used to be hand-written `helm upgrade --install` tasks in
@@ -32,13 +35,14 @@ node, and `make diff` reads it from the Mac.
   `GRAFANA_ADMIN_PASSWORD`, set as an inline values map, never `--set`, which
   would put it in argv for `ps` to read. `inherit:` replaces YAML anchors,
   which helmfile 1.x dropped.
-- **Three passes in dependency order.** `tier: bootstrap` first
+- **Three passes in dependency order**, selected by a `pass:` label.
+  `pass: operators` first
   (cert-manager and the Infisical operator, whose CRDs later passes apply),
   after the three Secrets Infisical cannot provide and before the
-  ClusterIssuers; `tier: platform` second (the `<name>-platform` releases:
+  ClusterIssuers; `pass: claims` second (the `<name>-platform` releases:
   PVs, PVCs, Certificates, IngressRoutes and InfisicalSecrets that workloads
   mount and read by name);
-  then an unselected pass, so a release with no tier label is still applied.
+  then an unselected pass, so a release with no `pass:` label is still applied.
   Redeploying one release is `helmfile apply -l name=<release>`, not an
   Ansible tag.
 - **Namespaces are never created by helm**: `cluster/namespaces.yaml`

@@ -1,6 +1,6 @@
 ---
-# invariant: the Secrets Infisical cannot provide, `tier: bootstrap` (the CRDs), the
-# ClusterIssuers, then `tier: platform` (the claims and Secrets later passes mount); ADR-009.
+# invariant: the Secrets Infisical cannot provide, `pass: operators` (the CRDs), the
+# ClusterIssuers, then `pass: claims` (the volumes and Secrets later passes mount); ADR-009.
 # hazard: Secrets go through the k8s module, never a shell, which mangles `$` and backticks.
 - name: Create the Cloudflare API token Secret
   kubernetes.core.k8s:
@@ -72,7 +72,7 @@
 - name: Install cert-manager and the Infisical operator
   ansible.builtin.include_tasks: helmfile-apply.yml
   vars:
-    helmfile_tier: bootstrap
+    helmfile_pass: operators
 
 - name: Wait for the cert-manager webhook
   ansible.builtin.command:
@@ -87,4 +87,4 @@
 - name: Install the platform-service releases
   ansible.builtin.include_tasks: helmfile-apply.yml
   vars:
-    helmfile_tier: platform
+    helmfile_pass: claims

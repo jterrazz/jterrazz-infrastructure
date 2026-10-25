@@ -1,13 +1,13 @@
 ---
-# invariant: one pass; `helmfile_tier` selects a tier, omitted selects every release, so an
-# untiered one still deploys. Exit 2 means changed and synced (ADR-009).
+# invariant: one pass; `helmfile_pass` selects a `pass:` label, omitted selects every release, so
+# an unlabelled one still deploys. Exit 2 means changed and synced (ADR-009).
 
-- name: "Apply the platform Helm releases ({{ helmfile_tier | default('every release') }})"
+- name: "Apply the platform Helm releases ({{ helmfile_pass | default('every release') }})"
   ansible.builtin.command:
     cmd: >-
       helmfile --file {{ platform_helmfile }}
       apply --detailed-exitcode --concurrency 1
-      {{ ('--selector tier=' ~ helmfile_tier) if (helmfile_tier | default('')) else '' }}
+      {{ ('--selector pass=' ~ helmfile_pass) if (helmfile_pass | default('')) else '' }}
   environment:
     # invariant: read by the helmfile's `requiredEnv`, so the password never reaches argv.
     NODE_NAME: "{{ inventory_hostname }}"
@@ -19,7 +19,7 @@
 
 # hazard: the next apply diffs against a failed revision and skips it; the fix is
 # `helmfile sync -l name=<release>`, which does not diff (ADR-009).
-- name: "Assert no Helm release is left failed ({{ helmfile_tier | default('every release') }})"
+- name: "Assert no Helm release is left failed ({{ helmfile_pass | default('every release') }})"
   ansible.builtin.command:
     argv: [helm, list, --all-namespaces, --failed, --short]
   register: helm_failed_releases

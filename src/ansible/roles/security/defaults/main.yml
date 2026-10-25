@@ -30,5 +30,5 @@ security_kernel_params:
 security_guard_interface: eth0
 security_guard_host_ip: 192.168.139.1
 security_guard_peer_subnet: 192.168.139.0/24
-security_guard_blocked_tcp: [22, 2000, 6443, 9100, 10250]
+security_guard_blocked_tcp: [22, 6443, 9100, 10250]
 security_guard_blocked_udp: [5355]
