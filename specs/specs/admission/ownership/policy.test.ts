@@ -7,6 +7,10 @@ import { kubectl } from '../../__setup__/kubectl.ts';
 const A = 'contract-probe-a';
 const B = 'contract-probe-b';
 const KEY = 'app.jterrazz.com/repository';
+// invariant: the fixtures are app namespaces like any other (ADR-023): `<repository>-test`, tier app.
+const NS_A = `${A}-test`;
+const NS_B = `${B}-test`;
+const APP = { 'app.jterrazz.com/environment': 'test', 'app.jterrazz.com/tier': 'app' };
 const AS_A = [
     `--as=github:jterrazz/${A}`,
     '--as-group=github-actions:jterrazz',
@@ -40,8 +44,8 @@ const binding = (inNamespace: string, role: string, user: string): object => ({
 });
 
 const FIXTURES = [
-    namespace(A, { [KEY]: A }),
-    namespace(B, { [KEY]: B }),
+    namespace(NS_A, { ...APP, [KEY]: A }),
+    namespace(NS_B, { ...APP, [KEY]: B }),
     volume(`${B}-data`, `/var/lib/k8s-data/${B}`, B),
 ];
 
@@ -85,12 +89,14 @@ afterAll(async () => {
 const CASES: [string, Request, string][] = [
     [
         'binds app-namespace-admin to itself in its own namespace',
-        create(binding(A, 'app-namespace-admin', `github:jterrazz/${A}`)),
+        create(binding(NS_A, 'app-namespace-admin', `github:jterrazz/${A}`)),
         'admitted',
     ],
     [
         'creates a namespace labelled as itself',
-        create(namespace(`${A}-next`, { [KEY]: A })),
+        create(
+            namespace(`${A}-next`, { ...APP, 'app.jterrazz.com/environment': 'next', [KEY]: A }),
+        ),
         'admitted',
     ],
     [
@@ -100,17 +106,17 @@ const CASES: [string, Request, string][] = [
     ],
     [
         "binds itself in another app's namespace",
-        create(binding(B, 'app-namespace-admin', `github:jterrazz/${A}`)),
-        `denied: namespace ${B} is not owned by ${A}`,
+        create(binding(NS_B, 'app-namespace-admin', `github:jterrazz/${A}`)),
+        `denied: namespace ${NS_B} is not owned by ${A}`,
     ],
     [
         'binds cluster-admin in its own namespace',
-        create(binding(A, 'cluster-admin', `github:jterrazz/${A}`)),
+        create(binding(NS_A, 'cluster-admin', `github:jterrazz/${A}`)),
         `refused: user "github:jterrazz/${A}" (groups=["github-actions:jterrazz" "system:authenticated"]) is attempting to grant RBAC permissions not currently held:`,
     ],
     [
         'binds app-namespace-admin to another subject',
-        create(binding(A, 'app-namespace-admin', `github:jterrazz/${B}`)),
+        create(binding(NS_A, 'app-namespace-admin', `github:jterrazz/${B}`)),
         'denied: an app RoleBinding binds app-namespace-admin to its own identity only',
     ],
     [
@@ -135,8 +141,8 @@ const CASES: [string, Request, string][] = [
     ],
     [
         "relabels another app's namespace as its own",
-        { args: ['label', 'namespace', B, `${KEY}=${A}`, '--overwrite'] },
-        `denied: namespaces ${B} must carry ${KEY}=${A}`,
+        { args: ['label', 'namespace', NS_B, `${KEY}=${A}`, '--overwrite'] },
+        `denied: namespaces ${NS_B} must carry ${KEY}=${A}`,
     ],
     [
         'creates a volume at the root of the node',
