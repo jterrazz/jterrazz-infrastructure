@@ -151,6 +151,18 @@ config:
         log_record:
           - 'resource.attributes["k8s.container.name"] == "op-dashboard" and IsMatch(body, "^(ENVS \\{|\\}|\\s+[A-Za-z0-9_]+: .*)$")'
 
+    # invariant: Traefik's access lines become fields (RequestHost, RequestPath, DownstreamStatus,
+    # Duration, KubernetesIngressRouteNamespace...), so a dashboard filters on them instead of
+    # unpacking every line it scans (ADR-027).
+    transform/traefik-access:
+      error_mode: ignore
+      log_statements:
+        - context: log
+          conditions:
+            - 'resource.attributes["k8s.container.name"] == "traefik" and IsMatch(body, "^\\{.*\"RequestPath\"")'
+          statements:
+            - 'merge_maps(attributes, ParseJSON(body), "upsert")'
+
     # value: Langfuse bills per span, so it gets prod's `chat` span alone; a match DROPS (ADR-005).
     filter/genai:
       error_mode: ignore
@@ -214,7 +226,7 @@ config:
         exporters: [otlp_http/victoria-logs]
       logs/pods:
         receivers: [file_log]
-        processors: [memory_limiter, k8s_attributes, filter/drop-env-dumps, batch]
+        processors: [memory_limiter, k8s_attributes, filter/drop-env-dumps, transform/traefik-access, batch]
         exporters: [otlp_http/victoria-logs-pods]
       metrics:
         receivers: [otlp]

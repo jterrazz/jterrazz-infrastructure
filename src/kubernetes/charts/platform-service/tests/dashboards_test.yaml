@@ -1,4 +1,4 @@
-suite: infrastructure dashboards, one ConfigMap per entry
+suite: dashboards, the identity derived from the owner and the file name (ADR-027)
 templates:
   - templates/dashboards.yaml
 values:
@@ -9,18 +9,77 @@ tests:
     asserts:
       - equal:
           path: metadata.name
-          value: dashboard-ci-test-overview
+          value: dashboard-node
       - equal:
           path: metadata.labels.grafana_dashboard
           value: "1"
       - equal:
           path: metadata.annotations.grafana_folder
           value: infrastructure
+
+  - it: derives uid, title, tags and links, whatever the file says, and drops its id
+    asserts:
       - equal:
-          path: data
-          value:
-            ci-test-overview.json: |
-              {"title": "ci test overview"}
+          path: data["infrastructure-node.json"]
+          value: |
+            {
+              "links": [
+                {
+                  "asDropdown": false,
+                  "includeVars": true,
+                  "keepTime": true,
+                  "tags": [
+                    "infrastructure"
+                  ],
+                  "title": "infrastructure",
+                  "type": "dashboards"
+                }
+              ],
+              "panels": [],
+              "tags": [
+                "infrastructure",
+                "node"
+              ],
+              "title": "infrastructure / Node",
+              "uid": "infrastructure-node"
+            }
+
+  - it: titles a kebab-case kind word by word
+    set:
+      dashboards:
+        content-pipeline: '{}'
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: metadata.name
+          value: dashboard-content-pipeline
+      - matchRegex:
+          path: data["infrastructure-content-pipeline.json"]
+          pattern: '"title": "infrastructure / Content Pipeline"'
+
+  - it: refuses a catch-all kind
+    # hazard: `overview` names no audience, which is how one dashboard becomes everything.
+    set:
+      dashboards:
+        overview: '{}'
+    asserts:
+      - failedTemplate:
+          errorMessage: 'dashboards.overview: "overview" names no audience; a dashboard is `service` (is it broken, and where), `business` (does it produce what it should), or a subsystem worth its own investigation'
+
+  - it: refuses a file name that is not a kebab-case kind
+    set:
+      dashboards:
+        Node_Overview: '{}'
+    asserts:
+      - failedTemplate:
+          errorMessage: "dashboards.Node_Overview: a dashboard file is named by its kind in kebab-case (service, business, or a subsystem)"
+
+  - it: refuses a payload that is not JSON
+    set:
+      dashboards:
+        node: "not json"
+    asserts:
+      - failedTemplate: {}
 
   - it: renders nothing without dashboards
     set:

@@ -81,8 +81,8 @@ spec:
 
   # invariant: prod-only.
   dashboards:
-    overview: |
-      { "title": "ci-test-app overview", "panels": [] }
+    service: |
+      { "title": "anything", "uid": "anything", "panels": [] }
 
   # hazard: two entries: the alerts ConfigMap is ONE object with a key per entry, so one
   # entry would not catch a template emitting only the last key.

@@ -209,9 +209,11 @@ out.
 
 ## `dashboards:` and `alerts:`, the platform's own
 
-`dashboards` maps a name to dashboard JSON; each entry renders
-`ConfigMap dashboard-<name>`, labelled `grafana_dashboard: "1"` and filed in
-Grafana's `infrastructure` folder. `alerts` maps a name to an alert
+`dashboards` maps a kind to dashboard JSON; each entry renders
+`ConfigMap dashboard-<kind>`, labelled `grafana_dashboard: "1"` and filed in
+Grafana's `infrastructure` folder, its identity derived by the same
+`common.dashboards` an app's goes through (uid `infrastructure-<kind>`,
+[ADR-027](../../../../docs/decisions/027-a-dashboard-answers-one-audience-and-its-identity-is-derived.md)). `alerts` maps a name to an alert
 provisioning document; all of them render one `ConfigMap <name>-alerts`,
 labelled `grafana_alert: "1"` and checked by the same `common.alerts` an app's
 rules are. Only `grafana-platform` sets them, and its helmfile entry fills them

@@ -392,10 +392,17 @@ htpasswd is the one user. For a credential that arrives as env vars, use
 
 ### `spec.dashboards`
 
-Map of `name -> Grafana dashboard JSON`. Renders a ConfigMap labelled
-`grafana_dashboard: "1"` and annotated `grafana_folder: <app>`, which
-Grafana's sidecar picks up. **Only rendered when `environment == prod`**:
-one dashboard per app, not one per environment.
+Map of `kind -> Grafana dashboard JSON`. Renders a ConfigMap
+`<app>-dashboard-<kind>` labelled `grafana_dashboard: "1"` and annotated
+`grafana_folder: <app>`, which Grafana's sidecar picks up. **Only rendered
+when `environment == prod`**: one dashboard per app, not one per environment.
+
+The kind is `service`, `business` or a subsystem's name, in kebab-case;
+`overview`, `misc`, `general` and `main` fail the render. `common.dashboards`
+overwrites the identity: uid `<app>-<kind>`, title `<app> / <Kind>`, tags
+`[<app>, <kind>]`, a link to each of the app's dashboards and one to
+`infrastructure / Workload` on `<app>-prod`
+([ADR-027](../../../../docs/decisions/027-a-dashboard-answers-one-audience-and-its-identity-is-derived.md)).
 
 App CI fills this map for you: `jterrazz-actions/actions/docker-deploy` scans
 `.infrastructure/dashboards/*.json` and appends

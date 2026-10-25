@@ -72,7 +72,7 @@ network:
 
 # invariant: one dashboard, so the ConfigMap's labels and folder are pinned.
 dashboards:
-  ci-test-overview: '{"title": "ci test overview"}'
+  node: '{"title": "anything", "id": 7, "panels": []}'
 
 # invariant: one valid document, so the ConfigMap and the shared validation are pinned.
 alerts:

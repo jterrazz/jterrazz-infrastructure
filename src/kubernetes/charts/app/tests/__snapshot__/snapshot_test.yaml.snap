@@ -47,8 +47,36 @@ matches the recorded render of the CI fixture:
   3: |
     apiVersion: v1
     data:
-      ci-test-app-overview.json: |
-        { "title": "ci-test-app overview", "panels": [] }
+      ci-test-app-service.json: |
+        {
+          "links": [
+            {
+              "asDropdown": false,
+              "includeVars": true,
+              "keepTime": true,
+              "tags": [
+                "ci-test-app"
+              ],
+              "title": "ci-test-app",
+              "type": "dashboards"
+            },
+            {
+              "icon": "dashboard",
+              "keepTime": true,
+              "targetBlank": false,
+              "title": "workload",
+              "type": "link",
+              "url": "/d/infrastructure-workload?var-namespace=ci-test-app-prod\u0026var-container=ci-test-app"
+            }
+          ],
+          "panels": [],
+          "tags": [
+            "ci-test-app",
+            "service"
+          ],
+          "title": "ci-test-app / Service",
+          "uid": "ci-test-app-service"
+        }
     kind: ConfigMap
     metadata:
       annotations:
@@ -60,7 +88,7 @@ matches the recorded render of the CI fixture:
         app.kubernetes.io/name: ci-test-app
         environment: prod
         grafana_dashboard: "1"
-      name: ci-test-app-dashboard-overview
+      name: ci-test-app-dashboard-service
   4: |
     apiVersion: apps/v1
     kind: Deployment

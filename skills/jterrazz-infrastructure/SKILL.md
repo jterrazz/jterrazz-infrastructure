@@ -10,7 +10,9 @@ Debian 13 trixie, arm64) on the dev Mac, in the `jterrazz-infrastructure`
 repository. `src/scripts/deploy.sh` creates it, Ansible configures it, and
 Helmfile deploys every platform release declared in
 `src/kubernetes/helmfile.yaml.gotmpl`. Public traffic enters through a
-Cloudflare tunnel; private hosts are tailnet-only. Apps live in their own
+Cloudflare tunnel onto Traefik's `tunnel` entrypoint, and external-dns writes
+each public host's record off its IngressRoute; private hosts sit on
+`websecure`, which only the tailnet reaches. Apps live in their own
 repositories and deploy themselves, as their GitHub OIDC identity, through the
 `app` chart published there.
 
@@ -27,6 +29,7 @@ repositories and deploy themselves, as their GitHub OIDC identity, through the
 | Secrets, troubleshooting, repave, restore         | `docs/guides/operate.md`              |
 | What proves a change, and what a deploy proves    | `docs/guides/test.md`                 |
 | Why a choice was made                             | `docs/decisions/`                     |
+| Dashboards and alert rules                        | the `jterrazz-observability` skill    |
 
 ## Commands
 
@@ -61,6 +64,9 @@ orb -m jterrazz-infrastructure -u root kubectl get pod -A   # cluster access fro
   identity that reads it.
 - **Never rename a `<svc>-platform` release, a PV, or a `pathSuffix`**: they
   address live data.
+- **Never add a Public Hostname in the Cloudflare dashboard**: the tunnel has
+  one catch-all rule the deploy converges, and a route is public by
+  `public: true` on its ingress entry (ADR-026).
 - **Never add a hostname table to the platform contract**: each route's
   `smoke.jterrazz.com/*` annotations are its check, set in the values file or
   `application.yaml` that owns the route.

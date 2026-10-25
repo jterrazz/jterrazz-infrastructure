@@ -32,24 +32,25 @@ a list that names one is stale, never a cue to bring it back.
 
 ## Where to read
 
-| Question                                                | Page                                                                                                 |
-| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| How does the system fit together? How are things named? | [docs/concepts/architecture.md](docs/concepts/architecture.md)                                       |
-| What keeps a request out, and what proves it?           | [docs/concepts/security.md](docs/concepts/security.md)                                               |
-| I am editing a values file, manifest, template or role  | [docs/guides/develop.md](docs/guides/develop.md)                                                     |
-| How does a change reach the cluster?                    | [docs/guides/release.md](docs/guides/release.md)                                                     |
-| What proves this change? What does a deploy prove?      | [docs/guides/test.md](docs/guides/test.md)                                                           |
-| Troubleshooting, repave, restore, rotate, add a service | [docs/guides/operate.md](docs/guides/operate.md)                                                     |
-| Where does a secret live, and who reads it?             | [docs/reference/secrets.md](docs/reference/secrets.md)                                               |
-| I am deploying or configuring an app                    | [docs/reference/deploy-contract.md](docs/reference/deploy-contract.md)                               |
-| What does CI run, and what does a merge trigger?        | [docs/reference/ci.md](docs/reference/ci.md)                                                         |
-| I am changing a version, a digest or a shared value     | [docs/reference/hand-synced-pairs.md](docs/reference/hand-synced-pairs.md)                           |
-| What runs on the cluster?                               | [docs/reference/platform-services.md](docs/reference/platform-services.md)                           |
-| How do I bring a rented target back?                    | [docs/guides/resurrect-hetzner.md](docs/guides/resurrect-hetzner.md)                                 |
-| Why was a choice made?                                  | [docs/decisions/](docs/decisions/)                                                                   |
-| The `application.yaml` schema                           | [src/kubernetes/charts/app/README.md](src/kubernetes/charts/app/README.md)                           |
-| A platform service's `service.yaml`                     | [src/kubernetes/charts/platform-service/README.md](src/kubernetes/charts/platform-service/README.md) |
-| What the two charts share                               | [src/kubernetes/charts/common/README.md](src/kubernetes/charts/common/README.md)                     |
+| Question                                                | Page                                                                                                                                                                     |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| How does the system fit together? How are things named? | [docs/concepts/architecture.md](docs/concepts/architecture.md)                                                                                                           |
+| What keeps a request out, and what proves it?           | [docs/concepts/security.md](docs/concepts/security.md)                                                                                                                   |
+| I am editing a values file, manifest, template or role  | [docs/guides/develop.md](docs/guides/develop.md)                                                                                                                         |
+| How does a change reach the cluster?                    | [docs/guides/release.md](docs/guides/release.md)                                                                                                                         |
+| What proves this change? What does a deploy prove?      | [docs/guides/test.md](docs/guides/test.md)                                                                                                                               |
+| Troubleshooting, repave, restore, rotate, add a service | [docs/guides/operate.md](docs/guides/operate.md)                                                                                                                         |
+| Where does a secret live, and who reads it?             | [docs/reference/secrets.md](docs/reference/secrets.md)                                                                                                                   |
+| I am deploying or configuring an app                    | [docs/reference/deploy-contract.md](docs/reference/deploy-contract.md)                                                                                                   |
+| What does CI run, and what does a merge trigger?        | [docs/reference/ci.md](docs/reference/ci.md)                                                                                                                             |
+| I am changing a version, a digest or a shared value     | [docs/reference/hand-synced-pairs.md](docs/reference/hand-synced-pairs.md)                                                                                               |
+| What runs on the cluster?                               | [docs/reference/platform-services.md](docs/reference/platform-services.md)                                                                                               |
+| I am building a dashboard or an alert rule              | [docs/decisions/027-a-dashboard-answers-one-audience-and-its-identity-is-derived.md](docs/decisions/027-a-dashboard-answers-one-audience-and-its-identity-is-derived.md) |
+| How do I bring a rented target back?                    | [docs/guides/resurrect-hetzner.md](docs/guides/resurrect-hetzner.md)                                                                                                     |
+| Why was a choice made?                                  | [docs/decisions/](docs/decisions/)                                                                                                                                       |
+| The `application.yaml` schema                           | [src/kubernetes/charts/app/README.md](src/kubernetes/charts/app/README.md)                                                                                               |
+| A platform service's `service.yaml`                     | [src/kubernetes/charts/platform-service/README.md](src/kubernetes/charts/platform-service/README.md)                                                                     |
+| What the two charts share                               | [src/kubernetes/charts/common/README.md](src/kubernetes/charts/common/README.md)                                                                                         |
 
 ## Gestures
 

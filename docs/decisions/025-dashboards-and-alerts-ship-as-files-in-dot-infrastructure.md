@@ -3,6 +3,9 @@
 **Status:** Accepted
 **Date:** 2026-10-25
 
+Revised 2026-10-25: a file is named by its kind and the chart derives each
+dashboard's identity ([ADR-027](027-a-dashboard-answers-one-audience-and-its-identity-is-derived.md)).
+
 ## Context
 
 Apps shipped dashboards as `.infrastructure/dashboards/*.json`, but alerts

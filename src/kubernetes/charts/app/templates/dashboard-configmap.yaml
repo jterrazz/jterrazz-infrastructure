@@ -1,18 +1,11 @@
+{{- /* invariant: prod only, since a dashboard uid is global; the identity is common.dashboards'. */ -}}
 {{- if and (eq (include "app.envExists" .) "true") (eq .Values.environment "prod") -}}
 {{- $spec := fromYaml (include "app.merged" .) -}}
-{{- range $name, $json := $spec.dashboards }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ include "app.name" $ }}-dashboard-{{ $name }}
-  labels:
-    {{- include "app.labels" $ | nindent 4 }}
-    grafana_dashboard: "1"
-  annotations:
-    grafana_folder: {{ include "app.name" $ }}
-data:
-  {{ include "app.name" $ }}-{{ $name }}.json: |
-    {{- $json | nindent 4 }}
-{{- end }}
+{{ include "common.dashboards" (dict
+     "owner" (include "app.name" .)
+     "dashboards" $spec.dashboards
+     "field" "spec.dashboards"
+     "labels" (include "app.labels" .)
+     "configMapPrefix" (printf "%s-dashboard-" (include "app.name" .))
+     "workload" (dict "namespace" (printf "%s-prod" (include "app.name" .)) "container" (include "app.name" .))) }}
 {{- end }}

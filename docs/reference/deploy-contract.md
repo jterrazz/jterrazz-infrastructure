@@ -14,6 +14,15 @@ here; the workflows that execute the contract are
   branch that deploys "staging" and leaves prod silently stale.
 - **One universal CI interface**: `make build`, `make lint`, `make test`,
   whatever the toolchain.
+- **Dashboards named by their kind**, `.infrastructure/dashboards/service.json`
+  (is it broken, and where), `business.json` (does it produce what it should),
+  or a subsystem's name; never `overview`. The chart derives the uid
+  (`<app>-<kind>`), title, tags, folder and links, so the file holds panels
+  only, and the CPU, memory and log panels every workload shares are
+  `infrastructure / Workload`'s, linked rather than copied
+  ([ADR-027](../decisions/027-a-dashboard-answers-one-audience-and-its-identity-is-derived.md)).
+  An alert rule carries `__dashboardUid__` and `__panelId__` for the panel
+  that explains it.
 - **No secret at all.** The calling job grants
   `permissions: { contents: read, id-token: write }`; Infisical, Tailscale and
   the cluster each accept the job's GitHub OIDC token.

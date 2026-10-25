@@ -76,6 +76,34 @@ spec:
       limits:
         memory: 192Mi
 
+    # invariant: one JSON line per request (host, path, status, duration, router), the one per-path
+    # signal every routed app has without instrumenting anything; VictoriaLogs keeps it 90 days.
+    # hazard: no client field, no header and no query string. ClientHost is the visitor's real IP
+    # (trustedIPs makes Traefik read X-Forwarded-For), and a query string can hold a reset link's
+    # token; none of them may sit in the store (ADR-027).
+    accessLog:
+      enabled: true
+      format: json
+      fields:
+        names:
+          ClientAddr: drop
+          ClientHost: drop
+          ClientPort: drop
+          ClientUsername: drop
+        headers:
+          defaultMode: drop
+        queryParameters:
+          defaultMode: drop
+
+    # invariant: request rate, errors and latency per Kubernetes service, the one RED source every
+    # routed app has without instrumenting anything (infrastructure / Ingress, ADR-027).
+    # value: buckets from 50ms to a minute: the default four (0.1, 0.3, 1.2, 5) put every p95 at
+    # 95ms or 5s, and a server-rendered page or a streamed answer runs past 5s.
+    metrics:
+      prometheus:
+        addServicesLabels: true
+        buckets: "0.05,0.1,0.25,0.5,1,2.5,5,10,30,60"
+
     # invariant: the websecure middlewares live in platform-networking; no route is an Ingress.
     providers:
       kubernetesCRD:
