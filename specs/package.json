@@ -8,7 +8,7 @@
     },
     "devDependencies": {
         "@jterrazz/test": "18.3.0",
-        "@jterrazz/typescript": "11.2.0",
+        "@jterrazz/typescript": "11.3.0",
         "@types/node": "24.19.2",
         "vitest": "5.0.5"
     },
