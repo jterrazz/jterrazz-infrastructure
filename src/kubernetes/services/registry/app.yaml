@@ -17,7 +17,7 @@ spec:
     owner: "1000:1000"
 
   secretMounts:
-    # invariant: written by src/ansible/roles/platform/tasks/bootstrap.yml.
+    # invariant: written by src/ansible/roles/releases.
     - secretName: registry-auth
       mountPath: /auth
 

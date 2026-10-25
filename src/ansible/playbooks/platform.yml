@@ -1,9 +1,16 @@
 ---
 # hazard: also run alone by deploy-platform.yaml: never assume site.yml's host plays ran.
+# invariant: dependency order; one release is `helmfile apply -l name=<release>`, not a tag (ADR-009).
 - name: Deploy the platform layer
   hosts: cluster
   become: true
   gather_facts: true
+  vars:
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    # invariant: staged by the pre_tasks, removed by the post_tasks.
+    manifest_dir: /tmp/k8s-manifests
+  environment:
+    KUBECONFIG: "{{ kubeconfig }}"
 
   pre_tasks:
     # hazard: include_role, never a role-level `when:`, which is evaluated per loop item (ADR-015);
@@ -16,15 +23,39 @@
       when: cloudflare_api_token is not defined
       tags: [always]
 
+    # invariant: staging and its cleanup change nothing deployed, so a quiet deploy reports changed=0.
+    - name: Create the manifest directory on the node
+      ansible.builtin.file:
+        path: "{{ manifest_dir }}"
+        state: directory
+        mode: "0755"
+      changed_when: false
+      tags: [always]
+
+    - name: Copy the src/kubernetes/ tree to the node
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../kubernetes/"
+        dest: "{{ manifest_dir }}/kubernetes/"
+        mode: "0644"
+      changed_when: false
+      tags: [always]
+
   roles:
-    # hazard: handlers do not inherit this environment; roles/platform/handlers sets its own.
-    - role: platform
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
+    - role: cluster
+      tags: [cluster]
+    - role: cloudflare
+      tags: [cloudflare]
+    - role: helm
+      tags: [helm]
+    - role: releases
+      tags: [releases]
+    - role: publish
+      tags: [publish]
 
   post_tasks:
     - name: Remove the staged manifests
       ansible.builtin.file:
         path: "{{ manifest_dir }}"
         state: absent
+      changed_when: false
       tags: [always]

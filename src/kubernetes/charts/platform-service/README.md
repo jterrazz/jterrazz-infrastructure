@@ -220,6 +220,15 @@ A bare port number is TCP (the Kubernetes default, left unwritten so the
 rendered object matches what the API server stores). `53/UDP` spells a protocol
 out.
 
+## `dashboards:`, the infrastructure dashboards
+
+A map of name to dashboard JSON; each entry renders `ConfigMap dashboard-<name>`,
+labelled `grafana_dashboard: "1"` and filed in Grafana's `infrastructure`
+folder. Only `grafana-platform` sets it, and its helmfile entry fills it from
+every file under `services/grafana/dashboards/`, so adding a dashboard is adding
+a JSON file, and deleting the file deletes the dashboard. An app ships its own
+through the app chart's `spec.dashboards` instead.
+
 ## Working on the chart
 
 ```bash

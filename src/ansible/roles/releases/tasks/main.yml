@@ -1,6 +1,7 @@
 ---
-# invariant: the Secrets Infisical cannot provide, `pass: operators` (the CRDs), the
-# ClusterIssuers, then `pass: claims` (the volumes and Secrets later passes mount); ADR-009.
+# invariant: every helmfile release, in three passes: the Secrets Infisical cannot provide,
+# `pass: operators` (the CRDs), the ClusterIssuers, `pass: claims` (the volumes and Secrets later
+# passes mount), then every release (ADR-009).
 # hazard: Secrets go through the k8s module, never a shell, which mangles `$` and backticks.
 - name: Create the Cloudflare API token Secret
   kubernetes.core.k8s:
@@ -37,17 +38,36 @@
     state: present
     update_cache: true
 
+- name: Read the live registry htpasswd
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig }}"
+    kind: Secret
+    name: registry-auth
+    namespace: platform-registry
+  register: registry_auth_live
+  no_log: true
+
 # hazard: the password on stdin, never as an argument (`ps`); both names come from Infisical,
 # since a rotation overlaps two push accounts (ADR-014, ADR-015).
+# invariant: a live line that still verifies is kept, since bcrypt salts every hash anew and a
+# fresh one would rewrite the Secret on every deploy.
 - name: Hash the registry's push and pull accounts
   ansible.builtin.shell:
     cmd: |
       set -o pipefail
-      printf '%s' "$REGISTRY_PASSWORD" | htpasswd -niB "$REGISTRY_USERNAME"
+      live=$(mktemp)
+      trap 'rm -f "$live"' EXIT
+      printf '%s\n' "$LIVE_HTPASSWD" > "$live"
+      if printf '%s' "$REGISTRY_PASSWORD" | htpasswd -vi "$live" "$REGISTRY_USERNAME" >/dev/null 2>&1; then
+        grep "^$REGISTRY_USERNAME:" "$live"
+      else
+        printf '%s' "$REGISTRY_PASSWORD" | htpasswd -niB "$REGISTRY_USERNAME"
+      fi
     executable: /bin/bash
   environment:
     REGISTRY_USERNAME: "{{ item.username }}"
     REGISTRY_PASSWORD: "{{ item.password }}"
+    LIVE_HTPASSWD: "{{ (registry_auth_live.resources | first | default({})).get('data', {}).get('htpasswd', '') | b64decode }}"
   loop:
     - { username: "{{ registry_username }}", password: "{{ registry_password }}" }
     - { username: "{{ registry_pull_username }}", password: "{{ registry_pull_password }}" }
@@ -70,7 +90,7 @@
   no_log: true
 
 - name: Install cert-manager and the Infisical operator
-  ansible.builtin.include_tasks: helmfile-apply.yml
+  ansible.builtin.include_tasks: apply.yml
   vars:
     helmfile_pass: operators
 
@@ -85,6 +105,9 @@
   changed_when: "'created' in issuers_result.stdout or 'configured' in issuers_result.stdout"
 
 - name: Install the platform-service releases
-  ansible.builtin.include_tasks: helmfile-apply.yml
+  ansible.builtin.include_tasks: apply.yml
   vars:
     helmfile_pass: claims
+
+- name: Apply every platform release
+  ansible.builtin.include_tasks: apply.yml

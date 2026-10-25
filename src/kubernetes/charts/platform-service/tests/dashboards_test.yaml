@@ -1,0 +1,30 @@
+suite: infrastructure dashboards, one ConfigMap per entry
+templates:
+  - templates/dashboards.yaml
+values:
+  - ../ci/test-values.yaml
+tests:
+  - it: renders a ConfigMap Grafana's sidecar loads into the infrastructure folder
+    # invariant: the sidecar selects on grafana_dashboard and files by grafana_folder.
+    asserts:
+      - equal:
+          path: metadata.name
+          value: dashboard-ci-test-overview
+      - equal:
+          path: metadata.labels.grafana_dashboard
+          value: "1"
+      - equal:
+          path: metadata.annotations.grafana_folder
+          value: infrastructure
+      - equal:
+          path: data
+          value:
+            ci-test-overview.json: |
+              {"title": "ci test overview"}
+
+  - it: renders nothing without dashboards
+    set:
+      dashboards: null
+    asserts:
+      - hasDocuments:
+          count: 0

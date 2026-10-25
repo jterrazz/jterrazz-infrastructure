@@ -1,0 +1,3 @@
+---
+# invariant: one label under each private wildcard, as the DNS wildcards match (ADR-012).
+coredns_private_zones_regexp: '^[^.]+\.(internal|staging)\.jterrazz\.com\.$'

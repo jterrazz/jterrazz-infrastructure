@@ -26,7 +26,7 @@ fi
 command -v helmfile >/dev/null 2>&1 || { error "helmfile is not installed (brew install helmfile)"; exit 1; }
 
 if ! helm plugin list 2>/dev/null | awk '$1 == "diff" { found = 1 } END { exit !found }'; then
-    version=$(awk '$1 == "helm_diff_version:" { gsub(/"/, "", $2); print $2 }' "$PROJECT_DIR/src/ansible/inventories/group_vars/all.yml")
+    version=$(awk '$1 == "helm_diff_version:" { gsub(/"/, "", $2); print $2 }' "$PROJECT_DIR/src/ansible/inventories/group_vars/all/versions.yml")
     info "Installing helm-diff $version"
     helm plugin install https://github.com/databus23/helm-diff --version "$version" --verify=false
 fi

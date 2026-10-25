@@ -102,8 +102,8 @@ jobs:
         id: versions
         run: |
           {
-            echo "helm=$(yq '.helm_version' src/ansible/inventories/group_vars/all.yml)"
-            echo "helmfile=$(yq '.helmfile_version' src/ansible/inventories/group_vars/all.yml)"
+            echo "helm=$(yq '.helm_version' src/ansible/inventories/group_vars/all/versions.yml)"
+            echo "helmfile=$(yq '.helmfile_version' src/ansible/inventories/group_vars/all/versions.yml)"
             echo "helm_unittest=$(make -s print-helm-unittest-version)"
           } >> "$GITHUB_OUTPUT"
 

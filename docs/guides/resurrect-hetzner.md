@@ -24,6 +24,6 @@ previous stable), or restore `pulumi/` whole. Either way it needs:
 
 **DNS is the hazard.** The private wildcards follow `tailscale_dns_hostname`,
 so with two hosts deployed, whichever ran its platform deploy last owns
-`*.internal` and `*.staging`: run the other with `--skip-tags dns-records`.
+`*.internal` and `*.staging`: run the other with `--skip-tags cloudflare`.
 After a swap, `make redeploy-apps`: every image lives in the old cluster's
 registry.

@@ -66,6 +66,12 @@ releases:
       - template: platform-service
     values:
       - services/grafana/service.yaml
+      # invariant: every JSON file under grafana/dashboards/ is one dashboard; a file removed is
+      # a ConfigMap removed.
+      - dashboards:
+{{- range $file := readDirEntries "services/grafana/dashboards" }}
+          {{ $file.Name | trimSuffix ".json" }}: {{ readFile (printf "services/grafana/dashboards/%s" $file.Name) | toJson }}
+{{- end }}
 
   - name: victoria-metrics-platform
     namespace: platform-telemetry
@@ -219,7 +225,7 @@ releases:
       - platform-analytics/op-redis
       - platform-analytics/op-clickhouse
     values:
-      - services/openpanel/config.yaml
+      - services/openpanel/_common.yaml
       - services/openpanel/op-api.yaml
 
   - name: op-worker
@@ -228,7 +234,7 @@ releases:
     needs:
       - platform-analytics/op-api
     values:
-      - services/openpanel/config.yaml
+      - services/openpanel/_common.yaml
       - services/openpanel/op-worker.yaml
 
   - name: op-dashboard
@@ -237,7 +243,7 @@ releases:
     needs:
       - platform-analytics/op-api
     values:
-      - services/openpanel/config.yaml
+      - services/openpanel/_common.yaml
       - services/openpanel/op-dashboard.yaml
 
   - name: registry-platform

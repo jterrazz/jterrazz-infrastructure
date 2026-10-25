@@ -1,16 +1,7 @@
 ---
-- name: Create the manifest directory on the node
-  ansible.builtin.file:
-    path: "{{ manifest_dir }}"
-    state: directory
-    mode: "0755"
-
-- name: Copy the src/kubernetes/ tree to the node
-  ansible.builtin.copy:
-    src: "{{ playbook_dir }}/../../kubernetes/"
-    dest: "{{ manifest_dir }}/kubernetes/"
-    mode: "0644"
-
+# invariant: CoreDNS cannot chase the public CNAME into *.ts.net, so it answers every name of
+# the private zones with the node's tailnet IP, AAAA with no record, and the rest falls through
+# (ADR-012).
 - name: Ensure the Tailscale facts are available
   ansible.builtin.include_role:
     name: tailscale
@@ -28,3 +19,13 @@
       Join the tailnet first: `make deploy` (the tailscale role), or on the node
       `/usr/local/bin/tailscale-autoauth.sh`.
     quiet: true
+
+- name: Apply the CoreDNS private-zones config
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig }}"
+    definition: "{{ lookup('ansible.builtin.template', 'coredns-custom.yaml.j2') | from_yaml }}"
+  notify: Restart CoreDNS
+
+# invariant: CoreDNS reads it only on restart, and the next tasks need the records now.
+- name: Restart CoreDNS now if the config changed
+  ansible.builtin.meta: flush_handlers

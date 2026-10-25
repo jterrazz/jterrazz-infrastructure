@@ -706,7 +706,7 @@ For a declared environment, namespace `<app>-<environment>` (ADR-023):
 
 `src/kubernetes/charts/app/Chart.yaml` carries the chart `version:`. A push to
 `main` touching `src/kubernetes/charts/**` runs a platform deploy, whose last step
-(`src/ansible/roles/platform/tasks/publish-app-chart.yml`) packages and pushes it
+(`src/ansible/roles/publish`) packages and pushes it
 to `oci://registry.internal.jterrazz.com/charts/app`.
 
 Two rules follow from apps pulling the chart **unversioned**:

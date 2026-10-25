@@ -7,7 +7,7 @@
       - kubectl
       - apply
       - -f
-      - "{{ manifest_dir }}/kubernetes/services/traefik/helm-chart-config.yaml"
+      - "{{ manifest_dir }}/kubernetes/cluster/traefik/helm-chart-config.yaml"
   register: traefik_config_apply
   changed_when: "'created' in traefik_config_apply.stdout or 'configured' in traefik_config_apply.stdout"
 

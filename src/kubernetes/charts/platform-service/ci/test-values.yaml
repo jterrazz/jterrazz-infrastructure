@@ -72,3 +72,7 @@ network:
       ports: [443]
     # invariant: no ports, the unrestricted-egress shape victoria-metrics needs.
     - to: anywhere
+
+# invariant: one dashboard, so the ConfigMap's labels and folder are pinned.
+dashboards:
+  ci-test-overview: '{"title": "ci test overview"}'

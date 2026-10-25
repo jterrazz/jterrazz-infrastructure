@@ -47,10 +47,17 @@ fires its handler, a k3s restart for the k3s templates.
 
 ## Conventions the layout implies
 
-- **`src/ansible/inventories/group_vars/all.yml` is the config surface**, and
-  it must stay beside the inventories, the only place Ansible loads it from.
-  Role `defaults/` hold what nobody should touch; `k3s_version` lives in
-  group_vars alone, which is why `roles/k3s` has no defaults file.
+- **`src/ansible/inventories/group_vars/all/` is the config surface**, one
+  file per concern (`versions`, `k3s`, `dns`, `secrets`), and it must stay
+  beside the inventories, the only place Ansible loads it from.
+  Role `defaults/` hold what nobody should touch (`k3s_data_dir`,
+  `infisical_api`); a knob, such as `k3s_version`, lives in group_vars alone.
+- **A role is one responsibility against one system.** The host play is
+  `base`, `security`, `resolved`, `tailscale`, `k3s`; the platform play is
+  `cluster` (the objects of no release and CoreDNS), `cloudflare` (the records
+  nothing else creates, from the controller), `helm` (the node's tools),
+  `releases` (every helmfile pass) and `publish` (the app chart). Each role's
+  name is its tag.
 - **One directory per app** under `/var/lib/k8s-data`; a multi-component
   service nests its volumes (`openpanel/{postgres,clickhouse,redis}`).
 - **A new name follows the owner**: `platform-<capability>` for the platform,
@@ -112,7 +119,7 @@ tuning on this host spends fewer fsyncs, never fewer bytes: a guest fsync is a
 - **Public**: the Cloudflare tunnel's Public Hostnames own the records; add one
   in the Zero Trust dashboard, and nothing lands here.
 - **The platform deploy**: `dns_records` in group_vars, the three records
-  nothing else creates, converged on every platform deploy (tag `dns-records`)
+  nothing else creates, converged on every platform deploy (tag `cloudflare`)
   with the token cert-manager uses, each name held to exactly that one record,
   so a record edited in the dashboard comes back. It never grows into a
   per-service list

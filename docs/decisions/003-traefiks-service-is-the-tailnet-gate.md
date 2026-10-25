@@ -4,7 +4,7 @@
 **Date:** 2026-05-10
 
 Written 2026-10-24 from the comments in
-`src/kubernetes/services/traefik/helm-chart-config.yaml`,
+`src/kubernetes/cluster/traefik/helm-chart-config.yaml`,
 `src/kubernetes/cluster/{traefik,network-policies}/`, `group_vars` and
 `roles/platform` that this record replaces. The tailnet restriction dates
 from the close of public 80/443 (6dc3915); the NodePort and timeout rows from
@@ -49,7 +49,7 @@ the HelmChartConfig, applied before Traefik's install job is awaited.
   openpanel, the keyless gateway). klipper-lb never used them. Turning
   allocation off frees no port already allocated, and k3s creates the Service
   with them, so the play removes any it finds right after Traefik installs
-  (`roles/platform/tasks/cluster-manifests.yml`); the platform contract asserts none
+  (`roles/cluster/tasks/manifests.yml`); the platform contract asserts none
   remain, and the host guard drops the NodePort range regardless.
 - **`readTimeout` 10m**, not v3's 60s: an image layer pushed over the
   tailnet (often DERP-relayed from a runner) takes longer, Traefik cut the

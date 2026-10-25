@@ -17,6 +17,8 @@ spec:
         apiVersions: ["v1"]
         operations: [CREATE, UPDATE]
         resources: [pods]
+        # value: the server's default, written so a re-apply finds nothing to change.
+        scope: "*"
   variables:
     - name: containers
       expression: "object.spec.containers + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])"

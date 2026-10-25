@@ -1,0 +1,15 @@
+---
+# invariant: only the records no other owner creates; one wildcard per private zone (ADR-012).
+dns_zone: jterrazz.com
+dns_records:
+  - record: "*.internal"
+    value: "{{ tailscale_dns_hostname }}"
+    proxied: false
+  - record: "*.staging"
+    value: "{{ tailscale_dns_hostname }}"
+    proxied: false
+  # invariant: proxied, since cfargotunnel.com resolves only at the edge; the tunnel id is the
+  # connector token's `t` field.
+  - record: analytics
+    value: "{{ (cloudflare_tunnel_token | b64decode | from_json).t }}.cfargotunnel.com"
+    proxied: true

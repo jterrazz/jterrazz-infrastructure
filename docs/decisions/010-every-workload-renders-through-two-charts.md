@@ -85,7 +85,7 @@ unwatched.
 ### OpenPanel, the case that widened it
 
 Each OpenPanel workload is an app-chart release loading the shared
-non-secret env from `config.yaml` first, each syncing its own copy of the
+non-secret env from `_common.yaml` first, each syncing its own copy of the
 Infisical folder; `openpanel-platform` owns the storage and both
 certificates, because op-api and op-dashboard answer on one hostname. The
 private host routes `/api/*` to op-api and the rest to op-dashboard; the
@@ -107,8 +107,8 @@ Its operating rules, adding a user among them, are in the
 
 ## Consequences
 
-- No workload is a raw manifest; the raw manifests left are configuration
-  (the ClusterIssuers, Traefik's HelmChartConfig).
+- No workload is a raw manifest; the one left is configuration, cert-manager's
+  ClusterIssuers.
 - Changing a `pathSuffix`, a PV name or a `<name>-platform` release name moves
   or orphans live data: the paths are byte-identical to what the pre-chart
   manifests produced, on purpose.

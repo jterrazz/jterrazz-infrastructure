@@ -1,6 +1,12 @@
 ---
 # invariant: converged on every deploy, so a lost record comes back; `solo` makes a changed
 # target replace the record rather than join it (ADR-012).
+- name: Ensure the Tailscale facts are available
+  ansible.builtin.include_role:
+    name: tailscale
+    tasks_from: facts
+  when: tailscale_dns_hostname is not defined
+
 - name: Require the node's tailnet name, the private wildcards' target
   ansible.builtin.assert:
     that:
@@ -20,7 +26,10 @@
     proxied: "{{ item.proxied }}"
     ttl: 1
     solo: true
-    comment: "Managed by jterrazz-infrastructure: dns_records in src/ansible/inventories/group_vars/all.yml"
+    comment: "Managed by jterrazz-infrastructure: dns_records in src/ansible/inventories/group_vars/all/dns.yml"
   loop: "{{ dns_records }}"
   loop_control:
     label: "{{ item.record }}"
+  # invariant: an API call, made from the controller; the node holds nothing of it.
+  delegate_to: localhost
+  become: false

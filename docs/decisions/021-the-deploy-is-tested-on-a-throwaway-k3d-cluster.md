@@ -28,7 +28,7 @@ tree. Each pass ends on the play's own `helm list --failed` assertion.
   checkout, which may predate it, while group_vars still resolve from each
   tree's own inventory.
 - **Nothing leaves the runner.** Secrets are dummy extra vars (roles/secrets
-  is skipped when they are defined); the `dns-records` and `chart-publish`
+  is skipped when they are defined); the `cloudflare` and `publish`
   tags are skipped, since they reach the real Cloudflare zone and the real
   registry.
 - **It proves releases apply, not that pods start.** With no real secrets

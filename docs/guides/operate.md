@@ -83,8 +83,7 @@ orb -m jterrazz-infrastructure -u root resolvectl status eth0                 # 
   applies that tree without pruning. Delete it after the deploy that stops
   referencing it: a Middleware deleted while a route names it 404s the route.
   A release dropped from the helmfile stays installed the same way: set
-  `installed: false` for one deploy, then remove its entry. Only the
-  infrastructure dashboards are pruned, by the task that applies them.
+  `installed: false` for one deploy, then remove its entry.
 - **Helm adopts an existing object** only with the annotations
   `meta.helm.sh/release-name` and `meta.helm.sh/release-namespace` and the label
   `app.kubernetes.io/managed-by=Helm`. A Deployment whose selector changes

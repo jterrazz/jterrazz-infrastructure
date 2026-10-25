@@ -23,6 +23,9 @@ storage: {}
 # hazard: ports are pod ports, never Service ports.
 network: {}
 
+# invariant: name -> dashboard JSON, one ConfigMap each; the helmfile reads the files.
+dashboards: {}
+
 # invariant: set by the helmfile from $NODE_NAME.
 infrastructure:
   nodeName: ""

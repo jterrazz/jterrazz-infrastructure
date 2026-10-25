@@ -1,0 +1,7 @@
+---
+# invariant: the objects of no release, src/kubernetes/cluster, then the private zones in CoreDNS.
+- name: Apply the cluster manifests
+  ansible.builtin.import_tasks: manifests.yml
+
+- name: Answer the private zones in CoreDNS
+  ansible.builtin.import_tasks: coredns.yml

@@ -1,0 +1,9 @@
+---
+# invariant: the one pin of each tool; the node and the workflows read it here.
+helm_version: "v4.3.0"
+helmfile_version: "v1.8.0"
+helm_diff_version: "v3.15.13"
+
+# hazard: never skip a minor; a minor can move the bundled Traefik chart, so re-read
+# src/kubernetes/cluster/traefik/helm-chart-config.yaml in the same change (ADR-003, ADR-007).
+k3s_version: "v1.37.0+k3s1"

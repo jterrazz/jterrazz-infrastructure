@@ -1,0 +1,3 @@
+---
+# hazard: the `.gotmpl` suffix makes helmfile render its `requiredEnv` calls (ADR-009).
+platform_helmfile: "{{ manifest_dir }}/kubernetes/helmfile.yaml.gotmpl"

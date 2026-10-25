@@ -23,7 +23,7 @@ op-api, op-worker ─► op-postgres · op-clickhouse · op-redis
 | `op-postgres`, `op-clickhouse`, `op-redis` | the datastores, `isolated`: reachable from this namespace only |
 | `openpanel-platform`                       | the three volumes and the two certificates (`service.yaml`)    |
 
-The three applications load `config.yaml` first. The public host serves
+The three applications load `_common.yaml` first. The public host serves
 `/api/track` alone; the dashboard, `/api/export` and `/api/live` stay on the
 tailnet.
 
@@ -44,7 +44,7 @@ release projects only the keys it names. ClickHouse and Redis hold no
 credential.
 
 A new sending site adds every origin a browser can be on (`https://x.com` and
-`https://www.x.com`) to `API_CORS_ORIGINS` in `config.yaml`; a missing one is
+`https://www.x.com`) to `API_CORS_ORIGINS` in `_common.yaml`; a missing one is
 refused at the CORS preflight with nothing in op-api's logs.
 
 ## Operations

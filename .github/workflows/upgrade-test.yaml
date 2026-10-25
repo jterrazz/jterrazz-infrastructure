@@ -68,7 +68,7 @@ jobs:
         run: |
           set -euo pipefail
           curl -sSfL https://raw.githubusercontent.com/k3d-io/k3d/v5.9.0/install.sh | TAG=v5.9.0 bash
-          k3s=$(yq '.k3s_version' src/ansible/inventories/group_vars/all.yml | tr '+' '-')
+          k3s=$(yq '.k3s_version' src/ansible/inventories/group_vars/all/versions.yml | tr '+' '-')
           k3d cluster create ci --image "rancher/k3s:$k3s" \
             --k3s-arg "--disable=local-storage@server:0" --wait
           k3d kubeconfig get ci > "$RUNNER_TEMP/kubeconfig"
@@ -97,13 +97,13 @@ jobs:
         working-directory: ${{ env.BASE_ANSIBLE }}
         run: >-
           ansible-playbook playbooks/platform.yml -i inventories/k3d.yml
-          -e "@$RUNNER_TEMP/k3d-vars.yml" --skip-tags dns-records,chart-publish
+          -e "@$RUNNER_TEMP/k3d-vars.yml" --skip-tags dns-records,chart-publish,cloudflare,publish
 
       - name: Upgrade to this tree
         working-directory: src/ansible
         run: >-
           ansible-playbook playbooks/platform.yml -i inventories/k3d.yml
-          -e "@$RUNNER_TEMP/k3d-vars.yml" --skip-tags dns-records,chart-publish
+          -e "@$RUNNER_TEMP/k3d-vars.yml" --skip-tags dns-records,chart-publish,cloudflare,publish
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:

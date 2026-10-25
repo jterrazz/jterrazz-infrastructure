@@ -24,7 +24,7 @@ bringing a rented one back is [Resurrect Hetzner](../guides/resurrect-hetzner.md
 | Layer             | What it covers                                                                                                                                                                                     | Applied by                             |
 | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
 | Host              | the VM itself: `roles/{base,security,resolved,tailscale,k3s}`                                                                                                                                      | `make deploy`, from the Mac only       |
-| Cluster           | objects of no release, `src/kubernetes/cluster/`: namespaces, the `manual` StorageClass, namespace NetworkPolicy baselines, the app-deployer RBAC, the two admission policies, Traefik middlewares | `roles/platform`'s `cluster-manifests` |
+| Cluster           | objects of no release, `src/kubernetes/cluster/`: namespaces, the `manual` StorageClass, namespace NetworkPolicy baselines, the app-deployer RBAC, the two admission policies, Traefik middlewares | `roles/cluster`                        |
 | Platform services | `src/kubernetes/services/<svc>/`, one helmfile release per values file                                                                                                                             | CI on merge, or `make deploy-platform` |
 | Apps              | each app's own repository, through `charts/app`, into `<app>-<env>` namespaces it creates                                                                                                          | each app's own pipeline                |
 
@@ -32,10 +32,11 @@ Every file under `src/kubernetes/services/<svc>/` is a values file named after
 the chart that consumes it: `values.yaml` for an upstream chart, `service.yaml`
 for `charts/platform-service` (release `<svc>-platform`, a name frozen because
 it owns live volumes), and any other name for one app-chart release
-(`op-api.yaml`, or `app.yaml` for a single workload). Three exceptions are
-not values: cert-manager's ClusterIssuers and Traefik's HelmChartConfig, raw
-manifests, and the infrastructure dashboards under `grafana/dashboards/`, one
-ConfigMap per JSON file.
+(`op-api.yaml`, or `app.yaml` for a single workload). A name starting with
+`_` is values several releases share (`openpanel/_common.yaml`), and the JSON
+files under `grafana/dashboards/` are the infrastructure dashboards, which
+`grafana-platform` renders one ConfigMap each. The one raw manifest is
+cert-manager's ClusterIssuers, applied once its CRDs exist.
 
 ## Two charts and the library they share
 
@@ -101,9 +102,8 @@ which the ownership policy and the platform contract select on.
 
 Two words carry more than one meaning here:
 
-- **platform** is the layer above k3s, so `roles/platform`,
-  `playbooks/platform.yml`, `make deploy-platform`, the `platform-*`
-  namespaces, the `<svc>-platform` releases of `charts/platform-service` and
+- **platform** is the layer above k3s, so `playbooks/platform.yml`,
+  `make deploy-platform`, the `platform-*` namespaces, the `<svc>-platform` releases of `charts/platform-service` and
   the app chart's `platformServices` all name the layer, never the chart.
 - **tier** is only the namespace label above. The helmfile's deploy passes are
   `pass: operators | claims` ([ADR-009](../decisions/009-one-helmfile-declares-every-platform-release.md)).
@@ -113,9 +113,9 @@ Two words carry more than one meaning here:
 ```text
 src/
 ├── ansible/        playbooks/site.yml      base → security → resolved → tailscale → k3s → platform
-│                   playbooks/platform.yml  the platform layer alone, what CI runs
+│                   playbooks/platform.yml  cluster → cloudflare → helm → releases → publish, what CI runs
 │                   inventories/            laptop.yml (OrbStack SSH) · ci.yml (tailnet) · k3d.yml
-│                                           group_vars/all.yml, the config surface
+│                                           group_vars/all/, the config surface
 ├── kubernetes/     helmfile.yaml.gotmpl    every platform release, declared once (ADR-009)
 │                   charts/                 common · platform-service · app
 │                   cluster/                manifests applied with `kubectl apply -R`
