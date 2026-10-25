@@ -21,7 +21,7 @@ The deploy workflow logs in to the registry before anything else, so a
 `registry` release taken down cannot be restored by CI: recover it with
 `make deploy-platform` from the Mac.
 
-`gateway-intelligence` is an app, deployed by its own repository, but a
+`jterrazz-intelligence` (repository `gateway-intelligence`) is an app, deployed by its own repository, but a
 platform client of the others: it enforces no API key (`api-keys: []`), so its
 boundary is its NetworkPolicy and its private-only route, and consumers pass
 the non-secret placeholder `gateway-noauth` that the OpenAI and Anthropic SDKs

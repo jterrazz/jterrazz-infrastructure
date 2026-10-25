@@ -42,7 +42,7 @@ tests:
   - it: carries the platform client labels, so a job can reach what the app can
     asserts:
       - equal:
-          path: spec.jobTemplate.spec.template.metadata.labels["platform-client.jterrazz.com/gateway-intelligence"]
+          path: spec.jobTemplate.spec.template.metadata.labels["platform-client.jterrazz.com/jterrazz-intelligence"]
           value: "true"
 
   - it: applies the scheduled-job defaults Kubernetes does not

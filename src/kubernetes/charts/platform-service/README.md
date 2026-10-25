@@ -171,7 +171,7 @@ network:
     - from: traefik
       ports: [3000]
   egress:
-    - to: namespace:prod-gateway-intelligence
+    - to: namespace:jterrazz-intelligence-prod
       ports: [8317, 80]
     - to: internet
       ports: [443]

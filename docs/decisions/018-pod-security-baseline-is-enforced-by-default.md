@@ -29,8 +29,8 @@ all (audit 2026-10-24).
   because cloudflared and node-exporter need hostNetwork and hostPath, which
   baseline forbids. Never `kubectl create ns`, and never helm's
   `--create-namespace`, which would create an unlabelled namespace first and
-  win the race; an app namespace that needs labels before its first deploy
-  (`prod-gateway-intelligence`) is pre-declared there, and Helm adopts it.
+  win the race. An app's deploy creates its own namespace (ADR-017), and the
+  cluster default makes it `baseline` without any label.
 - **An app cannot opt out**: the ownership policy refuses a `privileged`
   level on a namespace an app creates.
 - **The app chart fails at render** when an app loosens its securityContext

@@ -1,5 +1,6 @@
 ---
-# invariant: every platform namespace, with its Pod Security labels; never `kubectl create ns`.
+# invariant: every platform namespace, with its Pod Security level and `tier: platform`; an app
+# namespace is created by the app's own deploy, labelled `tier: app` (ADR-017).
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -8,7 +9,7 @@ metadata:
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
-    app.kubernetes.io/component: networking
+    app.jterrazz.com/tier: platform
 
 ---
 apiVersion: v1
@@ -19,7 +20,7 @@ metadata:
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
-    app.kubernetes.io/component: registry
+    app.jterrazz.com/tier: platform
 
 ---
 apiVersion: v1
@@ -30,7 +31,7 @@ metadata:
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
-    app.kubernetes.io/component: secrets
+    app.jterrazz.com/tier: platform
 
 ---
 apiVersion: v1
@@ -42,7 +43,7 @@ metadata:
     pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
-    app.kubernetes.io/component: telemetry
+    app.jterrazz.com/tier: platform
 
 ---
 apiVersion: v1
@@ -53,18 +54,4 @@ metadata:
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
-    app.kubernetes.io/component: analytics
-
----
-# hazard: the one app namespace declared here, so it must carry its owner label too: every
-# platform deploy re-applies this file (ADR-017, ADR-018).
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: prod-gateway-intelligence
-  labels:
-    pod-security.kubernetes.io/enforce: baseline
-    pod-security.kubernetes.io/audit: restricted
-    pod-security.kubernetes.io/warn: restricted
-    app.kubernetes.io/component: app-gateway
-    app.jterrazz.com/repository: gateway-intelligence
+    app.jterrazz.com/tier: platform

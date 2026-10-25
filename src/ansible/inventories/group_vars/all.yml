@@ -19,9 +19,9 @@ k3s_node_ip: "{{ ansible_default_ipv4.address }}"
 private_hostnames:
   - registry.internal.jterrazz.com
   - grafana.internal.jterrazz.com
-  - gateway-intelligence.internal.jterrazz.com
+  - intelligence.internal.jterrazz.com
   - signews.internal.jterrazz.com
-  - os.internal.jterrazz.com
+  - console.internal.jterrazz.com
   - openpanel.internal.jterrazz.com
   - signews.staging.jterrazz.com
 

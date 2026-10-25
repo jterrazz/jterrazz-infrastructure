@@ -107,14 +107,15 @@ otel-collector:
     ports:
       - 4317
       - 4318
-gateway-intelligence:
+jterrazz-intelligence:
   env:
-    GATEWAY_INTELLIGENCE_BASE_URL: "http://gateway-intelligence.prod-gateway-intelligence.svc.cluster.local/v1"
+    # invariant: the variable keeps its name: it is what @jterrazz/intelligence clients read.
+    GATEWAY_INTELLIGENCE_BASE_URL: "http://jterrazz-intelligence.jterrazz-intelligence-prod.svc.cluster.local/v1"
   egress:
-    namespace: prod-gateway-intelligence
+    namespace: jterrazz-intelligence-prod
     ports:
       - 8317
-  clientLabel: platform-client.jterrazz.com/gateway-intelligence
+  clientLabel: platform-client.jterrazz.com/jterrazz-intelligence
 {{- end -}}
 
 {{/* invariant: the one accessor every consumer calls, so an unknown name always fails. */}}

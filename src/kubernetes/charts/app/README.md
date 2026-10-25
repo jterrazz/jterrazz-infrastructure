@@ -6,8 +6,8 @@ workflow (`jterrazz/jterrazz-actions/.github/workflows/release-docker.yaml`)
 runs, in essence:
 
 ```bash
-helm upgrade --install <env>-<app> oci://registry.internal.jterrazz.com/charts/app \
-  -n <env>-<app> \
+helm upgrade --install <app>-<env> oci://registry.internal.jterrazz.com/charts/app \
+  -n <app>-<env> \
   -f .infrastructure/application.yaml \
   --set environment=<env> \
   --set spec.image=registry.internal.jterrazz.com/<app>:<tag> \
@@ -554,7 +554,7 @@ source of truth in `templates/_helpers.tpl` (`app.platformCatalog`):
 | Name                   | Injects env                                                                        | Opens egress to                     | Client label |
 | ---------------------- | ---------------------------------------------------------------------------------- | ----------------------------------- | ------------ |
 | `otel-collector`       | `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.platform-telemetry:4318`          | `platform-telemetry` :4317, :4318   | none         |
-| `gateway-intelligence` | `GATEWAY_INTELLIGENCE_BASE_URL=http://gateway-intelligence.prod-gateway-intelligence.svc.cluster.local/v1` | `prod-gateway-intelligence` :8317 | `platform-client.jterrazz.com/gateway-intelligence` |
+| `jterrazz-intelligence` | `GATEWAY_INTELLIGENCE_BASE_URL=http://jterrazz-intelligence.jterrazz-intelligence-prod.svc.cluster.local/v1` | `jterrazz-intelligence-prod` :8317 | `platform-client.jterrazz.com/jterrazz-intelligence` |
 
 Declaring a name wires the whole bundle at once:
 
@@ -567,15 +567,15 @@ Declaring a name wires the whole bundle at once:
    selecting that label. A new consumer therefore needs **zero** edits on the
    target.
 
-Ports are pinned per namespace, so `gateway-intelligence` resolves to the
-`prod-` namespace regardless of which environment the consumer runs in.
+Ports are pinned per namespace, so `jterrazz-intelligence` resolves to its
+`-prod` namespace regardless of which environment the consumer runs in.
 
 An unknown name **hard-fails the render** with the valid list. Telemetry is
 opt-in: an app that doesn't declare `otel-collector` gets no OTLP endpoint.
 
-Env names are derived from the service name (`GATEWAY_INTELLIGENCE_BASE_URL`);
-`OTEL_EXPORTER_OTLP_ENDPOINT` is the one exception, because the OTel SDK owns
-that contract.
+Env names are the contract the client reads, not the service's name:
+`GATEWAY_INTELLIGENCE_BASE_URL` is what `@jterrazz/intelligence` reads, and
+`OTEL_EXPORTER_OTLP_ENDPOINT` is the OTel SDK's.
 
 ### NetworkPolicy
 

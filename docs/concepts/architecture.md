@@ -24,7 +24,7 @@ bringing a rented one back is [Resurrect Hetzner](../guides/resurrect-hetzner.md
 | Host              | the VM itself: `roles/{base,security,resolved,tailscale,k3s}`                                   | `make deploy`, from the Mac only       |
 | Cluster           | objects of no release, `src/kubernetes/cluster/`: namespaces, the `manual` StorageClass, namespace NetworkPolicy baselines, the app-deployer RBAC and admission policy, Traefik middlewares | `roles/platform`'s `cluster-manifests` |
 | Platform services | `src/kubernetes/services/<svc>/`, one helmfile release per values file                          | CI on merge, or `make deploy-platform` |
-| Apps              | each app's own repository, through `charts/app`, into `prod-*` and `staging-*` namespaces it creates | each app's own pipeline           |
+| Apps              | each app's own repository, through `charts/app`, into `<app>-<env>` namespaces it creates | each app's own pipeline           |
 
 Every file under `src/kubernetes/services/<svc>/` is a values file named after
 the chart that consumes it: `values.yaml` for an upstream chart, `service.yaml`

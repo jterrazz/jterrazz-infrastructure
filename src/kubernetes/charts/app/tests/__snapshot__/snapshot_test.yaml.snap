@@ -78,7 +78,7 @@ matches the recorded render of the CI fixture:
                 app.kubernetes.io/instance: RELEASE-NAME
                 app.kubernetes.io/name: ci-test-app
                 environment: prod
-                platform-client.jterrazz.com/gateway-intelligence: "true"
+                platform-client.jterrazz.com/jterrazz-intelligence: "true"
             spec:
               automountServiceAccountToken: false
               containers:
@@ -98,7 +98,7 @@ matches the recorded render of the CI fixture:
                     - name: OTEL_RESOURCE_ATTRIBUTES
                       value: deployment.environment=prod,deployment.environment.name=prod
                     - name: GATEWAY_INTELLIGENCE_BASE_URL
-                      value: http://gateway-intelligence.prod-gateway-intelligence.svc.cluster.local/v1
+                      value: http://jterrazz-intelligence.jterrazz-intelligence-prod.svc.cluster.local/v1
                     - name: OTEL_EXPORTER_OTLP_ENDPOINT
                       value: http://otel-collector.platform-telemetry:4318
                     - name: NODE_OPTIONS
@@ -209,7 +209,7 @@ matches the recorded render of the CI fixture:
           labels:
             app: ci-test-app
             environment: prod
-            platform-client.jterrazz.com/gateway-intelligence: "true"
+            platform-client.jterrazz.com/jterrazz-intelligence: "true"
         spec:
           automountServiceAccountToken: false
           containers:
@@ -228,7 +228,7 @@ matches the recorded render of the CI fixture:
                 - name: OTEL_RESOURCE_ATTRIBUTES
                   value: deployment.environment=prod,deployment.environment.name=prod
                 - name: GATEWAY_INTELLIGENCE_BASE_URL
-                  value: http://gateway-intelligence.prod-gateway-intelligence.svc.cluster.local/v1
+                  value: http://jterrazz-intelligence.jterrazz-intelligence-prod.svc.cluster.local/v1
                 - name: OTEL_EXPORTER_OTLP_ENDPOINT
                   value: http://otel-collector.platform-telemetry:4318
                 - name: NODE_OPTIONS
@@ -796,7 +796,7 @@ matches the recorded render of the CI fixture:
           to:
             - namespaceSelector:
                 matchLabels:
-                  kubernetes.io/metadata.name: prod-gateway-intelligence
+                  kubernetes.io/metadata.name: jterrazz-intelligence-prod
       ingress:
         - from:
             - namespaceSelector:
@@ -864,7 +864,7 @@ matches the recorded render of the CI fixture:
           to:
             - namespaceSelector:
                 matchLabels:
-                  kubernetes.io/metadata.name: prod-gateway-intelligence
+                  kubernetes.io/metadata.name: jterrazz-intelligence-prod
       podSelector:
         matchLabels:
           app.kubernetes.io/component: cronjob

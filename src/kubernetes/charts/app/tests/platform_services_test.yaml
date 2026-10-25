@@ -11,7 +11,7 @@ tests:
         - otel-colector
     asserts:
       - failedTemplate:
-          errorMessage: 'spec.platformServices: unknown service "otel-colector" (valid: gateway-intelligence, otel-collector)'
+          errorMessage: 'spec.platformServices: unknown service "otel-colector" (valid: jterrazz-intelligence, otel-collector)'
 
   - it: hard-fails even when only one name of several is wrong
     set:
@@ -20,16 +20,16 @@ tests:
         - nope
     asserts:
       - failedTemplate:
-          errorMessage: 'spec.platformServices: unknown service "nope" (valid: gateway-intelligence, otel-collector)'
+          errorMessage: 'spec.platformServices: unknown service "nope" (valid: jterrazz-intelligence, otel-collector)'
 
   - it: hard-fails on a name introduced by an environment override
     # invariant: checked on the resolved list, since an environment replaces it.
     set:
       environments.prod.platformServices:
-        - gateway-inteligence
+        - jterrazz-inteligence
     asserts:
       - failedTemplate:
-          errorMessage: 'spec.platformServices: unknown service "gateway-inteligence" (valid: gateway-intelligence, otel-collector)'
+          errorMessage: 'spec.platformServices: unknown service "jterrazz-inteligence" (valid: jterrazz-intelligence, otel-collector)'
 
   - it: injects the catalog env for each declared service
     templates:
@@ -44,7 +44,7 @@ tests:
           path: spec.template.spec.containers[0].env
           content:
             name: GATEWAY_INTELLIGENCE_BASE_URL
-            value: "http://gateway-intelligence.prod-gateway-intelligence.svc.cluster.local/v1"
+            value: "http://jterrazz-intelligence.jterrazz-intelligence-prod.svc.cluster.local/v1"
 
   - it: lets an app-declared env of the same name win over the catalog
     templates:
@@ -69,7 +69,7 @@ tests:
       - templates/deployment.yaml
     asserts:
       - equal:
-          path: spec.template.metadata.labels["platform-client.jterrazz.com/gateway-intelligence"]
+          path: spec.template.metadata.labels["platform-client.jterrazz.com/jterrazz-intelligence"]
           value: "true"
 
   - it: keeps the client label OUT of the immutable selector
@@ -77,7 +77,7 @@ tests:
       - templates/deployment.yaml
     asserts:
       - notExists:
-          path: spec.selector.matchLabels["platform-client.jterrazz.com/gateway-intelligence"]
+          path: spec.selector.matchLabels["platform-client.jterrazz.com/jterrazz-intelligence"]
       - equal:
           path: spec.selector.matchLabels
           value:
@@ -105,7 +105,7 @@ tests:
             to:
               - namespaceSelector:
                   matchLabels:
-                    kubernetes.io/metadata.name: prod-gateway-intelligence
+                    kubernetes.io/metadata.name: jterrazz-intelligence-prod
             ports:
               - port: 8317
 
@@ -132,12 +132,12 @@ tests:
     templates:
       - templates/network-policy.yaml
     set:
-      metadata.name: gateway-intelligence
+      metadata.name: jterrazz-intelligence
       spec.platformServices: []
     # value: selects the app's own policy; `<app>-cronjobs` also renders.
     documentSelector:
       path: metadata.name
-      value: gateway-intelligence
+      value: jterrazz-intelligence
     asserts:
       - contains:
           path: spec.ingress
@@ -146,6 +146,6 @@ tests:
               - namespaceSelector: {}
                 podSelector:
                   matchLabels:
-                    platform-client.jterrazz.com/gateway-intelligence: "true"
+                    platform-client.jterrazz.com/jterrazz-intelligence: "true"
             ports:
               - port: 3000

@@ -53,9 +53,11 @@ fires its handler, a k3s restart for the k3s templates.
   group_vars alone, which is why `roles/k3s` has no defaults file.
 - **One directory per app** under `/var/lib/k8s-data`; a multi-component
   service nests its volumes (`openpanel/{postgres,clickhouse,redis}`).
-- **Namespaces** are `<env>-<app>` for apps, created by the app's own deploy,
-  and `platform-*` for infrastructure, declared in
-  `src/kubernetes/cluster/namespaces.yaml`, never with `kubectl create ns`.
+- **Names** follow [ADR-023](../decisions/023-names-follow-the-owner-and-one-name-runs-through-everything.md):
+  `platform-<capability>` namespaces, declared in
+  `src/kubernetes/cluster/namespaces.yaml`, and `<app>-<env>` namespaces,
+  created by the app's own deploy, with `<app>` = `<brand>-<role>` as the one
+  name of its release, image, volume, data directory and Infisical folder.
 - **Immutable fields mean delete and recreate**: a Deployment selector, a PV's
   `hostPath.type`, a binding's `roleRef`. A changed `pathSuffix`, PV name or
   `<svc>-platform` release name moves or orphans live data.

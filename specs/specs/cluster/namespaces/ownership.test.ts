@@ -2,23 +2,40 @@ import { describe, expect, test } from 'vitest';
 
 import { kubectlList } from '../../__setup__/kubectl.ts';
 
-// invariant: the namespaces no app owns: Kubernetes' own, and the platform's (src/kubernetes/cluster/namespaces.yaml).
-const UNOWNED = /^(?:default|kube-.+|platform-.+)$/u;
+// invariant: Kubernetes' own namespaces carry no tier; every other one says who owns it (ADR-023).
+const KUBERNETES = /^(?:default|kube-.+)$/u;
+const TIER = 'app.jterrazz.com/tier';
+const REPOSITORY = 'app.jterrazz.com/repository';
+const ENVIRONMENT = 'app.jterrazz.com/environment';
 
 describe('ownership', () => {
-    test('every app namespace names the repository that owns it', async () => {
-        // Given - every namespace that is neither Kubernetes' nor the platform's
-        const namespaces = await kubectlList(['namespaces']);
-        const apps = namespaces.items.filter(({ metadata }) => !UNOWNED.test(metadata.name));
+    test('every namespace states its owner, and an app namespace its repository and environment', async () => {
+        // Given - every namespace Kubernetes did not create itself
+        const listed = await kubectlList(['namespaces']);
+        const namespaces = listed.items.filter(({ metadata }) => !KUBERNETES.test(metadata.name));
 
-        // Then - each carries app.jterrazz.com/repository, which the ownership policy reads before any write lands in it
-        expect(
-            apps
-                .filter(
-                    ({ metadata }) =>
-                        (metadata.labels?.['app.jterrazz.com/repository'] ?? '') === '',
-                )
-                .map(({ metadata }) => metadata.name),
-        ).toStrictEqual([]);
+        // When - each is read for what its labels claim
+        const violations = namespaces.flatMap(({ metadata: { labels = {}, name } }) => {
+            const tier = labels[TIER];
+            if (tier === 'platform') {
+                return name.startsWith('platform-') && labels[REPOSITORY] === undefined
+                    ? []
+                    : [`${name}: a platform namespace is platform-* and owned by no repository`];
+            }
+            if (tier === 'app') {
+                const environment = labels[ENVIRONMENT] ?? '';
+                return (labels[REPOSITORY] ?? '') !== '' &&
+                    environment !== '' &&
+                    name.endsWith(`-${environment}`)
+                    ? []
+                    : [
+                          `${name}: an app namespace carries its repository and environment, and ends with -<environment>`,
+                      ];
+            }
+            return [`${name}: no ${TIER} label`];
+        });
+
+        // Then - none: the ownership policy and the suite select on these labels, never on a name
+        expect(violations).toStrictEqual([]);
     });
 });
