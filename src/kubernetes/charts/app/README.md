@@ -675,7 +675,7 @@ you reach for; fix the image.
 
 ## What gets rendered
 
-For a declared environment, namespace `<environment>-<app>`:
+For a declared environment, namespace `<app>-<environment>` (ADR-023):
 
 | Object                    | Name                          | Condition                       |
 | ------------------------- | ----------------------------- | ------------------------------- |
