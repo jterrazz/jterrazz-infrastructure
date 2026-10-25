@@ -117,8 +117,9 @@ The Mac is the internet vantage unless its Tailscale is up, and reaches the
 cluster and the node through OrbStack:
 
 ```bash
-make smoke                   # public routes and certificates, boundary, cluster, inventory
-make smoke VANTAGE=tailnet   # with Tailscale up: the private routes instead of the boundary
+make smoke                   # Tailscale down: public routes and certificates, boundary, cluster, inventory
+                             # Tailscale up: the private routes instead of the boundary
+make smoke VANTAGE=internet  # force a vantage; the boundary then needs a machine off the tailnet
 make test-host               # the node, as root through orb
 make test-admission KUBECONFIG=<a k3d kubeconfig>   # a throwaway cluster only
 ```

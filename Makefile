@@ -16,8 +16,9 @@ CLUSTER_KUBECTL ?= orb -m $(VM_NAME) -u root kubectl
 HOST_SHELL ?= orb -m $(VM_NAME) -u root
 export CLUSTER_KUBECTL HOST_SHELL
 
-# invariant: the Mac is the internet vantage unless its Tailscale is up (docs/guides/test.md).
-VANTAGE ?= internet
+# invariant: the Mac is the internet vantage unless its Tailscale is up, read off tailscale itself,
+# since the boundary spec run from the tailnet fails on every private host (docs/guides/test.md).
+VANTAGE ?= $(shell tailscale status >/dev/null 2>&1 && echo tailnet || echo internet)
 SPECS_internet := specs/api/routes/public specs/api/certificates/public specs/api/boundary specs/cluster specs/health
 SPECS_tailnet := specs/api/routes specs/api/certificates specs/cluster specs/health
 
@@ -53,7 +54,7 @@ diff: ## Preview what a platform deploy would change (helmfile diff, read-only)
 backup: ## Snapshot every persistent volume now (ARGS=--verify decrypts the newest)
 	@./src/scripts/backup.sh $(ARGS)
 
-smoke: specs/node_modules/.install ## The platform contract from this Mac (VANTAGE=tailnet on the tailnet)
+smoke: specs/node_modules/.install ## The platform contract from this Mac, from the vantage its Tailscale gives it
 	cd specs && npx vitest --run $(SPECS_$(VANTAGE))
 
 test-host: specs/node_modules/.install ## The node itself: sshd, the nft guard, upgrades, k3s
