@@ -1,12 +1,26 @@
 ---
-# invariant: cert-manager and cloudflared; cloudflared's hostNetwork traffic is never filtered.
+# invariant: the baseline denies; the rules below are cert-manager's alone. cloudflared, the other
+# tenant, is an app-chart release whose own `network:` policy is its only allowance (ADR-002).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: platform-networking
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+
+---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-cert-manager-ingress
   namespace: platform-networking
 spec:
-  podSelector: {}
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: cert-manager
   policyTypes:
     - Ingress
   ingress:
@@ -21,10 +35,12 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-egress
+  name: allow-cert-manager-egress
   namespace: platform-networking
 spec:
-  podSelector: {}
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: cert-manager
   policyTypes:
     - Egress
   egress:
@@ -35,19 +51,6 @@ spec:
       ports:
         - protocol: UDP
           port: 53
-    # invariant: the tunnel edge, in case cloudflared ever leaves hostNetwork.
-    - to:
-        - ipBlock:
-            cidr: 0.0.0.0/0
-            except:
-              - 10.0.0.0/8
-              - 172.16.0.0/12
-              - 192.168.0.0/16
-      ports:
-        - protocol: UDP
-          port: 7844
-        - protocol: TCP
-          port: 7844
     - to:
         - namespaceSelector: {}
       ports:

@@ -58,6 +58,11 @@ fires its handler, a k3s restart for the k3s templates.
   `src/kubernetes/cluster/namespaces.yaml`, and `<app>-<env>` namespaces,
   created by the app's own deploy, with `<app>` = `<brand>-<role>` as the one
   name of its release, image, volume, data directory and Infisical folder.
+- **Deleting a file deletes nothing.** `kubectl apply` adds and updates, so an
+  object whose file leaves `src/kubernetes/cluster` stays live until it is
+  deleted by hand (`kubectl delete -f <file>` before the file goes). A release
+  dropped from the helmfile stays installed the same way: set `installed:
+  false` for one deploy, then remove the entry. Only the dashboards task prunes.
 - **Immutable fields mean delete and recreate**: a Deployment selector, a PV's
   `hostPath.type`, a binding's `roleRef`. A changed `pathSuffix`, PV name or
   `<svc>-platform` release name moves or orphans live data.
@@ -68,9 +73,9 @@ fires its handler, a k3s restart for the k3s templates.
   One release is redeployed with `helmfile apply -l name=<release>`.
 - **CI never runs the host layer**: those roles restart sshd and tailscaled
   under the runner's own session, and creating the VM is `orbctl` on the Mac.
-- **A workload is an app-chart release or an upstream chart.** A raw manifest
-  is the last resort, kept only for what no chart expresses (cloudflared's
-  `hostNetwork`).
+- **A workload is an app-chart release or an upstream chart.** cloudflared,
+  the registry and OpenPanel's services are app-chart releases; no workload is
+  a raw manifest.
 - **The cluster is discovered, never listed.** The platform contract
   (`specs/specs/api`) probes what each IngressRoute's `smoke.jterrazz.com/*`
   annotations say, and `make redeploy-apps` reads `app.jterrazz.com/repository`
