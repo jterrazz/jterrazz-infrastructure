@@ -37,7 +37,7 @@ jobs:
           node-version: "24"
 
       - name: Content check
-        run: make docs
+        run: make check-docs
 
   specs:
     name: Validate Specs

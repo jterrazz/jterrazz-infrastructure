@@ -10,8 +10,8 @@ in [Operate](operate.md).
 
 `make check` (alias `make lint`) runs what CI runs on the tree: shellcheck,
 ansible-lint, helm lint and helm-unittest on both charts, actionlint, the
-content check (`make docs`) and the specs project's own check
-(`make specs-check`). What each proves, and what CI adds, is [Test](test.md).
+content check (`make check-docs`) and the specs project's own check
+(`make check-specs`). What each proves, and what CI adds, is [Test](test.md).
 
 A change to a chart template that changes what it renders bumps `version:` in
 that chart's `Chart.yaml`: apps pull the app chart unversioned and the
@@ -33,7 +33,7 @@ values file, manifest, template, role and workflow.
 3. **Prefer the default when it fails faster, uses less memory or is one fewer
    moving part**, and say the improvement in numbers.
 4. **A comment states a live fact the line cannot.** Each opens with its kind,
-   which `make docs` checks: `invariant:` (this must match that), `hazard:`
+   which `make check-docs` checks: `invariant:` (this must match that), `hazard:`
    (change it and something breaks or data moves), `outside:` (a fact of a
    system beyond this tree) or `value:` (why this number). One line where
    possible. History, measurements and alternatives belong in a decision record

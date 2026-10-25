@@ -56,7 +56,7 @@ each claim needs.
 - **CI reads the cluster as itself.** The tailnet job builds an OIDC
   kubeconfig as `docker-deploy` does and reads as user
   `github:jterrazz/jterrazz-infrastructure`, bound to the read-only
-  `platform-reader` ClusterRole (`src/kubernetes/cluster/platform-reader.yaml`);
+  `platform-reader` ClusterRole (`src/kubernetes/cluster/rbac/platform-reader.yaml`);
   the smoke workflow holds no SSH key any more.
 - **The suite is a project of its own.** `specs/` is a private `cli` on
   node, the kind `@jterrazz/typescript` gives a TypeScript suite of a
@@ -78,5 +78,5 @@ each claim needs.
   `kubectl`, not by `platform-reader`, which may not create pods even in a
   dry run.
 - `specs/` sits outside the content gate's reach and is judged by its own
-  `typescript check` (`make specs-check`, `validate.yaml`); a content root
+  `typescript check` (`make check-specs`, `validate.yaml`); a content root
   that could hold a suite member would fold the two gates back into one.

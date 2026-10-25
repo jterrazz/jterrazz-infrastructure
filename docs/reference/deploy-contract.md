@@ -28,7 +28,8 @@ With nothing stored. The deploy job's GitHub OIDC token, audience
 [ADR-017](../decisions/017-app-repositories-deploy-as-their-github-oidc-identity.md)).
 
 What the identity may do is
-[src/kubernetes/cluster/app-deployers/](../../src/kubernetes/cluster/app-deployers/), and
+[`cluster/rbac/app-deployers.yaml`](../../src/kubernetes/cluster/rbac/app-deployers.yaml) and
+[`cluster/admission/app-deployer-ownership.yaml`](../../src/kubernetes/cluster/admission/app-deployer-ownership.yaml), and
 there is no list of apps in it. A repo:
 
 1. creates one namespace per environment on its first deploy, `<app>-<env>`,

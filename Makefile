@@ -1,7 +1,7 @@
 # outside: one k3s cluster on an OrbStack VM on this Mac; src/scripts/deploy.sh is the entry point.
 
 .DEFAULT_GOAL := help
-.PHONY: help deploy deploy-platform destroy redeploy-apps kubeconfig diff backup smoke test-host test test-admission check-tools check lint docs specs-check print-helm-unittest-version
+.PHONY: help deploy deploy-platform destroy redeploy-apps kubeconfig diff backup smoke test-host test test-admission check-tools check lint check-docs check-specs print-helm-unittest-version
 
 VM_NAME := jterrazz-infrastructure
 KUBECONFIG_FILE := kubeconfig.yaml
@@ -63,7 +63,7 @@ test: smoke test-host ## Everything this Mac can prove of the live platform
 
 # hazard: the admission specs create namespaces and impersonate app identities: a throwaway
 # cluster only, so CLUSTER_KUBECTL is cleared and KUBECONFIG must name it.
-test-admission: specs/node_modules/.install ## The admission policies' cases: ownership, host access (KUBECONFIG=<k3d kubeconfig>)
+test-admission: specs/node_modules/.install ## The admission policies' cases: app-deployer ownership, host access (KUBECONFIG=<k3d kubeconfig>)
 	@test -n "$(KUBECONFIG)" || { echo "✗ KUBECONFIG must name a throwaway cluster"; exit 1; }
 	cd specs && CLUSTER_KUBECTL= npx vitest --run specs/admission
 
@@ -88,15 +88,15 @@ check: ## Run the checks CI runs on the tree
 		echo "⚠ helm-unittest skipped: helm plugin install https://github.com/helm-unittest/helm-unittest --version $(HELM_UNITTEST_VERSION) --verify=false"; \
 	fi
 	@if command -v actionlint >/dev/null 2>&1; then actionlint; else echo "⚠ actionlint skipped: brew install actionlint"; fi
-	@if command -v npx >/dev/null 2>&1; then $(MAKE) --no-print-directory docs specs-check; else echo "⚠ docs and specs-check skipped: no node"; fi
+	@if command -v npx >/dev/null 2>&1; then $(MAKE) --no-print-directory check-docs check-specs; else echo "⚠ check-docs and check-specs skipped: no node"; fi
 
 # value: pinned, since `@latest` turns a green tree red the day a release adds rules.
 # hazard: `--package` plus the bin name: npm infers `typescript` from the short form, which
 # collides with a dependency (ADR-020).
-docs: ## Check the repository as content (manual layout, Markdown, comments, names, secrets)
+check-docs: ## Check the repository as content (manual layout, Markdown, comments, names, secrets)
 	npx --yes --package=@jterrazz/typescript@11.0.0 -- typescript check
 
-specs-check: specs/node_modules/.install ## Check the specs project (types, lint, format, test conventions)
+check-specs: specs/node_modules/.install ## Check the specs project (types, lint, format, test conventions)
 	cd specs && npx typescript check
 
 # invariant: `lint` is the name every app repo's CI interface uses.
