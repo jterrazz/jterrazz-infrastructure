@@ -7,6 +7,9 @@ persistence:
 grafana.ini:
   database:
     wal: true
+  # value: none of the five preinstalled apps (323 MB) reads a VictoriaMetrics-family source.
+  plugins:
+    preinstall_disabled: true
 
 resources:
   requests:
@@ -75,31 +78,19 @@ plugins:
 datasources:
   datasources.yaml:
     apiVersion: 1
-    # invariant: frees the uids below from the pre-Victoria rows, a restored grafana.db included.
-    deleteDatasources:
-      - name: Prometheus
-        orgId: 1
-      - name: Loki
-        orgId: 1
-      - name: Tempo
-        orgId: 1
     datasources:
-      # hazard: every dashboard and app alert names a datasource by these uids (ADR-005).
+      # hazard: every dashboard and app alert names a datasource by these uids, the store's own
+      # name, so nobody writes LogQL against a uid called loki (ADR-005).
       - name: VictoriaMetrics
         type: prometheus
-        uid: prometheus
+        uid: victoria-metrics
         url: http://victoria-metrics.platform-telemetry.svc:8428
         isDefault: true
       - name: VictoriaLogs
         type: victoriametrics-logs-datasource
-        uid: loki
+        uid: victoria-logs
         url: http://victoria-logs.platform-telemetry.svc:9428
       - name: VictoriaTraces
         type: jaeger
-        uid: tempo
+        uid: victoria-traces
         url: http://victoria-traces.platform-telemetry.svc:10428/select/jaeger
-        jsonData:
-          tracesToLogsV2:
-            datasourceUid: loki
-          tracesToMetrics:
-            datasourceUid: prometheus

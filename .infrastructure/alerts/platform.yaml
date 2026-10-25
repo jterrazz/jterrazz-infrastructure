@@ -1,0 +1,305 @@
+# invariant: the platform's rules, in the layout every app ships (ADR-025); noDataState is OK only
+# where no series is the healthy state, and no rule sets execErrState: OK.
+apiVersion: 1
+groups:
+- orgId: 1
+  name: platform
+  folder: infrastructure
+  interval: 1m
+  rules:
+  - uid: platform-node-disk
+    title: Node disk under 10% free
+    condition: C
+    for: 15m
+    noDataState: Alerting
+    labels:
+      severity: critical
+    annotations:
+      summary: 'The VM''s disk has under 10% free: images and the datastore stop writing first.'
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: victoria-metrics
+      model:
+        refId: A
+        expr: max(node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})
+        instant: true
+    - refId: B
+      datasourceUid: __expr__
+      model:
+        refId: B
+        type: reduce
+        expression: A
+        reducer: last
+    - refId: C
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: B
+        conditions:
+        - evaluator:
+            type: lt
+            params:
+            - 0.1
+  - uid: platform-mac-disk
+    title: Mac disk under 10% free
+    condition: C
+    for: 15m
+    noDataState: Alerting
+    labels:
+      severity: critical
+    annotations:
+      summary: The Mac's disk, which holds every volume and the backups, has under 10% free.
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: victoria-metrics
+      model:
+        refId: A
+        expr: max(node_filesystem_avail_bytes{mountpoint="/mnt/mac"} / node_filesystem_size_bytes{mountpoint="/mnt/mac"})
+        instant: true
+    - refId: B
+      datasourceUid: __expr__
+      model:
+        refId: B
+        type: reduce
+        expression: A
+        reducer: last
+    - refId: C
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: B
+        conditions:
+        - evaluator:
+            type: lt
+            params:
+            - 0.1
+  - uid: platform-node-memory
+    title: Node memory under 8% available
+    condition: C
+    for: 10m
+    noDataState: Alerting
+    labels:
+      severity: warning
+    annotations:
+      summary: 'The VM has under 8% of its memory available: the kernel is about to reclaim or kill.'
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: victoria-metrics
+      model:
+        refId: A
+        expr: max(node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)
+        instant: true
+    - refId: B
+      datasourceUid: __expr__
+      model:
+        refId: B
+        type: reduce
+        expression: A
+        reducer: last
+    - refId: C
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: B
+        conditions:
+        - evaluator:
+            type: lt
+            params:
+            - 0.08
+  - uid: platform-pod-crashloop
+    title: Container restarting
+    condition: C
+    for: 0s
+    noDataState: OK
+    labels:
+      severity: warning
+    annotations:
+      summary: '{{ $labels.namespace }}/{{ $labels.pod }} restarted more than 3 times in 30 minutes.'
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: victoria-metrics
+      model:
+        refId: A
+        expr: max by (namespace, pod) (increase(kube_pod_container_status_restarts_total[30m]))
+        instant: true
+    - refId: B
+      datasourceUid: __expr__
+      model:
+        refId: B
+        type: reduce
+        expression: A
+        reducer: last
+    - refId: C
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: B
+        conditions:
+        - evaluator:
+            type: gt
+            params:
+            - 3
+  - uid: platform-deployment-unavailable
+    title: Deployment short of ready replicas
+    condition: C
+    for: 15m
+    noDataState: OK
+    labels:
+      severity: critical
+    annotations:
+      summary: '{{ $labels.namespace }}/{{ $labels.deployment }} has had unavailable replicas for 15 minutes.'
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: victoria-metrics
+      model:
+        refId: A
+        expr: max by (namespace, deployment) (kube_deployment_status_replicas_unavailable)
+        instant: true
+    - refId: B
+      datasourceUid: __expr__
+      model:
+        refId: B
+        type: reduce
+        expression: A
+        reducer: last
+    - refId: C
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: B
+        conditions:
+        - evaluator:
+            type: gt
+            params:
+            - 0
+  - uid: platform-scrape-target-down
+    title: Scrape target down
+    condition: C
+    for: 10m
+    noDataState: Alerting
+    labels:
+      severity: warning
+    annotations:
+      summary: '{{ $labels.job }} {{ $labels.namespace }}/{{ $labels.pod }} has not answered its scrape for 10 minutes.'
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: victoria-metrics
+      model:
+        refId: A
+        expr: min by (job, namespace, pod) (up)
+        instant: true
+    - refId: B
+      datasourceUid: __expr__
+      model:
+        refId: B
+        type: reduce
+        expression: A
+        reducer: last
+    - refId: C
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: B
+        conditions:
+        - evaluator:
+            type: lt
+            params:
+            - 1
+  - uid: platform-certificate-expiring
+    title: Certificate within 14 days of expiry
+    condition: C
+    for: 1h
+    noDataState: Alerting
+    labels:
+      severity: critical
+    annotations:
+      summary: '{{ $labels.namespace }}/{{ $labels.name }} expires in under 14 days: cert-manager renews at 30, so renewal has failed.'
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: victoria-metrics
+      model:
+        refId: A
+        expr: min by (namespace, name) ((certmanager_certificate_expiration_timestamp_seconds - time()) / 86400)
+        instant: true
+    - refId: B
+      datasourceUid: __expr__
+      model:
+        refId: B
+        type: reduce
+        expression: A
+        reducer: last
+    - refId: C
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: B
+        conditions:
+        - evaluator:
+            type: lt
+            params:
+            - 14
+  - uid: platform-backup-stale
+    title: Backup older than 8 days
+    condition: C
+    for: 1h
+    noDataState: Alerting
+    labels:
+      severity: critical
+    annotations:
+      summary: 'The last successful weekly backup is over 8 days old: run make backup ARGS=--verify, and read the jterrazz-backup unit''s journal.'
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: victoria-metrics
+      model:
+        refId: A
+        expr: (time() - max(jterrazz_backup_last_success_timestamp_seconds)) / 86400
+        instant: true
+    - refId: B
+      datasourceUid: __expr__
+      model:
+        refId: B
+        type: reduce
+        expression: A
+        reducer: last
+    - refId: C
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: B
+        conditions:
+        - evaluator:
+            type: gt
+            params:
+            - 8

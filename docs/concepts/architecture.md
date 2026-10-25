@@ -33,9 +33,10 @@ the chart that consumes it: `values.yaml` for an upstream chart, `service.yaml`
 for `charts/platform-service` (release `<svc>-platform`, a name frozen because
 it owns live volumes), and any other name for one app-chart release
 (`op-api.yaml`, or `app.yaml` for a single workload). A name starting with
-`_` is values several releases share (`openpanel/_common.yaml`), and the JSON
-files under `grafana/dashboards/` are the infrastructure dashboards, which
-`grafana-platform` renders one ConfigMap each. The one raw manifest is
+`_` is values several releases share (`openpanel/_common.yaml`). The
+platform's dashboards and alert rules live at the repository root, in
+`.infrastructure/{dashboards,alerts}/`, the layout every app ships them in,
+and `grafana-platform` renders them. The one raw manifest is
 cert-manager's ClusterIssuers, applied once its CRDs exist.
 
 ## Two charts and the library they share

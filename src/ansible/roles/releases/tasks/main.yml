@@ -100,7 +100,7 @@
   changed_when: false
 
 - name: Apply the cert-manager ClusterIssuers
-  ansible.builtin.command: kubectl apply -f {{ manifest_dir }}/kubernetes/services/cert-manager/issuers.yaml
+  ansible.builtin.command: kubectl apply -f {{ kubernetes_dir }}/services/cert-manager/issuers.yaml
   register: issuers_result
   changed_when: "'created' in issuers_result.stdout or 'configured' in issuers_result.stdout"
 

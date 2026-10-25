@@ -415,20 +415,28 @@ Renders **one** ConfigMap `<app>-alerts` labelled `grafana_alert: "1"`, with
 one data key `<name>.yaml` per entry, picked up by Grafana's `sidecar.alerts`
 (`searchNamespace: ALL`, so the app's own namespace is fine).
 
+App CI fills this map the way it fills dashboards: `docker-deploy` scans
+`.infrastructure/alerts/*.yaml` and appends `--set-file spec.alerts.<basename>=<file>`
+per file, so a rule group is one file beside the dashboards, never inline in
+`application.yaml`. The platform ships its own rules in the same layout, under
+`.infrastructure/alerts/` at the root of the infrastructure repo
+([ADR-025](../../../../docs/decisions/025-dashboards-and-alerts-ship-as-files-in-dot-infrastructure.md)).
+
 ```yaml
-spec:
-  alerts:
-    signews-api: |
-      apiVersion: 1
-      groups:
-        - orgId: 1
-          name: signews-api
-          folder: signews-api
-          interval: 1m
-          rules:
-            - uid: signews-api-eventloop-lag
-              ...
+# .infrastructure/alerts/signews-api.yaml
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: signews-api
+    folder: signews-api
+    interval: 1m
+    rules:
+      - uid: signews-api-eventloop-lag
+        ...
 ```
+
+A query names its datasource by the store's uid: `victoria-metrics`,
+`victoria-logs` (LogsQL, never LogQL) or `victoria-traces`.
 
 **Only rendered when `environment == prod`**, and for a harder reason than
 dashboards: a rule `uid:` is global in Grafana, so a staging copy of a rule
@@ -440,7 +448,10 @@ refuses stops alerting for the whole cluster, not for one app. The chart
 refuses first: each payload must be an `apiVersion: 1` document with a `groups`
 list, each group must name its `name` and `folder`, and each rule must carry a
 `uid` of at most 40 characters from `[a-zA-Z0-9_-]`, unique across the app's
-entries. The payload itself still passes through byte for byte.
+entries, and no rule may set `execErrState: OK`, which keeps a broken query
+green forever (unset, Grafana's `Error` fires on it). The same check covers the
+platform's rules (`common.alerts`). The payload itself passes through byte for
+byte.
 
 Two deliberate differences from `spec.dashboards`:
 
@@ -450,10 +461,6 @@ Two deliberate differences from `spec.dashboards`:
 - **One ConfigMap for all entries**, not one per entry, so an app's rule set is
   replaced atomically: a renamed rule file cannot leave an orphan ConfigMap
   behind still provisioning a rule nobody maintains.
-
-Unlike dashboards, **CI does not populate this map from a directory**:
-`docker-deploy` reads only `dashboards/*.json`, so alerts are written inline in
-`.infrastructure/application.yaml`.
 
 **Removing a rule takes one more step.** Grafana keeps a provisioned rule in
 its database when the file that declared it disappears, so a rule dropped from

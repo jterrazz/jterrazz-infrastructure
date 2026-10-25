@@ -24,7 +24,7 @@
 
 - name: Read the app chart metadata
   ansible.builtin.slurp:
-    src: "{{ manifest_dir }}/kubernetes/charts/app/Chart.yaml"
+    src: "{{ kubernetes_dir }}/charts/app/Chart.yaml"
   register: app_chart_yaml
 
 - name: Extract the app chart version
@@ -67,11 +67,11 @@
 
     # outside: `common` is an unvendored file:// dependency, bundled into the .tgz.
     - name: Resolve the app chart's library dependency
-      ansible.builtin.command: helm dependency update {{ manifest_dir }}/kubernetes/charts/app
+      ansible.builtin.command: helm dependency update {{ kubernetes_dir }}/charts/app
       changed_when: true
 
     - name: Package the app Helm chart
-      ansible.builtin.command: helm package {{ manifest_dir }}/kubernetes/charts/app --destination /tmp/app-chart
+      ansible.builtin.command: helm package {{ kubernetes_dir }}/charts/app --destination /tmp/app-chart
       changed_when: true
 
     - name: Locate the packaged chart

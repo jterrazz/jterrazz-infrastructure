@@ -2,7 +2,7 @@
   "panels": [
     { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "id": 50, "title": "CPU", "type": "row" },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "victoria-metrics" },
       "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "green", "value": 0 }, { "color": "orange", "value": 70 }, { "color": "red", "value": 90 }] }, "unit": "percent", "min": 0, "max": 100 } },
       "gridPos": { "h": 6, "w": 4, "x": 0, "y": 1 },
       "id": 1,
@@ -12,7 +12,7 @@
       "type": "gauge"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "victoria-metrics" },
       "fieldConfig": {
         "defaults": { "custom": { "fillOpacity": 20, "stacking": { "mode": "normal" } }, "unit": "percent", "min": 0, "max": 100 },
         "overrides": [
@@ -34,7 +34,7 @@
       "type": "timeseries"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "victoria-metrics" },
       "fieldConfig": { "defaults": { "custom": { "fillOpacity": 10 }, "unit": "short" } },
       "gridPos": { "h": 6, "w": 10, "x": 14, "y": 1 },
       "id": 3,
@@ -49,7 +49,7 @@
     },
     { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 }, "id": 51, "title": "Memory", "type": "row" },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "victoria-metrics" },
       "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "green", "value": 0 }, { "color": "orange", "value": 70 }, { "color": "red", "value": 90 }] }, "unit": "percent", "min": 0, "max": 100 } },
       "gridPos": { "h": 6, "w": 4, "x": 0, "y": 8 },
       "id": 4,
@@ -59,7 +59,7 @@
       "type": "gauge"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "victoria-metrics" },
       "fieldConfig": {
         "defaults": { "custom": { "fillOpacity": 30, "stacking": { "mode": "normal" } }, "unit": "bytes" },
         "overrides": [
@@ -81,7 +81,7 @@
       "type": "timeseries"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "victoria-metrics" },
       "fieldConfig": { "defaults": { "custom": { "fillOpacity": 15 }, "unit": "bytes" } },
       "gridPos": { "h": 6, "w": 10, "x": 14, "y": 8 },
       "id": 6,
@@ -94,7 +94,7 @@
     },
     { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 }, "id": 52, "title": "Disk", "type": "row" },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "victoria-metrics" },
       "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "green", "value": 0 }, { "color": "orange", "value": 70 }, { "color": "red", "value": 85 }] }, "unit": "percent", "min": 0, "max": 100 } },
       "gridPos": { "h": 6, "w": 4, "x": 0, "y": 15 },
       "id": 7,
@@ -104,7 +104,7 @@
       "type": "gauge"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "victoria-metrics" },
       "fieldConfig": {
         "defaults": { "custom": { "fillOpacity": 20 }, "unit": "bytes" },
         "overrides": [
@@ -122,7 +122,7 @@
       "type": "timeseries"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "victoria-metrics" },
       "fieldConfig": { "defaults": { "custom": { "fillOpacity": 15 }, "unit": "Bps" } },
       "gridPos": { "h": 6, "w": 10, "x": 14, "y": 15 },
       "id": 9,
@@ -135,7 +135,7 @@
     },
     { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 }, "id": 53, "title": "Network", "type": "row" },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "victoria-metrics" },
       "fieldConfig": { "defaults": { "custom": { "fillOpacity": 15 }, "unit": "bps" } },
       "gridPos": { "h": 7, "w": 12, "x": 0, "y": 22 },
       "id": 10,
@@ -147,7 +147,7 @@
       "type": "timeseries"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "victoria-metrics" },
       "fieldConfig": { "defaults": { "custom": { "fillOpacity": 15 }, "unit": "pps" } },
       "gridPos": { "h": 7, "w": 12, "x": 12, "y": 22 },
       "id": 11,
@@ -160,7 +160,7 @@
     },
     { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 29 }, "id": 54, "title": "System", "type": "row" },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "victoria-metrics" },
       "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "green", "value": 0 }] }, "unit": "dtdurations" } },
       "gridPos": { "h": 4, "w": 6, "x": 0, "y": 30 },
       "id": 12,
@@ -170,7 +170,7 @@
       "type": "stat"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "victoria-metrics" },
       "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "blue", "value": 0 }] } } },
       "gridPos": { "h": 4, "w": 6, "x": 6, "y": 30 },
       "id": 13,
@@ -180,7 +180,7 @@
       "type": "stat"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "victoria-metrics" },
       "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "blue", "value": 0 }] }, "unit": "bytes" } },
       "gridPos": { "h": 4, "w": 6, "x": 12, "y": 30 },
       "id": 14,
@@ -190,7 +190,7 @@
       "type": "stat"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "victoria-metrics" },
       "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "blue", "value": 0 }] }, "unit": "bytes" } },
       "gridPos": { "h": 4, "w": 6, "x": 18, "y": 30 },
       "id": 15,

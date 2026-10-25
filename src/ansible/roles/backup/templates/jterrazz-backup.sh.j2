@@ -22,6 +22,11 @@ chmod 600 "$archive"
 systemctl start k3s
 trap - EXIT
 
+# invariant: node-exporter's textfile collector reads it; the platform-backup-stale alert fires on its age.
+textfile=/var/lib/node-exporter/textfile
+echo "jterrazz_backup_last_success_timestamp_seconds $(date +%s)" > "$textfile/jterrazz_backup.prom.tmp"
+mv "$textfile/jterrazz_backup.prom.tmp" "$textfile/jterrazz_backup.prom"
+
 # value: four weekly snapshots, a month of history on a disk shared with the data.
 ls -1t "$out"/k8s-data-*.tar.gz.age | tail -n +5 | xargs -r rm -f --
 echo "wrote $archive ($(du -h "$archive" | cut -f1))"

@@ -24,6 +24,10 @@ network: {}
 # invariant: name -> dashboard JSON, one ConfigMap each; the helmfile reads the files.
 dashboards: {}
 
+# invariant: name -> Grafana alert provisioning document, all in one ConfigMap; the helmfile
+# reads the files.
+alerts: {}
+
 # invariant: set by the helmfile from $NODE_NAME.
 infrastructure:
   nodeName: ""

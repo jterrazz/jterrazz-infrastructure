@@ -4,6 +4,12 @@
     name: age
     state: present
 
+- name: Create node-exporter's textfile directory
+  ansible.builtin.file:
+    path: /var/lib/node-exporter/textfile
+    state: directory
+    mode: "0755"
+
 - name: Install the backup script
   ansible.builtin.template:
     src: jterrazz-backup.sh.j2

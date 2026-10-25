@@ -9,3 +9,17 @@ resources:
     memory: 32Mi
   limits:
     memory: 64Mi
+
+# invariant: metrics the host writes as files, read-only here; the weekly backup's last success
+# is one (roles/backup, the platform-backup-stale alert).
+# hazard: extraArgs replaces the chart's list, so its two filesystem filters are carried here.
+extraArgs:
+  - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run/containerd/.+|var/lib/docker/.+|var/lib/kubelet/.+)($|/)
+  - --collector.filesystem.fs-types-exclude=^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs|erofs)$
+  - --collector.textfile.directory=/host/textfile
+extraHostVolumeMounts:
+  - name: textfile
+    hostPath: /var/lib/node-exporter/textfile
+    mountPath: /host/textfile
+    readOnly: true
+    mountPropagation: HostToContainer

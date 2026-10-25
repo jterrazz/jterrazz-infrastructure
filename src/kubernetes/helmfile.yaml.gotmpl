@@ -66,11 +66,15 @@ releases:
       - template: platform-service
     values:
       - services/grafana/service.yaml
-      # invariant: every JSON file under grafana/dashboards/ is one dashboard; a file removed is
-      # a ConfigMap removed.
+      # invariant: the platform's dashboards and alert rules, in the layout every app ships
+      # (.infrastructure/{dashboards,alerts}); a file removed is a ConfigMap removed (ADR-025).
       - dashboards:
-{{- range $file := readDirEntries "services/grafana/dashboards" }}
-          {{ $file.Name | trimSuffix ".json" }}: {{ readFile (printf "services/grafana/dashboards/%s" $file.Name) | toJson }}
+{{- range $file := readDirEntries "../../.infrastructure/dashboards" }}
+          {{ $file.Name | trimSuffix ".json" }}: {{ readFile (printf "../../.infrastructure/dashboards/%s" $file.Name) | toJson }}
+{{- end }}
+        alerts:
+{{- range $file := readDirEntries "../../.infrastructure/alerts" }}
+          {{ $file.Name | trimSuffix ".yaml" }}: {{ readFile (printf "../../.infrastructure/alerts/%s" $file.Name) | toJson }}
 {{- end }}
 
   - name: victoria-metrics-platform

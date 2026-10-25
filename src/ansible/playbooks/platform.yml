@@ -7,8 +7,10 @@
   gather_facts: true
   vars:
     kubeconfig: /etc/rancher/k3s/k3s.yaml
-    # invariant: staged by the pre_tasks, removed by the post_tasks.
+    # invariant: staged by the pre_tasks with the repository's own layout, so a path relative to
+    # the helmfile (../../.infrastructure) is the same on the node; removed by the post_tasks.
     manifest_dir: /tmp/k8s-manifests
+    kubernetes_dir: "{{ manifest_dir }}/src/kubernetes"
   environment:
     KUBECONFIG: "{{ kubeconfig }}"
 
@@ -33,13 +35,15 @@
       tags: [always]
 
     # value: one archive, not one round trip per file: the per-file copy was 266s of a 6-minute CI deploy.
-    - name: Pack the src/kubernetes/ tree on the controller
+    - name: Pack src/kubernetes and .infrastructure on the controller
       community.general.archive:
-        path: "{{ playbook_dir }}/../../kubernetes"
-        dest: "{{ lookup('ansible.builtin.env', 'TMPDIR') | default('/tmp', true) }}/jterrazz-kubernetes.tgz"
+        path:
+          - "{{ (playbook_dir ~ '/../../kubernetes') | realpath }}"
+          - "{{ (playbook_dir ~ '/../../../.infrastructure') | realpath }}"
+        dest: "{{ lookup('ansible.builtin.env', 'TMPDIR') | default('/tmp', true) }}/jterrazz-platform.tgz"
         exclude_path:
-          - "{{ playbook_dir }}/../../kubernetes/charts/app/tests"
-          - "{{ playbook_dir }}/../../kubernetes/charts/platform-service/tests"
+          - "{{ (playbook_dir ~ '/../../kubernetes/charts/app/tests') | realpath }}"
+          - "{{ (playbook_dir ~ '/../../kubernetes/charts/platform-service/tests') | realpath }}"
         mode: "0600"
       delegate_to: localhost
       become: false
@@ -47,9 +51,9 @@
       changed_when: false
       tags: [always]
 
-    - name: Unpack the src/kubernetes/ tree on the node
+    - name: Unpack them on the node
       ansible.builtin.unarchive:
-        src: "{{ lookup('ansible.builtin.env', 'TMPDIR') | default('/tmp', true) }}/jterrazz-kubernetes.tgz"
+        src: "{{ lookup('ansible.builtin.env', 'TMPDIR') | default('/tmp', true) }}/jterrazz-platform.tgz"
         dest: "{{ manifest_dir }}"
       changed_when: false
       tags: [always]

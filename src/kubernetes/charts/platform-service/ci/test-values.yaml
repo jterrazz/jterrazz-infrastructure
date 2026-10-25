@@ -73,3 +73,13 @@ network:
 # invariant: one dashboard, so the ConfigMap's labels and folder are pinned.
 dashboards:
   ci-test-overview: '{"title": "ci test overview"}'
+
+# invariant: one valid document, so the ConfigMap and the shared validation are pinned.
+alerts:
+  ci-test-overview: |
+    apiVersion: 1
+    groups:
+      - name: ci
+        folder: infrastructure
+        rules:
+          - uid: ci-test-rule

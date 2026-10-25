@@ -6,12 +6,13 @@ nothing here is written twice.
 
 ## Guides
 
-| Page                                             | Holds                                                                               |
-| ------------------------------------------------ | ----------------------------------------------------------------------------------- |
-| [develop](guides/develop.md)                     | How a change is made: what it owes, the config rules, the conventions, DNS          |
-| [test](guides/test.md)                           | What proves a change: the tree-side checks, the upgrade test, the platform contract |
-| [operate](guides/operate.md)                     | Troubleshooting, repaving, backups and restores, rotations, adding a service        |
-| [resurrect-hetzner](guides/resurrect-hetzner.md) | How to bring a rented target back from git history                                  |
+| Page                                             | Holds                                                                                |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| [develop](guides/develop.md)                     | How a change is made: what it owes, the config rules, the conventions, DNS           |
+| [release](guides/release.md)                     | How a change reaches the cluster: the platform, the app chart, dashboards and alerts |
+| [test](guides/test.md)                           | What proves a change: the tree-side checks, the upgrade test, the platform contract  |
+| [operate](guides/operate.md)                     | Troubleshooting, repaving, backups and restores, rotations, adding a service         |
+| [resurrect-hetzner](guides/resurrect-hetzner.md) | How to bring a rented target back from git history                                   |
 
 ## Concepts
 

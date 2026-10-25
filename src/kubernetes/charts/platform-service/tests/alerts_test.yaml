@@ -1,0 +1,41 @@
+suite: the platform's alert rules
+templates:
+  - templates/alerts.yaml
+values:
+  - ../ci/test-values.yaml
+tests:
+  - it: puts every document in one ConfigMap Grafana's sidecar loads
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: ci-test-service-alerts
+      - equal:
+          path: metadata.labels.grafana_alert
+          value: "1"
+      - exists:
+          path: data["ci-test-overview.yaml"]
+
+  - it: holds the platform to the same rules as an app
+    # invariant: one validation for both charts (common.alerts).
+    set:
+      alerts:
+        ci-test-overview: |
+          apiVersion: 1
+          groups:
+            - name: ci
+              folder: infrastructure
+              rules:
+                - uid: ci-silent
+                  execErrState: OK
+    asserts:
+      - failedTemplate:
+          errorMessage: 'alerts.ci-test-overview: rule "ci-silent" sets `execErrState: OK`, which keeps a broken query green; leave it unset'
+
+  - it: renders nothing without alerts
+    set:
+      alerts: null
+    asserts:
+      - hasDocuments:
+          count: 0

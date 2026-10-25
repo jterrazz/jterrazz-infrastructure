@@ -2,17 +2,9 @@
 {{- if eq (include "app.envExists" .) "true" -}}
 {{- $alerts := fromYaml (include "app.alerts" .) -}}
 {{- if and $alerts (eq .Values.environment "prod") }}
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ include "app.name" . }}-alerts
-  labels:
-    {{- include "app.labels" . | nindent 4 }}
-    grafana_alert: "1"
-data:
-  {{- range $name, $rules := $alerts }}
-  {{ $name }}.yaml: |
-    {{- $rules | nindent 4 }}
-  {{- end }}
+{{ include "common.alertsConfigMap" (dict
+     "name" (printf "%s-alerts" (include "app.name" .))
+     "labels" (include "app.labels" .)
+     "alerts" $alerts) }}
 {{- end }}
 {{- end }}

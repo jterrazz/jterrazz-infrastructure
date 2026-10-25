@@ -37,6 +37,7 @@ a list that names one is stale, never a cue to bring it back.
 | How does the system fit together? How are things named? | [docs/concepts/architecture.md](docs/concepts/architecture.md)                                       |
 | What keeps a request out, and what proves it?           | [docs/concepts/security.md](docs/concepts/security.md)                                               |
 | I am editing a values file, manifest, template or role  | [docs/guides/develop.md](docs/guides/develop.md)                                                     |
+| How does a change reach the cluster?                    | [docs/guides/release.md](docs/guides/release.md)                                                     |
 | What proves this change? What does a deploy prove?      | [docs/guides/test.md](docs/guides/test.md)                                                           |
 | Troubleshooting, repave, restore, rotate, add a service | [docs/guides/operate.md](docs/guides/operate.md)                                                     |
 | Where does a secret live, and who reads it?             | [docs/reference/secrets.md](docs/reference/secrets.md)                                               |

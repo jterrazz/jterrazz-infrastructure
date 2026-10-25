@@ -1,0 +1,8 @@
+{{- /* invariant: the platform's alert rules; an app ships its own through the app chart's spec.alerts. */}}
+{{- $alerts := fromYaml (include "common.alerts" (dict "alerts" .Values.alerts "field" "alerts")) -}}
+{{- if $alerts }}
+{{ include "common.alertsConfigMap" (dict
+     "name" (printf "%s-alerts" (include "platform-service.name" .))
+     "labels" (include "platform-service.labels" .)
+     "alerts" $alerts) }}
+{{- end }}

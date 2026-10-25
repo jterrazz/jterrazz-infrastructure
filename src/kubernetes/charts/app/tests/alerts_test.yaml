@@ -219,3 +219,21 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "spec.alerts.ci-test-app: group 0 must name both `name` and `folder`"
+
+  - it: fails the render on a rule that hides its own query errors
+    # invariant: `execErrState: OK` keeps a broken query green forever; unset means Error.
+    values:
+      - ../ci/test-values.yaml
+    set:
+      spec.alerts:
+        ci-test-app: |
+          apiVersion: 1
+          groups:
+            - name: ci-test-app
+              folder: ci-test-app
+              rules:
+                - uid: ci-test-app-silent
+                  execErrState: OK
+    asserts:
+      - failedTemplate:
+          errorMessage: 'spec.alerts.ci-test-app: rule "ci-test-app-silent" sets `execErrState: OK`, which keeps a broken query green; leave it unset'

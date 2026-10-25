@@ -317,43 +317,8 @@ securityContext:
 {{- end }}
 {{- end -}}
 
-{{/* hazard: one file Grafana refuses stops alerting for every app, so it fails here first. */}}
 {{- define "app.alerts" -}}
-{{- $spec := fromYaml (include "app.merged" .) -}}
-{{- $alerts := $spec.alerts | default dict -}}
-{{- $uids := dict -}}
-{{- range $name, $payload := $alerts -}}
-{{- $doc := fromYaml (toString $payload) -}}
-{{- if or (hasKey $doc "Error") (ne (toString $doc.apiVersion) "1") -}}
-{{- fail (printf "spec.alerts.%s: the payload must be a Grafana provisioning document with `apiVersion: 1`" $name) -}}
-{{- end -}}
-{{- if not (kindIs "slice" $doc.groups) -}}
-{{- fail (printf "spec.alerts.%s: `groups` must be a list of rule groups" $name) -}}
-{{- end -}}
-{{- range $gi, $group := $doc.groups -}}
-{{- if not (and (kindIs "map" $group) $group.name $group.folder) -}}
-{{- fail (printf "spec.alerts.%s: group %d must name both `name` and `folder`" $name $gi) -}}
-{{- end -}}
-{{- range $ri, $rule := $group.rules | default list -}}
-{{- $uid := "" -}}
-{{- if kindIs "map" $rule -}}{{- $uid = toString ($rule.uid | default "") -}}{{- end -}}
-{{- if not $uid -}}
-{{- fail (printf "spec.alerts.%s: rule %d of group %q has no `uid`" $name $ri $group.name) -}}
-{{- end -}}
-{{- if gt (len $uid) 40 -}}
-{{- fail (printf "spec.alerts.%s: rule uid %q is %d characters; Grafana caps a uid at 40 and rejects the whole alerting reload, for every app, when one exceeds it" $name $uid (len $uid)) -}}
-{{- end -}}
-{{- if not (regexMatch "^[a-zA-Z0-9_-]+$" $uid) -}}
-{{- fail (printf "spec.alerts.%s: rule uid %q may hold only letters, digits, `-` and `_`" $name $uid) -}}
-{{- end -}}
-{{- if hasKey $uids $uid -}}
-{{- fail (printf "spec.alerts.%s: rule uid %q is already used by spec.alerts.%s" $name $uid (get $uids $uid)) -}}
-{{- end -}}
-{{- $_ := set $uids $uid $name -}}
-{{- end -}}
-{{- end -}}
-{{- end -}}
-{{- $alerts | toYaml -}}
+{{- include "common.alerts" (dict "alerts" (fromYaml (include "app.merged" .)).alerts "field" "spec.alerts") -}}
 {{- end -}}
 
 {{/* invariant: the label the ownership policy judges a PV by; a value cannot hold the `/`. */}}
