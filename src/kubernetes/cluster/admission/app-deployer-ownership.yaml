@@ -42,6 +42,9 @@ spec:
         namespaceObject == null || !has(namespaceObject.metadata.labels) ||
         !('app.jterrazz.com/environment' in namespaceObject.metadata.labels) ? '' :
         request.namespace.substring(0, size(request.namespace) - size(namespaceObject.metadata.labels['app.jterrazz.com/environment']) - 1)
+    # invariant: the Infisical project CI reads, whose root holds the registry pull pair (ADR-015).
+    - name: registryProject
+      expression: "'jterrazz-ci-v-nh-8'"
     # hazard: hand-synced with charts/app/templates/infisical.yaml, which its registry_pull_secret_test pins; the admission spec reads that pin.
     - name: registryTemplate
       expression: |-
@@ -70,7 +73,7 @@ spec:
             (object.spec.authentication.universalAuth.secretsScope.projectSlug == 'jterrazz' &&
              variables.app != '' &&
              object.spec.authentication.universalAuth.secretsScope.secretsPath == '/' + variables.app) ||
-            (object.spec.authentication.universalAuth.secretsScope.projectSlug == 'jterrazz-ci-v-nh-8' &&
+            (object.spec.authentication.universalAuth.secretsScope.projectSlug == variables.registryProject &&
              object.spec.authentication.universalAuth.secretsScope.secretsPath == '/' &&
              object.spec.managedKubeSecretReferences.all(r, has(r.template) && r.template.data == {'.dockerconfigjson': variables.registryTemplate}))
           )
