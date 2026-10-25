@@ -18,8 +18,8 @@ export CLUSTER_KUBECTL HOST_SHELL
 
 # invariant: the Mac is the internet vantage unless its Tailscale is up (docs/guides/test.md).
 VANTAGE ?= internet
-SPECS_internet := specs/api/routes/public specs/api/certificates/public specs/api/boundary specs/cluster specs/routes
-SPECS_tailnet := specs/api/routes specs/api/certificates specs/cluster specs/routes
+SPECS_internet := specs/api/routes/public specs/api/certificates/public specs/api/boundary specs/cluster specs/health specs/routes
+SPECS_tailnet := specs/api/routes specs/api/certificates specs/cluster specs/health specs/routes
 
 deploy: ## Create the VM if absent, then configure it (Ansible site.yml)
 	./src/scripts/deploy.sh

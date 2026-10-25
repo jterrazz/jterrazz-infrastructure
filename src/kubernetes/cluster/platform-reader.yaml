@@ -7,9 +7,9 @@ metadata:
   name: platform-reader
 rules:
   - apiGroups: [""]
-    resources: [namespaces, services, serviceaccounts]
+    resources: [namespaces, services, serviceaccounts, persistentvolumes]
     verbs: [get, list, watch]
-  # invariant: every pod template a NetworkPolicy may select (specs/specs/cluster/network-policies).
+  # invariant: every controller, for the pod templates a NetworkPolicy selects and the readiness health reads.
   - apiGroups: [apps]
     resources: [deployments, statefulsets, daemonsets]
     verbs: [get, list, watch]
@@ -18,6 +18,16 @@ rules:
     verbs: [get, list, watch]
   - apiGroups: [networking.k8s.io]
     resources: [networkpolicies]
+    verbs: [get, list, watch]
+  # invariant: the state specs/specs/health reads; none of these holds a secret value.
+  - apiGroups: [discovery.k8s.io]
+    resources: [endpointslices]
+    verbs: [get, list, watch]
+  - apiGroups: [cert-manager.io]
+    resources: [certificates]
+    verbs: [get, list, watch]
+  - apiGroups: [secrets.infisical.com]
+    resources: [infisicalsecrets]
     verbs: [get, list, watch]
   - apiGroups: [traefik.io]
     resources: [ingressroutes]
