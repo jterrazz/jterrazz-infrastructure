@@ -1,6 +1,10 @@
 # invariant: the tunnel token Secret, mounted by app.yaml as a file, read once at start.
 name: cloudflared
 
+# hazard: /jterrazz-infrastructure holds every deploy secret; the template copies the token alone.
 secrets:
   path: /jterrazz-infrastructure
   secretName: cloudflared-secrets
+  template:
+    data:
+      CLOUDFLARE_TUNNEL_TOKEN: "{{ .CLOUDFLARE_TUNNEL_TOKEN.Value }}"

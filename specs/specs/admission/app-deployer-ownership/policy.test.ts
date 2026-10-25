@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs';
 import { afterAll, describe, expect, test } from 'vitest';
+import { parse } from 'yaml';
 
-import { kubectl } from '../../__setup__/kubectl.ts';
+import { kubectl, REPOSITORY_ROOT } from '../../__setup__/kubectl.ts';
 
 // invariant: two repositories that exist nowhere but here, `a` acting and `b` the neighbour it must not touch;
 // every request of `a` is a server-side dry run, so admission judges it and nothing is written.
@@ -42,6 +44,75 @@ const binding = (inNamespace: string, role: string, user: string): object => ({
     roleRef: { apiGroup: 'rbac.authorization.k8s.io', kind: 'ClusterRole', name: role },
     subjects: [{ apiGroup: 'rbac.authorization.k8s.io', kind: 'User', name: user }],
 });
+
+// invariant: the registry template the app chart renders, read off the chart test that pins it,
+// so the policy's copy of it is checked against the chart's.
+type Suite = { tests: { asserts?: { equal?: { path: string; value: unknown } }[] }[] };
+
+function isSuite(value: unknown): value is Suite {
+    return (
+        typeof value === 'object' &&
+        value !== null &&
+        'tests' in value &&
+        Array.isArray(value.tests)
+    );
+}
+
+function chartRegistryTemplate(): string {
+    const parsed: unknown = parse(
+        readFileSync(
+            `${REPOSITORY_ROOT}src/kubernetes/charts/app/tests/registry_pull_secret_test.yaml`,
+            'utf8',
+        ),
+    );
+    if (!isSuite(parsed)) {
+        throw new TypeError('registry_pull_secret_test.yaml is no helm-unittest suite');
+    }
+    const pin = parsed.tests
+        .flatMap(({ asserts = [] }) => asserts)
+        .find(({ equal }) => equal?.path.endsWith('[".dockerconfigjson"]') ?? false)?.equal?.value;
+    if (typeof pin !== 'string') {
+        throw new TypeError('registry_pull_secret_test.yaml pins no .dockerconfigjson template');
+    }
+
+    return pin;
+}
+
+type Scope = { path: string; project: string };
+const infisicalSecret = (
+    name: string,
+    { path, project }: Scope,
+    reference: Record<string, unknown>,
+    hostAPI = 'https://eu.infisical.com',
+): object => ({
+    apiVersion: 'secrets.infisical.com/v1alpha1',
+    kind: 'InfisicalSecret',
+    metadata: { name, namespace: NS_A },
+    spec: {
+        authentication: {
+            universalAuth: {
+                credentialsRef: {
+                    secretName: 'infisical-credentials',
+                    secretNamespace: 'platform-secrets',
+                },
+                secretsScope: { envSlug: 'prod', projectSlug: project, secretsPath: path },
+            },
+        },
+        hostAPI,
+        managedKubeSecretReferences: [
+            { creationPolicy: 'Orphan', secretName: name, secretNamespace: NS_A, ...reference },
+        ],
+    },
+});
+const OWN = { path: `/${A}`, project: 'jterrazz' };
+const PULL = { path: '/', project: 'jterrazz-ci-v-nh-8' };
+const pullReference = (template: string): Record<string, unknown> => ({
+    secretType: 'kubernetes.io/dockerconfigjson',
+    template: { data: { '.dockerconfigjson': template } },
+});
+const PULL_THROUGH_THE_CHART = pullReference(chartRegistryTemplate());
+const PULL_OF_THE_PUSH_PASSWORD = pullReference('{{ .DOCKER_REGISTRY_PASSWORD.Value }}');
+const SECRET_DENIAL = `denied: an app InfisicalSecret reads /${A} or the registry pull pair, into its own namespace`;
 
 const FIXTURES = [
     namespace(NS_A, { ...APP, [KEY]: A }),
@@ -87,6 +158,38 @@ afterAll(async () => {
 });
 
 const CASES: [string, Request, string][] = [
+    [
+        'syncs its own secrets folder into its namespace',
+        create(infisicalSecret('own', OWN, { secretType: 'Opaque' })),
+        'admitted',
+    ],
+    [
+        'syncs the registry pull pair through the chart template',
+        create(infisicalSecret('pull', PULL, PULL_THROUGH_THE_CHART)),
+        'admitted',
+    ],
+    [
+        "syncs the platform's own folder",
+        create(
+            infisicalSecret('own', { path: '/jterrazz-infrastructure', project: 'jterrazz' }, {}),
+        ),
+        SECRET_DENIAL,
+    ],
+    [
+        'templates the registry push password out of the pull folder',
+        create(infisicalSecret('pull', PULL, PULL_OF_THE_PUSH_PASSWORD)),
+        SECRET_DENIAL,
+    ],
+    [
+        'syncs its folder into another namespace',
+        create(infisicalSecret('own', OWN, { secretNamespace: NS_B })),
+        SECRET_DENIAL,
+    ],
+    [
+        'hands the platform credentials to a foreign host',
+        create(infisicalSecret('own', OWN, {}, 'https://evil.example')),
+        SECRET_DENIAL,
+    ],
     [
         'binds app-namespace-admin to itself in its own namespace',
         create(binding(NS_A, 'app-namespace-admin', `github:jterrazz/${A}`)),

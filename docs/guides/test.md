@@ -90,7 +90,7 @@ probed today with no edit here.
 | `health/certificates/ready.test.ts`               | every Certificate is Ready, a route's or not                                                                                  | the API server           |
 | `health/secrets/synced.test.ts`                   | every InfisicalSecret syncs from its folder                                                                                   | the API server           |
 | `health/volumes/bound.test.ts`                    | every PersistentVolume is Bound and `Retain`                                                                                  | the API server           |
-| `admission/app-deployer-ownership/policy.test.ts` | the ownership policy's cases, admitted and denied, as an app's identity                                                       | k3d, in the upgrade test |
+| `admission/app-deployer-ownership/policy.test.ts` | the ownership policy's cases, admitted and denied, as an app's identity, its InfisicalSecrets included                        | k3d, in the upgrade test |
 | `admission/host-access/policy.test.ts`            | only kube-system and the two named telemetry agents may touch the host                                                        | k3d, in the upgrade test |
 | `host/`                                           | sshd takes keys alone, the nft guard, unattended-upgrades, Secret encryption, the Pod Security default                        | the node, as root        |
 

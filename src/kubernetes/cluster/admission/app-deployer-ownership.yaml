@@ -34,6 +34,18 @@ spec:
       expression: "request.resource.group == '' && request.resource.resource == 'persistentvolumes'"
     - name: owned
       expression: "variables.isNamespace || variables.isVolume"
+    - name: isInfisicalSecret
+      expression: "request.resource.group == 'secrets.infisical.com' && request.resource.resource == 'infisicalsecrets'"
+    # invariant: an app namespace is <app>-<environment> (ADR-023), and its secrets folder is /<app>.
+    - name: app
+      expression: >-
+        namespaceObject == null || !has(namespaceObject.metadata.labels) ||
+        !('app.jterrazz.com/environment' in namespaceObject.metadata.labels) ? '' :
+        request.namespace.substring(0, size(request.namespace) - size(namespaceObject.metadata.labels['app.jterrazz.com/environment']) - 1)
+    # hazard: hand-synced with charts/app/templates/infisical.yaml, which its registry_pull_secret_test pins; the admission spec reads that pin.
+    - name: registryTemplate
+      expression: |-
+        '{{ dict "auths" (dict "registry.internal.jterrazz.com" (dict "username" .REGISTRY_PULL_USERNAME.Value "password" .REGISTRY_PULL_PASSWORD.Value "auth" (list .REGISTRY_PULL_USERNAME.Value .REGISTRY_PULL_PASSWORD.Value | join ":" | b64enc))) | toJson }}'
   validations:
     - expression: "variables.owned || variables.namespaceOwner == variables.repo"
       messageExpression: "'namespace ' + request.namespace + ' is not owned by ' + variables.repo"
@@ -43,6 +55,27 @@ spec:
       message: a namespace created by an app may not opt out of Pod Security
     - expression: "!variables.isVolume || object == null || (object.metadata.name.endsWith('-data') && has(object.spec.hostPath) && object.spec.hostPath.path == '/var/lib/k8s-data/' + object.metadata.name.substring(0, size(object.metadata.name) - 5))"
       message: an app volume is a hostPath at /var/lib/k8s-data/<name minus -data>
+    # hazard: the operator reads with platform credentials, so an app CR may name only its own
+    # folder, or the registry pull pair through the chart's exact template, into its own namespace.
+    - expression: >-
+        !variables.isInfisicalSecret || object == null || (
+          object.spec.hostAPI == 'https://eu.infisical.com' &&
+          object.spec.authentication.all(method, method == 'universalAuth') &&
+          object.spec.authentication.universalAuth.credentialsRef.secretNamespace == 'platform-secrets' &&
+          object.spec.authentication.universalAuth.credentialsRef.secretName == 'infisical-credentials' &&
+          !has(object.spec.managedSecretReference) &&
+          has(object.spec.managedKubeSecretReferences) &&
+          object.spec.managedKubeSecretReferences.all(r, r.secretNamespace == request.namespace) &&
+          (
+            (object.spec.authentication.universalAuth.secretsScope.projectSlug == 'jterrazz' &&
+             variables.app != '' &&
+             object.spec.authentication.universalAuth.secretsScope.secretsPath == '/' + variables.app) ||
+            (object.spec.authentication.universalAuth.secretsScope.projectSlug == 'jterrazz-ci-v-nh-8' &&
+             object.spec.authentication.universalAuth.secretsScope.secretsPath == '/' &&
+             object.spec.managedKubeSecretReferences.all(r, has(r.template) && r.template.data == {'.dockerconfigjson': variables.registryTemplate}))
+          )
+        )
+      messageExpression: "'an app InfisicalSecret reads /' + variables.app + ' or the registry pull pair, into its own namespace'"
     - expression: "!(request.resource.group == 'rbac.authorization.k8s.io' && request.resource.resource == 'rolebindings') || object == null || (object.roleRef.kind == 'ClusterRole' && object.roleRef.name == 'app-namespace-admin' && has(object.subjects) && object.subjects.all(s, s.kind == 'User' && s.name == request.userInfo.username))"
       message: an app RoleBinding binds app-namespace-admin to its own identity only
 ---

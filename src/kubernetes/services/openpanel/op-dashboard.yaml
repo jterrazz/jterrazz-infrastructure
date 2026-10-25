@@ -18,7 +18,9 @@ spec:
     memoryLimit: 384Mi
 
   health:
-    path: /api/healthcheck
+    # hazard: every server-rendered response prints the whole environment, secrets included;
+    # probed on /api/healthcheck that was 86% of all logs, kept 90 days. A static file renders nothing.
+    path: /favicon.ico
 
   ingress:
     # invariant: the private host's catch-all; op-api's /api route is more specific.

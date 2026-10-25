@@ -135,6 +135,14 @@ config:
         span:
           - 'kind == SPAN_KIND_CLIENT and IsRootSpan()'
 
+    # hazard: op-dashboard prints its whole environment, secrets included, on every server render
+    # (OpenPanel 2.3.0); none of the dump's lines reaches the store.
+    filter/drop-env-dumps:
+      error_mode: ignore
+      logs:
+        log_record:
+          - 'resource.attributes["k8s.container.name"] == "op-dashboard" and IsMatch(body, "^(ENVS \\{|\\}|\\s+[A-Za-z0-9_]+: .*)$")'
+
     # value: Langfuse bills per span, so it gets prod's `chat` span alone; a match DROPS (ADR-005).
     filter/genai:
       error_mode: ignore
@@ -193,7 +201,7 @@ config:
         exporters: [otlp_http/victoria-logs]
       logs/pods:
         receivers: [file_log]
-        processors: [k8s_attributes, batch]
+        processors: [k8s_attributes, filter/drop-env-dumps, batch]
         exporters: [otlp_http/victoria-logs-pods]
       metrics:
         receivers: [otlp]
