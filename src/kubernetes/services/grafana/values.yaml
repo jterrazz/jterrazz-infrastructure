@@ -10,6 +10,10 @@ persistence:
 # hazard: without it a rolled pod fails its migration on SQLITE_BUSY behind the running one
 # and the release fails (ADR-013).
 grafana.ini:
+  # invariant: the base of every link Grafana sends out (a notification's panel, dashboard and
+  # silence URLs); unset, they point at http://localhost:3000.
+  server:
+    root_url: https://grafana.internal.jterrazz.com/
   database:
     wal: true
   # value: none of the five preinstalled apps (323 MB) reads a VictoriaMetrics-family source.

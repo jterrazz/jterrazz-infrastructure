@@ -5,7 +5,10 @@ host: grafana.internal.jterrazz.com
 smoke:
   expect: "302,200"
 
-# invariant: the operator's template, not Helm's; without SLACK_WEBHOOK_URL it provisions nothing.
+# invariant: the operator's template, not Helm's. Every notification goes to jterrazz-alerts, the
+# relay that keeps one Slack message per incident and turns it green when it resolves (ADR-028).
+# hazard: an alert about the relay itself cannot travel through it, so whatever names its namespace
+# goes straight to the plain Slack webhook, when SLACK_WEBHOOK_URL is set.
 secrets:
   path: /jterrazz-infrastructure/grafana
   secretName: grafana-alerting
@@ -13,8 +16,16 @@ secrets:
     data:
       contact-point-slack.yaml: |
         apiVersion: 1
-        {{- with .SLACK_WEBHOOK_URL.Value }}
         contactPoints:
+          - orgId: 1
+            name: jterrazz-alerts
+            receivers:
+              - uid: jterrazz-alerts
+                type: webhook
+                settings:
+                  url: http://jterrazz-alerts.jterrazz-alerts-prod.svc.cluster.local/grafana
+                  httpMethod: POST
+        {{- with .SLACK_WEBHOOK_URL.Value }}
           - orgId: 1
             name: slack
             receivers:
@@ -22,10 +33,16 @@ secrets:
                 type: slack
                 settings:
                   url: {{ quote . }}
+        {{- end }}
         policies:
           - orgId: 1
-            receiver: slack
+            receiver: jterrazz-alerts
             group_by: [grafana_folder, alertname]
+        {{- with .SLACK_WEBHOOK_URL.Value }}
+            routes:
+              - receiver: slack
+                object_matchers:
+                  - [namespace, =, jterrazz-alerts-prod]
         {{- end }}
 
 storage:
@@ -42,3 +59,7 @@ network:
     # hazard: the pod port, never the Service's 80.
     - from: traefik
       ports: [3000]
+  egress:
+    # invariant: notifications go to jterrazz-alerts, the Slack relay (ADR-028); its pod port.
+    - to: namespace:jterrazz-alerts-prod
+      ports: [8080]
