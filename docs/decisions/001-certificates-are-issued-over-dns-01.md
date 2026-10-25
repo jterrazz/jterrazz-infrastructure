@@ -9,6 +9,9 @@ this record replaces. DNS-01 itself dates from the first cert-manager setup
 (2025-12-30, 587d6df); it became the only possible answer when public 80/443
 closed (6dc3915).
 
+Revised 2026-10-25: two wildcards and the default TLSStore replace every per-host
+certificate; the staging issuer and the zone list went.
+
 ## Context
 
 Every route, public or private, terminates TLS at Traefik with a certificate
@@ -21,17 +24,21 @@ would mean a Public Hostname per private host.
 
 ## Decision
 
-Both ClusterIssuers (`letsencrypt-production`, and `letsencrypt-staging` for
-testing issuance with higher rate limits and an untrusted chain) solve
-DNS-01 through the Cloudflare API, for the zones listed in their
-`dnsZones`.
+One ClusterIssuer, `letsencrypt-production`, solves DNS-01 through the
+Cloudflare API, and it issues two certificates: `*.internal.jterrazz.com` and
+`*.staging.jterrazz.com`, from the `traefik-platform` release. Traefik's
+default TLSStore serves them by SNI to every private route, which writes
+`tls: {}`.
 
-- A new public zone is added to the `dnsZones` of BOTH issuers.
+- **No route gets a certificate of its own.** A public route's TLS ends at the
+  Cloudflare edge, and cloudflared reaches Traefik with `noTLSVerify`, so a
+  per-host certificate there was checked by nobody. Per-host certificates also
+  published every hostname to the CT logs and left a gap while each issued.
+- The private wildcards are DNS-only, so a two-label name such as
+  `grafana.internal.jterrazz.com` gets a valid certificate, where Cloudflare's
+  Universal SSL stops at `*.jterrazz.com`.
 - cert-manager needs egress to the Cloudflare API and to public DNS for its
   propagation checks, which its NetworkPolicy grants.
-- The private wildcards are DNS-only, so a two-label name such as
-  `grafana.internal.jterrazz.com` gets a valid certificate from cert-manager,
-  where Cloudflare's Universal SSL stops at `*.jterrazz.com`.
 
 ## Consequences
 

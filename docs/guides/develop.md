@@ -148,6 +148,6 @@ dig +short signews.staging.jterrazz.com     # the tailnet name
 dig +short analytics.jterrazz.com           # Cloudflare addresses
 ```
 
-A new public zone is three steps: add it to both ClusterIssuers in
-`src/kubernetes/services/cert-manager/issuers.yaml`, add its Public Hostname in
-the tunnel, and set the zone's SSL mode to Full (Strict).
+A new public zone is two steps: add its Public Hostname in the tunnel, and set
+the zone's SSL mode to Full (Strict). Nothing here issues it a certificate:
+its TLS ends at the Cloudflare edge.

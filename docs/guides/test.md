@@ -87,7 +87,7 @@ probed today with no edit here.
 | `cluster/network-policies/`                       | every NetworkPolicy selects pods some controller creates, and every peer it names exists                                      | the API server           |
 | `health/workloads/ready.test.ts`                  | every controller runs as many ready pods as it asks for, and every CronJob's last run succeeded                               | the API server           |
 | `health/services/endpoints.test.ts`               | every Service that selects pods has a ready one behind it                                                                     | the API server           |
-| `health/certificates/ready.test.ts`               | every Certificate is Ready, a route's or not                                                                                  | the API server           |
+| `health/certificates/ready.test.ts`               | every Certificate is Ready (the two wildcards)                                                                                | the API server           |
 | `health/secrets/synced.test.ts`                   | every InfisicalSecret syncs from its folder                                                                                   | the API server           |
 | `health/volumes/bound.test.ts`                    | every PersistentVolume is Bound and `Retain`                                                                                  | the API server           |
 | `admission/app-deployer-ownership/policy.test.ts` | the ownership policy's cases, admitted and denied, as an app's identity, its InfisicalSecrets included                        | k3d, in the upgrade test |

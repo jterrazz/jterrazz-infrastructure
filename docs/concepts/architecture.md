@@ -42,7 +42,7 @@ cert-manager's ClusterIssuers, applied once its CRDs exist.
 
 `charts/common` is a library chart: installed by nothing, it is the one
 implementation of every object the other two share (IngressRoute and its
-middlewares, Certificate, the hostPath PV and PVC, NetworkPolicy,
+middlewares, the wildcard Certificates, the hostPath PV and PVC, NetworkPolicy,
 InfisicalSecret, the smoke annotations). It invents no name, since those names
 address live volumes and routes. `charts/platform-service` renders a platform
 service's shared surface from its `service.yaml`. `charts/app` renders any

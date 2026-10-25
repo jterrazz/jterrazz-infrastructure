@@ -83,7 +83,7 @@ environments:
 exercises every branch below; CI renders it through `kubeconform` on every
 PR. Start from it when you're unsure of a shape.
 
-**Where the templates live.** The IngressRoute, Certificate, PV/PVC,
+**Where the templates live.** The IngressRoute, PV/PVC,
 NetworkPolicy and InfisicalSecret this chart emits are rendered by
 `src/kubernetes/charts/common`, a library chart shared with `platform-service` and
 bundled into this chart's published `.tgz`, so an app repo still pulls one
@@ -164,14 +164,13 @@ Harmless on non-Node runtimes, where the variable is ignored.
 ```yaml
 health:
   path: /health # default
-  timeoutSeconds: 5 # all three probes (k8s's 1s default is too tight)
-  startupFailureThreshold: 30 # x the k8s 10s period = 300s of boot grace
 ```
 
-All three probes share one action, `httpGet` on `health.path` at `spec.port`.
-The startupProbe gates liveness and readiness, so a slow boot can't get
-SIGKILLed mid-startup. Everything the chart does not name above (probe periods,
-liveness and readiness failure thresholds) is left at the Kubernetes default.
+All three probes share one action, `httpGet` on `health.path` at `spec.port`,
+with a 5s timeout (Kubernetes' 1s is too tight for a Node app doing background
+work). The startupProbe gates liveness and readiness and allows 30 failures,
+300s of boot grace, so a slow boot can't get SIGKILLed mid-startup. Everything
+else (periods, the other thresholds) is the Kubernetes default.
 
 `health.livenessPath` splits that action. Set, the startup and liveness probes
 GET it while readiness keeps `health.path`: the restart decision then asks only
@@ -185,23 +184,17 @@ health:
   livenessPath: /healthz # startup + liveness: the process answers
 ```
 
-Two alternatives exist for a server that does not speak HTTP; the first one set
-wins (`exec`, then `tcp`, then `path`):
+A server that does not speak HTTP is probed with `exec`, which wins over `path`:
 
 ```yaml
 health:
   exec: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
-health:
-  tcp: true # tcpSocket on spec.port
 ```
-
-`tcp` is for a server whose own client is too slow to start inside the probe
-timeout: an exec probe would crash-loop it on the liveness kill.
 
 ### `spec.ingress`: a list, always
 
 Each entry is
-`{ host, path?, public, access?, stripPrefix?, tlsSecret?, redirectTo?, preservePath?, smoke? }`.
+`{ host, path?, public, stripPrefix?, redirectTo?, preservePath?, smoke? }`.
 
 ```yaml
 ingress:
@@ -216,9 +209,6 @@ ingress:
 - `public` is **required** per entry: the render fails without it rather
   than silently defaulting a network-visibility decision.
 - A single object instead of a list fails with an explicit message.
-- `access: private | public` is the same decision as `public:` in
-  `platform-service`'s vocabulary. Set one or the other, never both;
-  `public:` stays the everyday spelling.
 - `path` defaults to `/`. Any other path also emits a `stripPrefix`
   middleware (legacy `/api` behaviour: the backend mounts routes at the
   root). Set `stripPrefix: false` on the entry to keep the prefix visible to
@@ -226,11 +216,6 @@ ingress:
   **string** to strip something other than the route's own path: OpenPanel's
   ingest is routed on `/api/track` and its backend serves `/track`, so it
   strips `/api`.
-- `tlsSecret` names an existing TLS Secret and suppresses the `Certificate`
-  this entry would otherwise render. For a hostname **two releases** answer on:
-  neither can own its certificate without a second one being issued for the
-  same name, so the service owns it (`certificates:` in its `service.yaml`) and
-  both routes name it.
 - `redirectTo` turns the entry into a **redirect-only host**: it answers on
   `host` and 301s to the given absolute `https://` URL, never reaching the app.
   The path is carried over by default (`preservePath: true`), which is what a
@@ -252,15 +237,16 @@ ingress:
       preservePath: false
   ```
 
-  A redirect host still needs its own `Certificate` and its own Public Hostname
-  on the Cloudflare tunnel, because TLS terminates before the redirect is served.
+  A redirect host still needs its own Public Hostname on the Cloudflare tunnel.
 
-- One `Certificate` per **unique host** (`<app>-<host-slug>-tls`, DNS-01 via
-  the `letsencrypt-production` ClusterIssuer); one `IngressRoute` per
-  **entry** (`<app>-<idx>`), so two entries can share a host.
+- **No certificate per host.** A private route is served the private zone's
+  wildcard by Traefik's default TLSStore, and a public route's TLS ends at the
+  Cloudflare edge, so the chart renders none
+  ([ADR-001](../../../../docs/decisions/001-certificates-are-issued-over-dns-01.md)).
+  One `IngressRoute` per **entry** (`<app>-<idx>`), so two entries can share a
+  host.
 - Public hostnames still need a Public Hostname route in the Cloudflare Zero
-  Trust dashboard, and a new zone must be added to cert-manager's
-  `issuers.yaml`. A private name sits under one of the two wildcard zones,
+  Trust dashboard. A private name sits under one of the two wildcard zones,
   `<product>.internal.jterrazz.com` or `<name>.staging.jterrazz.com`, and
   needs nothing but `public: false`. Staging is always private.
 
@@ -488,66 +474,6 @@ YAML
 sleep 60 && kubectl -n platform-telemetry delete configmap delete-rule
 ```
 
-### `spec.cronJobs`
-
-Map of `name -> job`. Each entry renders a CronJob `<app>-<name>` that runs
-**the app's own container** on a schedule, with `command` in place of the
-server: the same image, `env`, secrets, platform-service env, `configFiles`,
-`secretMounts` and securityContext. Anything the app can do, its jobs can do.
-
-```yaml
-spec:
-  cronJobs:
-    digest:
-      schedule: "0 6 * * *" # required
-      command: ["node", "dist/digest.js"] # required
-      args: ["--since", "24h"]
-      resources: { memory: 512Mi } # deep-merged over spec.resources
-```
-
-| Key                       | Default   | Why that default                                                                                                                |
-| ------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `schedule`                | required  |                                                                                                                                 |
-| `command`                 | required  | The app's entrypoint is its server. Scheduled, it would never exit, and would run until the deadline killed it.                 |
-| `args`                    | none      |                                                                                                                                 |
-| `timeZone`                | `Etc/UTC` | Explicit and free of DST. In a zone that changes clocks, a 02:30 schedule is skipped one night a year and run twice another.    |
-| `concurrencyPolicy`       | `Forbid`  | A run that overruns its interval never gets a second copy beside it.                                                            |
-| `startingDeadlineSeconds` | `600`     | A run missed by more than ten minutes (the cluster was down) is skipped, not replayed late.                                     |
-| `backoffLimit`            | `0`       | A failed run is not retried blindly: it stays failed and visible, and the next schedule is the retry. Kubernetes' default is 6. |
-| `activeDeadlineSeconds`   | `3600`    | A wedged run is killed after an hour.                                                                                           |
-| `suspend`                 | `false`   | The kill switch, per environment.                                                                                               |
-| `storage`                 | `false`   | `true` mounts `spec.storage`, through the same claim as the Deployment.                                                         |
-| `resources`               | the app's | Deep-merged over `spec.resources`, so setting only `memory` keeps the app's cpu.                                                |
-
-The history limits are fixed at 1 succeeded and 3 failed Jobs, and pods run
-with `restartPolicy: Never`.
-
-Three rules that are not visible from the values:
-
-- **A job pod carries no `app` label.** The Service selects `app` +
-  `environment`. A job pod stamped with both would become an endpoint, ready
-  at once since it has no readiness probe, and Traefik would route live
-  traffic to a process that is not listening. Job pods are labelled
-  `app.kubernetes.io/name`, `app.kubernetes.io/component: cronjob`,
-  `app.jterrazz.com/cronjob: <name>` and `environment`, plus the app's
-  platform client labels. The consequence: a `pods:app=<name>` peer on some
-  other workload does not admit a job. Select on `app.kubernetes.io/name`
-  instead.
-- **Job pods get their own NetworkPolicy, `<app>-cronjobs`.** It admits
-  nothing in, since a job serves no one, and lets out exactly what the app's
-  policy lets out.
-- **Resources follow the job, not the app.** A job that sets `memory` without
-  `memoryLimit` gets 2x its own request as its limit, not the app's limit. The
-  app's limit was sized for the app's request, and a job asking for more than
-  it would be rejected by the API server. The `NODE_OPTIONS` heap cap is
-  derived from the job's request the same way.
-
-The volume is never chowned on a run: the Deployment already hands it over on
-every start. A name must be a DNS-1123 label, and `<app>-<name>` may be at
-most 52 characters, because each Job gets an 11-character suffix and a Job
-name is capped at 63. A missing `schedule` or `command`, or `storage: true` on
-an app without `spec.storage`, fails the render.
-
 ### `spec.platformServices`
 
 Opt-in wiring to in-cluster platform services. The catalog is the single
@@ -600,10 +526,6 @@ it exists to absorb (ports are POD ports; hostNetwork clients are not pods),
 comes from `src/kubernetes/charts/common`. A platform service declares the same
 shapes by hand in its `network:` block.
 
-Cron job pods are not selected by this policy (they carry no `app` label) and
-get their own, `<app>-cronjobs`: nothing in, the same egress out. See
-[`spec.cronJobs`](#speccronjobs).
-
 ### `spec.network`
 
 ```yaml
@@ -641,9 +563,11 @@ nothing, because it has no password of its own (`op-postgres`, `op-redis`,
 
 ### `spec.image`, and what the registry decides
 
-`spec.image` is set by CI (`registry.internal.jterrazz.com/<app>:<tag>`), and
-falls back to `<registry>/<app>:latest`. Whether the image lives on **our**
-registry decides two more things, with no knob for either:
+`spec.image` is required. App CI sets it to the digest it built
+(`registry.internal.jterrazz.com/<app>@sha256:...`), and Kubernetes' default
+`IfNotPresent` pulls a digest once, so a pod start never waits on the registry.
+Whether the image lives on **our** registry decides one more thing, with no
+knob:
 
 - the `registry-credentials` `imagePullSecret` is attached only then: the
   credential authenticates that registry alone, and naming a Secret that is not
@@ -654,10 +578,7 @@ registry decides two more things, with no knob for either:
   `REGISTRY_PULL_PASSWORD`, project `jterrazz-ci`) into a
   `kubernetes.io/dockerconfigjson`. The password is never a chart value, so it
   never lands in a release Secret or on a runner's argv, and rotating it needs
-  no app deploy;
-- `imagePullPolicy: Always` is set only then: our tags are mutable, so `IfNotPresent` would keep serving whatever the node cached first.
-  A third-party image keeps Kubernetes' default, which is what its pinned tag
-  deserves and what keeps a pod restart off Docker Hub's anonymous pull quota.
+  no app deploy.
 
 ### `spec.securityContext` / `spec.runAsRoot`
 
@@ -690,7 +611,6 @@ For a declared environment, namespace `<app>-<environment>` (ADR-023):
 | Deployment                        | `<app>`                           | always                                                                                |
 | Service (ClusterIP `servicePort`) | `<app>`                           | always                                                                                |
 | NetworkPolicy                     | `<app>`                           | always                                                                                |
-| Certificate                       | `<app>-<host-slug>-tls`           | per unique ingress host that does not name a `tlsSecret`                              |
 | IngressRoute                      | `<app>-<idx>`                     | per ingress entry                                                                     |
 | Middleware (stripPrefix)          | `<app>-<idx>-strip-prefix`        | entry has a non-`/` path, `stripPrefix` is not false, and it is not a redirect        |
 | Middleware (redirectRegex)        | `<app>-<idx>-redirect`            | entry sets `redirectTo`                                                               |
@@ -699,8 +619,6 @@ For a declared environment, namespace `<app>-<environment>` (ADR-023):
 | ConfigMap                         | `<app>-config`                    | `spec.configFiles` set                                                                |
 | ConfigMap                         | `<app>-dashboard-<name>`          | `spec.dashboards` set **and** env is prod                                             |
 | ConfigMap                         | `<app>-alerts`                    | `spec.alerts` set **and** env is prod                                                 |
-| CronJob                           | `<app>-<name>`                    | per `spec.cronJobs` entry                                                             |
-| NetworkPolicy                     | `<app>-cronjobs`                  | `spec.cronJobs` set                                                                   |
 | PV / PVC                          | `<app>-<env>-data` / `<app>-data` | `spec.storage` set **without** a `claimName`                                          |
 
 ## Versioning and publishing

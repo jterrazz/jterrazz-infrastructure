@@ -2,8 +2,8 @@
 
 The half of a platform service that this repo owns. The workload itself comes
 from an upstream chart or the app chart; this chart supplies what an upstream
-chart cannot: the Traefik route, the certificate, the hostPath volumes, the
-synced Secret and the NetworkPolicy.
+chart cannot: the Traefik route, the hostPath volumes, the synced Secret, the
+NetworkPolicy, and the certificates no route issues itself.
 
 One values file per service, `src/kubernetes/services/<svc>/service.yaml`, rendered
 by the `<svc>-platform` release in `src/kubernetes/helmfile.yaml.gotmpl`. **That
@@ -16,7 +16,6 @@ is the _why_, and the recipes.
 | Object                  | Name                           | Rendered when            |
 | ----------------------- | ------------------------------ | ------------------------ |
 | `IngressRoute`          | `<name>`                       | `host` is set            |
-| `Certificate`           | `<name>-tls`                   | `host` is set            |
 | `Certificate`           | `<key>`                        | per `certificates.<key>` |
 | `InfisicalSecret`       | `<name>-infisical`             | `secrets` is set         |
 | `PersistentVolume`      | `<name>-<key>`                 | per `storage.<key>`      |
@@ -28,18 +27,13 @@ All of them come from `src/kubernetes/charts/common`, the library chart this one
 rule, the PV/PVC data-safety constraints and the NetworkPolicy peer vocabulary
 actually live.
 
-## `access:` and `aliases:`, the route
+## `public:`, the route
 
-`access: private` (the default) attaches the `private-access` ipAllowList, so
-only the tailnet reaches the route; `access: public` attaches none, and the
-route still sits behind the rate-limit, compress and security-headers chain the
-websecure entrypoint applies globally. A leftover boolean `private:` key
-hard-fails the render (`templates/ingress-route.yaml`).
-
-`aliases` are extra hostnames answered by the same IngressRoute and carried as
-SANs on the same certificate. They exist for a rename only: the service answers
-its old and new name at once so no consumer breaks. One service has one
-canonical `host`; this is not a place to park unrelated hostnames.
+`public: false` (the default) attaches the `private-access` ipAllowList and the
+Cf-Ray guard, so only the tailnet reaches the route; `public: true` attaches
+neither, and the route still sits behind the rate-limit, compress and
+security-headers chain the websecure entrypoint applies globally. TLS comes
+from Traefik's default TLSStore, so the route names no certificate.
 
 ## `storage:`, the hostPath volumes
 
@@ -105,24 +99,18 @@ secrets:
   missing at the path renders as an empty `.Value` rather than failing the
   sync, which is what lets a template guard on a secret not yet created.
 
-## `certificates:`, a hostname several releases answer on
+## `certificates:`, the private zones' wildcards
 
 ```yaml
 certificates:
-  openpanel-tls: { dnsNames: [openpanel.internal.jterrazz.com] }
-  openpanel-analytics-tls: { dnsNames: [analytics.jterrazz.com] }
+  wildcard-internal-tls: { dnsNames: ["*.internal.jterrazz.com"] }
 ```
 
-The service's own `host` needs nothing here; it already gets `<name>-tls`.
-This block is for a service split across several **app-chart** releases, whose
-routes therefore live on those releases: two of them answering on one hostname
-cannot each own its certificate without issuing a second one for the same name.
-So the service owns the certificate and the routes name it with
-`ingress[].tlsSecret`. OpenPanel (`op-api` + `op-dashboard` on one host) is the
-sole user.
-
-The map key is **both** the Certificate and the TLS Secret name, because both
-address a live secret Traefik reads by name.
+A route issues no certificate: Traefik's default TLSStore serves every private
+route the wildcard of its zone, and a public route's TLS ends at the Cloudflare
+edge. This block issues those wildcards, from `traefik-platform`
+(`services/traefik/service.yaml`); the map key is both the Certificate and the
+Secret the TLSStore names.
 
 ## `smoke:`, what the route must answer
 
