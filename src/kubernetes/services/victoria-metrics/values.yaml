@@ -20,10 +20,12 @@ server:
     # change deploys green while the old jobs keep running (2026-10-25).
     promscrape.configCheckInterval: 1m
 
+  # value: ~320Mi working set at ~20k samples per scrape (2026-10-25); the limit
+  # keeps headroom for a merge.
   resources:
     requests:
       cpu: 50m
-      memory: 640Mi
+      memory: 384Mi
     limits:
       memory: 896Mi
 
