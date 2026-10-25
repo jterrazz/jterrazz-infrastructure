@@ -1,0 +1,44 @@
+---
+# invariant: what may touch the node, named workload by workload. A pod asking for the host
+# network, PID or IPC namespace, a hostPath volume or a privileged container is
+# admitted in kube-system (k3s' own) and, elsewhere, only under the ServiceAccounts
+# below. Pod Security can only say this per namespace: platform-telemetry has to be
+# `privileged` for node-exporter and the log collector, and without this policy
+# Grafana or VictoriaMetrics could take the node too (ADR-018).
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: host-access
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: [CREATE, UPDATE]
+        resources: [pods]
+  variables:
+    - name: containers
+      expression: "object.spec.containers + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])"
+    - name: touchesHost
+      expression: >-
+        object.spec.?hostNetwork.orValue(false) || object.spec.?hostPID.orValue(false) ||
+        object.spec.?hostIPC.orValue(false) ||
+        object.spec.?volumes.orValue([]).exists(v, has(v.hostPath)) ||
+        variables.containers.exists(c, c.?securityContext.?privileged.orValue(false))
+    - name: allowed
+      expression: >-
+        namespaceObject.metadata.name == 'kube-system' ||
+        (namespaceObject.metadata.name == 'platform-telemetry' &&
+         object.spec.?serviceAccountName.orValue('default') in ['node-exporter', 'otel-collector'])
+  validations:
+    - expression: "!variables.touchesHost || variables.allowed"
+      messageExpression: "'pod ' + object.metadata.?name.orValue(object.metadata.?generateName.orValue('')) + ' asks for host access, which only node-exporter and otel-collector in platform-telemetry may have'"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: host-access
+spec:
+  policyName: host-access
+  validationActions: [Deny]

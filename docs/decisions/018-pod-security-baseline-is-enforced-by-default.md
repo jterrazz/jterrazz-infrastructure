@@ -43,3 +43,18 @@ all (audit 2026-10-24).
   in audit before anyone enforces them.
 - Enforcing restricted would first need the chown init container gone.
 - The upgrade test catches a Pod Security refusal before the real cluster.
+
+## Addendum, 2026-10-25: host access is granted per workload
+
+Pod Security is per namespace, so `platform-telemetry` had to be `privileged`
+for two pods, node-exporter and the log collector, and that level admitted the
+same host access for anything else deployed there. The `host-access`
+ValidatingAdmissionPolicy (`src/kubernetes/cluster/host-access/`) closes it for
+the whole cluster: a pod asking for the host network, PID or IPC namespace, a
+hostPath volume or a privileged container is admitted only in `kube-system` or
+under the `node-exporter` and `otel-collector` ServiceAccounts of
+`platform-telemetry`. A namespace grouped by privilege instead of by domain was
+considered and rejected: it would have split the telemetry stack and named a
+namespace after a property instead of its contents. The admission suite
+(`specs/specs/admission/host-access/`) holds three denials and three admissions.
+`platform-networking` is `baseline` since cloudflared left the host network.

@@ -63,7 +63,7 @@ test: smoke test-host ## Everything this Mac can prove of the live platform
 
 # hazard: the admission specs create namespaces and impersonate app identities: a throwaway
 # cluster only, so CLUSTER_KUBECTL is cleared and KUBECONFIG must name it.
-test-admission: specs/node_modules/.install ## The ownership policy's cases (KUBECONFIG=<k3d kubeconfig>)
+test-admission: specs/node_modules/.install ## The admission policies' cases: ownership, host access (KUBECONFIG=<k3d kubeconfig>)
 	@test -n "$(KUBECONFIG)" || { echo "✗ KUBECONFIG must name a throwaway cluster"; exit 1; }
 	cd specs && CLUSTER_KUBECTL= npx vitest --run specs/admission
 
