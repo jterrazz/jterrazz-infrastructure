@@ -3,13 +3,15 @@ name: Upgrade test
 # invariant: the real platform.yml on a throwaway k3d cluster, base tree then this one: it
 # proves releases apply, never that pods start; nothing leaves the runner (ADR-021).
 
+# hazard: .infrastructure/ is in the filter: the platform's dashboards and alert rules are deployed
+# from there (ADR-025), and a change to them alone once deployed nothing.
 on:
   pull_request:
     branches: [main]
-    paths: ['src/ansible/**', 'src/kubernetes/**', 'specs/**', '.github/workflows/upgrade-test.yaml']
+    paths: ['src/ansible/**', 'src/kubernetes/**', '.infrastructure/**', 'specs/**', '.github/workflows/upgrade-test.yaml']
   push:
     branches: [main]
-    paths: ['src/ansible/**', 'src/kubernetes/**', 'specs/**', '.github/workflows/upgrade-test.yaml']
+    paths: ['src/ansible/**', 'src/kubernetes/**', '.infrastructure/**', 'specs/**', '.github/workflows/upgrade-test.yaml']
   workflow_dispatch:
     inputs:
       base:
