@@ -13,6 +13,6 @@ spec:
     kind: ClusterIssuer
   dnsNames:
     {{- range .dnsNames }}
-    - {{ . }}
+    - {{ . | quote }}
     {{- end }}
 {{- end -}}

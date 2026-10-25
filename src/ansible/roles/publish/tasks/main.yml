@@ -2,10 +2,10 @@
 # invariant: the one publisher of the app chart (ADR-010).
 
 # outside: on a fresh cluster DNS-01 issuance lags the registry pod, and login needs TLS.
-- name: Wait for the registry TLS certificate to be issued
+- name: Wait for the private zone's certificate, which the registry's route is served with
   ansible.builtin.command: >
-    kubectl wait --for=condition=Ready certificate/registry-tls
-    -n platform-registry --timeout=180s
+    kubectl wait --for=condition=Ready certificate/wildcard-internal-tls
+    -n kube-system --timeout=180s
   changed_when: false
 
 - name: Log in to the registry

@@ -8,17 +8,15 @@ values:
   - ../ci/test-values.yaml
 tests:
   - it: REPLACES the base list with the environment's, never merges them
-    # invariant: staging has one entry, spec two; a merge would expose staging publicly.
+    # invariant: staging has one entry, spec several; a merge would expose staging publicly.
     set:
       environment: staging
     asserts:
       - hasDocuments:
-          count: 2 # 1 Certificate + 1 IngressRoute; no strip-prefix, path is /
+          count: 1 # one IngressRoute; no strip-prefix, path is /
       - equal:
-          path: spec.dnsNames
-          value:
-            - ci-test-app-staging.jterrazz.com
-        documentIndex: 0
+          path: spec.routes[0].match
+          value: (Host(`ci-test-app-staging.jterrazz.com`)) && !HeaderRegexp(`Cf-Ray`, `.+`)
 
   - it: "attaches private-access to a `public: false` entry, and nothing else"
     set:
@@ -29,7 +27,6 @@ tests:
           value:
             - name: private-access
               namespace: platform-networking
-        documentIndex: 1
 
   - it: "leaves a `public: true` entry with no access middleware"
     # invariant: no ipAllowList; the websecure chain still applies.
@@ -42,7 +39,23 @@ tests:
     asserts:
       - notExists:
           path: spec.routes[0].middlewares
-        documentIndex: 1
+
+  - it: renders no Certificate, and serves TLS from the default store
+    # invariant: the private zones' wildcards are the default TLSStore's; public TLS ends at
+    # the edge (ADR-001).
+    set:
+      environment: probe
+      environments.probe.ingress:
+        - host: probe.internal.jterrazz.com
+          public: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: IngressRoute
+      - equal:
+          path: spec.tls
+          value: {}
 
   - it: "hard-fails an ingress entry with no explicit `public` field"
     # hazard: visibility is never implied by omission.
@@ -53,20 +66,9 @@ tests:
           path: /
     asserts:
       - failedTemplate:
-          errorMessage: "ingress entry 0 for ci-test-app is missing the required `public: true|false` field; declare network visibility explicitly"
+          errorMessage: "ingress entry 0 for ci-test-app needs `public: true|false`; network visibility is never defaulted"
 
-  - it: hard-fails the pre-1.17 single-object ingress form
-    set:
-      environment: probe
-      environments.probe.ingress:
-        host: probe.jterrazz.com
-        public: true
-    asserts:
-      - failedTemplate:
-          errorMessage: "ingress must be a list of { host, path?, public? } entries. The single-object form was removed in chart 1.17.0; migrate to a one-element list."
-
-  - it: emits one Certificate per unique host, and names each IngressRoute by its index
-    # outside: two Certificates for one dnsName race at cert-manager.
+  - it: names each IngressRoute by its index, so two entries on one host never collide
     set:
       environment: probe
       environments.probe.ingress:
@@ -78,22 +80,15 @@ tests:
           public: false
     asserts:
       - hasDocuments:
-          count: 5 # 1 Certificate + 2 strip-prefix Middlewares + 2 IngressRoutes
-      - isKind:
-          of: Certificate
-        documentIndex: 0
-      - equal:
-          path: spec.secretName
-          value: ci-test-app-shared-jterrazz-com-tls
-        documentIndex: 0
+          count: 4 # 2 strip-prefix Middlewares + 2 IngressRoutes
       - equal:
           path: metadata.name
           value: ci-test-app-0
-        documentIndex: 2
+        documentIndex: 1
       - equal:
           path: metadata.name
           value: ci-test-app-1
-        documentIndex: 4
+        documentIndex: 3
 
   - it: skips the strip-prefix middleware when the app opts out
     # invariant: an MCP server at the literal /mcp path keeps its prefix.
@@ -106,28 +101,10 @@ tests:
           stripPrefix: false
     asserts:
       - hasDocuments:
-          count: 2 # Certificate + IngressRoute only
+          count: 1
       - equal:
           path: spec.routes[0].match
           value: (Host(`probe.jterrazz.com`) && PathPrefix(`/mcp`)) && !HeaderRegexp(`Cf-Ray`, `.+`)
-        documentIndex: 1
-      - equal:
-          path: spec.routes[0].middlewares
-          value:
-            - name: private-access
-              namespace: platform-networking
-        documentIndex: 1
-
-  - it: never lets a request that crossed Cloudflare match a private route
-    # invariant: the tunnel reaches Traefik from an address private-access admits; the Cf-Ray
-    # header the edge stamps is what tells it apart (ADR-003).
-    set:
-      environment: staging
-    asserts:
-      - equal:
-          path: spec.routes[0].match
-          value: (Host(`ci-test-app-staging.jterrazz.com`)) && !HeaderRegexp(`Cf-Ray`, `.+`)
-        documentIndex: 1
 
   - it: leaves a public route reachable through the tunnel
     documentSelector:

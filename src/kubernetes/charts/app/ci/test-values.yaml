@@ -38,9 +38,6 @@ spec:
     path: /health
     # invariant: startup + liveness on /healthz, readiness on /health.
     livenessPath: /healthz
-    timeoutSeconds: 5
-    # invariant: away from the chart default (30) so the knob is exercised.
-    startupFailureThreshold: 60
 
   # hazard: size and mountPath are both `required`; dropping either must fail the render.
   storage:
@@ -107,15 +104,6 @@ spec:
           interval: 5m
           rules: []
 
-  # invariant: args + memory-only resources (cpu inherited, own NODE_OPTIONS); no storage.
-  cronJobs:
-    report:
-      schedule: "0 6 * * *"
-      command: ["node", "dist/report.js"]
-      args: ["--since", "24h"]
-      resources:
-        memory: 1Gi
-
   ingress:
     # invariant: public sub-path -> stripPrefix.
     - host: ci-test-app.jterrazz.com
@@ -146,13 +134,12 @@ spec:
       smoke:
         path: /ready
         expect: "204,200"
-    # invariant: the openpanel ingest shape: `access`, a string stripPrefix, a foreign
-    # tlsSecret (no Certificate rendered), and an explicit smoke block with its verb.
+    # invariant: the openpanel ingest shape: a string stripPrefix and an explicit smoke block
+    # with its verb.
     - host: ci-test-app-ingest.jterrazz.com
       path: /api/track
-      access: public
+      public: true
       stripPrefix: /api
-      tlsSecret: ci-test-shared-tls
       smoke:
         method: POST
         path: /api/track
@@ -182,19 +169,6 @@ environments:
       owner: "70:70"
     health:
       exec: ["sh", "-c", "pg_isready"]
-    # invariant: storage mounted, root pod, no args, every scheduling default overridden;
-    # merged INTO spec's cronJobs, so `report` renders here too.
-    cronJobs:
-      vacuum:
-        schedule: "30 3 * * 0"
-        timeZone: Europe/Paris
-        command: ["sh", "-c", "vacuumdb --all"]
-        storage: true
-        suspend: true
-        concurrencyPolicy: Replace
-        startingDeadlineSeconds: 120
-        backoffLimit: 2
-        activeDeadlineSeconds: 600
     # invariant: isolated: the whole security model of an unauthenticated datastore.
     network:
       isolated: true

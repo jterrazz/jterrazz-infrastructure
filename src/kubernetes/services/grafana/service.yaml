@@ -1,6 +1,5 @@
 name: grafana
 host: grafana.internal.jterrazz.com
-access: private
 
 # invariant: an unauthenticated browser is sent to /login.
 smoke:

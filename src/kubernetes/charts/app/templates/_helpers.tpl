@@ -26,18 +26,14 @@ false
 {{- define "app.ingressList" -}}
 {{- $list := (fromYaml (include "app.merged" .)).ingress -}}
 {{- if not (kindIs "slice" $list) -}}
-{{- fail "ingress must be a list of { host, path?, public? } entries. The single-object form was removed in chart 1.17.0; migrate to a one-element list." -}}
+{{- fail "ingress must be a list of { host, path?, public } entries" -}}
 {{- end -}}
 {{- $list | toYaml -}}
 {{- end -}}
 
+{{/* invariant: set by app CI as `<registry>/<app>@sha256:...`, or pinned in a platform values file. */}}
 {{- define "app.image" -}}
-{{- $spec := fromYaml (include "app.merged" .) -}}
-{{- if $spec.image -}}
-{{- $spec.image -}}
-{{- else -}}
-{{ .Values.registry.server }}/{{ include "app.name" . }}:latest
-{{- end -}}
+{{- (fromYaml (include "app.merged" .)).image | required "spec.image is required: app CI sets it to the image digest it built" -}}
 {{- end -}}
 
 {{/* invariant: `<n>Mi` or `<n>Gi` in MiB, else "", which every caller leaves alone. */}}
@@ -50,7 +46,7 @@ false
 {{- end -}}
 {{- end -}}
 
-{{/* invariant: memoryLimit, else twice the request in Mi; takes a resources map, a job's too. */}}
+{{/* invariant: memoryLimit, else twice the request in Mi. */}}
 {{- define "app.memoryLimit" -}}
 {{- include "app.memoryLimitOf" (fromYaml (include "app.merged" .)).resources -}}
 {{- end -}}
@@ -86,10 +82,6 @@ false
 
 {{- define "app.infisicalEnv" -}}
 {{- (fromYaml (include "app.merged" .)).secretsEnv | default .Values.environment -}}
-{{- end -}}
-
-{{- define "app.hostSlug" -}}
-{{- . | lower | replace "." "-" -}}
 {{- end -}}
 
 {{- define "app.secretsName" -}}
@@ -182,9 +174,6 @@ exec:
     {{- range $health.exec }}
     - {{ . | quote }}
     {{- end }}
-{{- else if $health.tcp -}}
-tcpSocket:
-  port: {{ $spec.port }}
 {{- else -}}
 httpGet:
   path: {{ ternary $health.livenessPath $health.path (and .liveness (not (empty $health.livenessPath))) }}
@@ -192,7 +181,7 @@ httpGet:
 {{- end -}}
 {{- end -}}
 
-{{/* invariant: an image on our registry gets the pull secret and `Always`; nothing else does. */}}
+{{/* invariant: an image on our registry gets the pull secret; nothing else does. */}}
 {{- define "app.privateImage" -}}
 {{- if hasPrefix (printf "%s/" .Values.registry.server) (include "app.image" .) -}}
 true
@@ -326,39 +315,6 @@ securityContext:
   secret:
     secretName: {{ .secretName }}
 {{- end }}
-{{- end -}}
-
-{{/* invariant: each failure a bad job would otherwise apply silently fails the render. */}}
-{{- define "app.cronJobs" -}}
-{{- $spec := fromYaml (include "app.merged" .) -}}
-{{- $app := include "app.name" . -}}
-{{- $jobs := $spec.cronJobs | default dict -}}
-{{- range $name, $job := $jobs -}}
-{{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $name) -}}
-{{- fail (printf "spec.cronJobs.%s: the name must be lowercase letters, digits and dashes (a DNS-1123 label)" $name) -}}
-{{- end -}}
-{{- $full := printf "%s-%s" $app $name -}}
-{{- if gt (len $full) 52 -}}
-{{- fail (printf "spec.cronJobs.%s: %q is %d characters; a CronJob name may have at most 52, because each Job it creates appends an 11-character suffix" $name $full (len $full)) -}}
-{{- end -}}
-{{- if not $job.schedule -}}
-{{- fail (printf "spec.cronJobs.%s: `schedule` is required (a cron expression, evaluated in `timeZone`, default Etc/UTC)" $name) -}}
-{{- end -}}
-{{- if not $job.command -}}
-{{- fail (printf "spec.cronJobs.%s: `command` is required; without it the job would start the app's own server, which never exits" $name) -}}
-{{- end -}}
-{{- if and $job.storage (not $spec.storage) -}}
-{{- fail (printf "spec.cronJobs.%s: `storage: true` mounts spec.storage, and this app declares none" $name) -}}
-{{- end -}}
-{{- end -}}
-{{- $jobs | toYaml -}}
-{{- end -}}
-
-{{/* hazard: never the `app` label: the Service would route live traffic to a job pod. */}}
-{{- define "app.cronJobSelectorLabels" -}}
-app.kubernetes.io/name: {{ include "app.name" . }}
-app.kubernetes.io/component: cronjob
-environment: {{ .Values.environment }}
 {{- end -}}
 
 {{/* hazard: one file Grafana refuses stops alerting for every app, so it fails here first. */}}

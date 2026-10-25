@@ -1,25 +1,17 @@
-{{/* hazard: one access middleware per route, never chained; `private` is the default. */}}
-{{- define "common.accessMiddleware" -}}
-{{- $access := . | default "private" -}}
-{{- if eq $access "private" -}}
-private-access
-{{- else if ne $access "public" -}}
-{{- fail (printf "access must be one of private|public, got %q" $access) -}}
-{{- end -}}
-{{- end -}}
-
-{{/* Input dict: name, labels and annotations (rendered lines), match, middlewares
-({ name, namespace? }, in order), serviceName, servicePort, tlsSecret.
+{{/* Input dict: name, labels and annotations (rendered lines), match, public (bool),
+middlewares ({ name, namespace? }, in order, after the access middleware), serviceName, servicePort.
+invariant: one place decides what a private route is: private-access first, and a match that
+never takes a request that crossed Cloudflare. The edge stamps `Cf-Ray` on everything it forwards,
+and the tunnel reaches Traefik from a pod address private-access admits (ADR-003).
+invariant: `tls: {}`: the default TLSStore serves the private zones' wildcards by SNI, and a
+public route's TLS ends at the edge (ADR-001).
 hazard: `match` is `Host(a) || Host(b)`, never v2's `Host(a, b)`, which the CRD accepts and
-Traefik v3 routes nowhere.
-invariant: a route behind private-access never matches a request that crossed Cloudflare.
-The edge stamps `Cf-Ray` on everything it forwards and a client cannot strip it, while
-the tunnel's traffic reaches Traefik from a pod address private-access admits; without
-this, a private host was shielded from the internet only by the tunnel's hostname rules
-in the Cloudflare dashboard (ADR-003). */}}
+Traefik v3 routes nowhere. */}}
 {{- define "common.ingressRoute" -}}
-{{- $private := false -}}
-{{- range .middlewares -}}{{- if eq .name "private-access" -}}{{- $private = true -}}{{- end -}}{{- end -}}
+{{- $middlewares := .middlewares | default list -}}
+{{- if not .public -}}
+{{- $middlewares = prepend $middlewares (dict "name" "private-access" "namespace" "platform-networking") -}}
+{{- end -}}
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -34,11 +26,11 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: {{ if $private }}({{ .match }}) && !HeaderRegexp(`Cf-Ray`, `.+`){{ else }}{{ .match }}{{ end }}
+    - match: {{ if .public }}{{ .match }}{{ else }}({{ .match }}) && !HeaderRegexp(`Cf-Ray`, `.+`){{ end }}
       kind: Rule
-      {{- if .middlewares }}
+      {{- if $middlewares }}
       middlewares:
-        {{- range .middlewares }}
+        {{- range $middlewares }}
         - name: {{ .name }}
         {{- if .namespace }}
           namespace: {{ .namespace }}
@@ -48,8 +40,7 @@ spec:
       services:
         - name: {{ .serviceName }}
           port: {{ .servicePort }}
-  tls:
-    secretName: {{ .tlsSecret }}
+  tls: {}
 {{- end -}}
 
 {{/* Input dict: name, labels, prefix. */}}

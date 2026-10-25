@@ -1,14 +1,5 @@
-# invariant: no `host`: each route lives with its release; op-api and op-dashboard share a
-# hostname, so its certificate lives here.
+# invariant: no `host`: each route lives with its release (op-api, op-dashboard).
 name: openpanel
-
-certificates:
-  openpanel-tls:
-    dnsNames:
-      - openpanel.internal.jterrazz.com
-  openpanel-analytics-tls:
-    dnsNames:
-      - analytics.jterrazz.com
 
 storage:
   # hazard: changing a pathSuffix moves live data.

@@ -1,11 +1,4 @@
-{{- if .Values.host }}
-{{- include "common.certificate" (dict
-      "name" (printf "%s-tls" (include "platform-service.name" .))
-      "labels" (include "platform-service.labels" .)
-      "secretName" (printf "%s-tls" (include "platform-service.name" .))
-      "dnsNames" (concat (list (include "platform-service.host" .)) (.Values.aliases | default list))) }}
-{{- end }}
-{{- /* invariant: for a hostname several releases answer on; the key names a live Secret. */ -}}
+{{- /* invariant: certificates no route issues itself, such as the private zones' wildcards; the key names the Secret. */ -}}
 {{- range $name, $cert := .Values.certificates }}
 ---
 {{ include "common.certificate" (dict

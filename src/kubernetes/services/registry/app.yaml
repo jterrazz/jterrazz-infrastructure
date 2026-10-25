@@ -64,6 +64,14 @@ spec:
     path: /readyz
     livenessPath: /livez
 
+  ingress:
+    - host: registry.internal.jterrazz.com
+      public: false
+      # invariant: 401: containerd relies on the challenge, and a 200 would mean anonymous reads.
+      smoke:
+        path: /v2/
+        expect: "401"
+
   resources:
     cpu: 10m
     memory: 128Mi

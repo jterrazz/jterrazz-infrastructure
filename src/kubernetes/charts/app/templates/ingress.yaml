@@ -6,31 +6,10 @@
 {{- $healthPath := $spec.health.path | default "/" -}}
 {{- if not (hasPrefix "/" $healthPath) }}{{ $healthPath = printf "/%s" $healthPath }}{{ end -}}
 
-{{- /* invariant: one Certificate per host, none for an entry naming a foreign `tlsSecret`. */ -}}
-{{- $hosts := dict -}}
-{{- range $entry := $ingressList -}}
-  {{- if and $entry.host (not $entry.tlsSecret) -}}
-    {{- $_ := set $hosts $entry.host true -}}
-  {{- end -}}
-{{- end -}}
-
-{{- range $host, $_ := $hosts }}
-{{- $hostSlug := include "app.hostSlug" $host }}
----
-{{ include "common.certificate" (dict
-     "name" (printf "%s-%s-tls" $appName $hostSlug)
-     "labels" $labels
-     "secretName" (printf "%s-%s-tls" $appName $hostSlug)
-     "dnsNames" (list $host)) }}
-{{- end }}
-
 {{- range $idx, $entry := $ingressList }}
-{{- if and (not (hasKey $entry "public")) (not (hasKey $entry "access")) }}
-  {{- fail (printf "ingress entry %d for %s is missing the required `public: true|false` field; declare network visibility explicitly" $idx $appName) }}
+{{- if not (kindIs "bool" $entry.public) }}
+  {{- fail (printf "ingress entry %d for %s needs `public: true|false`; network visibility is never defaulted" $idx $appName) }}
 {{- end }}
-{{- $hostSlug := include "app.hostSlug" $entry.host }}
-{{- $access := $entry.access | default (ternary "public" "private" (eq (toString $entry.public) "true")) }}
-{{- $isPublic := eq $access "public" }}
 {{- $path := $entry.path | default "/" }}
 {{- $hasPath := ne $path "/" }}
 {{- $stripPrefix := $path }}
@@ -69,10 +48,6 @@
      "replacement" (ternary (printf "%s/${1}" $redirectTo) $redirectTo $preservePath)) }}
 {{- end }}
 {{- $middlewares := list }}
-{{- $accessMiddleware := include "common.accessMiddleware" $access }}
-{{- if $accessMiddleware }}
-{{- $middlewares = append $middlewares (dict "name" $accessMiddleware "namespace" "platform-networking") }}
-{{- end }}
 {{- if $isRedirect }}
 {{- $middlewares = append $middlewares (dict "name" (printf "%s-redirect" $routeName)) }}
 {{- end }}
@@ -105,9 +80,9 @@
      "labels" $labels
      "annotations" (include "common.smokeAnnotations" $smoke)
      "match" (printf "Host(`%s`)%s" $entry.host (ternary (printf " && PathPrefix(`%s`)" $path) "" $hasPath))
+     "public" $entry.public
      "middlewares" $middlewares
      "serviceName" $appName
-     "servicePort" $spec.servicePort
-     "tlsSecret" ($entry.tlsSecret | default (printf "%s-%s-tls" $appName $hostSlug))) }}
+     "servicePort" $spec.servicePort) }}
 {{- end }}
 {{- end }}

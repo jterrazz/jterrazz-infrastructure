@@ -3,10 +3,8 @@ name: ""
 host: ""
 port: 80
 
-# invariant: for a rename only: the old and the new name served at once.
-aliases: []
-
-access: private
+# invariant: a route is tailnet-only unless it says otherwise.
+public: false
 
 # hazard: never accept a 5xx or 000.
 smoke:

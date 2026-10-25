@@ -1,23 +1,10 @@
-{{- /* hazard: a leftover `private: false` would silently fall to the private default. */ -}}
-{{- if hasKey .Values "private" }}
-{{- fail "`private` was replaced by `access: private|public`; remove it from this values file" }}
-{{- end }}
-{{- $middleware := include "common.accessMiddleware" (.Values.access | default "private") -}}
-{{- $middlewares := list -}}
-{{- if $middleware }}
-{{- $middlewares = list (dict "name" $middleware "namespace" "platform-networking") -}}
-{{- end }}
 {{- if .Values.host }}
-{{- $hosts := concat (list (include "platform-service.host" .)) (.Values.aliases | default list) -}}
-{{- $match := "" -}}
-{{- range $i, $h := $hosts }}{{ if $i }}{{ $match = printf "%s || " $match }}{{ end }}{{ $match = printf "%sHost(`%s`)" $match $h }}{{ end }}
 {{- include "common.ingressRoute" (dict
       "name" (include "platform-service.name" .)
       "labels" (include "platform-service.labels" .)
       "annotations" (include "common.smokeAnnotations" .Values.smoke)
-      "match" $match
-      "middlewares" $middlewares
+      "match" (printf "Host(`%s`)" (include "platform-service.host" .))
+      "public" .Values.public
       "serviceName" (include "platform-service.name" .)
-      "servicePort" .Values.port
-      "tlsSecret" (printf "%s-tls" (include "platform-service.name" .))) }}
+      "servicePort" .Values.port) }}
 {{- end }}

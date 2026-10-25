@@ -25,8 +25,7 @@ spec:
   ingress:
     # invariant: the private host's catch-all; op-api's /api route is more specific.
     - host: openpanel.internal.jterrazz.com
-      access: private
-      tlsSecret: openpanel-tls
+      public: false
       # invariant: the derived /api/healthcheck would reach op-api instead.
       smoke:
         path: /

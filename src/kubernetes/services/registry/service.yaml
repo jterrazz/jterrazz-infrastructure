@@ -1,11 +1,5 @@
+# invariant: the store alone; the route lives with the workload, in app.yaml.
 name: registry
-host: registry.internal.jterrazz.com
-port: 5000
-
-# invariant: 401: containerd relies on the challenge, and a 200 would mean anonymous reads.
-smoke:
-  path: /v2/
-  expect: "401"
 
 storage:
   zot:

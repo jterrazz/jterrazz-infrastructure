@@ -13,9 +13,15 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "app.name" . }}
-  {{- if .Values.meta.repository }}
+  {{- if or .Values.meta.repository $spec.secrets.path }}
   annotations:
-    app.jterrazz.com/repository: {{ .Values.meta.repository | quote }}
+    {{- with .Values.meta.repository }}
+    app.jterrazz.com/repository: {{ . | quote }}
+    {{- end }}
+    {{- if $spec.secrets.path }}
+    {{- /* invariant: the operator rolls the pods when a synced value changes, the one event that needs it. */}}
+    secrets.infisical.com/auto-reload: "true"
+    {{- end }}
   {{- end }}
   labels:
     {{- include "app.labels" . | nindent 4 }}
@@ -31,13 +37,10 @@ spec:
       {{- include "app.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- /* invariant: a pod rolls on a config change or an app deploy, never on a bare upgrade,
-             which would restart the registry under every platform deploy. */}}
+      {{- /* invariant: a pod rolls on a new image digest, a config change or a secret change,
+             never on a bare upgrade, which would restart the registry under every platform deploy. */}}
       annotations:
         checksum/config: {{ $spec.configFiles | default dict | toJson | sha256sum | quote }}
-        {{- with .Values.meta.deployId }}
-        rollout/deploy-id: {{ . | quote }}
-        {{- end }}
       labels:
         {{- include "app.selectorLabels" . | nindent 8 }}
         {{- /* invariant: pod labels only: selectorLabels are immutable. */}}
@@ -57,7 +60,8 @@ spec:
       initContainers:
         - name: fix-permissions
           image: busybox:1.38@sha256:fd8d9aa63ba2f0982b5304e1ee8d3b90a210bc1ffb5314d980eb6962f1a9715d
-          command: ["sh", "-c", "chown -R {{ $owner }} {{ $storage.mountPath }}"]
+          # value: the walk only when the root is wrong: a chown -R crosses every file on virtiofs.
+          command: ["sh", "-c", "[ \"$(stat -c %u:%g {{ $storage.mountPath }})\" = {{ $owner }} ] || chown -R {{ $owner }} {{ $storage.mountPath }}"]
           securityContext:
             runAsUser: 0
             runAsNonRoot: false
@@ -74,9 +78,6 @@ spec:
       containers:
         - name: {{ include "app.name" . }}
           image: {{ include "app.image" . }}
-          {{- if eq (include "app.privateImage" .) "true" }}
-          imagePullPolicy: Always
-          {{- end }}
           securityContext:
             {{- include "app.containerSecurityContext" . | nindent 12 }}
           {{- if $spec.command }}
@@ -105,16 +106,17 @@ spec:
               memory: {{ $resources.memory }}
             limits:
               memory: {{ include "app.memoryLimit" . }}
+          {{- /* value: 5s, not 1s: a Node app doing background work answers late; 30 x 10s of boot grace. */}}
           startupProbe:
             {{- include "app.probe" (dict "ctx" . "liveness" true) | nindent 12 }}
-            timeoutSeconds: {{ $spec.health.timeoutSeconds }}
-            failureThreshold: {{ $spec.health.startupFailureThreshold }}
+            timeoutSeconds: 5
+            failureThreshold: 30
           livenessProbe:
             {{- include "app.probe" (dict "ctx" . "liveness" true) | nindent 12 }}
-            timeoutSeconds: {{ $spec.health.timeoutSeconds }}
+            timeoutSeconds: 5
           readinessProbe:
             {{- include "app.probe" (dict "ctx" . "liveness" false) | nindent 12 }}
-            timeoutSeconds: {{ $spec.health.timeoutSeconds }}
+            timeoutSeconds: 5
       {{- if or $storage $spec.configFiles $spec.secretMounts }}
       volumes:
         {{- include "app.volumes" (dict "ctx" . "storage" (not (not $storage))) | trim | nindent 8 }}

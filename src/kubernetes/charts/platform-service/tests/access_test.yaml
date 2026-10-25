@@ -1,70 +1,32 @@
-suite: access -> Traefik ipAllowList middleware selection
-# invariant: the chart's network-exposure switch: every arm pinned, two must fail the render.
+suite: public -> the route's reach
+# invariant: the chart's network-exposure switch; a forgotten key means tailnet-only.
 templates:
   - templates/ingress-route.yaml
 values:
   - ../ci/test-values.yaml
 tests:
-  - it: "attaches private-access for `access: private`"
-    set:
-      access: private
+  - it: attaches private-access and the Cf-Ray guard by default
     asserts:
       - equal:
           path: spec.routes[0].middlewares
           value:
             - name: private-access
               namespace: platform-networking
-
-  - it: attaches private-access when `access` is omitted entirely
-    # invariant: the default is the narrow list: a forgotten key means tailnet-only.
-    asserts:
-      - equal:
-          path: spec.routes[0].middlewares
-          value:
-            - name: private-access
-              namespace: platform-networking
-
-  - it: "attaches no access middleware for `access: public`"
-    # invariant: no ipAllowList; the websecure chain still applies.
-    set:
-      access: public
-    asserts:
-      - notExists:
-          path: spec.routes[0].middlewares
-
-  - it: hard-fails on an unrecognised access value
-    set:
-      access: privat
-    asserts:
-      - failedTemplate:
-          errorMessage: access must be one of private|public, got "privat"
-
-  - it: "hard-fails on the legacy boolean `private:` key"
-    # hazard: a leftover `private: false` would silently fall to the private default.
-    set:
-      private: false
-    asserts:
-      - failedTemplate:
-          errorMessage: "`private` was replaced by `access: private|public`; remove it from this values file"
-
-  - it: "ORs the canonical host with every alias, never the v2 Host(a, b)"
-    # outside: Traefik v3 dropped `Host(a, b)`: it passes the CRD, then 404s every name.
-    asserts:
-      - equal:
-          path: spec.routes[0].match
-          value: (Host(`ci-test-service.jterrazz.com`) || Host(`ci-test-alias.example`)) && !HeaderRegexp(`Cf-Ray`, `.+`)
-
-  - it: matches the canonical host alone when no alias is declared
-    set:
-      aliases: null
-    asserts:
       - equal:
           path: spec.routes[0].match
           value: (Host(`ci-test-service.jterrazz.com`)) && !HeaderRegexp(`Cf-Ray`, `.+`)
 
-  - it: routes to the named service on the declared port
+  - it: "attaches no access middleware for `public: true`"
     set:
-      aliases: null
+      public: true
+    asserts:
+      - notExists:
+          path: spec.routes[0].middlewares
+      - equal:
+          path: spec.routes[0].match
+          value: Host(`ci-test-service.jterrazz.com`)
+
+  - it: routes to the named service on the declared port, TLS from the default store
     asserts:
       - equal:
           path: spec.routes[0].services
@@ -72,8 +34,8 @@ tests:
             - name: ci-test-service
               port: 8080
       - equal:
-          path: spec.tls.secretName
-          value: ci-test-service-tls
+          path: spec.tls
+          value: {}
 
   - it: renders nothing without a host
     set:

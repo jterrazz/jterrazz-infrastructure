@@ -167,6 +167,13 @@ releases:
       # hazard: inline, never `--set`, which `ps` would show.
       - adminPassword: {{ requiredEnv "GRAFANA_ADMIN_PASSWORD" | quote }}
 
+  - name: traefik-platform
+    namespace: kube-system
+    inherit:
+      - template: platform-service
+    values:
+      - services/traefik/service.yaml
+
   - name: cloudflared-platform
     namespace: platform-networking
     inherit:

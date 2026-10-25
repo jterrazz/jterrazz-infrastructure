@@ -34,19 +34,16 @@ spec:
   health:
     path: /healthcheck
 
-  # invariant: /api of the private host, and the public ingest alone; openpanel-platform owns
-  # both certificates.
+  # invariant: /api of the private host, and the public ingest alone.
   ingress:
     - host: openpanel.internal.jterrazz.com
       path: /api
-      access: private
-      tlsSecret: openpanel-tls
+      public: false
     - host: analytics.jterrazz.com
       path: /api/track
-      access: public
+      public: true
       # invariant: routed on /api/track, served on /track.
       stripPrefix: /api
-      tlsSecret: openpanel-analytics-tls
       smoke:
         method: POST
         path: /api/track

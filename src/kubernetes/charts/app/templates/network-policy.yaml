@@ -36,14 +36,4 @@
       "policyTypes" (list "Ingress" "Egress")
       "ingress" $ingress
       "egress" $egress) }}
-{{- if fromYaml (include "app.cronJobs" .) }}
----
-{{ include "common.networkPolicy" (dict
-      "name" (printf "%s-cronjobs" $appName)
-      "labels" (include "app.labels" .)
-      "podSelector" (include "app.cronJobSelectorLabels" .)
-      "policyTypes" (list "Ingress" "Egress")
-      "ingress" (list)
-      "egress" $egress) }}
-{{- end }}
 {{- end }}

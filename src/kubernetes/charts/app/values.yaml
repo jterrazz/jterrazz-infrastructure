@@ -3,11 +3,9 @@
 metadata:
   name: ""
 
-# invariant: set by app CI: the repository annotation `make redeploy-apps` reads, and the run
-# id that rolls the pods on every app deploy.
+# invariant: set by app CI: the repository annotation `make redeploy-apps` reads.
 meta:
   repository: ""
-  deployId: ""
 
 spec:
   image: ""
@@ -26,7 +24,6 @@ spec:
   secretMounts: []
   dashboards: {}
   alerts: {}
-  cronJobs: {}
   securityContext: {}
   runAsRoot: false
   env: {}
@@ -42,11 +39,6 @@ spec:
     path: /health
     livenessPath: ""
     exec: []
-    tcp: false
-    # value: 1s is too tight for a Node app doing in-process background work.
-    timeoutSeconds: 5
-    # value: 30 x the default 10s period: 300s of boot grace.
-    startupFailureThreshold: 30
 
 environments: {}
 

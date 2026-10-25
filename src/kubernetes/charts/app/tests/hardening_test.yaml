@@ -42,12 +42,9 @@ tests:
           path: spec.template.metadata.annotations["checksum/config"]
       - notExists:
           path: spec.template.metadata.annotations["rollout/release-revision"]
-      - notExists:
-          path: spec.template.metadata.annotations["rollout/deploy-id"]
-  - it: rolls on every app CI deploy
-    set:
-      meta.deployId: "12345-1"
+  - it: lets the operator roll the pods when a synced secret changes
+    # invariant: the one event besides a new digest or config that needs new pods.
     asserts:
       - equal:
-          path: spec.template.metadata.annotations["rollout/deploy-id"]
-          value: "12345-1"
+          path: metadata.annotations["secrets.infisical.com/auto-reload"]
+          value: "true"

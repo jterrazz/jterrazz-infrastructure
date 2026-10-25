@@ -40,11 +40,11 @@ tests:
       - equal:
           path: spec.redirectRegex.replacement
           value: "https://new.example.com/${1}"
-        documentIndex: 1
+        documentIndex: 0
       - equal:
           path: spec.redirectRegex.permanent
           value: true
-        documentIndex: 1
+        documentIndex: 0
   - it: "drops the path when preservePath is false"
     set:
       metadata.name: web
@@ -58,7 +58,7 @@ tests:
       - equal:
           path: spec.redirectRegex.replacement
           value: "https://new.example.com/here"
-        documentIndex: 1
+        documentIndex: 0
   - it: "refuses a redirect combined with a path"
     set:
       metadata.name: web

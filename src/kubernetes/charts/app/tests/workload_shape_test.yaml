@@ -28,7 +28,7 @@ tests:
     asserts:
       - equal:
           path: spec.template.spec.initContainers[0].command
-          value: ["sh", "-c", "chown -R 70:70 /var/lib/postgresql/data"]
+          value: ["sh", "-c", "[ \"$(stat -c %u:%g /var/lib/postgresql/data)\" = 70:70 ] || chown -R 70:70 /var/lib/postgresql/data"]
 
   - it: skips the chown initContainer entirely for owner ""
     # value: the registry runs as root over a root-owned blob store; chowning it is slow and wrong.
@@ -107,25 +107,6 @@ tests:
       - isNull:
           path: spec.template.spec.containers[0].livenessProbe.httpGet
 
-  - it: probes with tcpSocket when the client is too heavy to run per probe
-    # hazard: a client slower to start than the probe timeout would crash-loop a healthy server.
-    set:
-      metadata.name: db
-      environment: prod
-      spec:
-        image: mongo:7.0
-        port: 27017
-        health:
-          tcp: true
-      environments:
-        prod: {}
-    templates:
-      - templates/deployment.yaml
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].livenessProbe.tcpSocket.port
-          value: 27017
-
   - it: probes startup and liveness on livenessPath, readiness on path
     templates:
       - templates/deployment.yaml
@@ -175,16 +156,17 @@ tests:
             subPath: ci-test.json
             readOnly: true
 
-  - it: names the pull secret only for an image on our own registry
+  - it: names the pull secret only for an image on our own registry, and pulls a digest once
+    # invariant: an image is pinned by digest, so `IfNotPresent` (the default) never starts a pod
+    # on the registry being up.
     templates:
       - templates/deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.imagePullSecrets[0].name
           value: registry-credentials
-      - equal:
+      - isNull:
           path: spec.template.spec.containers[0].imagePullPolicy
-          value: Always
 
   - it: names no pull secret for a third-party image, and leaves its policy alone
     # value: no missing-secret warning per pod start, no Docker Hub quota spent on a pinned tag.

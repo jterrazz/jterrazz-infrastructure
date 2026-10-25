@@ -3,4 +3,4 @@ name: common
 description: Library chart, the one implementation of every concern app and platform-service share
 type: library
 # invariant: pinned exactly by app and platform-service; a bump moves all three.
-version: 1.7.0
+version: 2.0.0
