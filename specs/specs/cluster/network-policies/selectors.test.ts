@@ -58,6 +58,19 @@ async function podsOfTheCluster(): Promise<Pod[]> {
     );
 }
 
+const APP_TIER = 'app.jterrazz.com/tier';
+
+// hazard: the upgrade test's k3d cluster deploys no app, so a platform peer naming an app's namespace
+// (Grafana's egress to jterrazz-alerts-prod) cannot match there; the live cluster judges it.
+function namesAnAbsentApp({ namespaceSelector }: Peer, hasApps: boolean): boolean {
+    return (
+        !hasApps &&
+        /-(?:prod|staging)$/u.test(
+            namespaceSelector?.matchLabels?.['kubernetes.io/metadata.name'] ?? '',
+        )
+    );
+}
+
 describe('selectors', () => {
     test('every network policy selects pods that exist, and admits peers that exist', async () => {
         // Given - every NetworkPolicy, the pods every controller creates, and every namespace's labels
@@ -69,6 +82,7 @@ describe('selectors', () => {
         const labelsOf = new Map(
             namespaces.items.map(({ metadata }) => [metadata.name, metadata.labels ?? {}]),
         );
+        const hasApps = [...labelsOf.values()].some((labels) => labels[APP_TIER] === 'app');
 
         // When - each selector is resolved against them; an ipBlock names no pod and is not read
         const violations = policies.items.flatMap(({ metadata, spec }) => {
@@ -104,7 +118,7 @@ describe('selectors', () => {
             return [
                 ...(selects({ podSelector: spec.podSelector }) ? [] : [`${where}: selects no pod`]),
                 ...peers
-                    .filter(([, peer]) => !selects(peer))
+                    .filter(([, peer]) => !selects(peer) && !namesAnAbsentApp(peer, hasApps))
                     .map(
                         ([way, peer]) => `${where}: ${way} ${JSON.stringify(peer)} matches nothing`,
                     ),
