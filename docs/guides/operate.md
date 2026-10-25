@@ -34,6 +34,10 @@ kubectl rollout restart -n platform-networking \
 # the tunnel
 kubectl logs -n platform-networking deploy/cloudflared --tail=30 | grep -E 'Registered|edge'
 
+# a public host that does not resolve: external-dns writes its record off the IngressRoute
+kubectl logs -n platform-networking deploy/external-dns --tail=20
+kubectl get ingressroute -A -o custom-columns=NAME:.metadata.name,EP:.spec.entryPoints
+
 # no pod logs in VictoriaLogs: the collector tails /var/log/pods itself
 kubectl logs -n platform-telemetry deploy/otel-collector | grep -iE 'permission denied|file_log|k8s_attributes'
 
@@ -168,12 +172,14 @@ in [the OpenPanel README](../../src/kubernetes/services/openpanel/README.md#back
 
 ## Rotating credentials
 
-| What                      | How                                                                                                                                                                                                                                                                                                        |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Any Infisical-held secret | Change it in Infisical. The operator resyncs every 5 minutes (its default; no CR sets `syncConfig`), and `kubectl delete pod -n platform-secrets -l control-plane=controller-manager` forces it. A consumer reading it as env still needs a rollout restart, and a deploy secret a `make deploy-platform`. |
-| `CLOUDFLARE_TUNNEL_TOKEN` | A new connector token in Zero Trust, stored at `/jterrazz-infrastructure`, a resync, then `kubectl rollout restart deploy/cloudflared -n platform-networking`.                                                                                                                                             |
-| The registry accounts     | Two accounts overlapping, never a swap: [below](#rotating-the-registry-password).                                                                                                                                                                                                                          |
-| CI deploy SSH key         | `ssh-keygen -t ed25519`, the public half into `security_ci_deploy_pubkey`, `gh secret set CI_DEPLOY_SSH_PRIVATE -R jterrazz/jterrazz-infrastructure`, then `make deploy`.                                                                                                                                  |
+| What                       | How                                                                                                                                                                                                                                                                                                        |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Any Infisical-held secret  | Change it in Infisical. The operator resyncs every 5 minutes (its default; no CR sets `syncConfig`), and `kubectl delete pod -n platform-secrets -l control-plane=controller-manager` forces it. A consumer reading it as env still needs a rollout restart, and a deploy secret a `make deploy-platform`. |
+| `CLOUDFLARE_TUNNEL_TOKEN`  | A new connector token in Zero Trust, stored at `/jterrazz-infrastructure`, a resync, then `kubectl rollout restart deploy/cloudflared -n platform-networking`.                                                                                                                                             |
+| `CLOUDFLARE_DNS01_TOKEN`   | A new token (Zone, DNS, Edit on `jterrazz.com`) at `/jterrazz-infrastructure`, then `make deploy-platform`, which rewrites `cloudflare-api-token`; revoke the old one.                                                                                                                                     |
+| `CLOUDFLARE_RECORDS_TOKEN` | A new token (Zone, DNS, Edit on every public zone; Account, Cloudflare Tunnel, Edit) at `/jterrazz-infrastructure`, a resync, then `kubectl rollout restart deploy/external-dns -n platform-networking`; revoke the old one.                                                                               |
+| The registry accounts      | Two accounts overlapping, never a swap: [below](#rotating-the-registry-password).                                                                                                                                                                                                                          |
+| CI deploy SSH key          | `ssh-keygen -t ed25519`, the public half into `security_ci_deploy_pubkey`, `gh secret set CI_DEPLOY_SSH_PRIVATE -R jterrazz/jterrazz-infrastructure`, then `make deploy`.                                                                                                                                  |
 
 ### A deleted managed Secret does not come back
 
@@ -221,7 +227,7 @@ it from Infisical and pass it through the environment.
    netrc line cannot carry one.
 
 3. **Resync** with `kubectl delete pod -n platform-secrets -l
-   control-plane=controller-manager`; no app redeploy is needed.
+control-plane=controller-manager`; no app redeploy is needed.
 
 4. **Verify every namespace is fresh**: identical versions mean one Infisical
    revision, and every CR must be `Ready`. A `Ready` CR whose Secret is absent

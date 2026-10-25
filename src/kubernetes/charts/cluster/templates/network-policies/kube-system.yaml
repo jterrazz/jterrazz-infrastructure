@@ -34,9 +34,9 @@ spec:
           protocol: TCP
 
 ---
-# hazard: only svclb pods (the tailnet) and cloudflared (the tunnel) may dial Traefik;
-# excepting the pod CIDR is what keeps any other pod from passing
-# private-access's 10.42/16 allowance (ADR-003).
+# hazard: the tailnet (svclb pods) reaches web and websecure alone, cloudflared the tunnel
+# entrypoint alone, and no other pod reaches Traefik: this split is what keeps a request that
+# crossed Cloudflare off every private route (ADR-002, ADR-003).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -53,13 +53,6 @@ spec:
         - podSelector:
             matchLabels:
               svccontroller.k3s.cattle.io/svcname: traefik
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: platform-networking
-          podSelector:
-            matchLabels:
-              # invariant: the app chart's pod label; app.kubernetes.io/* sits on the objects only.
-              app: cloudflared
         - ipBlock:
             cidr: 0.0.0.0/0
             except:
@@ -71,6 +64,17 @@ spec:
           protocol: TCP
         - port: 8443
           protocol: UDP
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: platform-networking
+          podSelector:
+            matchLabels:
+              # invariant: the app chart's pod label; app.kubernetes.io/* sits on the objects only.
+              app: cloudflared
+      ports:
+        - port: 8090
+          protocol: TCP
 
 ---
 # hazard: without it every tailnet client gets `connection refused` while public traffic works.

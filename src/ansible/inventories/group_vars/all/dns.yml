@@ -8,8 +8,9 @@ dns_records:
   - record: "*.staging"
     value: "{{ tailscale_dns_hostname }}"
     proxied: false
-  # invariant: proxied, since cfargotunnel.com resolves only at the edge; the tunnel id is the
-  # connector token's `t` field.
-  - record: analytics
+  # invariant: the tunnel's one alias, which every public host's record (external-dns's) points
+  # at, so only this record knows the tunnel id, the connector token's `t` field. Proxied, since
+  # cfargotunnel.com resolves only at the edge; another zone's proxied CNAME to it is followed too.
+  - record: tunnel
     value: "{{ (cloudflare_tunnel_token | b64decode | from_json).t }}.cfargotunnel.com"
     proxied: true

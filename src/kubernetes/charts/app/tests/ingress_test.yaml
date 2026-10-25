@@ -16,20 +16,20 @@ tests:
           count: 1 # one IngressRoute; no strip-prefix, path is /
       - equal:
           path: spec.routes[0].match
-          value: (Host(`ci-test-app-staging.jterrazz.com`)) && !HeaderRegexp(`Cf-Ray`, `.+`)
+          value: Host(`ci-test-app-staging.jterrazz.com`)
 
-  - it: "attaches private-access to a `public: false` entry, and nothing else"
+  - it: "serves a `public: false` entry on websecure alone, with no middleware of its own"
+    # invariant: the entrypoint is the gate: cloudflared reaches only `tunnel` (ADR-002).
     set:
       environment: staging
     asserts:
       - equal:
+          path: spec.entryPoints
+          value: [websecure]
+      - notExists:
           path: spec.routes[0].middlewares
-          value:
-            - name: private-access
-              namespace: platform-networking
 
-  - it: "leaves a `public: true` entry with no access middleware"
-    # invariant: no ipAllowList; the websecure chain still applies.
+  - it: "serves a `public: true` entry on the tunnel alone, without TLS, for external-dns to publish"
     set:
       environment: probe
       environments.probe.ingress:
@@ -37,8 +37,16 @@ tests:
           path: /
           public: true
     asserts:
+      - equal:
+          path: spec.entryPoints
+          value: [tunnel]
+      - notExists:
+          path: spec.tls
       - notExists:
           path: spec.routes[0].middlewares
+      - equal:
+          path: metadata.annotations["external-dns.alpha.kubernetes.io/target"]
+          value: tunnel.jterrazz.com
 
   - it: renders no Certificate, and serves TLS from the default store
     # invariant: the private zones' wildcards are the default TLSStore's; public TLS ends at
@@ -104,7 +112,7 @@ tests:
           count: 1
       - equal:
           path: spec.routes[0].match
-          value: (Host(`probe.jterrazz.com`) && PathPrefix(`/mcp`)) && !HeaderRegexp(`Cf-Ray`, `.+`)
+          value: Host(`probe.jterrazz.com`) && PathPrefix(`/mcp`)
 
   - it: leaves a public route reachable through the tunnel
     documentSelector:

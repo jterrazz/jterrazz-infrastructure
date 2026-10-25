@@ -19,7 +19,7 @@
         name: secrets
         apply:
           tags: [always]
-      when: cloudflare_api_token is not defined
+      when: cloudflare_records_token is not defined
       tags: [always]
 
     # invariant: staged with the repository's own layout, so a path relative to the helmfile

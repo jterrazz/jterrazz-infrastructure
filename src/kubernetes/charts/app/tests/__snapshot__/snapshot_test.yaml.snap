@@ -270,6 +270,7 @@ matches the recorded render of the CI fixture:
     kind: IngressRoute
     metadata:
       annotations:
+        external-dns.alpha.kubernetes.io/target: tunnel.jterrazz.com
         smoke.jterrazz.com/expect: "200"
         smoke.jterrazz.com/path: /api/health
       labels:
@@ -281,7 +282,7 @@ matches the recorded render of the CI fixture:
       name: ci-test-app-0
     spec:
       entryPoints:
-        - websecure
+        - tunnel
       routes:
         - kind: Rule
           match: Host(`ci-test-app.jterrazz.com`) && PathPrefix(`/api`)
@@ -290,7 +291,6 @@ matches the recorded render of the CI fixture:
           services:
             - name: ci-test-app
               port: 80
-      tls: {}
   9: |
     apiVersion: traefik.io/v1alpha1
     kind: IngressRoute
@@ -310,10 +310,7 @@ matches the recorded render of the CI fixture:
         - websecure
       routes:
         - kind: Rule
-          match: (Host(`ci-test-app-internal.jterrazz.com`)) && !HeaderRegexp(`Cf-Ray`, `.+`)
-          middlewares:
-            - name: private-access
-              namespace: platform-networking
+          match: Host(`ci-test-app-internal.jterrazz.com`)
           services:
             - name: ci-test-app
               port: 80
@@ -323,6 +320,7 @@ matches the recorded render of the CI fixture:
     kind: IngressRoute
     metadata:
       annotations:
+        external-dns.alpha.kubernetes.io/target: tunnel.jterrazz.com
         smoke.jterrazz.com/probe: "false"
       labels:
         app: ci-test-app
@@ -333,14 +331,13 @@ matches the recorded render of the CI fixture:
       name: ci-test-app-2
     spec:
       entryPoints:
-        - websecure
+        - tunnel
       routes:
         - kind: Rule
           match: Host(`ci-test-app-mcp.jterrazz.com`) && PathPrefix(`/mcp`)
           services:
             - name: ci-test-app
               port: 80
-      tls: {}
   11: |
     apiVersion: traefik.io/v1alpha1
     kind: Middleware
@@ -362,6 +359,7 @@ matches the recorded render of the CI fixture:
     kind: IngressRoute
     metadata:
       annotations:
+        external-dns.alpha.kubernetes.io/target: tunnel.jterrazz.com
         smoke.jterrazz.com/expect: "301"
         smoke.jterrazz.com/location: https://ci-test-app.jterrazz.com/
         smoke.jterrazz.com/path: /
@@ -374,7 +372,7 @@ matches the recorded render of the CI fixture:
       name: ci-test-app-3
     spec:
       entryPoints:
-        - websecure
+        - tunnel
       routes:
         - kind: Rule
           match: Host(`ci-test-app-old.jterrazz.com`)
@@ -383,7 +381,6 @@ matches the recorded render of the CI fixture:
           services:
             - name: ci-test-app
               port: 80
-      tls: {}
   13: |
     apiVersion: traefik.io/v1alpha1
     kind: Middleware
@@ -405,6 +402,7 @@ matches the recorded render of the CI fixture:
     kind: IngressRoute
     metadata:
       annotations:
+        external-dns.alpha.kubernetes.io/target: tunnel.jterrazz.com
         smoke.jterrazz.com/expect: "301"
         smoke.jterrazz.com/location: https://ci-test-app.jterrazz.com/moved
         smoke.jterrazz.com/path: /
@@ -417,7 +415,7 @@ matches the recorded render of the CI fixture:
       name: ci-test-app-4
     spec:
       entryPoints:
-        - websecure
+        - tunnel
       routes:
         - kind: Rule
           match: Host(`ci-test-app-legacy.jterrazz.com`)
@@ -426,7 +424,6 @@ matches the recorded render of the CI fixture:
           services:
             - name: ci-test-app
               port: 80
-      tls: {}
   15: |
     apiVersion: traefik.io/v1alpha1
     kind: IngressRoute
@@ -446,10 +443,7 @@ matches the recorded render of the CI fixture:
         - websecure
       routes:
         - kind: Rule
-          match: (Host(`ci-test-app-probe.jterrazz.com`)) && !HeaderRegexp(`Cf-Ray`, `.+`)
-          middlewares:
-            - name: private-access
-              namespace: platform-networking
+          match: Host(`ci-test-app-probe.jterrazz.com`)
           services:
             - name: ci-test-app
               port: 80
@@ -474,6 +468,7 @@ matches the recorded render of the CI fixture:
     kind: IngressRoute
     metadata:
       annotations:
+        external-dns.alpha.kubernetes.io/target: tunnel.jterrazz.com
         smoke.jterrazz.com/expect: "401"
         smoke.jterrazz.com/method: POST
         smoke.jterrazz.com/path: /api/track
@@ -486,7 +481,7 @@ matches the recorded render of the CI fixture:
       name: ci-test-app-6
     spec:
       entryPoints:
-        - websecure
+        - tunnel
       routes:
         - kind: Rule
           match: Host(`ci-test-app-ingest.jterrazz.com`) && PathPrefix(`/api/track`)
@@ -495,7 +490,6 @@ matches the recorded render of the CI fixture:
           services:
             - name: ci-test-app
               port: 80
-      tls: {}
   18: |
     apiVersion: networking.k8s.io/v1
     kind: NetworkPolicy

@@ -1,6 +1,7 @@
 ---
-# invariant: cert-manager's allowances; the namespace baseline is values.yaml's. cloudflared, the other
-# tenant, is an app-chart release whose own `network:` policy is its only allowance (ADR-002).
+# invariant: the two Cloudflare API clients' allowances, cert-manager and external-dns; the namespace
+# baseline is values.yaml's. cloudflared, the other tenant, is an app-chart release whose own
+# `network:` policy is its only allowance (ADR-002).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -24,12 +25,14 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-cert-manager-egress
+  name: allow-cloudflare-clients-egress
   namespace: platform-networking
 spec:
   podSelector:
-    matchLabels:
-      app.kubernetes.io/instance: cert-manager
+    matchExpressions:
+      - key: app.kubernetes.io/instance
+        operator: In
+        values: [cert-manager, external-dns]
   policyTypes:
     - Egress
   egress:

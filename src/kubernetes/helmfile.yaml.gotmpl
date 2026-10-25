@@ -15,6 +15,8 @@ repositories:
     url: https://prometheus-community.github.io/helm-charts
   - name: open-telemetry
     url: https://open-telemetry.github.io/opentelemetry-helm-charts
+  - name: external-dns
+    url: https://kubernetes-sigs.github.io/external-dns/
 
 helmDefaults:
   # invariant: false only in the upgrade test, which judges with `helm list --failed` (ADR-021).
@@ -205,6 +207,24 @@ releases:
       - platform-networking/cloudflared-platform
     values:
       - services/cloudflared/app.yaml
+
+  - name: external-dns-platform
+    namespace: platform-networking
+    inherit:
+      - template: platform-service
+    values:
+      - services/external-dns/service.yaml
+
+  - name: external-dns
+    namespace: platform-networking
+    chart: external-dns/external-dns
+    # hazard: 1.21.1 (app 0.21.0), not later: 0.22 and 0.23 generate no endpoint from any
+    # traefik.io IngressRoute (verified 2026-10-25 against the live routes); renovate.json holds it.
+    version: 1.21.1
+    needs:
+      - platform-networking/external-dns-platform
+    values:
+      - services/external-dns/values.yaml
 
   # invariant: OpenPanel is six app-chart releases; openpanel-platform owns their storage and
   # certificates (ADR-010).

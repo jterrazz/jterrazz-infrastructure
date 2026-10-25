@@ -95,10 +95,7 @@ matches the recorded render of the CI fixture:
         - websecure
       routes:
         - kind: Rule
-          match: (Host(`ci-test-service.jterrazz.com`)) && !HeaderRegexp(`Cf-Ray`, `.+`)
-          middlewares:
-            - name: private-access
-              namespace: platform-networking
+          match: Host(`ci-test-service.jterrazz.com`)
           services:
             - name: ci-test-service
               port: 8080

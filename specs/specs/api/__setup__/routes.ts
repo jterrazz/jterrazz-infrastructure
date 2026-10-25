@@ -18,19 +18,19 @@ export type Route = {
     host: string;
     /** `<namespace>/<name>` of the IngressRoute. */
     origin: string;
-    /** Tailnet-only: behind the private-access allow-list, or in a private zone. */
+    /** Tailnet-only: off the tunnel entrypoint, or in a private zone. */
     private: boolean;
     probe: Probe;
 };
 
 type IngressRoute = KubeObject & {
-    spec?: { routes?: { match?: string; middlewares?: { name?: string }[] }[] };
+    spec?: { entryPoints?: string[]; routes?: { match?: string }[] };
 };
 
 const ANNOTATION = 'smoke.jterrazz.com/';
 const HOST = /Host\(`(?<host>[^`]+)`\)/gu;
 
-// invariant: the middleware is the enforcement; the zones catch a route whose gate was dropped.
+// invariant: the entrypoint is the enforcement; the zones catch a private host put on the tunnel.
 const PRIVATE_ZONES = ['.internal.', '.staging.'];
 
 /** Every host the live IngressRoutes serve, each with its contract; zero routes is a broken cluster, never an empty list. */
@@ -65,9 +65,7 @@ function routesOf(object: IngressRoute): Route[] {
     const annotations = object.metadata.annotations ?? {};
     const declared = (key: string): string | undefined => annotations[`${ANNOTATION}${key}`];
     const rules = object.spec?.routes ?? [];
-    const gated = rules.some((rule) =>
-        (rule.middlewares ?? []).some((middleware) => middleware.name === 'private-access'),
-    );
+    const gated = !(object.spec?.entryPoints ?? []).includes('tunnel');
     const hosts = new Set(
         rules.flatMap((rule) =>
             [...(rule.match ?? '').matchAll(HOST)].map((found) => found.groups?.host ?? ''),

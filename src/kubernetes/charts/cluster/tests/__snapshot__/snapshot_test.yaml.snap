@@ -433,12 +433,6 @@ matches the recorded render:
             - podSelector:
                 matchLabels:
                   svccontroller.k3s.cattle.io/svcname: traefik
-            - namespaceSelector:
-                matchLabels:
-                  kubernetes.io/metadata.name: platform-networking
-              podSelector:
-                matchLabels:
-                  app: cloudflared
             - ipBlock:
                 cidr: 0.0.0.0/0
                 except:
@@ -450,6 +444,16 @@ matches the recorded render:
               protocol: TCP
             - port: 8443
               protocol: UDP
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: platform-networking
+              podSelector:
+                matchLabels:
+                  app: cloudflared
+          ports:
+            - port: 8090
+              protocol: TCP
       podSelector:
         matchLabels:
           app.kubernetes.io/name: traefik
@@ -539,7 +543,7 @@ matches the recorded render:
     apiVersion: networking.k8s.io/v1
     kind: NetworkPolicy
     metadata:
-      name: allow-cert-manager-egress
+      name: allow-cloudflare-clients-egress
       namespace: platform-networking
     spec:
       egress:
@@ -573,8 +577,12 @@ matches the recorded render:
                   - 172.16.0.0/12
                   - 192.168.0.0/16
       podSelector:
-        matchLabels:
-          app.kubernetes.io/instance: cert-manager
+        matchExpressions:
+          - key: app.kubernetes.io/instance
+            operator: In
+            values:
+              - cert-manager
+              - external-dns
       policyTypes:
         - Egress
   31: |
@@ -905,26 +913,13 @@ matches the recorded render:
         stsSeconds: 31536000
   40: |
     apiVersion: traefik.io/v1alpha1
-    kind: Middleware
-    metadata:
-      labels:
-        app.kubernetes.io/component: access-control
-        app.kubernetes.io/name: traefik
-      name: private-access
-      namespace: platform-networking
-    spec:
-      ipAllowList:
-        sourceRange:
-          - 10.42.0.0/16
-  41: |
-    apiVersion: traefik.io/v1alpha1
     kind: TLSOption
     metadata:
       name: default
       namespace: kube-system
     spec:
       minVersion: VersionTLS13
-  42: |
+  41: |
     apiVersion: traefik.io/v1alpha1
     kind: TLSStore
     metadata:

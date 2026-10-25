@@ -200,10 +200,10 @@ Each entry is
 ingress:
   - host: signews.jterrazz.com
     path: /api
-    public: true # via cloudflared; the entrypoint's rate limit, compression and headers only
+    public: true # the tunnel entrypoint; external-dns writes its record
   - host: signews.internal.jterrazz.com
     path: /
-    public: false # tailnet-only: private-access middleware attached
+    public: false # the websecure entrypoint, which only the tailnet reaches
 ```
 
 - `public` is **required** per entry: the render fails without it rather
@@ -237,7 +237,8 @@ ingress:
       preservePath: false
   ```
 
-  A redirect host still needs its own Public Hostname on the Cloudflare tunnel.
+  A redirect host is a public route like any other: external-dns writes its
+  record.
 
 - **No certificate per host.** A private route is served the private zone's
   wildcard by Traefik's default TLSStore, and a public route's TLS ends at the
@@ -245,8 +246,11 @@ ingress:
   ([ADR-001](../../../../docs/decisions/001-certificates-are-issued-over-dns-01.md)).
   One `IngressRoute` per **entry** (`<app>-<idx>`), so two entries can share a
   host.
-- Public hostnames still need a Public Hostname route in the Cloudflare Zero
-  Trust dashboard. A private name sits under one of the two wildcard zones,
+- A public host needs nothing outside its entry: it lands on Traefik's
+  `tunnel` entrypoint, and external-dns writes its proxied CNAME in whichever
+  of our zones holds it
+  ([ADR-026](../../../../docs/decisions/026-a-public-route-is-published-by-its-ingressroute.md)).
+  A private name sits under one of the two wildcard zones,
   `<product>.internal.jterrazz.com` or `<name>.staging.jterrazz.com`, and
   needs nothing but `public: false`. Staging is always private.
 
@@ -594,7 +598,8 @@ spec:
     capabilities:
       drop: ["ALL"]
       add: ["NET_BIND_SERVICE"]
-  runAsRoot: true # escape hatch: drops runAsNonRoot AND the
+  runAsRoot:
+    true # escape hatch: drops runAsNonRoot AND the
     # pod-level uid/gid/fsGroup block entirely
 ```
 

@@ -23,17 +23,16 @@ is the _why_, and the recipes.
 | `NetworkPolicy`         | `<name>`                       | `network` is set         |
 
 All of them come from `src/kubernetes/charts/common`, the library chart this one and
-`app` share; that is where the IngressRoute shape, the never-chain-ipAllowLists
-rule, the PV/PVC data-safety constraints and the NetworkPolicy peer vocabulary
+`app` share; that is where the IngressRoute shape (which entrypoint a route sits on), the PV/PVC data-safety constraints and the NetworkPolicy peer vocabulary
 actually live.
 
 ## `public:`, the route
 
-`public: false` (the default) attaches the `private-access` ipAllowList and the
-Cf-Ray guard, so only the tailnet reaches the route; `public: true` attaches
-neither, and the route still sits behind the rate-limit, compress and
-security-headers chain the websecure entrypoint applies globally. TLS comes
-from Traefik's default TLSStore, so the route names no certificate.
+`public: false` (the default) puts the route on the `websecure` entrypoint,
+which only the tailnet reaches, with TLS from Traefik's default TLSStore;
+`public: true` puts it on the `tunnel` entrypoint, which only cloudflared
+reaches, with no TLS of ours, and external-dns writes its record. Both
+entrypoints apply the rate-limit, compress and security-headers chain.
 
 ## `storage:`, the hostPath volumes
 

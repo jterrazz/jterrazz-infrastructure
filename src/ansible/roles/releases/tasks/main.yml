@@ -20,7 +20,7 @@
         namespace: platform-networking
       type: Opaque
       stringData:
-        api-token: "{{ cloudflare_api_token }}"
+        api-token: "{{ cloudflare_dns01_token }}"
   no_log: true
 
 - name: Create the Infisical credentials Secret

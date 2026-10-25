@@ -24,6 +24,11 @@ spec:
         allocateLoadBalancerNodePorts: false
         loadBalancerSourceRanges:
           - 100.64.0.0/10      # Tailscale CGNAT, the only permitted source.
+      # invariant: `traefik-tunnel`, a ClusterIP Service for the tunnel entrypoint alone, so
+      # cloudflared never reaches websecure and the tailnet never reaches tunnel (ADR-002).
+      additionalServices:
+        tunnel:
+          type: ClusterIP
 
     ports:
       websecure:
@@ -41,6 +46,20 @@ spec:
           enabled: true
           # value: not a default: unset, Alt-Svc advertises the in-container UDP/8443.
           advertisedPort: 443
+      # invariant: the public routes' one entrypoint, plain HTTP: the edge terminates their TLS
+      # (ADR-001), and only cloudflared may dial it (allow-traefik-ingress).
+      tunnel:
+        port: 8090
+        exposedPort: 80
+        protocol: TCP
+        expose:
+          default: false
+          tunnel: true
+        http:
+          middlewares:
+            - platform-networking-rate-limit@kubernetescrd
+            - platform-networking-compress@kubernetescrd
+            - platform-networking-security-headers@kubernetescrd
       web:
         http:
           redirections:
@@ -64,8 +83,10 @@ spec:
       kubernetesIngress:
         enabled: false
 
-    # hazard: trustedIPs are the direct peers allowed to set X-Forwarded-For; a wrong
-    # list silently drops the client IP. Both peers, cloudflared and klipper-lb's svclb,
-    # are pods; docs/decisions/003-traefiks-service-is-the-tailnet-gate.md
+    # hazard: trustedIPs are the direct peers allowed to set X-Forwarded-*; a wrong list
+    # silently drops the client IP, and on tunnel the edge's `X-Forwarded-Proto: https`. Both
+    # peers, klipper-lb's svclb and cloudflared, are pods;
+    # docs/decisions/003-traefiks-service-is-the-tailnet-gate.md
     additionalArguments:
       - "--entryPoints.websecure.forwardedHeaders.trustedIPs=10.42.0.0/16"
+      - "--entryPoints.tunnel.forwardedHeaders.trustedIPs=10.42.0.0/16"

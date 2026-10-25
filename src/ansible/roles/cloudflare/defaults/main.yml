@@ -1,0 +1,6 @@
+---
+# invariant: the ClusterIP Service the Traefik HelmChartConfig adds for its tunnel entrypoint.
+cloudflare_tunnel_service: http://traefik-tunnel.kube-system.svc.cluster.local:80
+cloudflare_tunnel_ids: "{{ cloudflare_tunnel_token | b64decode | from_json }}"
+cloudflare_tunnel_api: >-
+  https://api.cloudflare.com/client/v4/accounts/{{ cloudflare_tunnel_ids.a }}/cfd_tunnel/{{ cloudflare_tunnel_ids.t }}/configurations

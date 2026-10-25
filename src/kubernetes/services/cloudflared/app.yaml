@@ -33,13 +33,14 @@ spec:
     memoryLimit: 128Mi
 
   network:
-    # invariant: it dials out (the edge on 7844, Traefik on its pod port 8443) and nothing
-    # dials in.
+    # invariant: it dials out (the edge on 7844, Traefik's tunnel entrypoint on its pod port
+    # 8090) and nothing dials in. Where it sends a request is the tunnel's remote config, which
+    # the cloudflare role converges: one catch-all rule to traefik-tunnel (ADR-002).
     isolated: true
     egress:
       - to: internet
       - to: traefik
-        ports: [8443]
+        ports: [8090]
 
 environments:
   prod: {}

@@ -56,29 +56,31 @@ file removed there is an object removed.
 ## Two ways in, neither an open port
 
 Public traffic arrives through an outbound tunnel (QUIC, HTTP/2 as fallback): the Cloudflare edge,
-then `cloudflared`, a pod in `platform-networking`, then Traefik, then the
-app. Private traffic (the products' `*.internal` hosts, Grafana, the registry,
-the API server, staging) is tailnet-only: Traefik's LoadBalancer admits the
-Tailscale range alone, a private route answers tailnet sources only and never a
-request carrying the edge's `Cf-Ray`, and the nft guard keeps every
-other port of the node shut
+then `cloudflared`, a pod in `platform-networking`, then Traefik's `tunnel`
+entrypoint, then the app; external-dns writes each public host's record off its
+IngressRoute. Private traffic (the products' `*.internal` hosts, Grafana, the
+registry, the API server, staging) is tailnet-only: Traefik's LoadBalancer
+admits the Tailscale range alone, a private route sits on `websecure`, which
+cloudflared cannot reach, and the nft guard keeps every other port of the node
+shut
 ([ADR-002](../decisions/002-public-traffic-enters-through-a-cloudflare-tunnel.md),
 [ADR-003](../decisions/003-traefiks-service-is-the-tailnet-gate.md),
-[ADR-006](../decisions/006-the-host-has-no-public-inbound-path.md)).
+[ADR-006](../decisions/006-the-host-has-no-public-inbound-path.md),
+[ADR-026](../decisions/026-a-public-route-is-published-by-its-ingressroute.md)).
 
 ```text
  INTERNET · Cloudflare edge                       TAILNET · SSH, CI runners, laptops
-        ▲ outbound HTTP/2 tunnel                    │
+        ▲ outbound QUIC tunnel                      │
         │                                           │ tailscale0, 100.64.0.0/10
 ┌───────┼─── OrbStack VM · nft guard ───────────────┼────────────────────────┐
 │ ┌─────┼───── k3s ─────────────────────────────────┼──────────────────────┐ │
 │ │     │                                           │                      │ │
-│ │ cloudflared ───► Traefik ◄───────────────── klipper-lb                 │ │
-│ │ platform-networking │                   admits the tailnet alone       │ │
-│ │                     ├─ public   jterrazz.com · sig.news · spwn.sh      │ │
-│ │                     └─ private  tailnet sources only, never a Cf-Ray:  │ │
-│ │                              console · intelligence · signews · grafana│ │
-│ │                              registry · openpanel · *.staging          │ │
+│ │ cloudflared ──► :tunnel ── Traefik ── :websecure ◄── klipper-lb        │ │
+│ │ platform-networking  │                   │  admits the tailnet alone   │ │
+│ │                      ▼                   ▼                             │ │
+│ │      public: jterrazz.com        private: console · intelligence       │ │
+│ │      sig.news · spwn.sh          signews · grafana · registry          │ │
+│ │                                  openpanel · *.staging                 │ │
 │ └────────────────────────────────────────────────────────────────────────┘ │
 └────────────────────────────────────────────────────────────────────────────┘
 ```

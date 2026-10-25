@@ -1,0 +1,10 @@
+# invariant: the Cloudflare token external-dns reads, synced from Infisical; no route, no storage.
+name: external-dns
+
+# hazard: /jterrazz-infrastructure holds every deploy secret; the template copies the token alone.
+secrets:
+  path: /jterrazz-infrastructure
+  secretName: external-dns-secrets
+  template:
+    data:
+      CF_API_TOKEN: "{{ .CLOUDFLARE_RECORDS_TOKEN.Value }}"

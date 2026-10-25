@@ -10,6 +10,11 @@ Written 2026-10-24 from the comments in
 from the close of public 80/443 (6dc3915); the NodePort and timeout rows from
 the 2026-10-24 audit and incidents.
 
+Revised 2026-10-25: `private-access` and the Cf-Ray clause are gone; public
+routes moved to a `tunnel` entrypoint cloudflared alone reaches, so `websecure`
+is the tailnet's
+([ADR-026](026-a-public-route-is-published-by-its-ingressroute.md)).
+
 Revised 2026-10-25: a private route never matches a request carrying `Cf-Ray`.
 
 ## Context
@@ -64,34 +69,29 @@ the HelmChartConfig, applied before Traefik's install job is awaited.
   surface with it. The memory limit makes it Burstable and is generous
   because buffers scale with connections; a CPU cap would throttle exactly
   the bursts it exists to absorb.
-- **`forwardedHeaders.trustedIPs` lists this node's own networks** (pod and
-  service CIDRs, loopback, Tailscale CGNAT, link-local, OrbStack's
-  198.19.0.0/16, RFC1918 172.16/12 and 192.168/16), never Cloudflare's edge
-  CIDRs: Cloudflare never talks to Traefik directly, its peer is always
-  cloudflared in the cluster. A wrong list silently strips the client IP from
-  `X-Forwarded-For`.
+- **`forwardedHeaders.trustedIPs` is the pod CIDR, 10.42.0.0/16**, on both
+  entrypoints, never Cloudflare's edge CIDRs: Cloudflare never talks to Traefik
+  directly, and both direct peers, svclb's pods and cloudflared, are pods. A
+  wrong list silently strips the client IP from `X-Forwarded-For`, and on
+  `tunnel` the edge's `X-Forwarded-Proto: https`, which apps build redirects
+  from.
 - **The rate limiter keys on `Cf-Connecting-Ip`** (100 req/s, burst 200,
-  attached to the websecure entrypoint): the edge sets it and overwrites any
+  attached to both entrypoints): the edge sets it and overwrites any
   client value, so it cannot be spoofed. It replaced an X-Forwarded-For walk
   whose `excludedIPs` had to repeat the trustedIPs list entry for entry.
   Tailnet traffic, MASQUERADEd by klipper-lb, shares one bucket.
-- **`private-access` admits 10.42.0.0/16** besides the tailnet and loopback:
-  klipper-lb DNATs and MASQUERADEs inside the svclb pod, so a tailnet request
-  reaches Traefik from an svclb pod address (the node's own image pulls
-  hairpin the same way). What keeps other pods off private hosts is
-  `allow-traefik-ingress`, which admits only svclb's pods and cloudflared and
-  excepts the pod CIDR.
-- **A private route never matches a request that crossed Cloudflare.** The
-  tunnel reaches Traefik from cloudflared's pod address, which private-access
-  admits, so until 2026-10-25 a private host was kept off the internet only by
-  the tunnel's hostname rules in the Cloudflare dashboard (audit finding H2).
-  Every route behind private-access now carries
-  `&& !HeaderRegexp(`Cf-Ray`, `.+`)` (`charts/common/_ingress.tpl`): the edge
-  stamps that header on everything it forwards and a client cannot strip it.
-  The platform suite proves it live: each private host answers 404 to a
-  request carrying `Cf-Ray`. `allow-svclb-ingress` must allow the node address
-  explicitly: miss it and public traffic keeps working while every tailnet
-  client, CI included, gets `connection refused` on 443.
+- **The entrypoint is the gate.** klipper-lb MASQUERADEs every tailnet
+  request to an svclb pod address, and cloudflared is a pod too, so no source
+  range can tell the two apart. `allow-traefik-ingress` does it by port
+  instead: svclb's pods reach 8000 and 8443 (`web`, `websecure`), cloudflared
+  8090 (`tunnel`), and no other pod reaches Traefik. A private route lives on
+  `websecure` alone, so a request that crossed Cloudflare never meets it. Until
+  2026-10-25 both audiences shared `websecure`, and a `private-access`
+  ipAllowList (10.42.0.0/16, which admitted both) plus a
+  `!HeaderRegexp(`Cf-Ray`, `.+`)` clause on every private match stood in for
+  the split. `allow-svclb-ingress` must allow the node address explicitly:
+  miss it and public traffic keeps working while every tailnet client, CI
+  included, gets `connection refused` on 443.
 - **Apply order.** The HelmChartConfig is applied explicitly and first,
   before waiting on the install job: on a k3s bump the job may need the new
   schema to reconcile at all, and wait-then-apply deadlocked for 8 minutes.

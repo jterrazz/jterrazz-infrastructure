@@ -1,12 +1,12 @@
 # cloudflared
 
 The public ingress: an outbound tunnel from the Cloudflare edge to Traefik's
-ClusterIP, with no port open on the host. Why it runs on pod networking, over
+`tunnel` entrypoint, with no port open on the host. Why it runs on pod networking, over
 QUIC, with a token file is
 [ADR-002](../../../../docs/decisions/002-public-traffic-enters-through-a-cloudflare-tunnel.md).
 
 ```text
-client ─► Cloudflare edge ─► tunnel (HTTP/2) ─► cloudflared ─► traefik.kube-system:443 ─► IngressRoute
+client ─► Cloudflare edge ─► tunnel (QUIC) ─► cloudflared ─► traefik-tunnel.kube-system:80 ─► IngressRoute
 ```
 
 `service.yaml` is the `cloudflared-platform` release, which syncs the tunnel
@@ -19,11 +19,10 @@ release that mounts it.
    `jterrazz-infrastructure` and copy its token (`eyJ...`).
 2. Store it as `CLOUDFLARE_TUNNEL_TOKEN` in Infisical, project `jterrazz`,
    env `prod`, path `/jterrazz-infrastructure`.
-3. Add one **Public Hostname** per public hostname, apex zones included
-   (`jterrazz.com`, `sig.news`, `spwn.sh`): service HTTPS, URL
-   `traefik.kube-system.svc.cluster.local:443`, TLS **No TLS Verify** on. The
-   rule creates the CNAME, except for `analytics.jterrazz.com`, whose record is
-   `dns_records`'.
+3. Nothing else: the platform deploy sets the tunnel's one catch-all rule and
+   its `tunnel.jterrazz.com` alias, and external-dns writes each public host's
+   record ([ADR-026](../../../../docs/decisions/026-a-public-route-is-published-by-its-ingressroute.md)).
+   Add no Public Hostname in the dashboard: the deploy overwrites the rules.
 
 A tunnel load-balances up to four connectors, so a second cluster with the same
 token serves at once; `kubectl scale -n platform-networking deploy/cloudflared

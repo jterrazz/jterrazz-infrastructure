@@ -19,6 +19,7 @@ tests:
       - equal:
           path: metadata.annotations
           value:
+            external-dns.alpha.kubernetes.io/target: tunnel.jterrazz.com
             smoke.jterrazz.com/path: /api/health
             smoke.jterrazz.com/expect: "200"
         documentSelector:
@@ -56,6 +57,7 @@ tests:
       - equal:
           path: metadata.annotations
           value:
+            external-dns.alpha.kubernetes.io/target: tunnel.jterrazz.com
             smoke.jterrazz.com/path: /
             smoke.jterrazz.com/expect: "301"
             smoke.jterrazz.com/location: https://new.example.com/
@@ -90,6 +92,7 @@ tests:
       - equal:
           path: metadata.annotations
           value:
+            external-dns.alpha.kubernetes.io/target: tunnel.jterrazz.com
             smoke.jterrazz.com/probe: "false"
         documentIndex: 0
 
@@ -141,6 +144,7 @@ tests:
       - equal:
           path: metadata.annotations
           value:
+            external-dns.alpha.kubernetes.io/target: tunnel.jterrazz.com
             smoke.jterrazz.com/path: /mcp/ping
             smoke.jterrazz.com/expect: "200"
         documentIndex: 0

@@ -52,6 +52,6 @@ costs something and buys nothing, and some are traps.
 - No HA and no etcd snapshots: recovery is a repave plus a data restore,
   which the hostPath layout makes possible.
 - A comment edit in a k3s template is a k3s restart on the next `make
-  deploy`, which is why those comments stay where they are.
+deploy`, which is why those comments stay where they are.
 - Security-related server flags (secrets encryption, audit log, OIDC,
   Pod Security) are their own records.

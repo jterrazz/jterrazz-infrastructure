@@ -11,14 +11,14 @@ reads Infisical. Rotating one is [Operate](../guides/operate.md#rotating-credent
 each folder explicitly, and stops on a missing key before anything deploys
 ([ADR-015](../decisions/015-deploy-secrets-are-fetched-once-by-ansible.md)).
 
-| Project, path                                  | Keys                                                                      | Read by                      |
-| ---------------------------------------------- | ------------------------------------------------------------------------- | ---------------------------- |
-| `jterrazz`, `/jterrazz-infrastructure`         | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_TUNNEL_TOKEN`                         | both playbooks               |
-|                                                | `TAILSCALE_OAUTH_CLIENT_ID`, `TAILSCALE_OAUTH_CLIENT_SECRET`              | `site.yml` only              |
-|                                                | `BACKUP_AGE_IDENTITY`                                                     | `make backup` only           |
-| `jterrazz`, `/jterrazz-infrastructure/grafana` | `ADMIN_PASSWORD`                                                          | both playbooks               |
-| `jterrazz-ci`, `/`                             | `DOCKER_REGISTRY_USERNAME`, `DOCKER_REGISTRY_PASSWORD`: the push account  | both playbooks, app CI       |
-|                                                | `REGISTRY_PULL_USERNAME`, `REGISTRY_PULL_PASSWORD`: the read-only account | both playbooks, the operator |
+| Project, path                                  | Keys                                                                            | Read by                      |
+| ---------------------------------------------- | ------------------------------------------------------------------------------- | ---------------------------- |
+| `jterrazz`, `/jterrazz-infrastructure`         | `CLOUDFLARE_DNS01_TOKEN`, `CLOUDFLARE_RECORDS_TOKEN`, `CLOUDFLARE_TUNNEL_TOKEN` | both playbooks               |
+|                                                | `TAILSCALE_OAUTH_CLIENT_ID`, `TAILSCALE_OAUTH_CLIENT_SECRET`                    | `site.yml` only              |
+|                                                | `BACKUP_AGE_IDENTITY`                                                           | `make backup` only           |
+| `jterrazz`, `/jterrazz-infrastructure/grafana` | `ADMIN_PASSWORD`                                                                | both playbooks               |
+| `jterrazz-ci`, `/`                             | `DOCKER_REGISTRY_USERNAME`, `DOCKER_REGISTRY_PASSWORD`: the push account        | both playbooks, app CI       |
+|                                                | `REGISTRY_PULL_USERNAME`, `REGISTRY_PULL_PASSWORD`: the read-only account       | both playbooks, the operator |
 
 The Infisical identity itself (`INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET`)
 comes from `.env` locally and from the repository's GitHub secrets in CI; the
@@ -38,6 +38,7 @@ The operator syncs an `InfisicalSecret` rendered by the release that needs it
 | Infisical path                            | Secret                                       | Keys                                                                                             |
 | ----------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | `/jterrazz-infrastructure`                | `cloudflared-secrets`                        | `CLOUDFLARE_TUNNEL_TOKEN`                                                                        |
+| `/jterrazz-infrastructure`                | `external-dns-secrets`                       | `CF_API_TOKEN`, from `CLOUDFLARE_RECORDS_TOKEN`                                                  |
 | `/jterrazz-infrastructure/openpanel`      | `op-{api,worker,dashboard,postgres}-secrets` | the keys each release names                                                                      |
 | `/jterrazz-infrastructure/otel-collector` | `otel-collector-secrets`                     | `LANGFUSE_BASIC_AUTH`                                                                            |
 | `/jterrazz-infrastructure/grafana`        | `grafana-alerting`                           | `contact-point-slack.yaml`, from the optional `SLACK_WEBHOOK_URL`                                |

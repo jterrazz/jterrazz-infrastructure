@@ -109,7 +109,7 @@ spec:
     - host: ci-test-app.jterrazz.com
       path: /api
       public: true
-    # invariant: private -> the private-access middleware.
+    # invariant: private -> websecure alone, TLS from the default store.
     - host: ci-test-app-internal.jterrazz.com
       path: /
       public: false

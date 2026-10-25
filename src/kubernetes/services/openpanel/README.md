@@ -61,9 +61,8 @@ kubectl exec -n platform-analytics deploy/op-clickhouse -- \
 - **Add a user**: set `ALLOW_REGISTRATION: "true"` in `op-api.yaml`, the only
   reader, deploy, invite, set it back. Always keep a password login: OAuth-only
   with signup disabled locks you out (upstream #363).
-- **Public ingest**: the `analytics` CNAME is `dns_records`'; its routing rule
-  is a Public Hostname in the Zero Trust dashboard. A CNAME with no rule 404s
-  at cloudflared.
+- **Public ingest**: op-api's `analytics.jterrazz.com/api/track` entry is
+  `public: true`, so external-dns writes its record like any public route's.
 
 ## Backup and restore
 

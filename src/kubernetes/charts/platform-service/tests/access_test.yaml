@@ -5,26 +5,29 @@ templates:
 values:
   - ../ci/test-values.yaml
 tests:
-  - it: attaches private-access and the Cf-Ray guard by default
+  - it: serves a route on websecure alone by default, which cloudflared cannot reach
     asserts:
       - equal:
-          path: spec.routes[0].middlewares
-          value:
-            - name: private-access
-              namespace: platform-networking
-      - equal:
-          path: spec.routes[0].match
-          value: (Host(`ci-test-service.jterrazz.com`)) && !HeaderRegexp(`Cf-Ray`, `.+`)
-
-  - it: "attaches no access middleware for `public: true`"
-    set:
-      public: true
-    asserts:
-      - notExists:
-          path: spec.routes[0].middlewares
+          path: spec.entryPoints
+          value: [websecure]
       - equal:
           path: spec.routes[0].match
           value: Host(`ci-test-service.jterrazz.com`)
+      - notExists:
+          path: metadata.annotations["external-dns.alpha.kubernetes.io/target"]
+
+  - it: "serves a `public: true` route on the tunnel alone, with no TLS, published by external-dns"
+    set:
+      public: true
+    asserts:
+      - equal:
+          path: spec.entryPoints
+          value: [tunnel]
+      - notExists:
+          path: spec.tls
+      - equal:
+          path: metadata.annotations["external-dns.alpha.kubernetes.io/target"]
+          value: tunnel.jterrazz.com
 
   - it: routes to the named service on the declared port, TLS from the default store
     asserts:

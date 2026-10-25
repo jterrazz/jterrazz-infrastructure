@@ -1,36 +1,39 @@
 {{/* Input dict: name, labels and annotations (rendered lines), match, public (bool),
-middlewares ({ name, namespace? }, in order, after the access middleware), serviceName, servicePort.
-invariant: one place decides what a private route is: private-access first, and a match that
-never takes a request that crossed Cloudflare. The edge stamps `Cf-Ray` on everything it forwards,
-and the tunnel reaches Traefik from a pod address private-access admits (ADR-003).
-invariant: `tls: {}`: the default TLSStore serves the private zones' wildcards by SNI, and a
-public route's TLS ends at the edge (ADR-001).
+middlewares ({ name, namespace? }, in order), serviceName, servicePort.
+invariant: one place decides what a public route is. A public route lives on the `tunnel`
+entrypoint alone, the only one cloudflared reaches, with no TLS of ours (the edge terminates it,
+ADR-001); a private route on `websecure` alone, which only the tailnet reaches, served the
+private zones' wildcards by the default TLSStore. A request that crossed Cloudflare therefore has
+no private route to match, by construction (ADR-002).
+invariant: the target annotation is what external-dns publishes: a proxied CNAME from each public
+host to `tunnel.jterrazz.com`, the tunnel's one alias (dns.yml; hand-synced-pairs.md).
 hazard: `match` is `Host(a) || Host(b)`, never v2's `Host(a, b)`, which the CRD accepts and
 Traefik v3 routes nowhere. */}}
 {{- define "common.ingressRoute" -}}
-{{- $middlewares := .middlewares | default list -}}
-{{- if not .public -}}
-{{- $middlewares = prepend $middlewares (dict "name" "private-access" "namespace" "platform-networking") -}}
-{{- end -}}
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
   name: {{ .name }}
-  {{- if .annotations }}
+  {{- if or .annotations .public }}
   annotations:
-    {{- .annotations | nindent 4 }}
+    {{- if .public }}
+    external-dns.alpha.kubernetes.io/target: tunnel.jterrazz.com
+    {{- end }}
+    {{- with .annotations }}
+    {{- . | nindent 4 }}
+    {{- end }}
   {{- end }}
   labels:
     {{- .labels | nindent 4 }}
 spec:
   entryPoints:
-    - websecure
+    - {{ if .public }}tunnel{{ else }}websecure{{ end }}
   routes:
-    - match: {{ if .public }}{{ .match }}{{ else }}({{ .match }}) && !HeaderRegexp(`Cf-Ray`, `.+`){{ end }}
+    - match: {{ .match }}
       kind: Rule
-      {{- if $middlewares }}
+      {{- with .middlewares }}
       middlewares:
-        {{- range $middlewares }}
+        {{- range . }}
         - name: {{ .name }}
         {{- if .namespace }}
           namespace: {{ .namespace }}
@@ -40,7 +43,9 @@ spec:
       services:
         - name: {{ .serviceName }}
           port: {{ .servicePort }}
+  {{- if not .public }}
   tls: {}
+  {{- end }}
 {{- end -}}
 
 {{/* Input dict: name, labels, prefix. */}}

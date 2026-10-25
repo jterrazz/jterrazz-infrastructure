@@ -117,11 +117,14 @@ tuning on this host spends fewer fsyncs, never fewer bytes: a guest fsync is a
   `*.staging.jterrazz.com` for staging environments. A new private host needs
   no change here, only `public: false` on its route: CoreDNS answers both
   zones in-cluster, the public wildcards outside.
-- **Public**: the Cloudflare tunnel's Public Hostnames own the records; add one
-  in the Zero Trust dashboard, and nothing lands here.
+- **Public**: external-dns owns each public host's record. A route with
+  `public: true` sits on Traefik's `tunnel` entrypoint and carries the
+  annotation external-dns reads, which writes a proxied CNAME to
+  `tunnel.jterrazz.com` within seconds of the deploy; nothing lands here
+  ([ADR-026](../decisions/026-a-public-route-is-published-by-its-ingressroute.md)).
 - **The platform deploy**: `dns_records` in group_vars, the three records
   nothing else creates, converged on every platform deploy (tag `cloudflare`)
-  with the token cert-manager uses, each name held to exactly that one record,
+  with `CLOUDFLARE_RECORDS_TOKEN`, each name held to exactly that one record,
   so a record edited in the dashboard comes back. It never grows into a
   per-service list
   ([ADR-012](../decisions/012-private-hostnames-are-wildcard-zones.md)).
@@ -130,18 +133,19 @@ tuning on this host spends fewer fsyncs, never fewer bytes: a guest fsync is a
 | ------------ | ----- | ------------------------------------------------------------ | ------- |
 | `*.internal` | CNAME | the node's tailnet name (`tailscale_dns_hostname`)           | no      |
 | `*.staging`  | CNAME | the node's tailnet name                                      | no      |
-| `analytics`  | CNAME | `<tunnel id>.cfargotunnel.com`, the tunnel token's `t` field | yes     |
+| `tunnel`     | CNAME | `<tunnel id>.cfargotunnel.com`, the tunnel token's `t` field | yes     |
 
 The wildcards only make a name resolve to a `100.x` address; the route's
-`private-access` allow-list and the Cf-Ray rule are the enforcement
-([Security](../concepts/security.md)), so a staging host on the public tunnel
-is the mistake to look for. A wildcard matches one label:
-`svc.internal`, never `a.b.internal`. Why each record exists is
+entrypoint is the enforcement ([Security](../concepts/security.md)): a private
+route sits on `websecure`, which cloudflared cannot reach, so a staging host
+marked `public: true` is the mistake to look for, and the platform contract
+fails on it. A wildcard matches one label: `svc.internal`, never
+`a.b.internal`. Why each record exists is
 [ADR-012](../decisions/012-private-hostnames-are-wildcard-zones.md).
 
-Removing an entry does not delete its record: retire it from the list, then
-from the dashboard. To hand `analytics` to the tunnel, remove its entry first,
-then add the Public Hostname, which adopts the record.
+Removing an entry from `dns_records` does not delete its record, and
+external-dns runs upsert-only, so a public route removed leaves its CNAME:
+delete either from the dashboard.
 
 ```bash
 dig +short grafana.internal.jterrazz.com    # the tailnet name
@@ -149,6 +153,6 @@ dig +short signews.staging.jterrazz.com     # the tailnet name
 dig +short analytics.jterrazz.com           # Cloudflare addresses
 ```
 
-A new public zone is two steps: add its Public Hostname in the tunnel, and set
-the zone's SSL mode to Full (Strict). Nothing here issues it a certificate:
+A new public zone is two steps: add it to `CLOUDFLARE_RECORDS_TOKEN`'s zones,
+and set its SSL mode to Full (Strict). Nothing here issues it a certificate:
 its TLS ends at the Cloudflare edge.

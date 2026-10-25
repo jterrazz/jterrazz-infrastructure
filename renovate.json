@@ -174,6 +174,13 @@
         "redis"
       ],
       "allowedVersions": "<8"
+    },
+    {
+      "description": "external-dns 0.22 and 0.23 generate no endpoint from a traefik.io IngressRoute (2026-10-25); lift once a release does, proved with --dry-run against the live routes.",
+      "matchPackageNames": [
+        "external-dns"
+      ],
+      "allowedVersions": "<1.22.0"
     }
   ]
 }

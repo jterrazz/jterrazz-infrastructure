@@ -1,0 +1,43 @@
+# outside: kubernetes-sigs/external-dns. It publishes each public route: a proxied CNAME from every
+# host of an IngressRoute the charts mark public to the tunnel's alias, in whichever of our zones
+# holds it. The cluster is the list; nothing names a hostname (ADR-026).
+provider:
+  name: cloudflare
+
+env:
+  - name: CF_API_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: external-dns-secrets
+        key: CF_API_TOKEN
+
+sources:
+  - traefik-proxy
+
+# invariant: the annotation common.ingressRoute stamps on a public route, and only there; a private
+# route is answered by its zone's wildcard (dns.yml).
+annotationFilter: external-dns.alpha.kubernetes.io/target=tunnel.jterrazz.com
+
+# hazard: upsert-only, never sync. A source that returns nothing makes sync delete every record it
+# owns: 0.22 did exactly that on its first start (2026-10-25, every public host down ~2 min). A
+# route removed therefore leaves its record, a CNAME to a tunnel that answers 404; delete it by
+# hand. `%{record_type}` keeps an apex's TXT inside its zone and off the CNAME's own name.
+policy: upsert-only
+registry: txt
+txtOwnerId: jterrazz-infrastructure
+txtPrefix: "_externaldns.%{record_type}."
+
+# value: an IngressRoute event runs the loop at once; the interval only repairs drift made by hand.
+triggerLoopOnEvent: true
+interval: 5m
+
+extraArgs:
+  # invariant: every record it makes points at the tunnel, which resolves only at the edge.
+  - --cloudflare-proxied
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 96Mi

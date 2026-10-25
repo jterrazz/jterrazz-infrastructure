@@ -81,6 +81,9 @@ jobs:
           platform_helm_wait: false
           tailscale_ip: 127.0.0.1
           tailscale_dns_hostname: k3d.invalid
+          cloudflare_dns01_token: ci-dummy
+          cloudflare_records_token: ci-dummy
+          # outside: the name a base tree before ADR-026 reads; drop it once that base is gone.
           cloudflare_api_token: ci-dummy
           cloudflare_tunnel_token: ci-dummy
           registry_username: ci

@@ -9,7 +9,10 @@ landed in 10ac6e2, before public 80/443 were closed in 6dc3915).
 
 Revised 2026-10-25: cloudflared is an app-chart release on pod networking, its
 token a mounted file, and `platform-networking`'s allowances select cert-manager
-alone, so cloudflared's egress is its own release's.
+alone, so cloudflared's egress is its own release's. Later that day the
+per-hostname rules gave way to one catch-all rule to Traefik's `tunnel`
+entrypoint, each record now written by external-dns
+([ADR-026](026-a-public-route-is-published-by-its-ingressroute.md)).
 
 ## Context
 
@@ -26,16 +29,14 @@ connection refused`), while `curl` from the same pod IP connects fine.
 
 The only public ingress is a remote-managed (token-based) Cloudflare tunnel:
 cloudflared dials the edge, and the edge sends traffic back to Traefik's
-ClusterIP. Nothing listens on a public address.
+`traefik-tunnel` ClusterIP. Nothing listens on a public address.
 
-- **Routing is per hostname, not by wildcard.** Every public hostname,
-  apex or subdomain, has its own Public Hostname rule in the Zero Trust UI
-  pointing at `traefik.kube-system.svc.cluster.local:443`; adding one there
-  creates its CNAME, and a bare CNAME with no rule 404s. Adding a hostname
-  never touches this repo. The one exception is `analytics`, whose route is
-  a Public Hostname but whose record is not, so `dns_records` owns it:
-  proxied (a `cfargotunnel.com` name resolves only at the edge), targeting
-  the tunnel id read from the connector token's `t` field.
+- **One catch-all rule, the hostnames on the IngressRoutes.** The tunnel's
+  remote config is a single rule to Traefik's `tunnel` entrypoint, which holds
+  the public routes alone; each public host's CNAME is external-dns's, read
+  off its IngressRoute ([ADR-026](026-a-public-route-is-published-by-its-ingressroute.md)).
+  Until 2026-10-25 every hostname was a Public Hostname rule clicked into the
+  Zero Trust UI.
 - **cloudflared is an app-chart release** (`services/cloudflared/app.yaml`)
   on ordinary pod networking, `isolated` with egress only to the edge and to
   Traefik's pod port. It ran with `hostNetwork` until 2026-10-25 to dodge an
@@ -57,9 +58,8 @@ ClusterIP. Nothing listens on a public address.
 
 - No inbound port exists on the host, so no firewall rule guards the public
   path; the tunnel token is the credential to protect.
-- Because cloudflared runs in the host network, NetworkPolicy never sees its
-  traffic; its rules cannot be separated from cert-manager's in
-  `platform-networking.yaml`.
+- cloudflared's egress is its release's own NetworkPolicy, and
+  `allow-traefik-ingress` admits it to the tunnel entrypoint alone.
 - Traefik's peer for public traffic is always a node or cluster address,
   which shapes its `forwardedHeaders.trustedIPs` (see
   [the Traefik record](003-traefiks-service-is-the-tailnet-gate.md)).

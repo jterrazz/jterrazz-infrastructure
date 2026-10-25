@@ -29,14 +29,14 @@ registry.
   `*.internal` and `*.staging` (staging environments live in their own
   tailnet-only zone, so staging is never reachable from the internet). Both
   are DNS-only CNAMEs to the node's tailnet name, which resolve to a 100.x
-  address; the route's `private-access` allow-list is the enforcement, and
+  address; the route's entrypoint, `websecure`, is the enforcement, and
   being unproxied is what lets a two-label name carry cert-manager's
   certificate.
 - **`dns_records` holds only what no other owner creates**: the two wildcards
-  and `analytics` (see [the tunnel record](002-public-traffic-enters-through-a-cloudflare-tunnel.md)).
-  Every other public record belongs to a tunnel Public Hostname and every
-  ACME record to cert-manager. The platform deploy converges them on every
-  run with the token cert-manager already holds; `solo: true` makes a changed
+  and `tunnel`, the tunnel's alias (see [ADR-026](026-a-public-route-is-published-by-its-ingressroute.md)).
+  Every public host's record is external-dns's and every ACME record
+  cert-manager's. The platform deploy converges them on every run with
+  `CLOUDFLARE_RECORDS_TOKEN`; `solo: true` makes a changed
   target replace the old record; the record `comment` names its owner for
   whoever opens the Cloudflare dashboard (the Pulumi-era records still
   claimed Pulumi years after). Both targets are derived, so a re-created VM

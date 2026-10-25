@@ -57,20 +57,3 @@ spec:
     customResponseHeaders:
       X-Powered-By: ""
       Server: ""
-
----
-# hazard: klipper-lb MASQUERADEs every tailnet request to an svclb pod address, so 10.42/16 is
-# the one source a request ever has; allow-traefik-ingress keeps every other pod off Traefik,
-# and the Cf-Ray guard the tunnel's requests (ADR-003).
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: private-access
-  namespace: platform-networking
-  labels:
-    app.kubernetes.io/name: traefik
-    app.kubernetes.io/component: access-control
-spec:
-  ipAllowList:
-    sourceRange:
-      - "10.42.0.0/16"

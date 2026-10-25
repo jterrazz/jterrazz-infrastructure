@@ -83,6 +83,7 @@ probed today with no edit here.
 | `cluster/rbac/secrets.test.ts`                    | exactly the allow-listed service accounts may list Secrets cluster-wide                                                       | the API server           |
 | `cluster/rbac/github-actions.test.ts`             | the app deployers may create namespaces, and neither list Secrets nor exec anywhere                                           | the API server           |
 | `cluster/traefik/service.test.ts`                 | no Service holds a nodePort, and Traefik admits `100.64.0.0/10` alone                                                         | the API server           |
+| `cluster/traefik/entrypoints.test.ts`             | every route sits on `tunnel` or `websecure` alone, no private host on the tunnel, a route published exactly when public       | the API server           |
 | `cluster/namespaces/ownership.test.ts`            | every namespace states its tier; a platform one is `platform-*`, an app one `<app>-<env>` with its repository and environment | the API server           |
 | `cluster/network-policies/`                       | every NetworkPolicy selects pods some controller creates, and every peer it names exists                                      | the API server           |
 | `health/workloads/ready.test.ts`                  | every controller runs as many ready pods as it asks for, and every CronJob's last run succeeded                               | the API server           |

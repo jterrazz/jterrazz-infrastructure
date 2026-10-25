@@ -1,6 +1,8 @@
 ---
-# invariant: converged on every deploy, so a lost record comes back; `solo` makes a changed
-# target replace the record rather than join it (ADR-012).
+# invariant: converged on every deploy, so a lost record or rule comes back: the private
+# wildcards and the tunnel's alias (ADR-012), and the tunnel's one catch-all rule (ADR-002).
+# Each public host's own record is external-dns's, read off its IngressRoute.
+# `solo` makes a changed target replace the record rather than join it.
 - name: Ensure the Tailscale facts are available
   ansible.builtin.include_role:
     name: tailscale
@@ -18,7 +20,7 @@
 
 - name: Converge the DNS records
   community.general.cloudflare_dns:
-    api_token: "{{ cloudflare_api_token }}"
+    api_token: "{{ cloudflare_records_token }}"
     zone: "{{ dns_zone }}"
     record: "{{ item.record }}"
     type: CNAME
@@ -31,5 +33,38 @@
   loop_control:
     label: "{{ item.record }}"
   # invariant: an API call, made from the controller; the node holds nothing of it.
+  delegate_to: localhost
+  become: false
+
+# invariant: the tunnel hands every request to Traefik's tunnel entrypoint, which holds the public
+# routes alone; the hostnames live on the IngressRoutes, never here. Account and tunnel ids are the
+# connector token's `a` and `t` fields.
+- name: Read the tunnel's remote config
+  ansible.builtin.uri:
+    url: "{{ cloudflare_tunnel_api }}"
+    headers:
+      Authorization: "Bearer {{ cloudflare_records_token }}"
+  register: cloudflare_tunnel_config
+  no_log: true
+  delegate_to: localhost
+  become: false
+
+- name: Converge the tunnel's catch-all rule
+  ansible.builtin.uri:
+    url: "{{ cloudflare_tunnel_api }}"
+    method: PUT
+    headers:
+      Authorization: "Bearer {{ cloudflare_records_token }}"
+    body_format: json
+    body:
+      config:
+        ingress:
+          - service: "{{ cloudflare_tunnel_service }}"
+  when: >-
+    (cloudflare_tunnel_config.json.result.config.ingress | default([]))
+    | map('dict2items') | map('selectattr', 'key', 'in', ['hostname', 'service']) | map('items2dict') | list
+    != [{'service': cloudflare_tunnel_service}]
+  changed_when: true
+  no_log: true
   delegate_to: localhost
   become: false

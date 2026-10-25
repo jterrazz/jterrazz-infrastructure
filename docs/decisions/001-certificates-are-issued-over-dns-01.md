@@ -31,7 +31,8 @@ default TLSStore serves them by SNI to every private route, which writes
 `tls: {}`.
 
 - **No route gets a certificate of its own.** A public route's TLS ends at the
-  Cloudflare edge, and cloudflared reaches Traefik with `noTLSVerify`, so a
+  Cloudflare edge, and cloudflared reaches Traefik's `tunnel` entrypoint over
+  plain HTTP (it used `noTLSVerify` HTTPS until 2026-10-25, ADR-026), so a
   per-host certificate there was checked by nobody. Per-host certificates also
   published every hostname to the CT logs and left a gap while each issued.
 - The private wildcards are DNS-only, so a two-label name such as
