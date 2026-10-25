@@ -333,7 +333,6 @@ storage:
   size: 2Gi # required unless claimName is set
   mountPath: /data # always required
   claimName: openpanel-postgres # optional: mount a claim another release owns
-  owner: "70:70" # optional: the uid:gid to chown to (default 1000:1000)
 ```
 
 `size` and `mountPath` are `required`: a missing one would otherwise render an
@@ -345,19 +344,13 @@ of that live data. This chart then only _mounts_ it and renders no PV/PVC of its
 own (so `size` is unused): two releases owning one volume is how a
 `helm uninstall` of the wrong one deletes a bound claim.
 
-**`owner`** is the `uid:gid` the `fix-permissions` initContainer hands the
-volume to: the image's own user (`70:70` for alpine Postgres, `101:101` for
-ClickHouse, `999:1000` for Redis), not always 1000. Set it to the empty string
-to skip the initContainer entirely, for an image that runs as root over a
-root-owned volume; chowning a 10Gi blob store on every pod start is both slow
-and wrong.
-
 Renders a `Retain` hostPath PV `<app>-<env>-data` at
 `/var/lib/k8s-data/<app>-<env>` (`storageClassName: manual`,
 `DirectoryOrCreate`) plus PVC `<app>-data` bound by `volumeName`, and flips
-the Deployment to `strategy: Recreate`. A root `fix-permissions`
-initContainer `chown -R 1000:1000`s the mount, because hostPath dirs are
-created root-owned and the app container runs as 1000.
+the Deployment to `strategy: Recreate`. No init container chowns it: on
+OrbStack's virtiofs ownership is not enforced and `chown` changes nothing, so
+every image writes as its own user (ADR-008). A target with a real filesystem
+would need that chown back.
 
 The PV carries **no `nodeAffinity`**: only app CI installs this chart and it
 passes no node name. (`platform-service`, whose PVs Ansible creates, does pin

@@ -5,10 +5,6 @@
 {{- $storage := $spec.storage -}}
 {{- /* invariant: an RWO hostPath never gets two writers, so storage implies Recreate. */ -}}
 {{- $strategy := $spec.strategy | default (ternary "Recreate" "" (not (not $storage))) -}}
-{{- $owner := "1000:1000" -}}
-{{- if and $storage (hasKey $storage "owner") -}}
-{{- $owner = $storage.owner | toString -}}
-{{- end -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -55,25 +51,6 @@ spec:
       {{- if eq (include "app.privateImage" .) "true" }}
       imagePullSecrets:
         - name: registry-credentials
-      {{- end }}
-      {{- if and $storage $owner }}
-      initContainers:
-        - name: fix-permissions
-          image: busybox:1.38@sha256:fd8d9aa63ba2f0982b5304e1ee8d3b90a210bc1ffb5314d980eb6962f1a9715d
-          # value: the walk only when the root is wrong: a chown -R crosses every file on virtiofs.
-          command: ["sh", "-c", "[ \"$(stat -c %u:%g {{ $storage.mountPath }})\" = {{ $owner }} ] || chown -R {{ $owner }} {{ $storage.mountPath }}"]
-          securityContext:
-            runAsUser: 0
-            runAsNonRoot: false
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
-              add: ["CHOWN", "FOWNER", "DAC_OVERRIDE"]
-            seccompProfile:
-              type: RuntimeDefault
-          volumeMounts:
-            - name: data
-              mountPath: {{ $storage.mountPath }}
       {{- end }}
       containers:
         - name: {{ include "app.name" . }}

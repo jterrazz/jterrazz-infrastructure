@@ -8,6 +8,8 @@ Written 2026-10-24 from the comments in `roles/base`,
 and collector values (commits 3a94b34, 61be749, 00c90a2) that this record
 replaces.
 
+Revised 2026-10-25: ownership on the share is not enforced; the chown init containers went.
+
 ## Context
 
 OrbStack honours a guest `fsync()` with a real durable barrier on the Mac: a
@@ -58,6 +60,12 @@ fsyncs on each path with the lever that path has.
   continuously; a repave resets logins, annotations and dashboard history,
   and everything that matters is provisioned from git. It is the one PV that
   does not survive `make destroy`.
+
+- **Ownership is not enforced on the share.** virtiofs here presents every file
+  as owned by the reader and ignores `chown`: a uid-1000 process writes into a
+  root-owned, mode-700 directory (verified 2026-10-25). So no workload carries
+  a chown init container, which had walked 145k files of the Victoria stores
+  on every start for nothing.
 
 ## Consequences
 

@@ -21,7 +21,6 @@ spec:
   storage:
     mountPath: /var/lib/clickhouse
     claimName: openpanel-clickhouse
-    owner: "101:101"
 
   health:
     path: /ping
@@ -50,7 +49,8 @@ spec:
                  spam (real queries unaffected). -->
             <keep_alive_timeout>60</keep_alive_timeout>
 
-            <!-- issue #324 mitigation, see the file header. -->
+            <!-- Upstream's issue #324 mitigation: the system logs ClickHouse keeps
+                 by default outgrow OpenPanel's own data on a small install. -->
             <query_thread_log remove="remove"/>
             <query_log remove="remove"/>
             <text_log remove="remove"/>
@@ -66,6 +66,10 @@ spec:
                  had grown to ~370x the row count of the OpenPanel data it profiles.
                  A re-sync of this block from upstream must keep this line. -->
             <processors_profile_log remove="remove"/>
+            <!-- Added by 26.3, flushed on the same timer: the same disk writes. -->
+            <error_log remove="remove"/>
+            <background_schedule_pool_log remove="remove"/>
+            <asynchronous_insert_log remove="remove"/>
 
             <!-- Caches sized for THIS dataset, not for ClickHouse's defaults.
                  Upstream ships mark_cache 5GiB and uncompressed_cache 8GiB, i.e.

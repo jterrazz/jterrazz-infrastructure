@@ -14,7 +14,6 @@ spec:
     mountPath: /var/lib/zot
     # invariant: registry-platform owns this claim.
     claimName: registry-zot
-    owner: "1000:1000"
 
   secretMounts:
     # invariant: written by src/ansible/roles/releases.

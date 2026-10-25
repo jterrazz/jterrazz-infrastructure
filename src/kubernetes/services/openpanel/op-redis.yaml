@@ -29,7 +29,6 @@ spec:
   storage:
     mountPath: /data
     claimName: openpanel-redis
-    owner: "999:1000"
 
   health:
     exec: ["redis-cli", "ping"]

@@ -162,11 +162,10 @@ environments:
     servicePort: 5432
     # invariant: Recreate without storage (migration on boot).
     strategy: Recreate
-    # invariant: a claim another release owns: no PV/PVC; `owner` chowns to the image uid.
+    # invariant: a claim another release owns: no PV/PVC.
     storage:
       mountPath: /var/lib/postgresql/data
       claimName: ci-test-existing-claim
-      owner: "70:70"
     health:
       exec: ["sh", "-c", "pg_isready"]
     # invariant: isolated: the whole security model of an unauthenticated datastore.

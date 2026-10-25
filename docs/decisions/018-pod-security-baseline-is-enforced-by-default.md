@@ -23,8 +23,8 @@ all (audit 2026-10-24).
   `admission-control-config-file`): enforce and warn `baseline`, audit
   `restricted`, for every namespace without labels of its own. Every app pod
   passed baseline in a server-side dry run on 2026-10-24. Restricted is only
-  audited, because the app chart's fix-permissions init container runs as
-  root with CHOWN, FOWNER and DAC_OVERRIDE. kube-system is exempt: k3s' svclb
+  audited until every image declares its seccomp profile. kube-system is
+  exempt: k3s' svclb
   and helm-install pods need NET_ADMIN.
 - **Platform namespaces are declared in one file** with the same levels;
   `platform-telemetry` alone enforces `privileged`, because node-exporter and
@@ -52,7 +52,8 @@ all (audit 2026-10-24).
 
 - Every app pod is admission-checked, and restricted violations are visible
   in audit before anyone enforces them.
-- Enforcing restricted would first need the chown init container gone.
+- Enforcing restricted needs every workload's seccomp profile and capability
+  drop declared; the root chown init container that blocked it is gone.
 - The upgrade test catches a Pod Security or host-access refusal before the
   real cluster; `specs/specs/admission/host-access/` holds three denials and
   three admissions.

@@ -20,27 +20,6 @@ tests:
       - hasDocuments:
           count: 2
 
-  - it: chowns the volume to the uid the image runs as, not to 1000
-    set:
-      environment: staging
-    templates:
-      - templates/deployment.yaml
-    asserts:
-      - equal:
-          path: spec.template.spec.initContainers[0].command
-          value: ["sh", "-c", "[ \"$(stat -c %u:%g /var/lib/postgresql/data)\" = 70:70 ] || chown -R 70:70 /var/lib/postgresql/data"]
-
-  - it: skips the chown initContainer entirely for owner ""
-    # value: the registry runs as root over a root-owned blob store; chowning it is slow and wrong.
-    set:
-      environment: staging
-      environments.staging.storage.owner: ""
-    templates:
-      - templates/deployment.yaml
-    asserts:
-      - isNull:
-          path: spec.template.spec.initContainers
-
   - it: derives Recreate from storage, so two writers never share an RWO volume
     templates:
       - templates/deployment.yaml

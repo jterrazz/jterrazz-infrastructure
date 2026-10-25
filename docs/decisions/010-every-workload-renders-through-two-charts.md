@@ -10,7 +10,7 @@ that this record replaces (the platform-service rename, 076bc79; app chart
 on 2026-09-19).
 
 Revised 2026-10-25: cloudflared became an app-chart release; no workload is a
-raw manifest; the op-* images run as non-root.
+raw manifest; the op-* images run as non-root; no init container chowns a volume.
 
 ## Context
 
@@ -32,11 +32,10 @@ update` before anything renders) and bundled into the app chart's package.
 
 ### The app chart
 
-- **Any workload, not just a Node service.** Chart 2.11 added `command` and
-  `args`, exec and tcp probes, `storage.claimName` (a claim another release
-  owns renders no PV or PVC, so the wrong `helm uninstall` cannot delete a
-  bound claim), `storage.owner: ""` (no chown of a root-owned store),
-  `servicePort`, `Recreate` without storage (one migration runner per
+- **Any workload, not just a Node service.** The chart takes `command` and
+  `args`, exec probes, `storage.claimName` (a claim another release owns
+  renders no PV or PVC, so the wrong `helm uninstall` cannot delete a bound
+  claim), `servicePort`, `Recreate` without storage (one migration runner per
   database), no pull secret or `Always` policy for third-party images, and
   `network.isolated` (nothing reaches an unauthenticated datastore, and it
   dials nothing). No app repo reaches these branches, so the unit tests pin

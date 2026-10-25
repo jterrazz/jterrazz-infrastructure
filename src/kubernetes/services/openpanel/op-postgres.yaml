@@ -28,7 +28,6 @@ spec:
   storage:
     mountPath: /var/lib/postgresql/data
     claimName: openpanel-postgres
-    owner: "70:70"
 
   health:
     exec: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
