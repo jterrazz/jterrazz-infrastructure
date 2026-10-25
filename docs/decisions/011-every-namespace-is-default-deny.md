@@ -32,9 +32,9 @@ The rules carry the traps already paid for:
 - **Ports are pod ports.** A policy is evaluated after kube-proxy's DNAT, so
   a rule naming a Service port (Traefik's 443, Grafana's 80) applies to
   nothing, and default-deny drops the traffic with nothing logged.
-- **hostNetwork clients are not pods.** cloudflared and the apiserver arrive
-  as node addresses, matched only by an ipBlock; node-exporter, hostNetwork,
-  cannot be protected by a policy at all. The kubelet's probes are
+- **hostNetwork clients are not pods.** The apiserver arrives as a node
+  address, matched only by an ipBlock; node-exporter, hostNetwork, cannot be
+  protected by a policy at all. The kubelet's probes are
   node-sourced and never filtered, so a workload that admits nothing still
   passes them.
 - **The apiserver is RFC1918 twice over**: pods dial 10.43.0.1:443, DNATed to

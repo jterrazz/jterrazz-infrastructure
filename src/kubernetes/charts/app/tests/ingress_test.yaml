@@ -27,7 +27,7 @@ tests:
         documentIndex: 0
       - equal:
           path: spec.routes[0].match
-          value: Host(`ci-test-app-staging.jterrazz.com`)
+          value: (Host(`ci-test-app-staging.jterrazz.com`)) && !HeaderRegexp(`Cf-Ray`, `.+`)
         documentIndex: 1
 
   - it: "attaches private-access to a `public: false` entry, and nothing else"
@@ -137,7 +137,7 @@ tests:
           count: 2 # Certificate + IngressRoute only
       - equal:
           path: spec.routes[0].match
-          value: Host(`probe.jterrazz.com`) && PathPrefix(`/mcp`)
+          value: (Host(`probe.jterrazz.com`) && PathPrefix(`/mcp`)) && !HeaderRegexp(`Cf-Ray`, `.+`)
         documentIndex: 1
       - equal:
           path: spec.routes[0].middlewares
@@ -145,3 +145,23 @@ tests:
             - name: private-access
               namespace: platform-networking
         documentIndex: 1
+
+  - it: never lets a request that crossed Cloudflare match a private route
+    # invariant: the tunnel reaches Traefik from an address private-access admits; the Cf-Ray
+    # header the edge stamps is what tells it apart (ADR-003).
+    set:
+      environment: staging
+    asserts:
+      - equal:
+          path: spec.routes[0].match
+          value: (Host(`ci-test-app-staging.jterrazz.com`)) && !HeaderRegexp(`Cf-Ray`, `.+`)
+        documentIndex: 1
+
+  - it: leaves a public route reachable through the tunnel
+    documentSelector:
+      path: metadata.name
+      value: ci-test-app-0
+    asserts:
+      - equal:
+          path: spec.routes[0].match
+          value: Host(`ci-test-app.jterrazz.com`) && PathPrefix(`/api`)

@@ -77,9 +77,17 @@ the HelmChartConfig, applied before Traefik's install job is awaited.
   klipper-lb DNATs and MASQUERADEs inside the svclb pod, so a tailnet request
   reaches Traefik from an svclb pod address (the node's own image pulls
   hairpin the same way). What keeps other pods off private hosts is
-  `allow-traefik-ingress`, which admits no pod but svclb's and excepts the
-  pod CIDR; a pod that must reach a private host through Traefik gets its
-  namespace named there. `allow-svclb-ingress` must allow the node address
+  `allow-traefik-ingress`, which admits only svclb's pods and cloudflared and
+  excepts the pod CIDR.
+- **A private route never matches a request that crossed Cloudflare.** The
+  tunnel reaches Traefik from cloudflared's pod address, which private-access
+  admits, so until 2026-10-25 a private host was kept off the internet only by
+  the tunnel's hostname rules in the Cloudflare dashboard (audit finding H2).
+  Every route behind private-access now carries
+  `&& !HeaderRegexp(`Cf-Ray`, `.+`)` (`charts/common/_ingress.tpl`): the edge
+  stamps that header on everything it forwards and a client cannot strip it.
+  The platform suite proves it live: each private host answers 404 to a
+  request carrying `Cf-Ray`. `allow-svclb-ingress` must allow the node address
   explicitly: miss it and public traffic keeps working while every tailnet
   client, CI included, gets `connection refused` on 443.
 - **Apply order.** The HelmChartConfig is applied explicitly and first,

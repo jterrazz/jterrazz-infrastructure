@@ -11,8 +11,15 @@ private-access
 {{/* Input dict: name, labels and annotations (rendered lines), match, middlewares
 ({ name, namespace? }, in order), serviceName, servicePort, tlsSecret.
 hazard: `match` is `Host(a) || Host(b)`, never v2's `Host(a, b)`, which the CRD accepts and
-Traefik v3 routes nowhere. */}}
+Traefik v3 routes nowhere.
+invariant: a route behind private-access never matches a request that crossed Cloudflare.
+The edge stamps `Cf-Ray` on everything it forwards and a client cannot strip it, while
+the tunnel's traffic reaches Traefik from a pod address private-access admits; without
+this, a private host was shielded from the internet only by the tunnel's hostname rules
+in the Cloudflare dashboard (ADR-003). */}}
 {{- define "common.ingressRoute" -}}
+{{- $private := false -}}
+{{- range .middlewares -}}{{- if eq .name "private-access" -}}{{- $private = true -}}{{- end -}}{{- end -}}
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -27,7 +34,7 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: {{ .match }}
+    - match: {{ if $private }}({{ .match }}) && !HeaderRegexp(`Cf-Ray`, `.+`){{ else }}{{ .match }}{{ end }}
       kind: Rule
       {{- if .middlewares }}
       middlewares:

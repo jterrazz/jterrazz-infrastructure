@@ -557,7 +557,7 @@ matches the recorded render of the CI fixture:
         - websecure
       routes:
         - kind: Rule
-          match: Host(`ci-test-app-internal.jterrazz.com`)
+          match: (Host(`ci-test-app-internal.jterrazz.com`)) && !HeaderRegexp(`Cf-Ray`, `.+`)
           middlewares:
             - name: private-access
               namespace: platform-networking
@@ -697,7 +697,7 @@ matches the recorded render of the CI fixture:
         - websecure
       routes:
         - kind: Rule
-          match: Host(`ci-test-app-probe.jterrazz.com`)
+          match: (Host(`ci-test-app-probe.jterrazz.com`)) && !HeaderRegexp(`Cf-Ray`, `.+`)
           middlewares:
             - name: private-access
               namespace: platform-networking

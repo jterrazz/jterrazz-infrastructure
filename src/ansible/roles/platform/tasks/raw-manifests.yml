@@ -1,11 +1,5 @@
 ---
-# invariant: only what no chart expresses; after bootstrap.yml, whose pass declares the Secret
-# cloudflared reads.
-- name: Apply the cloudflared Deployment
-  ansible.builtin.command: kubectl apply -f {{ manifest_dir }}/kubernetes/services/cloudflared/deployment.yaml
-  register: cloudflared_result
-  changed_when: "'created' in cloudflared_result.stdout or 'configured' in cloudflared_result.stdout"
-
+# invariant: only what no chart expresses.
 # invariant: infrastructure dashboards only; an app ships its own through the app chart.
 - name: Apply the Grafana infrastructure dashboards
   ansible.builtin.shell:

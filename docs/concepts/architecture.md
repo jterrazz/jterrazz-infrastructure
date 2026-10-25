@@ -31,7 +31,6 @@ the chart that consumes it: `values.yaml` for an upstream chart, `service.yaml`
 for `charts/platform-service` (release `<svc>-platform`, a name frozen because
 it owns live volumes), and any other name for one app-chart release
 (`op-api.yaml`, or `app.yaml` for a single workload). The exceptions are
-cloudflared's Deployment ([ADR-002](../decisions/002-public-traffic-enters-through-a-cloudflare-tunnel.md)),
 cert-manager's ClusterIssuers and Traefik's HelmChartConfig, raw manifests.
 
 ## The three charts
@@ -62,7 +61,7 @@ admits the Tailscale range alone and UFW repeats it
                                │ outbound HTTP/2 tunnel, no inbound port
                                ▼
 ┌────────────── OrbStack VM · Debian 13 trixie · arm64 ─────────────────┐
-│   Tailscale tailnet                       cloudflared (hostNetwork)   │
+│   Tailscale tailnet                       cloudflared                 │
 │   (SSH · private hosts · CI runners)                 │                │
 │              └──────────────────┬────────────────────┘                │
 │                                 ▼                                     │

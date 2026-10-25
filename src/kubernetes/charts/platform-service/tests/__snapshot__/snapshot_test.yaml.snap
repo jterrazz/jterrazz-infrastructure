@@ -77,7 +77,7 @@ matches the recorded render of the CI fixture:
         - websecure
       routes:
         - kind: Rule
-          match: Host(`ci-test-service.jterrazz.com`) || Host(`ci-test-alias.example`)
+          match: (Host(`ci-test-service.jterrazz.com`) || Host(`ci-test-alias.example`)) && !HeaderRegexp(`Cf-Ray`, `.+`)
           middlewares:
             - name: private-access
               namespace: platform-networking

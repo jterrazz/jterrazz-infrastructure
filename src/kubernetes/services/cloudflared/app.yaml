@@ -1,0 +1,48 @@
+# invariant: the public ingress connector, an outbound tunnel from the Cloudflare edge
+# to Traefik (ADR-002). service.yaml (`cloudflared-platform`) syncs the token
+# Secret this release mounts.
+metadata:
+  name: cloudflared
+
+environment: prod
+
+spec:
+  image: cloudflare/cloudflared:2026.9.1
+  # invariant: the metrics and /ready listener; nothing in the cluster dials it.
+  port: 2000
+  args:
+    - tunnel
+    - --no-autoupdate
+    # hazard: OrbStack's NAT eats outbound UDP/443, so no QUIC.
+    - --protocol
+    - http2
+    - --metrics
+    - 0.0.0.0:2000
+    - run
+    # invariant: read from a mounted file, so the token is in no env and no argv.
+    - --token-file
+    - /etc/cloudflared/CLOUDFLARE_TUNNEL_TOKEN
+
+  secretMounts:
+    - secretName: cloudflared-secrets
+      mountPath: /etc/cloudflared
+
+  health:
+    path: /ready
+
+  resources:
+    cpu: 10m
+    memory: 32Mi
+    memoryLimit: 128Mi
+
+  network:
+    # invariant: it dials out (the edge on 7844, Traefik on its pod port 8443) and nothing
+    # dials in.
+    isolated: true
+    egress:
+      - to: internet
+      - to: traefik
+        ports: [8443]
+
+environments:
+  prod: {}

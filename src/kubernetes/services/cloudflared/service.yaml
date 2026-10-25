@@ -1,4 +1,4 @@
-# invariant: deployment.yaml reads `cloudflared-secrets` by name, once, at start.
+# invariant: the tunnel token Secret, mounted by app.yaml as a file, read once at start.
 name: cloudflared
 
 secrets:

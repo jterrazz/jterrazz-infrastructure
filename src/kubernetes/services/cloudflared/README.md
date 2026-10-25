@@ -1,8 +1,8 @@
 # cloudflared
 
 The public ingress: an outbound tunnel from the Cloudflare edge to Traefik's
-ClusterIP, with no port open on the host. Why it is a raw Deployment with
-`hostNetwork: true` and `--protocol http2` is
+ClusterIP, with no port open on the host. Why it runs on pod networking with
+`--protocol http2` and a token file is
 [ADR-002](../../../../docs/decisions/002-public-traffic-enters-through-a-cloudflare-tunnel.md).
 
 ```text
@@ -10,8 +10,8 @@ client ─► Cloudflare edge ─► tunnel (HTTP/2) ─► cloudflared ─► t
 ```
 
 `service.yaml` is the `cloudflared-platform` release, which syncs the tunnel
-token into `cloudflared-secrets`; `deployment.yaml` is applied after it by
-`roles/platform/tasks/raw-manifests.yml`.
+token into `cloudflared-secrets`; `app.yaml` is the `cloudflared` app-chart
+release that mounts it.
 
 ## Setting up a tunnel
 

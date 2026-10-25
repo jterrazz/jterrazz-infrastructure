@@ -7,7 +7,7 @@ service with several moving parts keeps a README beside its values.
 | Service | Namespace | What it is |
 | ------- | --------- | ---------- |
 | cert-manager | `platform-networking` | certificates over DNS-01 for every route ([ADR-001](../decisions/001-certificates-are-issued-over-dns-01.md)) |
-| cloudflared | `platform-networking` | the public tunnel, the one raw Deployment ([README](../../src/kubernetes/services/cloudflared/README.md)) |
+| cloudflared | `platform-networking` | the public tunnel ([README](../../src/kubernetes/services/cloudflared/README.md)) |
 | Infisical operator | `platform-secrets` | syncs every workload Secret from Infisical ([ADR-015](../decisions/015-deploy-secrets-are-fetched-once-by-ansible.md)) |
 | Zot | `platform-registry` | `registry.internal.jterrazz.com`, every image and the app chart; collects its own garbage ([ADR-014](../decisions/014-the-registry-collects-its-own-garbage.md)) |
 | VictoriaMetrics, VictoriaLogs, VictoriaTraces | `platform-telemetry` | metrics 30d, logs 90d, traces 30d ([ADR-005](../decisions/005-telemetry-runs-on-the-victoriametrics-family.md)) |

@@ -37,7 +37,7 @@ node, and `make diff` reads it from the Mac.
   after the three Secrets Infisical cannot provide and before the
   ClusterIssuers; `tier: platform` second (the `<name>-platform` releases:
   PVs, PVCs, Certificates, IngressRoutes and InfisicalSecrets that workloads
-  mount and read by name, and the Secret cloudflared's raw Deployment needs);
+  mount and read by name);
   then an unselected pass, so a release with no tier label is still applied.
   Redeploying one release is `helmfile apply -l name=<release>`, not an
   Ansible tag.

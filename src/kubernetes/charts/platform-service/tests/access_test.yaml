@@ -59,7 +59,7 @@ tests:
     asserts:
       - equal:
           path: spec.routes[0].match
-          value: Host(`ci-test-service.jterrazz.com`) || Host(`ci-test-alias.example`)
+          value: (Host(`ci-test-service.jterrazz.com`) || Host(`ci-test-alias.example`)) && !HeaderRegexp(`Cf-Ray`, `.+`)
 
   - it: matches the canonical host alone when no alias is declared
     set:
@@ -67,7 +67,7 @@ tests:
     asserts:
       - equal:
           path: spec.routes[0].match
-          value: Host(`ci-test-service.jterrazz.com`)
+          value: (Host(`ci-test-service.jterrazz.com`)) && !HeaderRegexp(`Cf-Ray`, `.+`)
 
   - it: routes to the named service on the declared port
     set:
@@ -75,7 +75,7 @@ tests:
     asserts:
       - equal:
           path: spec.routes[0].match
-          value: Host(`ci-test-service.jterrazz.com`)
+          value: (Host(`ci-test-service.jterrazz.com`)) && !HeaderRegexp(`Cf-Ray`, `.+`)
       - equal:
           path: spec.routes[0].services
           value:

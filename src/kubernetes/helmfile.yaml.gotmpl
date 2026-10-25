@@ -161,13 +161,20 @@ releases:
       # hazard: inline, never `--set`, which `ps` would show.
       - adminPassword: {{ requiredEnv "GRAFANA_ADMIN_PASSWORD" | quote }}
 
-  # invariant: the tunnel token only; the Deployment is a raw manifest (ADR-002).
   - name: cloudflared-platform
     namespace: platform-networking
     inherit:
       - template: platform-service
     values:
       - services/cloudflared/service.yaml
+
+  - name: cloudflared
+    namespace: platform-networking
+    chart: ./charts/app
+    needs:
+      - platform-networking/cloudflared-platform
+    values:
+      - services/cloudflared/app.yaml
 
   # invariant: OpenPanel is six app-chart releases; openpanel-platform owns their storage and
   # certificates (ADR-010).
