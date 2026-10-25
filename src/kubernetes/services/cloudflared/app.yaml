@@ -7,7 +7,7 @@ metadata:
 environment: prod
 
 spec:
-  image: cloudflare/cloudflared:2026.9.1
+  image: cloudflare/cloudflared:2026.10.3
   # invariant: the metrics and /ready listener; nothing in the cluster dials it.
   port: 2000
   args:

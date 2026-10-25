@@ -181,15 +181,20 @@ config:
       endpoint: http://victoria-metrics.platform-telemetry.svc:8428/api/v1/write
       tls:
         insecure: true
-      # invariant: without it an app's environments collide into one series.
-      resource_to_telemetry_conversion:
-        enabled: true
+      # invariant: every resource attribute becomes a label; without it an app's environments
+      # collide into one series.
+      resource_constant_labels:
+        included: ["*"]
     otlp_http/langfuse:
       endpoint: https://cloud.langfuse.com/api/public/otel
       headers:
         Authorization: "Basic ${env:LANGFUSE_BASIC_AUTH}"
 
   service:
+    # value: the chart's inline resource map is a format the collector deprecates; its own
+    # counters need no resource labels beyond what the scrape adds.
+    telemetry:
+      resource: null
     # hazard: lists replace: drop health_check and the probes fail forever.
     extensions:
       - health_check

@@ -53,7 +53,7 @@ releases:
   - name: infisical
     namespace: platform-secrets
     chart: infisical/secrets-operator
-    version: 0.11.9
+    version: 0.11.15
     wait: true
     labels:
       pass: operators
@@ -101,7 +101,7 @@ releases:
   - name: victoria-metrics
     namespace: platform-telemetry
     chart: vm/victoria-metrics-single
-    version: 0.46.0
+    version: 0.48.0
     needs:
       - platform-telemetry/victoria-metrics-platform
     values:
@@ -110,7 +110,7 @@ releases:
   - name: victoria-logs
     namespace: platform-telemetry
     chart: vm/victoria-logs-single
-    version: 0.13.9
+    version: 0.13.10
     needs:
       - platform-telemetry/victoria-logs-platform
     values:
@@ -129,14 +129,14 @@ releases:
   - name: kube-state-metrics
     namespace: platform-telemetry
     chart: prometheus-community/kube-state-metrics
-    version: 8.5.0
+    version: 8.7.1
     values:
       - services/kube-state-metrics/values.yaml
 
   - name: node-exporter
     namespace: platform-telemetry
     chart: prometheus-community/prometheus-node-exporter
-    version: 4.57.0
+    version: 4.60.1
     values:
       - services/node-exporter/values.yaml
 
@@ -150,7 +150,7 @@ releases:
   - name: otel-collector
     namespace: platform-telemetry
     chart: open-telemetry/opentelemetry-collector
-    version: 0.173.1
+    version: 0.177.0
     needs:
       - platform-telemetry/otel-collector-platform
       - platform-telemetry/victoria-logs
@@ -163,7 +163,7 @@ releases:
   - name: grafana
     namespace: platform-telemetry
     chart: grafana-community/grafana
-    version: 13.7.0
+    version: 14.0.1
     needs:
       - platform-telemetry/grafana-platform
     values:

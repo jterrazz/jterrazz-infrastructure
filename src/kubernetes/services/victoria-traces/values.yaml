@@ -1,6 +1,10 @@
 server:
   fullnameOverride: victoria-traces
 
+  # value: v0.12.1 ahead of the chart's v0.11.0: Go security fixes; drop it when a chart ships it.
+  image:
+    tag: v0.12.1
+
   # invariant: scraped by annotation like every pod, the store watching itself (ADR-005).
   podAnnotations:
     prometheus.io/scrape: "true"

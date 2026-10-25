@@ -38,7 +38,8 @@ for doc in yaml.safe_load_all(sys.stdin):
         out = collections.OrderedDict()
         out["$schema"] = "http://json-schema.org/draft-07/schema#"
         out.update(version["schema"]["openAPIV3Schema"])
-        path = f"src/kubernetes/schemas/infisicalsecret_{version[\"name\"]}.json"
+        name = version["name"]
+        path = f"src/kubernetes/schemas/infisicalsecret_{name}.json"
         with open(path, "w") as fh:
             json.dump(out, fh, indent=2)
             fh.write("\n")

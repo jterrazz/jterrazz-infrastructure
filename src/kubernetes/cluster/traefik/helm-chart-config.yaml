@@ -7,6 +7,12 @@ metadata:
   namespace: kube-system
 spec:
   valuesContent: |-
+    # value: v3.7.16 ahead of the v3.7.13 k3s bundles, for eight GHSA fixes; Rancher's mirror
+    # lacks it, so the official image; drop it when k3s ships it (ADR-003).
+    image:
+      registry: docker.io
+      repository: traefik
+      tag: v3.7.16
     # hazard: loadBalancerSourceRanges is the ONLY tailnet gate on host ports 80/443
     # (klipper-lb DNATs before any input filter). Chart v41 renders only `.service.spec` and does
     # not reject unknown keys, so a flat or renamed key silently opens them. NodePorts
