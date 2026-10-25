@@ -250,7 +250,7 @@ groups:
     for: 1h
     noDataState: Alerting
     labels:
-      severity: critical
+      severity: warning
     annotations:
       summary: '{{ $labels.namespace }}/{{ $labels.name }} expires in under 14 days: cert-manager renews at 30, so renewal has failed.'
       value: '{{ humanize $values.B.Value }} days left (cert-manager renews at 30)'
@@ -288,7 +288,7 @@ groups:
     for: 1h
     noDataState: Alerting
     labels:
-      severity: critical
+      severity: warning
     annotations:
       summary: 'The last successful weekly backup is over 8 days old: run make backup ARGS=--verify, and read the jterrazz-backup unit''s journal.'
       value: '{{ humanize $values.B.Value }} days since the last backup (alert over 8)'

@@ -28,6 +28,10 @@ metrics) is the `jterrazz-telemetry` skill's, not this one's.
   domain, its dependencies, its runtime.
 - **Top row first**: four to six numbers with thresholds; then symptoms before
   causes; a description and a unit on every panel; datasources by uid.
+- **A rule has one of two levels**: `critical` when users are affected now or
+  within hours without action, `warning` when it is degraded with no impact yet.
+  Each has its Slack channel (`#alerts-critical`, `#alerts-warning`); nothing is
+  `info`, since an alert asks for an action (ADR-028).
 - **An alert says its impact and its value**: `summary` is one sentence a
   reader acts on, `value` renders the number with its unit and threshold
   (`{{ humanize $values.B.Value }} ms (alert over 1000 ms)`). Slack shows both;

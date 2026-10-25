@@ -34,6 +34,13 @@ every link it sent pointed at `http://localhost:3000`.
 - **A rule says its impact and its value.** `summary` is one sentence a reader
   acts on; `value` renders the evaluated number with its unit and threshold
   (`{{ humanizePercentage $values.B.Value }} free (alert under 10%)`).
+- **Two levels, one channel each.** `critical`: users are affected now, or
+  will be within hours without action (a full disk, a Deployment down, the
+  gateway answering 503, its Claude login refused) → `#alerts-critical`, the
+  first post mentions `@here`. `warning`: degraded or drifting, no impact yet,
+  handled during the day (memory, a crash loop, a stale backup, a certificate
+  two weeks from expiry) → `#alerts-warning`, never a ping. No `info` level: an
+  alert asks for an action, and what needs none is a dashboard or a digest.
 - **An alert about the relay cannot go through it.** Grafana's notification
   policy routes anything labelled with the relay's namespace to the plain Slack
   webhook, kept for that alone. Grafana gets `root_url`, so every link is
