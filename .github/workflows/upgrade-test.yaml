@@ -97,13 +97,13 @@ jobs:
         working-directory: ${{ env.BASE_ANSIBLE }}
         run: >-
           ansible-playbook playbooks/platform.yml -i inventories/k3d.yml
-          -e "@$RUNNER_TEMP/k3d-vars.yml" --skip-tags dns-records,chart-publish,cloudflare,publish
+          -e "@$RUNNER_TEMP/k3d-vars.yml" --skip-tags cloudflare,publish
 
       - name: Upgrade to this tree
         working-directory: src/ansible
         run: >-
           ansible-playbook playbooks/platform.yml -i inventories/k3d.yml
-          -e "@$RUNNER_TEMP/k3d-vars.yml" --skip-tags dns-records,chart-publish,cloudflare,publish
+          -e "@$RUNNER_TEMP/k3d-vars.yml" --skip-tags cloudflare,publish
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
