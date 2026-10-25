@@ -43,7 +43,7 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: GATEWAY_INTELLIGENCE_BASE_URL
+            name: JTERRAZZ_INTELLIGENCE_BASE_URL
             value: "http://jterrazz-intelligence.jterrazz-intelligence-prod.svc.cluster.local/v1"
 
   - it: lets an app-declared env of the same name win over the catalog
@@ -124,7 +124,7 @@ tests:
       - notContains:
           path: spec.template.spec.containers[0].env
           content:
-            name: GATEWAY_INTELLIGENCE_BASE_URL
+            name: JTERRAZZ_INTELLIGENCE_BASE_URL
           any: true
 
   - it: renders the server-side ingress rule when the app IS a catalog target
