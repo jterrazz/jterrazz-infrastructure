@@ -25,9 +25,9 @@
   ansible.builtin.import_tasks: bootstrap.yml
   tags: [bootstrap]
 
-- name: Apply the raw manifests
-  ansible.builtin.import_tasks: raw-manifests.yml
-  tags: [raw-manifests]
+- name: Converge the Grafana infrastructure dashboards
+  ansible.builtin.import_tasks: grafana-dashboards.yml
+  tags: [dashboards]
 
 - name: Apply every platform Helm release
   ansible.builtin.import_tasks: helmfile-apply.yml

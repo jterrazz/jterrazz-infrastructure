@@ -31,7 +31,7 @@ the chart that consumes it: `values.yaml` for an upstream chart, `service.yaml`
 for `charts/platform-service` (release `<svc>-platform`, a name frozen because
 it owns live volumes), and any other name for one app-chart release
 (`op-api.yaml`, or `app.yaml` for a single workload). The exceptions are
-cert-manager's ClusterIssuers and Traefik's HelmChartConfig, raw manifests.
+cert-manager's ClusterIssuers and Traefik's HelmChartConfig, raw manifests, and the infrastructure dashboards under `grafana/dashboards/`, one ConfigMap per JSON file.
 
 ## The three charts
 
