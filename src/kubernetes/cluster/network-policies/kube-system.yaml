@@ -60,7 +60,8 @@ spec:
               kubernetes.io/metadata.name: platform-networking
           podSelector:
             matchLabels:
-              app.kubernetes.io/name: cloudflared
+              # invariant: the app chart's pod label; app.kubernetes.io/* sits on the objects only.
+              app: cloudflared
         - ipBlock:
             cidr: 0.0.0.0/0
             except:

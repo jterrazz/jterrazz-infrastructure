@@ -33,7 +33,7 @@ token serves at once; `kubectl scale -n platform-networking deploy/cloudflared
 
 ```bash
 kubectl logs -n platform-networking deploy/cloudflared --tail=30 | grep -E 'Registered|edge'
-POD_IP=$(kubectl get pod -n platform-networking -l app.kubernetes.io/name=cloudflared \
+POD_IP=$(kubectl get pod -n platform-networking -l app=cloudflared \
   -o jsonpath='{.items[0].status.podIP}')
 curl -s "http://$POD_IP:2000/metrics" | grep '^cloudflared_tunnel_total_requests '
 ```
