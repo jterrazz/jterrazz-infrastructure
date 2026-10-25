@@ -108,8 +108,8 @@ renews at 30, so 15 means renewal has failed for two weeks.
   and `api/boundary`, against that snapshot.
 
 The host specs run from `deploy-platform.yaml` after the play, over its SSH
-connection. `smoke.yaml` runs after every successful platform deploy, every
-Monday at 07:17 UTC (the only uptime monitor) and on demand.
+connection. `smoke.yaml` runs after every successful platform deploy, every day at
+07:17 UTC, and on demand; Grafana's alerts watch in between.
 
 ### Running it from the Mac
 

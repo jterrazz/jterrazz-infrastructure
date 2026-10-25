@@ -1,11 +1,12 @@
 name: Smoke
 
 # invariant: the platform contract against the live cluster from two vantages (ADR-022); the
-# weekly schedule is the only uptime monitor.
+# daily run catches what no deploy triggers, beside the Grafana alerts (ADR-025).
 on:
   schedule:
-    # value: off the hour, when GitHub's scheduler queues every :00 job.
-    - cron: "17 7 * * 1"
+    # value: daily, off the hour, when GitHub's scheduler queues every :00 job; about 1.3 runner
+    # minutes a run.
+    - cron: "17 7 * * *"
   workflow_dispatch:
   workflow_run:
     workflows: ["Deploy Platform"]

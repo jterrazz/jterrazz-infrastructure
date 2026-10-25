@@ -47,9 +47,7 @@ jobs:
           fi
           echo "base: $base"
           git worktree add "$RUNNER_TEMP/base" "$base"
-          # outside: a base from before the src/ move keeps ansible/ at its root.
           ansible_dir="$RUNNER_TEMP/base/src/ansible"
-          [ -d "$ansible_dir" ] || ansible_dir="$RUNNER_TEMP/base/ansible"
           echo "BASE_ANSIBLE=$ansible_dir" >> "$GITHUB_ENV"
           # invariant: the base may predate the k3d inventory; group_vars stay each tree's own.
           cp src/ansible/inventories/k3d.yml "$ansible_dir/inventories/k3d.yml"
