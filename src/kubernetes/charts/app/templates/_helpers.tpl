@@ -110,8 +110,6 @@ otel-collector:
 jterrazz-intelligence:
   env:
     JTERRAZZ_INTELLIGENCE_BASE_URL: "http://jterrazz-intelligence.jterrazz-intelligence-prod.svc.cluster.local/v1"
-    # hazard: the old name, until signews-api reads the new one; then it goes.
-    GATEWAY_INTELLIGENCE_BASE_URL: "http://jterrazz-intelligence.jterrazz-intelligence-prod.svc.cluster.local/v1"
   egress:
     namespace: jterrazz-intelligence-prod
     ports:

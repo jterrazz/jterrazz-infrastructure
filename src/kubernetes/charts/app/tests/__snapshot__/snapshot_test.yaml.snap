@@ -97,8 +97,6 @@ matches the recorded render of the CI fixture:
                       value: ci-test-app
                     - name: OTEL_RESOURCE_ATTRIBUTES
                       value: deployment.environment=prod,deployment.environment.name=prod
-                    - name: GATEWAY_INTELLIGENCE_BASE_URL
-                      value: http://jterrazz-intelligence.jterrazz-intelligence-prod.svc.cluster.local/v1
                     - name: JTERRAZZ_INTELLIGENCE_BASE_URL
                       value: http://jterrazz-intelligence.jterrazz-intelligence-prod.svc.cluster.local/v1
                     - name: OTEL_EXPORTER_OTLP_ENDPOINT
@@ -229,8 +227,6 @@ matches the recorded render of the CI fixture:
                   value: ci-test-app
                 - name: OTEL_RESOURCE_ATTRIBUTES
                   value: deployment.environment=prod,deployment.environment.name=prod
-                - name: GATEWAY_INTELLIGENCE_BASE_URL
-                  value: http://jterrazz-intelligence.jterrazz-intelligence-prod.svc.cluster.local/v1
                 - name: JTERRAZZ_INTELLIGENCE_BASE_URL
                   value: http://jterrazz-intelligence.jterrazz-intelligence-prod.svc.cluster.local/v1
                 - name: OTEL_EXPORTER_OTLP_ENDPOINT

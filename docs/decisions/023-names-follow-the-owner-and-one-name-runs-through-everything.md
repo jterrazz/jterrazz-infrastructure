@@ -3,6 +3,8 @@
 **Status:** Accepted
 **Date:** 2026-10-25
 
+Revised 2026-10-25: the gateway variable is `JTERRAZZ_INTELLIGENCE_BASE_URL`.
+
 ## Context
 
 Names had drifted: app namespaces were `<env>-<app>` (`prod-signews-api`)
@@ -51,6 +53,7 @@ name has to say who owns it.
   was uninstalled (its PV object goes, its data directory stays), the
   directory moved where the app was renamed, and the next deploy created the
   new namespace and bound the same data.
-- The `GATEWAY_INTELLIGENCE_BASE_URL` variable kept its name: it is the
-  contract the clients read, not a name the platform owns.
+- The gateway's variable followed too, `JTERRAZZ_INTELLIGENCE_BASE_URL`: the
+  app chart injected both names for one version while its one reader,
+  signews-api, moved.
 - A new app needs no entry here: the rules above decide all its names.

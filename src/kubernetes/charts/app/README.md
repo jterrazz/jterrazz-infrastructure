@@ -553,10 +553,10 @@ an app without `spec.storage`, fails the render.
 Opt-in wiring to in-cluster platform services. The catalog is the single
 source of truth in `templates/_helpers.tpl` (`app.platformCatalog`):
 
-| Name                    | Injects env                                                                                                  | Opens egress to                    | Client label                                         |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------- | ---------------------------------------------------- |
-| `otel-collector`        | `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.platform-telemetry:4318`                                  | `platform-telemetry` :4317, :4318  | none                                                 |
-| `jterrazz-intelligence` | `GATEWAY_INTELLIGENCE_BASE_URL=http://jterrazz-intelligence.jterrazz-intelligence-prod.svc.cluster.local/v1` | `jterrazz-intelligence-prod` :8317 | `platform-client.jterrazz.com/jterrazz-intelligence` |
+| Name                    | Injects env                                                                                                   | Opens egress to                    | Client label                                         |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------- |
+| `otel-collector`        | `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.platform-telemetry:4318`                                   | `platform-telemetry` :4317, :4318  | none                                                 |
+| `jterrazz-intelligence` | `JTERRAZZ_INTELLIGENCE_BASE_URL=http://jterrazz-intelligence.jterrazz-intelligence-prod.svc.cluster.local/v1` | `jterrazz-intelligence-prod` :8317 | `platform-client.jterrazz.com/jterrazz-intelligence` |
 
 Declaring a name wires the whole bundle at once:
 
@@ -576,7 +576,8 @@ An unknown name **hard-fails the render** with the valid list. Telemetry is
 opt-in: an app that doesn't declare `otel-collector` gets no OTLP endpoint.
 
 Env names are the contract the client reads, not the service's name:
-`GATEWAY_INTELLIGENCE_BASE_URL` is what `@jterrazz/intelligence` reads, and
+`JTERRAZZ_INTELLIGENCE_BASE_URL` is what a consumer passes to
+`@jterrazz/intelligence` as the gateway's base URL, and
 `OTEL_EXPORTER_OTLP_ENDPOINT` is the OTel SDK's.
 
 `jterrazz-intelligence` is an app (repository `gateway-intelligence`) that
