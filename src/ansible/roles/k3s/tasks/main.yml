@@ -1,5 +1,5 @@
 ---
-# hazard: no defaults/main.yml: a role default for k3s_version would silently win wherever
+# hazard: k3s_version stays out of defaults/: a role default would silently win wherever
 # group_vars is not loaded (ADR-007).
 
 - name: Create the k3s directories
@@ -156,12 +156,13 @@
   changed_when: false
   failed_when: false
 
+# invariant: once, until every Secret is rewritten; a finished rotation answers reencrypt_finished.
 - name: Re-encrypt existing secrets
   ansible.builtin.command: k3s secrets-encrypt reencrypt --force
-  when: "'Encryption Status: Enabled' in k3s_secrets_encrypt.stdout"
-  register: k3s_reencrypt
-  changed_when: k3s_reencrypt.rc == 0
-  failed_when: false
+  when:
+    - "'Encryption Status: Enabled' in k3s_secrets_encrypt.stdout"
+    - "'reencrypt_finished' not in k3s_secrets_encrypt.stdout"
+  changed_when: true
 
 - name: Create the kubectl symlink
   ansible.builtin.file:

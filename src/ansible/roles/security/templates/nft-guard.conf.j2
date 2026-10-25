@@ -1,23 +1,31 @@
 # Managed by Ansible (roles/security).
-# hazard: k3s' iptables rules run ahead of UFW, so this table (priority -10) is the real gate;
-# scoped to {{ security_guard_interface }} so pod and tailnet traffic pass (ADR-006).
+# invariant: the node's one firewall, ahead of k3s' own rules (priority -10): the tailnet reaches
+# SSH, Traefik and the API server, the hypervisor host reaches everything, pods reach the node,
+# and nothing else opens a connection (ADR-006).
 
 table inet jterrazz_guard {
   chain input {
     type filter hook input priority -10; policy accept;
 
+    iif "lo" accept
+    ct state established,related accept
+    ct state invalid drop
+
     # invariant: a NodePort bypasses the tailnet gate; dropped from every source.
     iif "{{ security_guard_interface }}" tcp dport 30000-32767 drop
     iif "{{ security_guard_interface }}" udp dport 30000-32767 drop
 
-    # invariant: node-exporter's unauthenticated metrics, scraped over the pod network only.
-    iifname "tailscale0" tcp dport 9100 drop
+    # invariant: pods reach the node: the API server, and the kubelet and node-exporter scrapes.
+    iifname { "cni0", "flannel.1" } accept
+    meta l4proto { icmp, ipv6-icmp } accept
+
+    iifname "tailscale0" tcp dport { {{ security_guard_tailnet_tcp | join(', ') }} } accept
+    iifname "tailscale0" drop
 
     # hazard: the hypervisor host (`orb`, Ansible); dropping it locks the operator out.
     iif "{{ security_guard_interface }}" ip saddr {{ security_guard_host_ip }} accept
-
-    # invariant: every other bridge peer is another OrbStack machine.
-    iif "{{ security_guard_interface }}" ip saddr {{ security_guard_peer_subnet }} tcp dport { {{ security_guard_blocked_tcp | join(', ') }} } drop
-    iif "{{ security_guard_interface }}" ip saddr {{ security_guard_peer_subnet }} udp dport { {{ security_guard_blocked_udp | join(', ') }} } drop
+    # outside: the DHCP server answers a broadcast, which conntrack does not pair with it.
+    iif "{{ security_guard_interface }}" udp sport 67 udp dport 68 accept
+    iif "{{ security_guard_interface }}" drop
   }
 }

@@ -10,13 +10,14 @@ Unattended-Upgrade::Origins-Pattern {
     "origin=Debian,codename=${distro_codename},label=Debian";
     "origin=Debian,codename=${distro_codename}-security,label=Debian-Security";
     "origin=Debian,codename=${distro_codename}-updates,label=Debian";
+    // outside: Tailscale's own apt repository; nothing else would ever upgrade tailscaled.
+    "origin=Tailscale,codename=${distro_codename},label=Tailscale";
 };
 
 Unattended-Upgrade::Package-Blacklist {
 };
 
 Unattended-Upgrade::DevRelease "false";
-Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
 Unattended-Upgrade::Remove-Unused-Dependencies "true";
 // Spelled out, not left to the package default: an unattended reboot on a
 // single-node cluster is an unattended outage.

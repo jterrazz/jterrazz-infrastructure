@@ -9,6 +9,8 @@ this record replaces.
 
 Revised 2026-10-25: the guard no longer names port 2000, which nothing on the
 host binds since cloudflared left the host network.
+Revised 2026-10-25: the guard is the node's one firewall, a default deny on the
+tailnet and the bridge; UFW is gone, OpenSSH's own algorithms are kept.
 
 ## Context
 
@@ -25,19 +27,16 @@ answered a neighbouring machine.
 
 ## Decision
 
-- **An nftables guard** (`table inet jterrazz_guard`, input hook at priority
-  -10, ahead of k3s and UFW, scoped to eth0 so pod traffic via cni0 and
-  tailnet traffic via tailscale0 pass): accept the hypervisor host (how
-  `orb`, Ansible and every Mac tool reach the VM); drop the peer subnet on
-  22, 6443, 9100, 10250 and udp 5355; drop the NodePort range from
-  every source, the Mac included, because a NodePort answers on the node
-  address and bypasses the tailnet gate (audit 2026-10-24); drop 9100 on
-  tailscale0, node-exporter's unauthenticated metrics, scraped over the pod
-  network only. It loads after UFW so a `ufw reload` cannot flush it.
-- **UFW stays as the second gate**: 22 from anywhere (no public path exists,
-  and a source rule could lock the Mac out), 80/443 and 6443 from
-  100.64.0.0/10 only, IPv6 off (nothing listens on it). The first gate for
-  80/443 is Traefik's `loadBalancerSourceRanges`.
+- **One firewall, an nftables guard** (`table inet jterrazz_guard`, input
+  hook at priority -10, ahead of k3s' own rules): loopback and established
+  traffic pass; the NodePort range is dropped from every source, because a
+  NodePort answers on the node address and bypasses the tailnet gate (audit
+  2026-10-24); pods reach the node over cni0; the tailnet reaches 22, 80, 443
+  and 6443 and nothing else, so neither the kubelet nor node-exporter answers
+  it; and on the OrbStack bridge only the hypervisor host (how `orb`, Ansible
+  and every Mac tool reach the VM) and DHCP's replies pass. UFW, which held a
+  weaker copy of the same rules behind k3s' iptables chains, is gone. The
+  first gate for 80/443 is Traefik's `loadBalancerSourceRanges`.
 - **Secrets encrypted at rest** (`secrets-encryption: true`): without it every
   Secret sits in plaintext in `state.db`, readable through `/mnt/machines`.
   Enabling encrypts only new writes, so the role runs

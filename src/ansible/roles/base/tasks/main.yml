@@ -96,17 +96,6 @@
   community.general.timezone:
     name: UTC
 
-- name: Raise the process limits for Kubernetes
-  ansible.builtin.blockinfile:
-    path: /etc/security/limits.d/kubernetes.conf
-    create: true
-    mode: "0644"
-    block: |
-      * soft nofile 65536
-      * hard nofile 65536
-      * soft nproc 65536
-      * hard nproc 65536
-
 # hazard: every PV names /var/lib/k8s-data; it must stay a symlink into the Mac share that
 # src/scripts/deploy.sh creates, so the data survives `make destroy`.
 - name: Link /var/lib/k8s-data to the Mac data directory

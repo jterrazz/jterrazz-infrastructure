@@ -8,27 +8,15 @@ security_ssh_client_alive_count_max: 2
 # hazard: the public half of the CI_DEPLOY_SSH_PRIVATE secret; rotation is docs/guides/operate.md.
 security_ci_deploy_pubkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPPCsf2boqXrePRFuhL3KfJjpabJ0bjAeNqpTLl7GREf ci-deploy@jterrazz-infrastructure"
 
-# invariant: the second gate: klipper-lb DNATs 80/443 before UFW sees them, so Traefik's
-# loadBalancerSourceRanges is the first (ADR-003, ADR-006).
-security_ufw_rules:
-  # hazard: unrestricted: no public inbound path exists, and a source rule can lock out the Mac.
-  - { port: "22", comment: "SSH" }
-  - { port: "80", from: "100.64.0.0/10", comment: "HTTP (Tailscale only)" }
-  - { port: "443", from: "100.64.0.0/10", comment: "HTTPS (Tailscale only)" }
-  - { port: "6443", from: "100.64.0.0/10", comment: "K8s API (Tailscale)" }
-
+# invariant: what the kernel defaults leave open: source routing. rp_filter stays systemd's loose
+# 2, which Tailscale's subnet routes need.
 security_kernel_params:
-  - { name: "net.ipv4.tcp_syncookies", value: "1" }
-  - { name: "net.ipv4.icmp_echo_ignore_broadcasts", value: "1" }
-  - { name: "net.ipv4.icmp_ignore_bogus_error_responses", value: "1" }
   - { name: "net.ipv4.conf.all.accept_source_route", value: "0" }
   - { name: "net.ipv4.conf.default.accept_source_route", value: "0" }
-  - { name: "net.ipv4.conf.all.rp_filter", value: "1" }
-  - { name: "net.ipv4.conf.default.rp_filter", value: "1" }
 
-# invariant: the peer-isolation guard against the other OrbStack machines (ADR-006).
+# invariant: the node's firewall, the nft guard (ADR-006).
 security_guard_interface: eth0
 security_guard_host_ip: 192.168.139.1
-security_guard_peer_subnet: 192.168.139.0/24
-security_guard_blocked_tcp: [22, 6443, 9100, 10250]
-security_guard_blocked_udp: [5355]
+# invariant: SSH, Traefik's two ports and the API server; klipper-lb DNATs 80/443 before this
+# chain, so Traefik's loadBalancerSourceRanges is their first gate (ADR-003).
+security_guard_tailnet_tcp: [22, 80, 443, 6443]

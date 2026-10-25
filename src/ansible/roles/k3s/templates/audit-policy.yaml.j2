@@ -57,6 +57,7 @@ rules:
       - system:kube-proxy
       - k3s-cloud-controller-manager
       - system:k3s-supervisor
+      - system:k3s-controller
     verbs: ["get", "list", "watch"]
   - level: None
     userGroups: ["system:nodes", "system:serviceaccounts"]
@@ -67,6 +68,14 @@ rules:
   - level: None
     users: ["system:admin"]
     verbs: ["get", "list", "watch"]
+
+  # value: the operator rewrites each InfisicalSecret's status on every resync, 39% of all
+  # events; its writes to the Secrets it syncs still land below.
+  - level: None
+    users: ["system:serviceaccount:platform-secrets:infisical-secre-controller-manager"]
+    resources:
+      - group: secrets.infisical.com
+        resources: ["infisicalsecrets", "infisicalsecrets/status"]
 
   # Permission questions (the platform suite asks dozens per run) change nothing.
   - level: None

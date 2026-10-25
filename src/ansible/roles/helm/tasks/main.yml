@@ -11,22 +11,26 @@
 - name: Install Helm
   when: (helm_installed.rc | default(1)) != 0 or (helm_installed.stdout | default('') | trim) != helm_version
   block:
-    # invariant: a tag, never `main`: this script runs as root.
-    - name: Download the Helm install script
+    # invariant: the release archive, checked against its published sha256; no script runs as root.
+    - name: Download the Helm release archive
       ansible.builtin.get_url:
-        url: "https://raw.githubusercontent.com/helm/helm/{{ helm_version }}/scripts/get-helm-3"
-        dest: /tmp/get_helm.sh
+        url: "https://get.helm.sh/helm-{{ helm_version }}-linux-{{ node_arch }}.tar.gz"
+        checksum: "sha256:https://get.helm.sh/helm-{{ helm_version }}-linux-{{ node_arch }}.tar.gz.sha256sum"
+        dest: /tmp/helm.tar.gz
+        mode: "0600"
+
+    - name: Unpack helm into /usr/local/bin
+      ansible.builtin.unarchive:
+        src: /tmp/helm.tar.gz
+        dest: /usr/local/bin
+        remote_src: true
+        include: ["linux-{{ node_arch }}/helm"]
+        extra_opts: [--strip-components=1]
         mode: "0755"
 
-    - name: Run the Helm install script
-      ansible.builtin.command: /tmp/get_helm.sh
-      environment:
-        DESIRED_VERSION: "{{ helm_version }}"
-      changed_when: true
-
-    - name: Remove the Helm install script
+    - name: Remove the Helm archive
       ansible.builtin.file:
-        path: /tmp/get_helm.sh
+        path: /tmp/helm.tar.gz
         state: absent
 
 # outside: `helm plugin list` drops the leading `v`, hence the strip on both sides.
@@ -73,7 +77,7 @@
       ansible.builtin.get_url:
         url: >-
           https://github.com/helmfile/helmfile/releases/download/{{ helmfile_version }}/helmfile_{{
-          helmfile_version | regex_replace('^v', '') }}_linux_{{ helmfile_arch }}.tar.gz
+          helmfile_version | regex_replace('^v', '') }}_linux_{{ node_arch }}.tar.gz
         dest: /tmp/helmfile.tar.gz
         mode: "0600"
 

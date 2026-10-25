@@ -57,7 +57,7 @@ smoke: specs/node_modules/.install ## The platform contract from this Mac (VANTA
 	cd specs && npx vitest --run $(SPECS_$(VANTAGE))
 
 test-host: specs/node_modules/.install ## The node itself: sshd, the nft guard, upgrades, k3s
-	cd specs && npx vitest --run --no-file-parallelism specs/host
+	cd specs && npx vitest --run specs/host
 
 test: smoke test-host ## Everything this Mac can prove of the live platform
 

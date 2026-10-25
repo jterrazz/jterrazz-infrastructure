@@ -58,7 +58,7 @@ then `cloudflared`, a pod in `platform-networking`, then Traefik, then the
 app. Private traffic (the products' `*.internal` hosts, Grafana, the registry,
 the API server, staging) is tailnet-only: Traefik's LoadBalancer admits the
 Tailscale range alone, a private route answers tailnet sources only and never a
-request carrying the edge's `Cf-Ray`, and the nft guard and UFW keep every
+request carrying the edge's `Cf-Ray`, and the nft guard keeps every
 other port of the node shut
 ([ADR-002](../decisions/002-public-traffic-enters-through-a-cloudflare-tunnel.md),
 [ADR-003](../decisions/003-traefiks-service-is-the-tailnet-gate.md),
@@ -68,7 +68,7 @@ other port of the node shut
  INTERNET · Cloudflare edge                       TAILNET · SSH, CI runners, laptops
         ▲ outbound HTTP/2 tunnel                    │
         │                                           │ tailscale0, 100.64.0.0/10
-┌───────┼─── OrbStack VM · nft guard · UFW ─────────┼────────────────────────┐
+┌───────┼─── OrbStack VM · nft guard ───────────────┼────────────────────────┐
 │ ┌─────┼───── k3s ─────────────────────────────────┼──────────────────────┐ │
 │ │     │                                           │                      │ │
 │ │ cloudflared ───► Traefik ◄───────────────── klipper-lb                 │ │
