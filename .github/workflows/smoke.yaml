@@ -44,48 +44,9 @@ jobs:
         working-directory: specs
         run: npm ci
 
-      # invariant: built as jterrazz-actions docker-deploy builds it: an exec plugin minting the
-      # job's OIDC token, the CA from k3s' /cacerts; it reads through platform-reader.
-      - name: Write the OIDC kubeconfig
-        env:
-          API_SERVER: https://jterrazz-infrastructure.tail77a797.ts.net:6443
-          AUDIENCE: jterrazz-infrastructure
-        run: |
-          set -euo pipefail
-          plugin="$RUNNER_TEMP/github-oidc-credential"
-          cat > "$plugin" <<'PLUGIN'
-          #!/usr/bin/env bash
-          set -euo pipefail
-          token=$(curl -sSf --retry 5 --retry-all-errors --retry-delay 2 -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$GITHUB_OIDC_AUDIENCE" | jq -r .value)
-          expires=$(date -u -d '+4 minutes' +%Y-%m-%dT%H:%M:%SZ)
-          jq -n --arg t "$token" --arg e "$expires" \
-            '{apiVersion: "client.authentication.k8s.io/v1", kind: "ExecCredential", status: {token: $t, expirationTimestamp: $e}}'
-          PLUGIN
-          chmod 700 "$plugin"
-          ca=$(curl -sSfk "$API_SERVER/cacerts" | base64 -w0)
-          cat > "$RUNNER_TEMP/kubeconfig" <<KUBECONFIG
-          apiVersion: v1
-          kind: Config
-          clusters:
-            - name: k3s
-              cluster: {server: "$API_SERVER", certificate-authority-data: "$ca"}
-          users:
-            - name: github-oidc
-              user:
-                exec:
-                  apiVersion: client.authentication.k8s.io/v1
-                  command: "$plugin"
-                  interactiveMode: Never
-                  env: [{name: GITHUB_OIDC_AUDIENCE, value: "$AUDIENCE"}]
-          contexts:
-            - name: k3s
-              context: {cluster: k3s, user: github-oidc}
-          current-context: k3s
-          KUBECONFIG
-          chmod 600 "$RUNNER_TEMP/kubeconfig"
-          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
-          KUBECONFIG="$RUNNER_TEMP/kubeconfig" kubectl auth whoami
+      # invariant: the identity app deploys use, here reading through platform-reader.
+      - name: Connect to the cluster
+        uses: jterrazz/jterrazz-actions/actions/cluster-connect@2907c52ba6368ad49690bda08d493f6342839e5e # main, 2026-10-25
 
       # invariant: the internet job cannot reach the apiserver, so it probes this snapshot.
       - name: Snapshot the IngressRoutes for the internet job
