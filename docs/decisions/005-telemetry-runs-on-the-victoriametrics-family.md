@@ -7,6 +7,8 @@ Written 2026-10-24 from the comments in `src/kubernetes/services/{otel-collector
 victoria-*,grafana,kube-state-metrics}/` (commit 5093096 and its follow-ups
 30c461e and 61be749) that this record replaces.
 
+Revised 2026-10-25: the control plane's series are no longer scraped.
+
 ## Context
 
 The first telemetry stack (2026-03-08) was Grafana with Prometheus, Loki and
@@ -76,10 +78,13 @@ reads all three through core or signed datasources.
   `resource_to_telemetry_conversion` promotes `service.name` and
   `deployment.environment`, or an app's prod, next and staging series
   collide.
-- **Scrape interval 1m**, not the chart's 15s: a 4x sample-rate bump on a
-  memory-bound node. The apiserver's per-verb-resource histograms are dropped
-  at ingest (only `_bucket`, so averages survive): they grow with the API
-  surface and nothing reads them. A multi-port Service annotated for scraping
+- **Scrape interval 1m**, not the chart's 15s: no panel reads finer, and each
+  sample is a write to virtiofs; memory follows active series, not the rate.
+- **No control-plane series.** k3s is one binary, so the kubelet's `/metrics`
+  serves the apiserver's whole registry too: the apiserver job and the kubelet
+  job stored the same 65k `apiserver_*`, `etcd_*`, `workqueue_*` and
+  `rest_client_*` series twice, 80% of everything, read by no panel or rule.
+  The apiserver job is gone and the kubelet job keeps `kubelet_*` alone. A multi-port Service annotated for scraping
   yields one target per port; a `keep_if_equal` rule (RE2 has no
   backreferences) dedups them, and its `if` guard is load-bearing:
   kube-state-metrics and node-exporter set no `prometheus.io/port`, and

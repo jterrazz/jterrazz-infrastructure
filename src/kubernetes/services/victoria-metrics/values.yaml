@@ -23,12 +23,12 @@ server:
       memory: 896Mi
 
   # outside: prometheus-community/prometheus 29.19.0's default jobs, minus the blackbox probe,
-  # pushgateway and the `-slow` jobs no target opts into (ADR-005).
+  # pushgateway, the `-slow` jobs no target opts into, and the apiserver job (ADR-005).
   scrape:
     enabled: true
     config:
       global:
-        # value: 1m, not 15s: resolution is memory on this node.
+        # value: 1m, not 15s: no panel reads finer, and each sample is a write to virtiofs.
         scrape_interval: 1m
 
       scrape_configs:
@@ -36,27 +36,8 @@ server:
           static_configs:
             - targets: ["localhost:8428"]
 
-        - job_name: kubernetes-api-servers
-          bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-          kubernetes_sd_configs:
-            - role: endpointslice
-          relabel_configs:
-            - action: keep
-              regex: default;kubernetes;https
-              source_labels:
-                - __meta_kubernetes_namespace
-                - __meta_kubernetes_service_name
-                - __meta_kubernetes_endpointslice_port_name
-          scheme: https
-          tls_config:
-            ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-          # value: unread histograms that grow with the API surface; _count and _sum survive.
-          metric_relabel_configs:
-            - action: drop
-              source_labels:
-                - __name__
-              regex: apiserver_request_duration_seconds_bucket|apiserver_request_sli_duration_seconds_bucket|etcd_request_duration_seconds_bucket
-
+        # outside: k3s is one binary, so the kubelet's /metrics also serves the apiserver's
+        # registry; the kubelet's own series are kept, the control plane's 65k are not (ADR-005).
         - job_name: kubernetes-nodes
           bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
           kubernetes_sd_configs:
@@ -68,6 +49,11 @@ server:
           tls_config:
             ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
             insecure_skip_verify: true
+          metric_relabel_configs:
+            - action: keep
+              source_labels:
+                - __name__
+              regex: kubelet_.+
 
         - job_name: kubernetes-nodes-cadvisor
           bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
