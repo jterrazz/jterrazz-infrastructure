@@ -15,7 +15,7 @@ each folder explicitly, and stops on a missing key before anything deploys
 | ---------------------------------------------- | ------------------------------------------------------------------------- | ---------------------------- |
 | `jterrazz`, `/jterrazz-infrastructure`         | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_TUNNEL_TOKEN`                         | both playbooks               |
 |                                                | `TAILSCALE_OAUTH_CLIENT_ID`, `TAILSCALE_OAUTH_CLIENT_SECRET`              | `site.yml` only              |
-|                                                | `BACKUP_ENCRYPTION_KEY`                                                   | `make backup` only           |
+|                                                | `BACKUP_AGE_IDENTITY`                                                     | `make backup` only           |
 | `jterrazz`, `/jterrazz-infrastructure/grafana` | `ADMIN_PASSWORD`                                                          | both playbooks               |
 | `jterrazz-ci`, `/`                             | `DOCKER_REGISTRY_USERNAME`, `DOCKER_REGISTRY_PASSWORD`: the push account  | both playbooks, app CI       |
 |                                                | `REGISTRY_PULL_USERNAME`, `REGISTRY_PULL_PASSWORD`: the read-only account | both playbooks, the operator |

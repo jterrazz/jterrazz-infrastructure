@@ -133,25 +133,25 @@ with its repository.
 
 ## Backups
 
-`make backup` writes an AES-256 archive of `~/.jterrazz-infrastructure/data` to
-`~/.jterrazz-infrastructure/backups/` and decrypts it back to verify it.
-`ARGS=--consistent` stops the workloads first, since a live copy captures the
-databases mid-write, and restarts k3s after.
-
-The passphrase is `BACKUP_ENCRYPTION_KEY` (Infisical `/jterrazz-infrastructure`,
-env `prod`), fetched by the script itself through `.env`, and deliberately not a
-deploy variable. It is permanent: rotating it orphans every archive it made,
-and losing it loses them all.
-
-Encryption, not `chmod`, because the pods write through virtiofs as uids 70,
-101, 472, 999 and 1000, so the tree must stay traversable by "other"; what can
-be protected is the copy that leaves it. Most of the tree is the registry.
+The node snapshots every persistent volume but the registry each Sunday at
+03:30, stopping the workloads for about a minute, encrypted with age to a
+public key, into `~/.jterrazz-infrastructure/backups/`, the four newest kept
+([ADR-024](../decisions/024-backups-are-weekly-consistent-and-encrypted-to-a-public-key.md)).
+`make backup` takes one now; `make backup ARGS=--verify` decrypts the newest
+with `BACKUP_AGE_IDENTITY` and lists what it holds.
 
 ## Restoring from backup
 
 All persistent state is `/var/lib/k8s-data` on the node, a symlink to
 `~/.jterrazz-infrastructure/data` on the Mac. To restore, stop the consumer,
-replace its directory, and start it again.
+replace its directory from a snapshot, and start it again:
+
+```bash
+age -d -i <identity file> k8s-data-<stamp>.tar.gz.age | tar -xzf - -C <target>
+```
+
+The registry is not in a snapshot: after restoring onto a new node,
+`make redeploy-apps` rebuilds every image.
 
 ```text
 data/

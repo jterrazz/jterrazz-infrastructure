@@ -1,0 +1,4 @@
+---
+# invariant: the public half of the backup key; the private half is BACKUP_AGE_IDENTITY in
+# Infisical /jterrazz-infrastructure, needed to restore and nowhere on the node (ADR-024).
+backup_age_recipient: age1xze70c8trgj4wp5ndm3ljryr072glvlt0845utxwnc7tr3drzujq6cdy2q

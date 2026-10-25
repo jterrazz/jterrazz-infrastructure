@@ -50,7 +50,7 @@ kubeconfig: ## Regenerate ./kubeconfig.yaml from the VM (server = MagicDNS name)
 diff: ## Preview what a platform deploy would change (helmfile diff, read-only)
 	./src/scripts/helmfile.sh diff
 
-backup: ## Encrypted snapshot of every persistent volume (ARGS=--consistent stops the workloads)
+backup: ## Snapshot every persistent volume now (ARGS=--verify decrypts the newest)
 	@./src/scripts/backup.sh $(ARGS)
 
 smoke: specs/node_modules/.install ## The platform contract from this Mac (VANTAGE=tailnet on the tailnet)

@@ -30,6 +30,8 @@
       tags: [tailscale]
     - role: k3s
       tags: [k3s]
+    - role: backup
+      tags: [backup]
 
 - name: Deploy the platform layer
   ansible.builtin.import_playbook: platform.yml

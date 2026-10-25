@@ -1,0 +1,47 @@
+---
+- name: Install age
+  ansible.builtin.apt:
+    name: age
+    state: present
+
+- name: Install the backup script
+  ansible.builtin.template:
+    src: jterrazz-backup.sh.j2
+    dest: /usr/local/bin/jterrazz-backup
+    mode: "0755"
+
+- name: Install the backup service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/jterrazz-backup.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Encrypted snapshot of the persistent volumes (roles/backup)
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/jterrazz-backup
+  notify: Reload systemd
+
+# value: Sunday 03:30, when nobody reads the sites; Persistent catches a run the Mac slept through.
+- name: Install the backup timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/jterrazz-backup.timer
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Weekly backup of the persistent volumes (roles/backup)
+      [Timer]
+      OnCalendar=Sun *-*-* 03:30:00
+      Persistent=true
+      [Install]
+      WantedBy=timers.target
+  notify: Reload systemd
+
+- name: Flush the systemd reload
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable the backup timer
+  ansible.builtin.systemd_service:
+    name: jterrazz-backup.timer
+    enabled: true
+    state: started

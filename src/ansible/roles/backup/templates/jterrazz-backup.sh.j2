@@ -1,0 +1,27 @@
+#!/bin/bash
+# Managed by Ansible (roles/backup).
+# invariant: a consistent, encrypted snapshot of every persistent volume but the registry, which
+# `make redeploy-apps` rebuilds from git; encrypted to a public key, so the node holds no secret (ADR-024).
+set -euo pipefail
+
+data=$(readlink -f /var/lib/k8s-data)
+out="$(dirname "$data")/backups"
+archive="$out/k8s-data-$(date -u +%Y%m%dT%H%M%SZ).tar.gz.age"
+mkdir -p "$out"
+
+# hazard: `systemctl stop k3s` leaves the containers writing; only killall stops them.
+/usr/local/bin/k3s-killall.sh >/dev/null 2>&1 || true
+trap 'systemctl start k3s' EXIT
+
+tar -czf - --exclude '.DS_Store' --exclude "$(basename "$data")/registry" \
+    -C "$(dirname "$data")" "$(basename "$data")" \
+    | age -r "{{ backup_age_recipient }}" -o "$archive.partial"
+mv "$archive.partial" "$archive"
+chmod 600 "$archive"
+
+systemctl start k3s
+trap - EXIT
+
+# value: four weekly snapshots, a month of history on a disk shared with the data.
+ls -1t "$out"/k8s-data-*.tar.gz.age | tail -n +5 | xargs -r rm -f --
+echo "wrote $archive ($(du -h "$archive" | cut -f1))"
