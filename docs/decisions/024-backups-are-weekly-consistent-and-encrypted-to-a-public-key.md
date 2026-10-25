@@ -32,4 +32,5 @@ most of its bytes were the registry, which git can rebuild.
   loses both. An offsite copy is the open half of this record.
 - Restoring needs the private key, so losing `BACKUP_AGE_IDENTITY` loses every
   snapshot; it is a key to keep, not to rotate.
-- The archives the openssl script made decrypt only with `BACKUP_ENCRYPTION_KEY`.
+- The last archive the openssl script made was deleted on 2026-10-25, so
+  `BACKUP_ENCRYPTION_KEY` decrypts nothing any more.
