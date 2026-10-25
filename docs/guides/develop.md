@@ -53,23 +53,20 @@ fires its handler, a k3s restart for the k3s templates.
   group_vars alone, which is why `roles/k3s` has no defaults file.
 - **One directory per app** under `/var/lib/k8s-data`; a multi-component
   service nests its volumes (`openpanel/{postgres,clickhouse,redis}`).
-- **Names** follow [ADR-023](../decisions/023-names-follow-the-owner-and-one-name-runs-through-everything.md):
-  `platform-<capability>` namespaces, declared in
-  `src/kubernetes/cluster/namespaces.yaml`, and `<app>-<env>` namespaces,
-  created by the app's own deploy, with `<app>` = `<brand>-<role>` as the one
-  name of its release, image, volume, data directory and Infisical folder.
-- **Deleting a file deletes nothing.** `kubectl apply` adds and updates, so an
-  object whose file leaves `src/kubernetes/cluster` stays live until it is
-  deleted by hand (`kubectl delete -f <file>` before the file goes). A release
-  dropped from the helmfile stays installed the same way: set `installed:
-  false` for one deploy, then remove the entry. Only the dashboards task prunes.
+- **A new name follows the owner**: `platform-<capability>` for the platform,
+  `<brand>-<role>` for an app, and the app's one name everywhere
+  ([Architecture](../concepts/architecture.md#names)).
 - **Immutable fields mean delete and recreate**: a Deployment selector, a PV's
   `hostPath.type`, a binding's `roleRef`. A changed `pathSuffix`, PV name or
   `<svc>-platform` release name moves or orphans live data.
 - **One helmfile, three passes.** Every platform release is declared in
   `src/kubernetes/helmfile.yaml.gotmpl` and nowhere else; its `.gotmpl` suffix
-  is what renders its `requiredEnv` calls
+  is what renders its `requiredEnv` calls. The play applies it three times:
+  `pass: operators` (cert-manager and the Infisical operator, whose CRDs the
+  rest uses), `pass: claims` (the `<svc>-platform` releases: volumes,
+  certificates and Secrets that workloads mount by name), then every release
   ([ADR-009](../decisions/009-one-helmfile-declares-every-platform-release.md)).
+  A new release needs no label unless something in an earlier pass reads it.
   One release is redeployed with `helmfile apply -l name=<release>`.
 - **CI never runs the host layer**: those roles restart sshd and tailscaled
   under the runner's own session, and creating the VM is `orbctl` on the Mac.
@@ -107,15 +104,42 @@ tuning on this host spends fewer fsyncs, never fewer bytes: a guest fsync is a
 
 ## DNS has exactly three owners
 
-- **Private**: `<svc>.internal.jterrazz.com` and `<app>.staging.jterrazz.com`,
-  covered by one wildcard per zone. A new private host needs no DNS change, only
-  a line in `private_hostnames` and `public: false` on its route.
+- **Private**: one wildcard per private zone, `*.internal.jterrazz.com` for
+  products and platform services (`console.internal`, `grafana.internal`) and
+  `*.staging.jterrazz.com` for staging environments. A new private host needs
+  no DNS change, only a line in `private_hostnames` and `public: false` on its
+  route.
 - **Public**: the Cloudflare tunnel's Public Hostnames own the records; add one
   in the Zero Trust dashboard, and nothing lands here.
-- **The platform deploy**: `dns_records`, the records nothing else creates
-  ([Operate](operate.md#dns-records-converged-by-the-platform-deploy)). It never
-  grows into a per-service list
+- **The platform deploy**: `dns_records` in group_vars, the three records
+  nothing else creates, converged on every platform deploy (tag `dns-records`)
+  with the token cert-manager uses, each name held to exactly that one record,
+  so a record edited in the dashboard comes back. It never grows into a
+  per-service list
   ([ADR-012](../decisions/012-private-hostnames-are-wildcard-zones.md)).
+
+| Name         | Type  | Content                                                      | Proxied |
+| ------------ | ----- | ------------------------------------------------------------ | ------- |
+| `*.internal` | CNAME | the node's tailnet name (`tailscale_dns_hostname`)           | no      |
+| `*.staging`  | CNAME | the node's tailnet name                                      | no      |
+| `analytics`  | CNAME | `<tunnel id>.cfargotunnel.com`, the tunnel token's `t` field | yes     |
+
+The wildcards only make a name resolve to a `100.x` address; the route's
+`private-access` allow-list and the Cf-Ray rule are the enforcement
+([Security](../concepts/security.md)), so a staging host on the public tunnel
+is the mistake to look for. A wildcard matches one label:
+`svc.internal`, never `a.b.internal`. Why each record exists is
+[ADR-012](../decisions/012-private-hostnames-are-wildcard-zones.md).
+
+Removing an entry does not delete its record: retire it from the list, then
+from the dashboard. To hand `analytics` to the tunnel, remove its entry first,
+then add the Public Hostname, which adopts the record.
+
+```bash
+dig +short grafana.internal.jterrazz.com    # the tailnet name
+dig +short signews.staging.jterrazz.com     # the tailnet name
+dig +short analytics.jterrazz.com           # Cloudflare addresses
+```
 
 A new public zone is three steps: add it to both ClusterIssuers in
 `src/kubernetes/services/cert-manager/issuers.yaml`, add its Public Hostname in

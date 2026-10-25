@@ -31,9 +31,10 @@ What the identity may do is
 [src/kubernetes/cluster/app-deployers/](../../src/kubernetes/cluster/app-deployers/), and
 there is no list of apps in it. A repo:
 
-1. creates its namespaces on its first deploy, labelled
-   `app.jterrazz.com/repository: <repo>`, and from then on owns them and nothing
-   else (the `app-deployer-ownership` admission policy);
+1. creates one namespace per environment on its first deploy, `<app>-<env>`,
+   labelled `app.jterrazz.com/tier: app`, `app.jterrazz.com/environment: <env>`
+   and `app.jterrazz.com/repository: <repo>`, and from then on owns them and
+   nothing else (the `app-deployer-ownership` admission policy);
 2. grants itself `app-namespace-admin` inside each of them with a RoleBinding,
    which is the only way it reads or writes anything namespaced;
 3. may create a hostPath volume only at `/var/lib/k8s-data/<pv name minus -data>`,
@@ -54,16 +55,18 @@ in our zones from inside its own namespace.
   `oci://registry.internal.jterrazz.com/charts/app`. An app never pins a chart
   version, which is why a template edit must bump `version:` in
   `charts/app/Chart.yaml`; see [Hand-synced pairs](hand-synced-pairs.md).
-- **Discovery instead of registration.** The platform contract
-  (`specs/specs/api`) probes what each IngressRoute's `smoke.jterrazz.com/*`
-  annotations say, and `make redeploy-apps` reads `app.jterrazz.com/repository`
-  off every app Deployment; no list of hostnames, status codes or repositories
-  lives here.
+- **Discovery instead of registration.** Its routes are probed from their own
+  `smoke.jterrazz.com/*` annotations and its repository is read back for a
+  repave, so nothing here lists hostnames, status codes or repositories
+  ([Test](../guides/test.md#what-a-deploy-proves)).
 
 ## Consequences worth knowing
 
-Renaming an app creates a new Helm release, and the old one keeps running:
-`helm uninstall <env>-<old> -n <env>-<old> && kubectl delete ns <env>-<old>`.
+Renaming an app creates a new release in a new namespace, and the old one
+keeps running: `helm uninstall <old>-<env> -n <old>-<env> && kubectl delete ns
+<old>-<env>`. Its volume's directory, `/var/lib/k8s-data/<old>-<env>`, is moved
+to the new name by hand before the first deploy under it, or the app starts
+empty.
 
 Node and Next.js packaging traps (pnpm `--ignore-scripts`, `output:
 'standalone'`, `mkdir -p public`) are the shared workflows' business, in

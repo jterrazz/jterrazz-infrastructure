@@ -41,22 +41,22 @@ app CI, which means a chart push reaches every app on its next deploy, so read
 apiVersion: jterrazz.com/v1
 kind: Application
 metadata:
-  name: my-app                  # required; names every object and the namespace
+  name: my-app # required; names every object, and CI's namespace <name>-<env>
 spec:
-  port: 3000                    # container port; the Service listens on servicePort (80)
+  port: 3000 # container port; the Service listens on servicePort (80)
   resources:
     cpu: 100m
     memory: 256Mi
-    memoryLimit: 512Mi          # optional; defaults to 2x the request
+    memoryLimit: 512Mi # optional; defaults to 2x the request
 
   health:
     path: /health
   env:
     LOG_LEVEL: info
   secrets:
-    path: /my-app               # Infisical path -> InfisicalSecret
+    path: /my-app # Infisical path -> InfisicalSecret
     env: [DATABASE_URL, API_TOKEN]
-  ingress:                      # base default; an environment may replace it
+  ingress: # base default; an environment may replace it
     - host: my-app.jterrazz.com
       path: /
       public: true
@@ -71,10 +71,10 @@ environments:
     replicas: 1
   next:
     tag: next
-    secretsEnv: prod            # this env's secrets live in Infisical env `prod`
+    secretsEnv: prod # this env's secrets live in Infisical env `prod`
     resources: { memory: 512Mi }
     ingress:
-      - host: my-app-next.jterrazz.com
+      - host: my-app-next.staging.jterrazz.com
         path: /
         public: false
 ```
@@ -88,7 +88,7 @@ NetworkPolicy and InfisicalSecret this chart emits are rendered by
 `src/kubernetes/charts/common`, a library chart shared with `platform-service` and
 bundled into this chart's published `.tgz`, so an app repo still pulls one
 unversioned chart and needs no new repository. What is written down there is
-the *shape* and its constraints; what is written down here is what an app
+the _shape_ and its constraints; what is written down here is what an app
 controls. See [charts/common/README.md](../common/README.md).
 
 ## Merge semantics
@@ -96,11 +96,11 @@ controls. See [charts/common/README.md](../common/README.md).
 Three layers, resolved per key: **the environment override, then `spec`, then the
 chart default**. Whole-value replacement, not deep merge, with two exceptions:
 
-| Key                     | Rule                                                             |
-| ----------------------- | ---------------------------------------------------------------- |
+| Key                                                    | Rule                                                                                                                         |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
 | any map (`resources`, `env`, `secrets`, `health`, ...) | Deep-merged per key: `resources: {memory: ...}` in an env keeps the base `cpu`. **The environment wins** on a key collision. |
-| any list (`ingress`, `platformServices`) | **Replaces**: an env's list fully supersedes `spec`'s, deliberately (a half-merged list of network surfaces is unreadable) |
-| any scalar              | Env value if present, else `spec`, else default                   |
+| any list (`ingress`, `platformServices`)               | **Replaces**: an env's list fully supersedes `spec`'s, deliberately (a half-merged list of network surfaces is unreadable)   |
+| any scalar                                             | Env value if present, else `spec`, else default                                                                              |
 
 One resolver implements all of it: `app.merged` in `templates/_helpers.tpl`,
 which is why an environment can override **any** `spec` key.
@@ -142,9 +142,9 @@ database.
 
 ```yaml
 resources:
-  cpu: 100m           # request only; no CPU limit is ever set
-  memory: 256Mi       # request
-  memoryLimit: 1Gi    # optional; default = 2x request (Mi/Gi aware)
+  cpu: 100m # request only; no CPU limit is ever set
+  memory: 256Mi # request
+  memoryLimit: 1Gi # optional; default = 2x request (Mi/Gi aware)
 ```
 
 Only memory is limited. `memoryLimit` defaults to double the request, always
@@ -163,9 +163,9 @@ Harmless on non-Node runtimes, where the variable is ignored.
 
 ```yaml
 health:
-  path: /health                 # default
-  timeoutSeconds: 5             # all three probes (k8s's 1s default is too tight)
-  startupFailureThreshold: 30   # x the k8s 10s period = 300s of boot grace
+  path: /health # default
+  timeoutSeconds: 5 # all three probes (k8s's 1s default is too tight)
+  startupFailureThreshold: 30 # x the k8s 10s period = 300s of boot grace
 ```
 
 All three probes share one action, `httpGet` on `health.path` at `spec.port`.
@@ -181,8 +181,8 @@ applies to the `httpGet` action only.
 
 ```yaml
 health:
-  path: /v1/models        # readiness: the route clients call
-  livenessPath: /healthz  # startup + liveness: the process answers
+  path: /v1/models # readiness: the route clients call
+  livenessPath: /healthz # startup + liveness: the process answers
 ```
 
 Two alternatives exist for a server that does not speak HTTP; the first one set
@@ -192,7 +192,7 @@ wins (`exec`, then `tcp`, then `path`):
 health:
   exec: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
 health:
-  tcp: true          # tcpSocket on spec.port
+  tcp: true # tcpSocket on spec.port
 ```
 
 `tcp` is for a server whose own client is too slow to start inside the probe
@@ -207,16 +207,15 @@ Each entry is
 ingress:
   - host: signews.jterrazz.com
     path: /api
-    public: true              # via cloudflared; no middleware
+    public: true # via cloudflared; the entrypoint's rate limit, compression and headers only
   - host: signews.internal.jterrazz.com
     path: /
-    public: false             # tailnet-only: private-access middleware attached
+    public: false # tailnet-only: private-access middleware attached
 ```
 
 - `public` is **required** per entry: the render fails without it rather
   than silently defaulting a network-visibility decision.
-- The single-object form was removed in chart 1.17.0; a non-list fails with
-  an explicit message.
+- A single object instead of a list fails with an explicit message.
 - `access: private | public` is the same decision as `public:` in
   `platform-service`'s vocabulary. Set one or the other, never both;
   `public:` stays the everyday spelling.
@@ -242,12 +241,12 @@ ingress:
 
   ```yaml
   ingress:
-    - host: www.jterrazz.com          # canonical, serves the app
+    - host: www.jterrazz.com # canonical, serves the app
       public: true
-    - host: jterrazz.com              # apex -> www, path preserved
+    - host: jterrazz.com # apex -> www, path preserved
       public: true
       redirectTo: https://www.jterrazz.com
-    - host: blog.jterrazz.com         # legacy subdomain -> one fixed page
+    - host: blog.jterrazz.com # legacy subdomain -> one fixed page
       public: true
       redirectTo: https://www.jterrazz.com/articles
       preservePath: false
@@ -255,15 +254,16 @@ ingress:
 
   A redirect host still needs its own `Certificate` and its own Public Hostname
   on the Cloudflare tunnel, because TLS terminates before the redirect is served.
+
 - One `Certificate` per **unique host** (`<app>-<host-slug>-tls`, DNS-01 via
   the `letsencrypt-production` ClusterIssuer); one `IngressRoute` per
   **entry** (`<app>-<idx>`), so two entries can share a host.
 - Public hostnames still need a Public Hostname route in the Cloudflare Zero
   Trust dashboard, and a new zone must be added to cert-manager's
-  `issuers.yaml`. Private `*.internal.jterrazz.com` and
-  `<app>.staging.jterrazz.com` names resolve through one wildcard
-  CNAME per zone and need no DNS work, only `public: false` and a line in the
-  infrastructure repo's `private_hostnames`. Staging is always private.
+  `issuers.yaml`. A private name sits under one of the two wildcard zones,
+  `<product>.internal.jterrazz.com` or `<name>.staging.jterrazz.com`, and
+  needs no DNS work, only `public: false` and a line in the infrastructure
+  repo's `private_hostnames`. Staging is always private.
 
 #### `smoke:` names what the probe should get back
 
@@ -272,12 +272,12 @@ every IngressRoute in the cluster and probes what these annotations say. **You a
 block**: the chart already knows where the route lives and where the app says
 it is healthy, so it derives the contract per entry.
 
-| Entry | Probes | Expects |
-| --- | --- | --- |
-| `path: /` (or no path) | `spec.health.path` | `200` |
-| `path: /api` (stripPrefix on, the default) | `/api` + `spec.health.path` | `200` |
-| `path: /mcp` with `stripPrefix: false` | **nothing**, opted out | nothing |
-| `redirectTo: ...` | `/` | `301`, **and** the `Location` the middleware sends |
+| Entry                                      | Probes                      | Expects                                            |
+| ------------------------------------------ | --------------------------- | -------------------------------------------------- |
+| `path: /` (or no path)                     | `spec.health.path`          | `200`                                              |
+| `path: /api` (stripPrefix on, the default) | `/api` + `spec.health.path` | `200`                                              |
+| `path: /mcp` with `stripPrefix: false`     | **nothing**, opted out      | nothing                                            |
+| `redirectTo: ...`                          | `/`                         | `301`, **and** the `Location` the middleware sends |
 
 The `stripPrefix: false` case opts out because the app routes everything under
 that prefix itself: nothing here can know which URL below it answers, and a
@@ -289,16 +289,16 @@ Override only when the derived answer is wrong:
 
 ```yaml
 ingress:
-  - host: my-app.jterrazz.com          # derived: GET /health -> 200
+  - host: my-app.jterrazz.com # derived: GET /health -> 200
     public: true
   - host: my-app.jterrazz.com
     path: /mcp
     public: true
     stripPrefix: false
-    smoke: { path: /mcp/ping, expect: "200" }   # opts a literal-prefix route back in
+    smoke: { path: /mcp/ping, expect: "200" } # opts a literal-prefix route back in
   - host: legacy.jterrazz.com
     public: false
-    smoke: false                                # never probed
+    smoke: false # never probed
 ```
 
 `expect` is a comma-separated list of accepted codes; keep it as narrow as the
@@ -309,15 +309,23 @@ GET there 404s whether the backend is healthy or not.
 
 A route whose `stripPrefix` is neither its own path nor false also opts out by
 default: nothing can derive the external health URL when the stripped prefix and
-the routed one differ. That is what the ingest route's explicit block above
-opts back in.
+the routed one differ. OpenPanel's ingest route is one, and opts back in with
+an explicit block:
+
+```yaml
+- host: analytics.jterrazz.com
+  path: /api/track
+  public: true
+  stripPrefix: /api # routed on /api/track, served on /track
+  smoke: { method: POST, path: /api/track, expect: "400" } # an empty body is refused
+```
 
 ### `spec.secrets` and `secretsEnv`
 
 ```yaml
 secrets:
-  path: /my-app            # Infisical secretsPath (project `jterrazz`)
-  env: [DATABASE_URL]      # keys projected into the container as secretKeyRef
+  path: /my-app # Infisical secretsPath (project `jterrazz`)
+  env: [DATABASE_URL] # keys projected into the container as secretKeyRef
 ```
 
 Renders an `InfisicalSecret` (`<app>-infisical`) that syncs into Secret
@@ -337,10 +345,10 @@ the app sets them itself: `PORT`, `OTEL_SERVICE_NAME` (= app name),
 
 ```yaml
 storage:
-  size: 2Gi            # required unless claimName is set
-  mountPath: /data     # always required
-  claimName: openpanel-postgres   # optional: mount a claim another release owns
-  owner: "70:70"       # optional: the uid:gid to chown to (default 1000:1000)
+  size: 2Gi # required unless claimName is set
+  mountPath: /data # always required
+  claimName: openpanel-postgres # optional: mount a claim another release owns
+  owner: "70:70" # optional: the uid:gid to chown to (default 1000:1000)
 ```
 
 `size` and `mountPath` are `required`: a missing one would otherwise render an
@@ -348,7 +356,7 @@ unbindable PV or an empty mountPath, diagnosable only at runtime.
 
 **`claimName` means the volume belongs to someone else**: a `<svc>-platform`
 release, whose `storage:` map created it and whose release name is the identity
-of that live data. This chart then only *mounts* it and renders no PV/PVC of its
+of that live data. This chart then only _mounts_ it and renders no PV/PVC of its
 own (so `size` is unused): two releases owning one volume is how a
 `helm uninstall` of the wrong one deletes a bound claim.
 
@@ -391,7 +399,7 @@ configFiles:
 
 ```yaml
 secretMounts:
-  - secretName: registry-auth      # an EXISTING Secret; this chart creates none
+  - secretName: registry-auth # an EXISTING Secret; this chart creates none
     mountPath: /auth
 ```
 
@@ -424,22 +432,22 @@ one data key `<name>.yaml` per entry, picked up by Grafana's `sidecar.alerts`
 
 ```yaml
 spec:
-    alerts:
-        signews-api: |
-            apiVersion: 1
-            groups:
-              - orgId: 1
-                name: signews-api
-                folder: signews-api
-                interval: 1m
-                rules:
-                  - uid: signews-api-eventloop-lag
-                    ...
+  alerts:
+    signews-api: |
+      apiVersion: 1
+      groups:
+        - orgId: 1
+          name: signews-api
+          folder: signews-api
+          interval: 1m
+          rules:
+            - uid: signews-api-eventloop-lag
+              ...
 ```
 
 **Only rendered when `environment == prod`**, and for a harder reason than
 dashboards: a rule `uid:` is global in Grafana, so a staging copy of a rule
-would not sit beside the prod one; it would provision *over* it.
+would not sit beside the prod one; it would provision _over_ it.
 
 **The rules are checked in every environment, and a bad one fails the
 render.** Grafana reloads every app's rule files as one set, so one file it
@@ -459,11 +467,8 @@ Two deliberate differences from `spec.dashboards`:
   behind still provisioning a rule nobody maintains.
 
 Unlike dashboards, **CI does not populate this map from a directory**:
-`docker-deploy`'s `--set-file` loop is hardcoded to `dashboards/*.json`, so
-alerts are written inline in `.infrastructure/application.yaml` today. The map
-shape is identical to what `--set-file` produces, so generalising that loop to
-also scan `alerts/*.yaml` is a jterrazz-actions-only change; this chart needs
-no edit when it happens.
+`docker-deploy` reads only `dashboards/*.json`, so alerts are written inline in
+`.infrastructure/application.yaml`.
 
 **Removing a rule takes one more step.** Grafana keeps a provisioned rule in
 its database when the file that declared it disappears, so a rule dropped from
@@ -484,8 +489,6 @@ YAML
 sleep 60 && kubectl -n platform-telemetry delete configmap delete-rule
 ```
 
-The registry's `registry-gc-stale` outlived distribution this way until 2026-10-25.
-
 ### `spec.cronJobs`
 
 Map of `name -> job`. Each entry renders a CronJob `<app>-<name>` that runs
@@ -495,27 +498,27 @@ server: the same image, `env`, secrets, platform-service env, `configFiles`,
 
 ```yaml
 spec:
-    cronJobs:
-        digest:
-            schedule: "0 6 * * *"                 # required
-            command: ["node", "dist/digest.js"]   # required
-            args: ["--since", "24h"]
-            resources: { memory: 512Mi }          # deep-merged over spec.resources
+  cronJobs:
+    digest:
+      schedule: "0 6 * * *" # required
+      command: ["node", "dist/digest.js"] # required
+      args: ["--since", "24h"]
+      resources: { memory: 512Mi } # deep-merged over spec.resources
 ```
 
-| Key                       | Default   | Why that default                                                                                               |
-| ------------------------- | --------- | -------------------------------------------------------------------------------------------------------------- |
-| `schedule`                | required  |                                                                                                                |
-| `command`                 | required  | The app's entrypoint is its server. Scheduled, it would never exit, and would run until the deadline killed it. |
-| `args`                    | none      |                                                                                                                |
-| `timeZone`                | `Etc/UTC` | Explicit and free of DST. In a zone that changes clocks, a 02:30 schedule is skipped one night a year and run twice another. |
-| `concurrencyPolicy`       | `Forbid`  | A run that overruns its interval never gets a second copy beside it.                                            |
-| `startingDeadlineSeconds` | `600`     | A run missed by more than ten minutes (the cluster was down) is skipped, not replayed late.                    |
+| Key                       | Default   | Why that default                                                                                                                |
+| ------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `schedule`                | required  |                                                                                                                                 |
+| `command`                 | required  | The app's entrypoint is its server. Scheduled, it would never exit, and would run until the deadline killed it.                 |
+| `args`                    | none      |                                                                                                                                 |
+| `timeZone`                | `Etc/UTC` | Explicit and free of DST. In a zone that changes clocks, a 02:30 schedule is skipped one night a year and run twice another.    |
+| `concurrencyPolicy`       | `Forbid`  | A run that overruns its interval never gets a second copy beside it.                                                            |
+| `startingDeadlineSeconds` | `600`     | A run missed by more than ten minutes (the cluster was down) is skipped, not replayed late.                                     |
 | `backoffLimit`            | `0`       | A failed run is not retried blindly: it stays failed and visible, and the next schedule is the retry. Kubernetes' default is 6. |
-| `activeDeadlineSeconds`   | `3600`    | A wedged run is killed after an hour.                                                                          |
-| `suspend`                 | `false`   | The kill switch, per environment.                                                                              |
-| `storage`                 | `false`   | `true` mounts `spec.storage`, through the same claim as the Deployment.                                       |
-| `resources`               | the app's | Deep-merged over `spec.resources`, so setting only `memory` keeps the app's cpu.                               |
+| `activeDeadlineSeconds`   | `3600`    | A wedged run is killed after an hour.                                                                                           |
+| `suspend`                 | `false`   | The kill switch, per environment.                                                                                               |
+| `storage`                 | `false`   | `true` mounts `spec.storage`, through the same claim as the Deployment.                                                         |
+| `resources`               | the app's | Deep-merged over `spec.resources`, so setting only `memory` keeps the app's cpu.                                                |
 
 The history limits are fixed at 1 succeeded and 3 failed Jobs, and pods run
 with `restartPolicy: Never`.
@@ -551,9 +554,9 @@ an app without `spec.storage`, fails the render.
 Opt-in wiring to in-cluster platform services. The catalog is the single
 source of truth in `templates/_helpers.tpl` (`app.platformCatalog`):
 
-| Name                   | Injects env                                                                        | Opens egress to                     | Client label |
-| ---------------------- | ---------------------------------------------------------------------------------- | ----------------------------------- | ------------ |
-| `otel-collector`       | `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.platform-telemetry:4318`          | `platform-telemetry` :4317, :4318   | none         |
+| Name                    | Injects env                                                                                                  | Opens egress to                    | Client label                                         |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------- | ---------------------------------------------------- |
+| `otel-collector`        | `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.platform-telemetry:4318`                                  | `platform-telemetry` :4317, :4318  | none                                                 |
 | `jterrazz-intelligence` | `GATEWAY_INTELLIGENCE_BASE_URL=http://jterrazz-intelligence.jterrazz-intelligence-prod.svc.cluster.local/v1` | `jterrazz-intelligence-prod` :8317 | `platform-client.jterrazz.com/jterrazz-intelligence` |
 
 Declaring a name wires the whole bundle at once:
@@ -576,6 +579,11 @@ opt-in: an app that doesn't declare `otel-collector` gets no OTLP endpoint.
 Env names are the contract the client reads, not the service's name:
 `GATEWAY_INTELLIGENCE_BASE_URL` is what `@jterrazz/intelligence` reads, and
 `OTEL_EXPORTER_OTLP_ENDPOINT` is the OTel SDK's.
+
+`jterrazz-intelligence` is an app (repository `gateway-intelligence`) that
+enforces no API key, so this client label and its private-only route are its
+whole boundary. Its consumers pass the non-secret placeholder `gateway-noauth`
+that the OpenAI and Anthropic SDKs require.
 
 ### NetworkPolicy
 
@@ -661,12 +669,12 @@ every app here writes caches (`.next/cache`, `/tmp`) at runtime.
 
 ```yaml
 spec:
-  securityContext:              # merged OVER the defaults, per key
+  securityContext: # merged OVER the defaults, per key
     capabilities:
       drop: ["ALL"]
       add: ["NET_BIND_SERVICE"]
-  runAsRoot: true               # escape hatch: drops runAsNonRoot AND the
-                                # pod-level uid/gid/fsGroup block entirely
+  runAsRoot: true # escape hatch: drops runAsNonRoot AND the
+    # pod-level uid/gid/fsGroup block entirely
 ```
 
 Use `securityContext` to give one capability back; `runAsRoot` only for an
@@ -677,23 +685,23 @@ you reach for; fix the image.
 
 For a declared environment, namespace `<app>-<environment>` (ADR-023):
 
-| Object                    | Name                          | Condition                       |
-| ------------------------- | ----------------------------- | ------------------------------- |
-| Deployment                | `<app>`                       | always                          |
-| Service (ClusterIP `servicePort`) | `<app>`               | always                          |
-| NetworkPolicy             | `<app>`                       | always                          |
-| Certificate               | `<app>-<host-slug>-tls`       | per unique ingress host that does not name a `tlsSecret` |
-| IngressRoute              | `<app>-<idx>`                 | per ingress entry               |
-| Middleware (stripPrefix)  | `<app>-<idx>-strip-prefix`    | entry has a non-`/` path, `stripPrefix` is not false, and it is not a redirect |
-| Middleware (redirectRegex) | `<app>-<idx>-redirect`       | entry sets `redirectTo`          |
-| InfisicalSecret           | `<app>-infisical`             | `spec.secrets.path` set         |
-| InfisicalSecret           | `<app>-registry-infisical`    | `spec.image` is on our registry; it syncs the `registry-credentials` dockerconfigjson |
-| ConfigMap                 | `<app>-config`                | `spec.configFiles` set          |
-| ConfigMap                 | `<app>-dashboard-<name>`      | `spec.dashboards` set **and** env is prod |
-| ConfigMap                 | `<app>-alerts`                | `spec.alerts` set **and** env is prod |
-| CronJob                   | `<app>-<name>`                | per `spec.cronJobs` entry        |
-| NetworkPolicy             | `<app>-cronjobs`              | `spec.cronJobs` set             |
-| PV / PVC                  | `<app>-<env>-data` / `<app>-data` | `spec.storage` set **without** a `claimName` |
+| Object                            | Name                              | Condition                                                                             |
+| --------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------- |
+| Deployment                        | `<app>`                           | always                                                                                |
+| Service (ClusterIP `servicePort`) | `<app>`                           | always                                                                                |
+| NetworkPolicy                     | `<app>`                           | always                                                                                |
+| Certificate                       | `<app>-<host-slug>-tls`           | per unique ingress host that does not name a `tlsSecret`                              |
+| IngressRoute                      | `<app>-<idx>`                     | per ingress entry                                                                     |
+| Middleware (stripPrefix)          | `<app>-<idx>-strip-prefix`        | entry has a non-`/` path, `stripPrefix` is not false, and it is not a redirect        |
+| Middleware (redirectRegex)        | `<app>-<idx>-redirect`            | entry sets `redirectTo`                                                               |
+| InfisicalSecret                   | `<app>-infisical`                 | `spec.secrets.path` set                                                               |
+| InfisicalSecret                   | `<app>-registry-infisical`        | `spec.image` is on our registry; it syncs the `registry-credentials` dockerconfigjson |
+| ConfigMap                         | `<app>-config`                    | `spec.configFiles` set                                                                |
+| ConfigMap                         | `<app>-dashboard-<name>`          | `spec.dashboards` set **and** env is prod                                             |
+| ConfigMap                         | `<app>-alerts`                    | `spec.alerts` set **and** env is prod                                                 |
+| CronJob                           | `<app>-<name>`                    | per `spec.cronJobs` entry                                                             |
+| NetworkPolicy                     | `<app>-cronjobs`                  | `spec.cronJobs` set                                                                   |
+| PV / PVC                          | `<app>-<env>-data` / `<app>-data` | `spec.storage` set **without** a `claimName`                                          |
 
 ## Versioning and publishing
 

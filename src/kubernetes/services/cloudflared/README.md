@@ -38,5 +38,5 @@ POD_IP=$(kubectl get pod -n platform-networking -l app=cloudflared \
 curl -s "http://$POD_IP:2000/metrics" | grep '^cloudflared_tunnel_total_requests '
 ```
 
-The token is read once at start: after a rotation,
-`kubectl rollout restart deploy/cloudflared -n platform-networking`.
+Rotating the token is
+[Operate](../../../../docs/guides/operate.md#rotating-credentials).

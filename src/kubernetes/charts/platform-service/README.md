@@ -1,9 +1,9 @@
 # platform-service chart
 
 The half of a platform service that this repo owns. The workload itself comes
-from an upstream chart (or a hand-written manifest); this chart supplies what
-that chart cannot: the Traefik route, the certificate, the hostPath volumes and
-the NetworkPolicy.
+from an upstream chart or the app chart; this chart supplies what an upstream
+chart cannot: the Traefik route, the certificate, the hostPath volumes, the
+synced Secret and the NetworkPolicy.
 
 One values file per service, `src/kubernetes/services/<svc>/service.yaml`, rendered
 by the `<svc>-platform` release in `src/kubernetes/helmfile.yaml.gotmpl`. **That
@@ -11,17 +11,17 @@ release name is frozen**: renaming it creates a new release and orphans the
 hostPath PV the old one bound.
 
 `values.yaml` is the field-by-field reference and owns every default. This file
-is the *why*, and the recipes.
+is the _why_, and the recipes.
 
-| Object | Name | Rendered when |
-| --- | --- | --- |
-| `IngressRoute` | `<name>` | `host` is set |
-| `Certificate` | `<name>-tls` | `host` is set |
-| `Certificate` | `<key>` | per `certificates.<key>` |
-| `InfisicalSecret` | `<name>-infisical` | `secrets` is set |
-| `PersistentVolume` | `<name>-<key>` | per `storage.<key>` |
-| `PersistentVolumeClaim` | `<name>-<key>`, or `claimName` | per `storage.<key>` |
-| `NetworkPolicy` | `<name>` | `network` is set |
+| Object                  | Name                           | Rendered when            |
+| ----------------------- | ------------------------------ | ------------------------ |
+| `IngressRoute`          | `<name>`                       | `host` is set            |
+| `Certificate`           | `<name>-tls`                   | `host` is set            |
+| `Certificate`           | `<key>`                        | per `certificates.<key>` |
+| `InfisicalSecret`       | `<name>-infisical`             | `secrets` is set         |
+| `PersistentVolume`      | `<name>-<key>`                 | per `storage.<key>`      |
+| `PersistentVolumeClaim` | `<name>-<key>`, or `claimName` | per `storage.<key>`      |
+| `NetworkPolicy`         | `<name>`                       | `network` is set         |
 
 All of them come from `src/kubernetes/charts/common`, the library chart this one and
 `app` share; that is where the IngressRoute shape, the never-chain-ipAllowLists
@@ -45,15 +45,15 @@ canonical `host`; this is not a place to park unrelated hostnames.
 
 ```yaml
 storage:
-  data:      { size: 3Gi, pathSuffix: postgres, claimName: storage-svc-0 }
-  uploads:   { size: 5Gi, pathSuffix: uploads }
+  data: { size: 3Gi, pathSuffix: postgres, claimName: storage-svc-0 }
+  uploads: { size: 5Gi, pathSuffix: uploads }
 ```
 
-| Key | Meaning |
-| --- | --- |
-| `size` | required; the PV capacity and the PVC request |
-| `pathSuffix` | nests the hostPath under `<name>/` (one directory per app) |
-| `claimName` | overrides the PVC name only, never the PV or the binding |
+| Key             | Meaning                                                                                  |
+| --------------- | ---------------------------------------------------------------------------------------- |
+| `size`          | required; the PV capacity and the PVC request                                            |
+| `pathSuffix`    | nests the hostPath under `<name>/` (one directory per app)                               |
+| `claimName`     | overrides the PVC name only, never the PV or the binding                                 |
 | `nodeLocalPath` | an absolute hostPath outside `/var/lib/k8s-data`, in the VM rather than on the Mac share |
 
 Names and paths address live data; read `templates/storage.yaml` and the
@@ -65,15 +65,15 @@ only at something reconstructible (`grafana-data` is the one user).
 
 ```yaml
 secrets:
-  path: /jterrazz-infrastructure/otel-collector  # Infisical secretsPath
-  secretName: otel-collector-secrets             # what the CONSUMER reads
-  env: prod                                      # Infisical env slug; the default
+  path: /jterrazz-infrastructure/otel-collector # Infisical secretsPath
+  secretName: otel-collector-secrets # what the CONSUMER reads
+  env: prod # Infisical env slug; the default
 ```
 
 Renders `InfisicalSecret <name>-infisical`, which the operator syncs into
 `secretName` in the release's namespace. **`secretName` is required and is a
 contract, not a derived string**: the collector's `values.yaml` reads one key
-out of it by name, cloudflared's Deployment names it in a `secretKeyRef`, and an
+out of it by name, cloudflared's release mounts it as a file, and an
 upstream chart may wire `envFrom` to a literal name it chose. Rename it and the
 credential simply never arrives, with no error anywhere.
 
@@ -109,8 +109,8 @@ secrets:
 
 ```yaml
 certificates:
-  openpanel-tls:            { dnsNames: [openpanel.internal.jterrazz.com] }
-  openpanel-analytics-tls:  { dnsNames: [analytics.jterrazz.com] }
+  openpanel-tls: { dnsNames: [openpanel.internal.jterrazz.com] }
+  openpanel-analytics-tls: { dnsNames: [analytics.jterrazz.com] }
 ```
 
 The service's own `host` needs nothing here; it already gets `<name>-tls`.
@@ -132,8 +132,8 @@ two annotations say:
 
 ```yaml
 smoke:
-  path: /v2/       # default `/`
-  expect: "401"    # default "200"; comma-separated for several acceptable codes
+  path: /v2/ # default `/`
+  expect: "401" # default "200"; comma-separated for several acceptable codes
 ```
 
 The default (`/` -> 200) is the weakest useful claim, so most services need no
@@ -143,8 +143,8 @@ challenges for a token with a 401), and keep the list as narrow as the service
 allows. `000` and any 5xx must never be in it; a probe that accepts them is a
 probe that cannot fail.
 
-The annotation contract itself, including the two things only the app chart and
-hand-written manifests emit (`location`, `method`), is
+The annotation contract itself, including the two things only the app chart
+emits (`location`, `method`), is
 `src/kubernetes/charts/common/templates/_smoke.tpl`.
 
 ## `network:`, the per-service policy
@@ -152,12 +152,12 @@ hand-written manifests emit (`location`, `method`), is
 NetworkPolicies **union**, so a namespace's rules are split by ownership rather
 than by file convenience:
 
-| Rule | Lives in |
-| --- | --- |
-| default-deny, allow-same-namespace, namespace-wide DNS/egress | `src/kubernetes/cluster/network-policies/<ns>.yaml` |
-| anything that names ONE workload with a `-platform` release | that service's `network:` |
-| anything that names ONE workload rendered by the **app** chart | that workload's `spec.network` (`isolated:`, `exposeTo:`, `egress:`) |
-| anything that names a workload with no release of its own (cloudflared, whose `hostNetwork: true` means NetworkPolicy never sees its traffic anyway) | still `cluster/network-policies/<ns>.yaml` |
+| Rule                                                                                | Lives in                                                             |
+| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| default-deny, allow-same-namespace, namespace-wide DNS/egress                       | `src/kubernetes/cluster/network-policies/<ns>.yaml`                  |
+| anything that names ONE workload with a `-platform` release                         | that service's `network:`                                            |
+| anything that names ONE workload rendered by the **app** chart                      | that workload's `spec.network` (`isolated:`, `exposeTo:`, `egress:`) |
+| anything that names an upstream workload with no `-platform` release (cert-manager) | still `cluster/network-policies/<ns>.yaml`                           |
 
 `podSelector` is required and never derived: the pods are the upstream chart's,
 so read their labels off `kubectl get pod --show-labels`.
@@ -184,15 +184,15 @@ denying it.
 
 ### Peers
 
-| `from:` / `to:` | Selects |
-| --- | --- |
-| `traefik` | the `kube-system` namespace, where k3s runs Traefik |
-| `namespace:<ns>` | one namespace, by its `kubernetes.io/metadata.name` |
-| `any-namespace` | every namespace, which is what DNS egress needs |
-| `pods:<key>=<value>` | pods carrying a label, in **this** namespace |
-| `any-namespace-pods:<key>=<value>` | pods carrying a label, in any namespace |
-| `internet` | `0.0.0.0/0` **except** RFC1918 |
-| `anywhere` | `0.0.0.0/0`, no exception |
+| `from:` / `to:`                    | Selects                                             |
+| ---------------------------------- | --------------------------------------------------- |
+| `traefik`                          | the `kube-system` namespace, where k3s runs Traefik |
+| `namespace:<ns>`                   | one namespace, by its `kubernetes.io/metadata.name` |
+| `any-namespace`                    | every namespace, which is what DNS egress needs     |
+| `pods:<key>=<value>`               | pods carrying a label, in **this** namespace        |
+| `any-namespace-pods:<key>=<value>` | pods carrying a label, in any namespace             |
+| `internet`                         | `0.0.0.0/0` **except** RFC1918                      |
+| `anywhere`                         | `0.0.0.0/0`, no exception                           |
 
 `internet` and `anywhere` are deliberately distinct and one is not a tidier
 spelling of the other. On this cluster the apiserver is RFC1918 twice over:
@@ -202,7 +202,7 @@ scrape a target set no static list can enumerate, needs `anywhere`.
 
 ### The traps
 
-**Ports are POD ports, never Service ports.** A policy is evaluated *after*
+**Ports are POD ports, never Service ports.** A policy is evaluated _after_
 kube-proxy's DNAT, so the destination it sees is the containerPort. Grafana's
 Service is `80 -> 3000`; a rule naming 80 applies to nothing, and the traffic is
 dropped by the namespace default-deny with nothing logged anywhere.
@@ -212,8 +212,8 @@ which NetworkPolicy reads as "in this policy's own namespace"; the second adds
 an empty `namespaceSelector` and admits a pod of that name from anywhere in the
 cluster. For an unauthenticated database that difference is the whole control.
 
-**hostNetwork clients are not pods.** cloudflared and the apiserver arrive as
-the node address, so only an `ipBlock` peer matches them; a namespace- or
+**hostNetwork clients are not pods.** The apiserver and node-exporter arrive
+as the node address, so only an `ipBlock` peer matches them; a namespace- or
 pod-selector rule silently excludes them.
 
 A bare port number is TCP (the Kubernetes default, left unwritten so the

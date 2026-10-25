@@ -4,9 +4,11 @@
 **Date:** 2026-10-24
 
 Written 2026-10-24 from the comments in `src/kubernetes/cluster/namespaces.yaml`,
-the app chart's hardening tests and the k3s Pod Security template (commit
-4584007) that this record summarises; the template keeps its comments, since
+the app chart's hardening tests and the k3s Pod Security template (commit 4584007) that this record summarises; the template keeps its comments, since
 it is rendered onto the node.
+
+Revised 2026-10-25: host access granted per workload by an admission policy;
+`platform-networking` is `baseline` since cloudflared left the host network.
 
 ## Context
 
@@ -25,12 +27,21 @@ all (audit 2026-10-24).
   root with CHOWN, FOWNER and DAC_OVERRIDE. kube-system is exempt: k3s' svclb
   and helm-install pods need NET_ADMIN.
 - **Platform namespaces are declared in one file** with the same levels;
-  `platform-networking` and `platform-telemetry` enforce `privileged`,
-  because cloudflared and node-exporter need hostNetwork and hostPath, which
-  baseline forbids. Never `kubectl create ns`, and never helm's
+  `platform-telemetry` alone enforces `privileged`, because node-exporter and
+  the log collector need the host network and hostPath, which baseline
+  forbids. Never `kubectl create ns`, and never helm's
   `--create-namespace`, which would create an unlabelled namespace first and
   win the race. An app's deploy creates its own namespace (ADR-017), and the
   cluster default makes it `baseline` without any label.
+- **Host access is granted per workload, not per namespace.** A
+  `privileged` namespace admits host access for anything deployed there, so
+  the `host-access` ValidatingAdmissionPolicy (`src/kubernetes/cluster/host-access/`)
+  narrows it for the whole cluster: a pod asking for the host network, PID or
+  IPC namespace, a hostPath volume or a privileged container is admitted only
+  in `kube-system` or under the `node-exporter` and `otel-collector`
+  ServiceAccounts of `platform-telemetry`. A namespace grouped by privilege
+  instead of by domain was rejected: it would split the telemetry stack and
+  name a namespace after a property instead of its contents.
 - **An app cannot opt out**: the ownership policy refuses a `privileged`
   level on a namespace an app creates.
 - **The app chart fails at render** when an app loosens its securityContext
@@ -42,19 +53,6 @@ all (audit 2026-10-24).
 - Every app pod is admission-checked, and restricted violations are visible
   in audit before anyone enforces them.
 - Enforcing restricted would first need the chown init container gone.
-- The upgrade test catches a Pod Security refusal before the real cluster.
-
-## Addendum, 2026-10-25: host access is granted per workload
-
-Pod Security is per namespace, so `platform-telemetry` had to be `privileged`
-for two pods, node-exporter and the log collector, and that level admitted the
-same host access for anything else deployed there. The `host-access`
-ValidatingAdmissionPolicy (`src/kubernetes/cluster/host-access/`) closes it for
-the whole cluster: a pod asking for the host network, PID or IPC namespace, a
-hostPath volume or a privileged container is admitted only in `kube-system` or
-under the `node-exporter` and `otel-collector` ServiceAccounts of
-`platform-telemetry`. A namespace grouped by privilege instead of by domain was
-considered and rejected: it would have split the telemetry stack and named a
-namespace after a property instead of its contents. The admission suite
-(`specs/specs/admission/host-access/`) holds three denials and three admissions.
-`platform-networking` is `baseline` since cloudflared left the host network.
+- The upgrade test catches a Pod Security or host-access refusal before the
+  real cluster; `specs/specs/admission/host-access/` holds three denials and
+  three admissions.

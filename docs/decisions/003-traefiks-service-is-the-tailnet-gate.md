@@ -10,6 +10,8 @@ Written 2026-10-24 from the comments in
 from the close of public 80/443 (6dc3915); the NodePort and timeout rows from
 the 2026-10-24 audit and incidents.
 
+Revised 2026-10-25: a private route never matches a request carrying `Cf-Ray`.
+
 ## Context
 
 Traefik is k3s' bundled release, installed by helm-controller from a
@@ -66,7 +68,7 @@ the HelmChartConfig, applied before Traefik's install job is awaited.
   service CIDRs, loopback, Tailscale CGNAT, link-local, OrbStack's
   198.19.0.0/16, RFC1918 172.16/12 and 192.168/16), never Cloudflare's edge
   CIDRs: Cloudflare never talks to Traefik directly, its peer is always
-  cloudflared on the node. A wrong list silently strips the client IP from
+  cloudflared in the cluster. A wrong list silently strips the client IP from
   `X-Forwarded-For`.
 - **The rate limiter keys on `Cf-Connecting-Ip`** (100 req/s, burst 200,
   attached to the websecure entrypoint): the edge sets it and overwrites any

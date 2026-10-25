@@ -9,6 +9,9 @@ that this record replaces (the platform-service rename, 076bc79; app chart
 2.11, which absorbed OpenPanel and the registry; OpenPanel's in-cluster SSR
 on 2026-09-19).
 
+Revised 2026-10-25: cloudflared became an app-chart release; no workload is a
+raw manifest.
+
 ## Context
 
 Apps deploy from their own repositories; the platform deploys from this one.
@@ -99,16 +102,13 @@ those fetches to op-api's Service instead; the workarounds were retired on
 image ever drops it, all three come back together, never one at a time,
 with `platform-analytics` admitted by `allow-traefik-ingress`.
 
-Two operating rules come with it: `ALLOW_REGISTRATION` stays `"false"` on
-op-api and op-dashboard (to add a user, flip both, invite, flip back, and
-always keep a password login: OAuth-only plus signup-disabled can lock you
-out, upstream #363); and the public smoke probe POSTs `{}` and expects 400,
-since 2.3.0 validates the body before the client headers.
+Its operating rules, adding a user among them, are in the
+[OpenPanel README](../../src/kubernetes/services/openpanel/README.md).
 
 ## Consequences
 
-- A raw manifest is the exception, justified in
-  [Develop](../guides/develop.md#conventions-the-layout-implies); today only cloudflared.
+- No workload is a raw manifest; the raw manifests left are configuration
+  (the ClusterIssuers, Traefik's HelmChartConfig).
 - Changing a `pathSuffix`, a PV name or a `<name>-platform` release name moves
   or orphans live data: the paths are byte-identical to what the pre-chart
   manifests produced, on purpose.

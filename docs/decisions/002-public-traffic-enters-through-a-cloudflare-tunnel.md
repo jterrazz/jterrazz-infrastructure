@@ -7,6 +7,10 @@ Written 2026-10-24 from the comments in `src/kubernetes/services/cloudflared/`,
 `group_vars` and `roles/platform` that this record replaces (the tunnel
 landed in 10ac6e2, before public 80/443 were closed in 6dc3915).
 
+Revised 2026-10-25: cloudflared is an app-chart release on pod networking, its
+token a mounted file, and `platform-networking`'s allowances select cert-manager
+alone, so cloudflared's egress is its own release's.
+
 ## Context
 
 The cluster runs on an OrbStack VM on a Mac, behind NAT, with no public

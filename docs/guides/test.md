@@ -52,10 +52,11 @@ suites pin the whole render, and a failing snapshot is read before
 runs the real `platform.yml` twice: from the base tree (the pull request's
 base, the commit before a push, or a dispatched `base`; `HEAD` tests a re-run),
 then from this one. It proves every release applies on top of the previous
-tree: schemas, Pod Security, the ownership policy, immutable fields, a task
-that breaks on a re-run. Each pass ends on `helm list --failed`. It then runs
-`specs/specs/cluster` and `specs/specs/admission` against the cluster as admin.
-It does not prove pods start: with dummy secrets most cannot, so
+tree: schemas, Pod Security, the two admission policies, immutable fields, a
+task that breaks on a re-run. Each pass ends on `helm list --failed`. It then runs
+`specs/specs/cluster` and `specs/specs/admission` against the cluster as admin,
+never `specs/specs/health`. It does not prove pods start: with dummy secrets
+most cannot, nothing syncs and no certificate issues, so
 `platform_helm_wait: false` keeps helm from waiting
 ([ADR-021](../decisions/021-the-deploy-is-tested-on-a-throwaway-k3d-cluster.md)).
 
@@ -130,8 +131,8 @@ instead of `orb`; `cd specs && npx vitest --run <path>` runs any subset.
 
 - **That a deploy changes only what it should.** `make diff` previews it from a
   tailnet client; it is a habit before a deploy, not a gate.
-- **The ownership policy on the live cluster.** Its cases impersonate apps, so
-  they run on k3d against the same manifests.
+- **The admission policies on the live cluster.** Their cases impersonate apps
+  and offer host-touching pods, so they run on k3d against the same manifests.
 - **A template branch no fixture reaches** ([above](#the-fixtures-are-the-validation-contract)).
 - **A stale vendored CRD schema** still validates
   ([Hand-synced pairs](../reference/hand-synced-pairs.md)).

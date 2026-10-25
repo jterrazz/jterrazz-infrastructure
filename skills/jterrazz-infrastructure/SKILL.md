@@ -16,16 +16,17 @@ repositories and deploy themselves, as their GitHub OIDC identity, through the
 
 ## Where things are documented
 
-| Need                                                  | Read                                          |
-| ----------------------------------------------------- | --------------------------------------------- |
-| The map of the manual                                 | `docs/README.md`                              |
-| How it fits together                                  | `docs/concepts/architecture.md`               |
-| Deploying an app: what the contract is                | `docs/reference/deploy-contract.md`           |
-| The `application.yaml` schema                         | `src/kubernetes/charts/app/README.md`         |
-| Editing a values file, manifest, template or role     | `docs/guides/develop.md`                      |
-| Secrets, troubleshooting, repave, restore             | `docs/guides/operate.md`                      |
-| What proves a change, and what a deploy proves        | `docs/guides/test.md`                         |
-| Why a choice was made                                 | `docs/decisions/`                             |
+| Need                                              | Read                                  |
+| ------------------------------------------------- | ------------------------------------- |
+| The map of the manual                             | `docs/README.md`                      |
+| How it fits together, and how things are named    | `docs/concepts/architecture.md`       |
+| What keeps a request out, and what proves it      | `docs/concepts/security.md`           |
+| Deploying an app: what the contract is            | `docs/reference/deploy-contract.md`   |
+| The `application.yaml` schema                     | `src/kubernetes/charts/app/README.md` |
+| Editing a values file, manifest, template or role | `docs/guides/develop.md`              |
+| Secrets, troubleshooting, repave, restore         | `docs/guides/operate.md`              |
+| What proves a change, and what a deploy proves    | `docs/guides/test.md`                 |
+| Why a choice was made                             | `docs/decisions/`                     |
 
 ## Commands
 
@@ -50,8 +51,12 @@ orb -m jterrazz-infrastructure -u root kubectl get pod -A   # cluster access fro
   a forgotten bump ships nothing.
 - **Never reintroduce a second deployment target** (`target`, `manageDns`,
   `deployment_target`).
-- **Never `kubectl create ns`** a platform namespace: they are declared in
-  `src/kubernetes/cluster/namespaces.yaml`; an app's are created by its deploy.
+- **Never `kubectl create ns`**: platform namespaces are declared in
+  `src/kubernetes/cluster/namespaces.yaml`, and an app's are created by its
+  deploy as `<app>-<env>`.
+- **Never name an app after anything but its owner**: `<brand>-<role>`
+  (`jterrazz-console`, `signews-api`), one name for its release, image,
+  volume, data directory and Infisical folder (ADR-023).
 - **Never commit a secret**: Infisical holds them; `.env` holds only the
   identity that reads it.
 - **Never rename a `<svc>-platform` release, a PV, or a `pathSuffix`**: they

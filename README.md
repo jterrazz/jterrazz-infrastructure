@@ -42,20 +42,15 @@ what an app owes the cluster is [the deploy contract](docs/reference/deploy-cont
 ## Quick start
 
 ```bash
-make deploy           # create the VM if absent, then Ansible site.yml: the whole machine
-make deploy-platform  # Ansible platform.yml only: everything above k3s
-make diff             # what a platform deploy would change (helmfile diff, needs the tailnet)
-make smoke            # the platform contract from this Mac: routes, certificates, boundary, cluster
-make test             # smoke, then the node itself (sshd, firewall, upgrades, k3s)
-make redeploy-apps    # trigger every app's CI to rebuild and redeploy
-make backup           # an encrypted snapshot of every persistent volume
-make destroy          # delete the VM (the data directory on the Mac stays)
-make check            # the checks CI runs on the tree (alias: make lint)
+make deploy    # create the VM if absent, then configure the whole machine
+make check     # the checks CI runs on the tree
+make test      # the platform contract and the node, from this Mac
+make help      # every other gesture
 ```
 
-`make help` lists the rest. The deploy reads the Infisical identity in `.env`;
-the playbook's first role fetches every other secret from Infisical and fails
-on a missing one.
+The deploy reads the Infisical identity in `.env`; the playbook's first role
+fetches every other secret from Infisical and fails on a missing one
+([Secrets](docs/reference/secrets.md)).
 
 ## Layout
 

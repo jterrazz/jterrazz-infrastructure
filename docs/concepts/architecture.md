@@ -1,7 +1,9 @@
 # Architecture
 
-One machine, four layers, three charts. This page is the shape of the
-system; what to type when it breaks is [Operate](../guides/operate.md).
+One machine, four layers, two charts and the library they share. This page is
+the shape of the system; its boundary gate by gate is
+[Security](security.md), and what to type when it breaks is
+[Operate](../guides/operate.md).
 
 ## The machine
 
@@ -19,21 +21,23 @@ bringing a rented one back is [Resurrect Hetzner](../guides/resurrect-hetzner.md
 
 ## Four layers
 
-| Layer             | What it covers                                                                                  | Applied by                             |
-| ----------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------- |
-| Host              | the VM itself: `roles/{base,security,resolved,tailscale,k3s}`                                   | `make deploy`, from the Mac only       |
-| Cluster           | objects of no release, `src/kubernetes/cluster/`: namespaces, the `manual` StorageClass, namespace NetworkPolicy baselines, the app-deployer RBAC and admission policy, Traefik middlewares | `roles/platform`'s `cluster-manifests` |
-| Platform services | `src/kubernetes/services/<svc>/`, one helmfile release per values file                          | CI on merge, or `make deploy-platform` |
-| Apps              | each app's own repository, through `charts/app`, into `<app>-<env>` namespaces it creates | each app's own pipeline           |
+| Layer             | What it covers                                                                                                                                                                                     | Applied by                             |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| Host              | the VM itself: `roles/{base,security,resolved,tailscale,k3s}`                                                                                                                                      | `make deploy`, from the Mac only       |
+| Cluster           | objects of no release, `src/kubernetes/cluster/`: namespaces, the `manual` StorageClass, namespace NetworkPolicy baselines, the app-deployer RBAC, the two admission policies, Traefik middlewares | `roles/platform`'s `cluster-manifests` |
+| Platform services | `src/kubernetes/services/<svc>/`, one helmfile release per values file                                                                                                                             | CI on merge, or `make deploy-platform` |
+| Apps              | each app's own repository, through `charts/app`, into `<app>-<env>` namespaces it creates                                                                                                          | each app's own pipeline                |
 
 Every file under `src/kubernetes/services/<svc>/` is a values file named after
 the chart that consumes it: `values.yaml` for an upstream chart, `service.yaml`
 for `charts/platform-service` (release `<svc>-platform`, a name frozen because
 it owns live volumes), and any other name for one app-chart release
-(`op-api.yaml`, or `app.yaml` for a single workload). The exceptions are
-cert-manager's ClusterIssuers and Traefik's HelmChartConfig, raw manifests, and the infrastructure dashboards under `grafana/dashboards/`, one ConfigMap per JSON file.
+(`op-api.yaml`, or `app.yaml` for a single workload). Three exceptions are
+not values: cert-manager's ClusterIssuers and Traefik's HelmChartConfig, raw
+manifests, and the infrastructure dashboards under `grafana/dashboards/`, one
+ConfigMap per JSON file.
 
-## The three charts
+## Two charts and the library they share
 
 `charts/common` is a library chart: installed by nothing, it is the one
 implementation of every object the other two share (IngressRoute and its
@@ -47,38 +51,32 @@ and pulled unversioned
 
 ## Two ways in, neither an open port
 
-Public traffic arrives through an outbound HTTP/2 tunnel, from the Cloudflare
-edge to `cloudflared`, then Traefik, then the app. Private traffic (Grafana,
-the registry, the API server, staging) is tailnet-only: Traefik's LoadBalancer
-admits the Tailscale range alone and UFW repeats it
-([ADR-003](../decisions/003-traefiks-service-is-the-tailnet-gate.md),
+Public traffic arrives through an outbound HTTP/2 tunnel: the Cloudflare edge,
+then `cloudflared`, a pod in `platform-networking`, then Traefik, then the
+app. Private traffic (the products' `*.internal` hosts, Grafana, the registry,
+the API server, staging) is tailnet-only: Traefik's LoadBalancer admits the
+Tailscale range alone, a private route answers tailnet sources only and never a
+request carrying the edge's `Cf-Ray`, and the nft guard and UFW keep every
+other port of the node shut
+([ADR-002](../decisions/002-public-traffic-enters-through-a-cloudflare-tunnel.md),
+[ADR-003](../decisions/003-traefiks-service-is-the-tailnet-gate.md),
 [ADR-006](../decisions/006-the-host-has-no-public-inbound-path.md)).
 
 ```text
-┌───────────────────────────── INTERNET ────────────────────────────────┐
-│                          Cloudflare edge                              │
-└──────────────────────────────┬────────────────────────────────────────┘
-                               │ outbound HTTP/2 tunnel, no inbound port
-                               ▼
-┌────────────── OrbStack VM · Debian 13 trixie · arm64 ─────────────────┐
-│   Tailscale tailnet                       cloudflared                 │
-│   (SSH · private hosts · CI runners)                 │                │
-│              └──────────────────┬────────────────────┘                │
-│                                 ▼                                     │
-
-│   ┌─────────────────── k3s · SQLite datastore ─────────────────────┐  │
-│   │  Traefik ──► IngressRoutes                                     │  │
-│   │     ├─ public   jterrazz.com · spwn.sh · sig.news · analytics  │  │
-│   │     └─ private  grafana · registry · openpanel · staging       │  │
-│   │                                                                │  │
-│   │  cert-manager · Infisical operator · Zot registry              │  │
-│   │  VictoriaMetrics · VictoriaLogs · VictoriaTraces · Grafana     │  │
-│   │  kube-state-metrics · node-exporter · OTel Collector           │  │
-│   │  OpenPanel (6 workloads)                                       │  │
-│   └────────────────────────────────────────────────────────────────┘  │
-
-│   /var/lib/k8s-data ─symlink─► /mnt/mac/.../.jterrazz-infrastructure  │
-└───────────────────────────────────────────────────────────────────────┘
+ INTERNET · Cloudflare edge                       TAILNET · SSH, CI runners, laptops
+        ▲ outbound HTTP/2 tunnel                    │
+        │                                           │ tailscale0, 100.64.0.0/10
+┌───────┼─── OrbStack VM · nft guard · UFW ─────────┼────────────────────────┐
+│ ┌─────┼───── k3s ─────────────────────────────────┼──────────────────────┐ │
+│ │     │                                           │                      │ │
+│ │ cloudflared ───► Traefik ◄───────────────── klipper-lb                 │ │
+│ │ platform-networking │                   admits the tailnet alone       │ │
+│ │                     ├─ public   jterrazz.com · sig.news · spwn.sh      │ │
+│ │                     └─ private  tailnet sources only, never a Cf-Ray:  │ │
+│ │                              console · intelligence · signews · grafana│ │
+│ │                              registry · openpanel · *.staging          │ │
+│ └────────────────────────────────────────────────────────────────────────┘ │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Data outlives the cluster
@@ -88,27 +86,44 @@ Every `manual` PV is a hostPath under `/var/lib/k8s-data`, a symlink to
 share, so `make destroy && make deploy` repaves the VM and keeps the data
 ([ADR-008](../decisions/008-storage-on-orbstack-spends-fsyncs-not-bytes.md)).
 
+## Names
+
+Every name says who owns the thing
+([ADR-023](../decisions/023-names-follow-the-owner-and-one-name-runs-through-everything.md)).
+A platform namespace is `platform-<capability>`, declared in
+`cluster/namespaces.yaml`. An app is `<brand>-<role>` (`jterrazz-console`,
+`signews-api`), and that one name is its release, image, volume, data
+directory and Infisical folder; each environment gets a namespace
+`<app>-<env>`, created by the app's own deploy. Every namespace but
+Kubernetes' own carries `app.jterrazz.com/tier: platform | app`, and an app
+namespace also `app.jterrazz.com/repository` and `app.jterrazz.com/environment`,
+which the ownership policy and the platform contract select on.
+
+Two words carry more than one meaning here:
+
+- **platform** is the layer above k3s, so `roles/platform`,
+  `playbooks/platform.yml`, `make deploy-platform`, the `platform-*`
+  namespaces, the `<svc>-platform` releases of `charts/platform-service` and
+  the app chart's `platformServices` all name the layer, never the chart.
+- **tier** is only the namespace label above. The helmfile's deploy passes are
+  `pass: operators | claims` ([ADR-009](../decisions/009-one-helmfile-declares-every-platform-release.md)).
+
 ## The tree
 
 ```text
 src/
-├── ansible/        playbooks/site.yml   base → security → resolved → tailscale → k3s → platform
+├── ansible/        playbooks/site.yml      base → security → resolved → tailscale → k3s → platform
 │                   playbooks/platform.yml  the platform layer alone, what CI runs
-│                   inventories/         laptop.yml (OrbStack SSH) · ci.yml (tailnet) · k3d.yml
-│                                        group_vars/all.yml, the config surface
-
-├── kubernetes/     helmfile.yaml.gotmpl every platform release, declared once (ADR-009)
-│                   charts/              common · platform-service · app
-│                   cluster/             manifests applied with `kubectl apply -R`
-│                   services/<svc>/      one values file per release
-│                   schemas/             a vendored kubeconform CRD schema
-
+│                   inventories/            laptop.yml (OrbStack SSH) · ci.yml (tailnet) · k3d.yml
+│                                           group_vars/all.yml, the config surface
+├── kubernetes/     helmfile.yaml.gotmpl    every platform release, declared once (ADR-009)
+│                   charts/                 common · platform-service · app
+│                   cluster/                manifests applied with `kubectl apply -R`
+│                   services/<svc>/         one values file per release
+│                   schemas/                a vendored kubeconform CRD schema
 └── scripts/        deploy.sh · helmfile.sh · backup.sh · redeploy-apps.sh · lib/
-specs/              the platform contract, a TypeScript project on @jterrazz/test (ADR-022)
+specs/specs/        the platform contract on @jterrazz/test (ADR-022): api · cluster · health
+                    · routes · admission · host
 docs/               this manual and its decisions
 skills/             the agent skill other repositories load
 ```
-
-`roles/platform`, `playbooks/platform.yml`, `make deploy-platform`, the
-`platform-*` namespaces and the app chart's `platformServices` all name the
-layer, not the chart.

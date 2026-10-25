@@ -1,8 +1,10 @@
 # Operating
 
-Where the secrets are, what to run when something is down, and how to rebuild
-from nothing. The design is [Architecture](../concepts/architecture.md); the
-rules a change follows are [Develop](develop.md).
+What to run when something is down, how to rebuild from nothing, and the
+gestures that rotate a credential or add a service. Where each secret lives is
+[Secrets](../reference/secrets.md), the boundary is
+[Security](../concepts/security.md), and the rules a change follows are
+[Develop](develop.md).
 
 ## Reaching the cluster
 
@@ -16,88 +18,6 @@ Every `make deploy` writes `kubeconfig.yaml` with the node's MagicDNS name as
 its server, so it works only from the tailnet; `make kubeconfig` rewrites it
 without a deploy. The `orb` SSH alias needs `~/.orbstack/ssh/config`, which is
 why `inventories/laptop.yml` passes it explicitly.
-
-## Secrets inventory
-
-### Read by the deploy
-
-`src/ansible/roles/secrets`, the first role of both playbooks, fetches the list
-`infisical_secrets` in group_vars on the controller (the Mac or the runner),
-each folder explicitly, and stops on a missing key before anything deploys
-([ADR-015](../decisions/015-deploy-secrets-are-fetched-once-by-ansible.md)).
-
-| Project, path                                  | Keys                                                                      | Read by                      |
-| ---------------------------------------------- | ------------------------------------------------------------------------- | ---------------------------- |
-| `jterrazz`, `/jterrazz-infrastructure`         | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_TUNNEL_TOKEN`                         | both playbooks               |
-|                                                | `TAILSCALE_OAUTH_CLIENT_ID`, `TAILSCALE_OAUTH_CLIENT_SECRET`              | `site.yml` only              |
-|                                                | `BACKUP_ENCRYPTION_KEY`                                                   | `make backup` only           |
-| `jterrazz`, `/jterrazz-infrastructure/grafana` | `ADMIN_PASSWORD`                                                          | both playbooks               |
-| `jterrazz-ci`, `/`                             | `DOCKER_REGISTRY_USERNAME`, `DOCKER_REGISTRY_PASSWORD`: the push account  | both playbooks, app CI       |
-|                                                | `REGISTRY_PULL_USERNAME`, `REGISTRY_PULL_PASSWORD`: the read-only account | both playbooks, the operator |
-
-The Infisical identity itself (`INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET`)
-comes from `.env` locally and from the repository's GitHub secrets in CI; the
-deploy writes it into `platform-secrets/infisical-credentials` for the
-operator.
-
-`jterrazz-ci` is a project of its own because CI reads it over GitHub OIDC:
-the machine identity `github-actions` (subject
-`repo:jterrazz@18480834/*:ref:refs/heads/main`, audience
-`https://github.com/jterrazz`) is a Viewer of that project and of nothing else.
-
-### Synced into the cluster
-
-The operator syncs an `InfisicalSecret` rendered by the release that needs it
-(a `service.yaml`'s `secrets:`, an app's `spec.secrets`):
-
-| Infisical path                            | Secret                                       | Keys                                                                         |
-| ----------------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------- |
-| `/jterrazz-infrastructure`                | `cloudflared-secrets`                        | `CLOUDFLARE_TUNNEL_TOKEN`                                                    |
-| `/jterrazz-infrastructure/openpanel`      | `op-{api,worker,dashboard,postgres}-secrets` | the keys each release names                                                  |
-| `/jterrazz-infrastructure/otel-collector` | `otel-collector-secrets`                     | `LANGFUSE_BASIC_AUTH`                                                        |
-| `/jterrazz-infrastructure/grafana`        | `grafana-alerting`                           | `contact-point-slack.yaml`, from the optional `SLACK_WEBHOOK_URL`            |
-| `jterrazz-ci`, `/`                        | `registry-credentials`                       | `.dockerconfigjson` from the read-only account, in every app namespace pulling from our registry |
-| `/<app>`                                  | `<app>-secrets`                              | the app's `spec.secrets.env`                                                 |
-
-### GitHub and local secrets
-
-| Where                              | Secrets                                                                                                                       |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `jterrazz/jterrazz-infrastructure` | `INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET`, `CI_DEPLOY_SSH_PRIVATE` (whose public half is `security_ci_deploy_pubkey`) |
-| every app repository               | none: an app deploy authenticates with its job's OIDC token                                                                  |
-| `.env` (gitignored)                | `INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET`                                                                              |
-
-A repave needs nothing new in Infisical: an app job reads the CA from k3s'
-`/cacerts` and its identity from GitHub.
-
-## Security controls
-
-| Control                   | Where                                             | Verify                                                                                     |
-| ------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Peer-isolation firewall   | `roles/security`, `nft-guard.service`             | `make test-host`; from another OrbStack machine, `echo > /dev/tcp/<node-ip>/6443` must fail |
-| Secrets encrypted at rest | `secrets-encryption: true` in the k3s config      | `make test-host`; a real Secret value grepped in `state.db` is not found                   |
-| API audit log             | `audit-policy.yaml.j2`, Metadata level            | `<data-dir>/server/logs/audit.log` grows                                                   |
-| Pod Security              | `pod-security.yaml.j2`, `cluster/namespaces.yaml` | `make test-host`; `kubectl get ns -L pod-security.kubernetes.io/enforce`                   |
-| kube-system NetworkPolicy | `cluster/network-policies/kube-system.yaml`       | DNS from a fresh pod, `kubectl top nodes`, and the tailnet curls below                     |
-
-The reasons are [ADR-006](../decisions/006-the-host-has-no-public-inbound-path.md)
-and [ADR-018](../decisions/018-pod-security-baseline-is-enforced-by-default.md).
-
-### Test the tailnet path from a peer
-
-cloudflared dials Traefik's ClusterIP, so a broken kube-system policy or a
-masquerading tailscaled leaves the public sites up while every tailnet client,
-CI included, is refused. Probe from a peer, never from the node, whose own
-traffic never crosses `tailscale0`:
-
-```bash
-curl -sk -H "Host: registry.internal.jterrazz.com" https://<tailnet-ip>/v2/        # 401
-curl -sk -H "Host: grafana.internal.jterrazz.com" https://<tailnet-ip>/api/health  # 200
-```
-
-If peers time out, `tcpdump -i any 'tcp port 443 and net 100.64.0.0/10'` on the
-node shows the SYNs arriving on `tailscale0`, and `iptables -t nat -L
-ts-postrouting` must list no MASQUERADE (`--snat-subnet-routes=false`, ADR-006).
 
 ## Troubleshooting
 
@@ -162,6 +82,9 @@ orb -m jterrazz-infrastructure -u root resolvectl status eth0                 # 
 - **Delete by hand an object you remove from `src/kubernetes/cluster/`**: the deploy
   applies that tree without pruning. Delete it after the deploy that stops
   referencing it: a Middleware deleted while a route names it 404s the route.
+  A release dropped from the helmfile stays installed the same way: set
+  `installed: false` for one deploy, then remove its entry. Only the
+  infrastructure dashboards are pruned, by the task that applies them.
 - **Helm adopts an existing object** only with the annotations
   `meta.helm.sh/release-name` and `meta.helm.sh/release-namespace` and the label
   `app.kubernetes.io/managed-by=Helm`. A Deployment whose selector changes
@@ -169,34 +92,21 @@ orb -m jterrazz-infrastructure -u root resolvectl status eth0                 # 
   that workload. Never do this to `registry`: the deploy workflow logs in to it
   first, so recreate it with `make deploy-platform` from the Mac.
 
-## DNS records converged by the platform deploy
+### Test the tailnet path from a peer
 
-`dns_records` in group_vars holds the three records nothing else creates in
-the `jterrazz.com` zone, converged on every platform deploy (tag `dns-records`)
-with the token cert-manager uses. Each name is held to exactly that one record,
-so a record edited in the dashboard comes back.
-
-| Name         | Type  | Content                                                      | Proxied |
-| ------------ | ----- | ------------------------------------------------------------ | ------- |
-| `*.internal` | CNAME | the node's tailnet name (`tailscale_dns_hostname`)           | no      |
-| `*.staging`  | CNAME | the node's tailnet name                                      | no      |
-| `analytics`  | CNAME | `<tunnel id>.cfargotunnel.com`, the tunnel token's `t` field | yes     |
-
-The wildcards only make a name resolve to a `100.x` address; the route's
-`private-access` allow-list is the enforcement, so a staging host on the public
-tunnel is the mistake to look for. A wildcard matches one label:
-`svc.internal`, never `a.b.internal`. Why each record exists is
-[ADR-012](../decisions/012-private-hostnames-are-wildcard-zones.md).
-
-Removing an entry does not delete its record: retire it from the list, then
-from the dashboard. To hand `analytics` to the tunnel, remove its entry first,
-then add the Public Hostname, which adopts the record.
+cloudflared dials Traefik's ClusterIP, so a broken kube-system policy or a
+masquerading tailscaled leaves the public sites up while every tailnet client,
+CI included, is refused. Probe from a peer, never from the node, whose own
+traffic never crosses `tailscale0`:
 
 ```bash
-dig +short grafana.internal.jterrazz.com    # the tailnet name
-dig +short signews.staging.jterrazz.com     # the tailnet name
-dig +short analytics.jterrazz.com           # Cloudflare addresses
+curl -sk -H "Host: registry.internal.jterrazz.com" https://<tailnet-ip>/v2/        # 401
+curl -sk -H "Host: grafana.internal.jterrazz.com" https://<tailnet-ip>/api/health  # 200
 ```
+
+If peers time out, `tcpdump -i any 'tcp port 443 and net 100.64.0.0/10'` on the
+node shows the SYNs arriving on `tailscale0`, and `iptables -t nat -L
+ts-postrouting` must list no MASQUERADE (`--snat-subnet-routes=false`, ADR-006).
 
 ## Repaving the cluster
 
@@ -259,12 +169,12 @@ in [the OpenPanel README](../../src/kubernetes/services/openpanel/README.md#back
 
 ## Rotating credentials
 
-| What                      | How                                                                                                   |
-| ------------------------- | ------------------------------------------------------------------------------------------------------ |
+| What                      | How                                                                                                                                                                                                                                                                                                        |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Any Infisical-held secret | Change it in Infisical. The operator resyncs every 5 minutes (its default; no CR sets `syncConfig`), and `kubectl delete pod -n platform-secrets -l control-plane=controller-manager` forces it. A consumer reading it as env still needs a rollout restart, and a deploy secret a `make deploy-platform`. |
-| `CLOUDFLARE_TUNNEL_TOKEN` | A new connector token in Zero Trust, stored at `/jterrazz-infrastructure`, a resync, then `kubectl rollout restart deploy/cloudflared -n platform-networking`. |
-| The registry accounts     | Two accounts overlapping, never a swap: [below](#rotating-the-registry-password).                     |
-| CI deploy SSH key         | `ssh-keygen -t ed25519`, the public half into `security_ci_deploy_pubkey`, `gh secret set CI_DEPLOY_SSH_PRIVATE -R jterrazz/jterrazz-infrastructure`, then `make deploy`. |
+| `CLOUDFLARE_TUNNEL_TOKEN` | A new connector token in Zero Trust, stored at `/jterrazz-infrastructure`, a resync, then `kubectl rollout restart deploy/cloudflared -n platform-networking`.                                                                                                                                             |
+| The registry accounts     | Two accounts overlapping, never a swap: [below](#rotating-the-registry-password).                                                                                                                                                                                                                          |
+| CI deploy SSH key         | `ssh-keygen -t ed25519`, the public half into `security_ci_deploy_pubkey`, `gh secret set CI_DEPLOY_SSH_PRIVATE -R jterrazz/jterrazz-infrastructure`, then `make deploy`.                                                                                                                                  |
 
 ### A deleted managed Secret does not come back
 
@@ -359,7 +269,8 @@ upstream chart, else the app chart; a raw manifest is the last resort.
 
 1. **Namespace**: add it to `src/kubernetes/cluster/namespaces.yaml`, and its
    baseline to `src/kubernetes/cluster/network-policies/<ns>.yaml`: default-deny,
-   same-namespace, DNS egress, nothing naming a workload.
+   same-namespace, DNS egress, and rules for a workload only when no release of
+   ours can declare them (cert-manager's).
 2. **Values**: `service.yaml` for the route, certificate, volumes, credentials
    and policy, plus `values.yaml` for an upstream chart or one app-chart file
    per workload. `registry/` is the single-workload example, `openpanel/` the
@@ -377,53 +288,3 @@ upstream chart, else the app chart; a raw manifest is the last resort.
 6. **Secrets**: `secrets: { path, secretName }` in `service.yaml` for a name a
    chart reads literally, `spec.secrets` for env vars.
 7. `make check`, then merge: `deploy-platform.yaml` deploys it.
-
-## Add an app
-
-Apps deploy themselves; this repo owns only their chart
-([the deploy contract](../reference/deploy-contract.md)).
-
-1. Add `.infrastructure/application.yaml` to the app repo, with `tag:` on every
-   environment ([the schema](../../src/kubernetes/charts/app/README.md)).
-2. Expose `make build`, `make lint` and `make test`, and call the shared
-   workflow in `jterrazz/jterrazz-actions` from a job granting
-   `permissions: { contents: read, id-token: write }`.
-3. Add a tailnet-only hostname to `private_hostnames`; nothing else changes
-   here.
-
-## The PostgreSQL major migration
-
-How OpenPanel's PostgreSQL went from 14 to 17, kept for the next major: about
-15 minutes of dashboard and ingest downtime at this data size. Dump with the
-newer major's `pg_dumpall`. The namespace's egress baseline refuses a throwaway
-`kubectl run` pod, so run the newer client as an ephemeral container inside the
-PostgreSQL pod, under `--profile=baseline`: the default debug profile adds
-`SYS_PTRACE`, which Pod Security refuses.
-
-```bash
-# 1. Stop the writers, not postgres; keep the deploy workflow quiet meanwhile.
-kubectl scale -n platform-analytics --replicas=0 deploy/op-api deploy/op-worker deploy/op-dashboard
-
-# 2. Dump with the newer client; check it ends in \unrestrict and holds every CREATE TABLE.
-kubectl debug -q -i pod/<op-postgres-pod> -n platform-analytics --profile=baseline \
-  --image=postgres:<new>-alpine --env PGPASSWORD="$POSTGRES_PASSWORD" -- \
-  pg_dumpall -h 127.0.0.1 -U openpanel --quote-all-identifiers > openpanel-all-$(date +%F).sql
-
-# 3. Stop postgres and MOVE the old data aside: it is the rollback.
-kubectl scale -n platform-analytics --replicas=0 deploy/op-postgres
-mv ~/.jterrazz-infrastructure/data/openpanel/postgres/pgdata \
-   ~/.jterrazz-infrastructure/data/openpanel/postgres/pgdata-pg<old>-$(date +%F)
-mkdir -p ~/.jterrazz-infrastructure/data/openpanel/postgres/pgdata
-
-# 4. Bump the image in src/kubernetes/services/openpanel/op-postgres.yaml and deploy it.
-kubectl rollout status -n platform-analytics deploy/op-postgres --timeout=180s
-
-# 5. Restore, then bring the writers back; op-api migrates on boot.
-kubectl exec -i -n platform-analytics deploy/op-postgres -- \
-  psql -X -U openpanel -d postgres < openpanel-all-YYYY-MM-DD.sql
-kubectl scale -n platform-analytics --replicas=1 deploy/op-api deploy/op-worker deploy/op-dashboard
-```
-
-Verify that `\dt` lists the tables, the dashboard loads its projects and a test
-event reaches ClickHouse. To roll back, scale everything to 0, move the old
-directory back to `pgdata`, restore the old image and scale up.

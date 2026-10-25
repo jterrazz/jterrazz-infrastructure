@@ -4,26 +4,20 @@ What runs on the cluster that is not an app. Every release, with its chart,
 version and values, is declared in `src/kubernetes/helmfile.yaml.gotmpl`; a
 service with several moving parts keeps a README beside its values.
 
-| Service | Namespace | What it is |
-| ------- | --------- | ---------- |
-| cert-manager | `platform-networking` | certificates over DNS-01 for every route ([ADR-001](../decisions/001-certificates-are-issued-over-dns-01.md)) |
-| cloudflared | `platform-networking` | the public tunnel ([README](../../src/kubernetes/services/cloudflared/README.md)) |
-| Infisical operator | `platform-secrets` | syncs every workload Secret from Infisical ([ADR-015](../decisions/015-deploy-secrets-are-fetched-once-by-ansible.md)) |
-| Zot | `platform-registry` | `registry.internal.jterrazz.com`, every image and the app chart; collects its own garbage ([ADR-014](../decisions/014-the-registry-collects-its-own-garbage.md)) |
-| VictoriaMetrics, VictoriaLogs, VictoriaTraces | `platform-telemetry` | metrics 30d, logs 90d, traces 30d ([ADR-005](../decisions/005-telemetry-runs-on-the-victoriametrics-family.md)) |
-| OTel Collector | `platform-telemetry` | OTLP from the apps and every pod's log file, into the three stores and Langfuse |
-| Grafana | `platform-telemetry` | `grafana.internal.jterrazz.com`; dashboards and alerts provisioned, apps ship their own ([ADR-013](../decisions/013-grafana-gets-768mi-and-configmap-only-reach.md)) |
-| kube-state-metrics, node-exporter | `platform-telemetry` | the `kube_*` and `node_*` series, scraped by annotation |
-| OpenPanel | `platform-analytics` | product analytics, six app-chart releases ([README](../../src/kubernetes/services/openpanel/README.md)) |
-| Traefik | `kube-system` | k3s' bundled ingress, shaped by its HelmChartConfig ([ADR-003](../decisions/003-traefiks-service-is-the-tailnet-gate.md)) |
+| Service                                       | Namespace             | What it is                                                                                                                                                           |
+| --------------------------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| cert-manager                                  | `platform-networking` | certificates over DNS-01 for every route ([ADR-001](../decisions/001-certificates-are-issued-over-dns-01.md))                                                        |
+| cloudflared                                   | `platform-networking` | the public tunnel ([README](../../src/kubernetes/services/cloudflared/README.md))                                                                                    |
+| Infisical operator                            | `platform-secrets`    | syncs every workload Secret from Infisical ([ADR-015](../decisions/015-deploy-secrets-are-fetched-once-by-ansible.md))                                               |
+| Zot                                           | `platform-registry`   | `registry.internal.jterrazz.com`, every image and the app chart; collects its own garbage ([ADR-014](../decisions/014-the-registry-collects-its-own-garbage.md))     |
+| VictoriaMetrics, VictoriaLogs, VictoriaTraces | `platform-telemetry`  | metrics 30d, logs 90d, traces 30d ([ADR-005](../decisions/005-telemetry-runs-on-the-victoriametrics-family.md))                                                      |
+| OTel Collector                                | `platform-telemetry`  | OTLP from the apps and every pod's log file, into the three stores and Langfuse                                                                                      |
+| Grafana                                       | `platform-telemetry`  | `grafana.internal.jterrazz.com`; dashboards and alerts provisioned, apps ship their own ([ADR-013](../decisions/013-grafana-gets-768mi-and-configmap-only-reach.md)) |
+| kube-state-metrics, node-exporter             | `platform-telemetry`  | the `kube_*` and `node_*` series, scraped by annotation                                                                                                              |
+| OpenPanel                                     | `platform-analytics`  | product analytics, six app-chart releases ([README](../../src/kubernetes/services/openpanel/README.md))                                                              |
+| Traefik                                       | `kube-system`         | k3s' bundled ingress, shaped by its HelmChartConfig ([ADR-003](../decisions/003-traefiks-service-is-the-tailnet-gate.md))                                            |
 
-The deploy workflow logs in to the registry before anything else, so a
-`registry` release taken down cannot be restored by CI: recover it with
-`make deploy-platform` from the Mac.
-
-`jterrazz-intelligence` (repository `gateway-intelligence`) is an app, deployed by its own repository, but a
-platform client of the others: it enforces no API key (`api-keys: []`), so its
-boundary is its NetworkPolicy and its private-only route, and consumers pass
-the non-secret placeholder `gateway-noauth` that the OpenAI and Anthropic SDKs
-require. Prometheus, Loki, Tempo, Alloy, n8n, Portainer and LibreChat were
-removed with their data; do not resurrect them when editing lists.
+An app other workloads call, such as the model gateway `jterrazz-intelligence`,
+stays an app: it is a target in the app chart's
+[`platformServices` catalog](../../src/kubernetes/charts/app/README.md#specplatformservices),
+not a row here.
