@@ -124,10 +124,13 @@ jobs:
           sudo mv /tmp/kubeconform /usr/local/bin/kubeconform
           kubeconform -v
 
-      - name: Validate the cluster manifests
+      - name: Validate the cluster chart
         run: |
+          set -euo pipefail
+          helm lint src/kubernetes/charts/cluster
           # shellcheck disable=SC2086
-          kubeconform -strict $KUBECONFORM_SCHEMA_ARGS -summary src/kubernetes/cluster
+          helm template cluster src/kubernetes/charts/cluster \
+            | kubeconform -strict $KUBECONFORM_SCHEMA_ARGS -summary -
 
       # invariant: default values render nothing; each fixture is its chart's contract.
       - name: Validate the charts against their fixtures
@@ -153,7 +156,7 @@ jobs:
 
       # hazard: without `--strict` a typo'd assertion name silently never runs.
       - name: Helm chart unit tests
-        run: helm unittest --strict src/kubernetes/charts/app src/kubernetes/charts/platform-service
+        run: helm unittest --strict src/kubernetes/charts/app src/kubernetes/charts/platform-service src/kubernetes/charts/cluster
 
       - name: Install helmfile
         run: |

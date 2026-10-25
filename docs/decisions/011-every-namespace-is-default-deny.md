@@ -7,6 +7,8 @@ Written 2026-10-24 from the comments in `src/kubernetes/cluster/network-policies
 the charts' `network:` blocks and the service values that this record
 replaces (the per-service split landed in 1814709).
 
+Revised 2026-10-25: the baselines are rendered from values by the `cluster` chart.
+
 ## Context
 
 k3s enforces NetworkPolicy, and several stores authenticate nothing:
@@ -19,10 +21,13 @@ drifted from the services they described.
 
 ## Decision
 
-Two layers. `src/kubernetes/cluster/network-policies/<ns>.yaml` holds only the
-namespace baseline: default-deny both ways, allow-same-namespace, and the
-namespace-wide egress every pod needs (DNS, from `namespaceSelector: {}`,
-since a pod resolves before it knows who answers). Every rule that names one
+Two layers. The `cluster` chart renders each platform namespace's baseline
+from `charts/cluster/values.yaml`: default-deny ingress, DNS egress for every
+pod (from `namespaceSelector: {}`, since a pod resolves before it knows who
+answers), and per namespace, by flag, same-namespace ingress, same-namespace
+egress and the HTTPS/API-server egress. A rule for an upstream workload no
+release of ours renders (cert-manager, kube-system's) is a file under
+`charts/cluster/templates/network-policies/`. Every rule that names one
 workload is declared by that service, in the `network:` block of its values
 file (platform-service) or its `spec.network` (app chart), in a peer
 vocabulary defined once in `common/templates/_network-policy.tpl`.

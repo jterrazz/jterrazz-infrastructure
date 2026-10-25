@@ -7,7 +7,7 @@
 # group `github-actions:jterrazz`, with no stored credential anywhere: the
 # token is minted per job and expires with it. What that identity may do is
 # RBAC + the ownership ValidatingAdmissionPolicy in
-# kubernetes/cluster/rbac/app-deployers.yaml, not this file.
+# kubernetes/charts/cluster/templates/rbac/app-deployers.yaml, not this file.
 #
 # hazard: the claim rules are the whole trust boundary of the issuer. Without the
 # repository_owner rule, ANY public GitHub repository could mint a token this

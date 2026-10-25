@@ -78,12 +78,13 @@ check: ## Run the checks CI runs on the tree
 	shellcheck src/scripts/*.sh src/scripts/lib/*.sh
 	ansible-lint -c src/ansible/.ansible-lint src/ansible/
 	helm lint src/kubernetes/charts/common
+	helm lint src/kubernetes/charts/cluster
 	@for chart in app platform-service; do \
 		helm dependency update src/kubernetes/charts/$$chart >/dev/null && \
 		helm lint src/kubernetes/charts/$$chart -f src/kubernetes/charts/$$chart/ci/test-values.yaml || exit 1; \
 	done
 	@if helm plugin list 2>/dev/null | awk '$$1 == "unittest" { found = 1 } END { exit !found }'; then \
-		helm unittest --strict src/kubernetes/charts/app src/kubernetes/charts/platform-service; \
+		helm unittest --strict src/kubernetes/charts/app src/kubernetes/charts/platform-service src/kubernetes/charts/cluster; \
 	else \
 		echo "⚠ helm-unittest skipped: helm plugin install https://github.com/helm-unittest/helm-unittest --version $(HELM_UNITTEST_VERSION) --verify=false"; \
 	fi

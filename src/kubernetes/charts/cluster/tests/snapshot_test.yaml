@@ -1,0 +1,7 @@
+suite: full render (snapshot)
+# hazard: a Pod Security level, an admission rule or a baseline that moves changes who may do
+# what cluster-wide; read the diff before `helm unittest -u` (ADR-011, ADR-018).
+tests:
+  - it: matches the recorded render
+    asserts:
+      - matchSnapshot: {}

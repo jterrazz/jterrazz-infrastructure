@@ -142,10 +142,10 @@ than by file convenience:
 
 | Rule                                                                                | Lives in                                                             |
 | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| default-deny, allow-same-namespace, namespace-wide DNS/egress                       | `src/kubernetes/cluster/network-policies/<ns>.yaml`                  |
+| default-deny, allow-same-namespace, namespace-wide DNS/egress                       | `src/kubernetes/charts/cluster/values.yaml`                          |
 | anything that names ONE workload with a `-platform` release                         | that service's `network:`                                            |
 | anything that names ONE workload rendered by the **app** chart                      | that workload's `spec.network` (`isolated:`, `exposeTo:`, `egress:`) |
-| anything that names an upstream workload with no `-platform` release (cert-manager) | still `cluster/network-policies/<ns>.yaml`                           |
+| anything that names an upstream workload with no `-platform` release (cert-manager) | `charts/cluster/templates/network-policies/`                         |
 
 `podSelector` is required and never derived: the pods are the upstream chart's,
 so read their labels off `kubectl get pod --show-labels`.

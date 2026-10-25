@@ -1,0 +1,6 @@
+apiVersion: v2
+name: cluster
+description: The cluster's own objects, a release so that a file removed is an object removed
+type: application
+# invariant: never published; the version is bookkeeping.
+version: 1.0.0

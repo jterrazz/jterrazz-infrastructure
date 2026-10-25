@@ -48,7 +48,7 @@ spec:
     # hazard: hand-synced with charts/app/templates/infisical.yaml, which its registry_pull_secret_test pins; the admission spec reads that pin.
     - name: registryTemplate
       expression: |-
-        '{{ dict "auths" (dict "registry.internal.jterrazz.com" (dict "username" .REGISTRY_PULL_USERNAME.Value "password" .REGISTRY_PULL_PASSWORD.Value "auth" (list .REGISTRY_PULL_USERNAME.Value .REGISTRY_PULL_PASSWORD.Value | join ":" | b64enc))) | toJson }}'
+        {{ `'{{ dict "auths" (dict "registry.internal.jterrazz.com" (dict "username" .REGISTRY_PULL_USERNAME.Value "password" .REGISTRY_PULL_PASSWORD.Value "auth" (list .REGISTRY_PULL_USERNAME.Value .REGISTRY_PULL_PASSWORD.Value | join ":" | b64enc))) | toJson }}'` }}
   validations:
     - expression: "variables.owned || variables.namespaceOwner == variables.repo"
       messageExpression: "'namespace ' + request.namespace + ' is not owned by ' + variables.repo"

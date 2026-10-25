@@ -21,12 +21,12 @@ bringing a rented one back is [Resurrect Hetzner](../guides/resurrect-hetzner.md
 
 ## Four layers
 
-| Layer             | What it covers                                                                                                                                                                                     | Applied by                             |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| Host              | the VM itself: `roles/{base,security,resolved,tailscale,k3s}`                                                                                                                                      | `make deploy`, from the Mac only       |
-| Cluster           | objects of no release, `src/kubernetes/cluster/`: namespaces, the `manual` StorageClass, namespace NetworkPolicy baselines, the app-deployer RBAC, the two admission policies, Traefik middlewares | `roles/cluster`                        |
-| Platform services | `src/kubernetes/services/<svc>/`, one helmfile release per values file                                                                                                                             | CI on merge, or `make deploy-platform` |
-| Apps              | each app's own repository, through `charts/app`, into `<app>-<env>` namespaces it creates                                                                                                          | each app's own pipeline                |
+| Layer             | What it covers                                                                                                                                                                                                                                                            | Applied by                                      |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| Host              | the VM itself: `roles/{base,security,resolved,tailscale,k3s,backup}`                                                                                                                                                                                                      | `make deploy`, from the Mac only                |
+| Cluster           | the `cluster` release, `src/kubernetes/charts/cluster`: the platform namespaces and their NetworkPolicy baselines, the `manual` StorageClass, the RBAC, the two admission policies, Traefik's shared objects; plus Traefik's bundled config and CoreDNS (`roles/cluster`) | the first helmfile release, and `roles/cluster` |
+| Platform services | `src/kubernetes/services/<svc>/`, one helmfile release per values file                                                                                                                                                                                                    | CI on merge, or `make deploy-platform`          |
+| Apps              | each app's own repository, through `charts/app`, into `<app>-<env>` namespaces it creates                                                                                                                                                                                 | each app's own pipeline                         |
 
 Every file under `src/kubernetes/services/<svc>/` is a values file named after
 the chart that consumes it: `values.yaml` for an upstream chart, `service.yaml`
@@ -50,10 +50,12 @@ service's shared surface from its `service.yaml`. `charts/app` renders any
 workload, an app's or a platform service's; it is published to the registry
 and pulled unversioned
 ([ADR-010](../decisions/010-every-workload-renders-through-two-charts.md)).
+A fourth, `charts/cluster`, is local and owns the cluster's own objects, so a
+file removed there is an object removed.
 
 ## Two ways in, neither an open port
 
-Public traffic arrives through an outbound HTTP/2 tunnel: the Cloudflare edge,
+Public traffic arrives through an outbound tunnel (QUIC, HTTP/2 as fallback): the Cloudflare edge,
 then `cloudflared`, a pod in `platform-networking`, then Traefik, then the
 app. Private traffic (the products' `*.internal` hosts, Grafana, the registry,
 the API server, staging) is tailnet-only: Traefik's LoadBalancer admits the
@@ -93,7 +95,7 @@ share, so `make destroy && make deploy` repaves the VM and keeps the data
 Every name says who owns the thing
 ([ADR-023](../decisions/023-names-follow-the-owner-and-one-name-runs-through-everything.md)).
 A platform namespace is `platform-<capability>`, declared in
-`cluster/namespaces.yaml`. An app is `<brand>-<role>` (`jterrazz-console`,
+`charts/cluster/values.yaml`. An app is `<brand>-<role>` (`jterrazz-console`,
 `signews-api`), and that one name is its release, image, volume, data
 directory and Infisical folder; each environment gets a namespace
 `<app>-<env>`, created by the app's own deploy. Every namespace but
@@ -118,8 +120,7 @@ src/
 │                   inventories/            laptop.yml (OrbStack SSH) · ci.yml (tailnet) · k3d.yml
 │                                           group_vars/all/, the config surface
 ├── kubernetes/     helmfile.yaml.gotmpl    every platform release, declared once (ADR-009)
-│                   charts/                 common · platform-service · app
-│                   cluster/                manifests applied with `kubectl apply -R`
+│                   charts/                 common · platform-service · app · cluster
 │                   services/<svc>/         one values file per release
 │                   schemas/                a vendored kubeconform CRD schema
 └── scripts/        deploy.sh · helmfile.sh · backup.sh · redeploy-apps.sh · lib/

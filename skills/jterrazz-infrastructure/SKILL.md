@@ -52,7 +52,7 @@ orb -m jterrazz-infrastructure -u root kubectl get pod -A   # cluster access fro
 - **Never reintroduce a second deployment target** (`target`, `manageDns`,
   `deployment_target`).
 - **Never `kubectl create ns`**: platform namespaces are declared in
-  `src/kubernetes/cluster/namespaces.yaml`, and an app's are created by its
+  `src/kubernetes/charts/cluster/values.yaml`, and an app's are created by its
   deploy as `<app>-<env>`.
 - **Never name an app after anything but its owner**: `<brand>-<role>`
   (`jterrazz-console`, `signews-api`), one name for its release, image,

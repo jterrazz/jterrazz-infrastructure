@@ -550,7 +550,7 @@ Reach for `exposeTo` only when the client **cannot** opt in through
 `platformServices`, which is the mechanism that needs no edit here at all: a
 third-party chart renders its pods and cannot stamp the catalog's client label.
 Declaring the client's namespace on the TARGET is what replaces a hand-written
-NetworkPolicy in the infrastructure repo's `cluster/network-policies/`: a rule
+NetworkPolicy in the infrastructure repo's `cluster` chart: a rule
 there would be granting access to an app that repo does not deploy. No
 in-cluster client needs this today; `platformServices` covers them all.
 

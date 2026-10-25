@@ -13,7 +13,7 @@ Revised 2026-10-25: host access granted per workload by an admission policy;
 ## Context
 
 Platform namespaces labelled themselves with Pod Security levels in
-`cluster/namespaces.yaml`. App namespaces are created by each app's CI and
+`charts/cluster/values.yaml`. App namespaces are created by each app's CI and
 label nothing, so before this decision they ran with no admission check at
 all (audit 2026-10-24).
 
@@ -35,7 +35,7 @@ all (audit 2026-10-24).
   cluster default makes it `baseline` without any label.
 - **Host access is granted per workload, not per namespace.** A
   `privileged` namespace admits host access for anything deployed there, so
-  the `host-access` ValidatingAdmissionPolicy (`src/kubernetes/cluster/admission/host-access.yaml`)
+  the `host-access` ValidatingAdmissionPolicy (`src/kubernetes/charts/cluster/templates/admission/host-access.yaml`)
   narrows it for the whole cluster: a pod asking for the host network, PID or
   IPC namespace, a hostPath volume or a privileged container is admitted only
   in `kube-system` or under the `node-exporter` and `otel-collector`

@@ -2,7 +2,7 @@
 #
 # invariant: the DEFAULT Pod Security level, for every namespace that carries no
 # `pod-security.kubernetes.io/*` label of its own. The platform namespaces label
-# themselves (kubernetes/cluster/namespaces.yaml); the app namespaces are
+# themselves (kubernetes/charts/cluster/values.yaml); the app namespaces are
 # created by each app's CI and label nothing, so before this file they ran
 # with no admission check at all (audit 2026-10-24).
 #

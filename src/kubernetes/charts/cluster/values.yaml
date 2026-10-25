@@ -1,0 +1,25 @@
+# invariant: every platform namespace and what its baseline allows; an app's namespace is created by
+# the app's own deploy, labelled tier app (ADR-017, ADR-023). Every namespace denies ingress by
+# default and lets its pods resolve DNS; a pod's own rules come from its release (ADR-011).
+# sameNamespace admits ingress between the namespace's pods; sameNamespaceEgress lets every pod
+# dial them, which an isolated datastore's release would otherwise refuse.
+namespaces:
+  platform-networking:
+    podSecurity: baseline
+  platform-registry:
+    podSecurity: baseline
+    sameNamespace: true
+  platform-secrets:
+    podSecurity: baseline
+    # outside: the operator reads Infisical and the API server.
+    https: true
+  platform-telemetry:
+    # invariant: node-exporter and the log collector need the host, which baseline forbids;
+    # host-access admits those two alone (ADR-018).
+    podSecurity: privileged
+    sameNamespace: true
+    sameNamespaceEgress: true
+    https: true
+  platform-analytics:
+    podSecurity: baseline
+    sameNamespace: true

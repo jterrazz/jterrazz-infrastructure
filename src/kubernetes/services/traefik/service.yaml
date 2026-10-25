@@ -1,5 +1,5 @@
 # invariant: one wildcard certificate per private zone, served to every tailnet route by the
-# default TLSStore (cluster/traefik/tls-store.yaml). Public routes need none of ours: the
+# default TLSStore (charts/cluster/templates/traefik/tls-store.yaml). Public routes need none of ours: the
 # Cloudflare edge terminates their TLS, and cloudflared does not verify the origin (ADR-001).
 name: traefik
 

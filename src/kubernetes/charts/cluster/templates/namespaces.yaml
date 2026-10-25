@@ -1,22 +1,34 @@
+{{- /* invariant: a namespace is never deleted with a release: it holds the data its PVCs bind. */ -}}
+{{- range $name, $ns := .Values.namespaces }}
 ---
-# invariant: the namespace baseline only; the Victoria stores authenticate nothing, so their
-# clients all live here and the stores get no cross-namespace ingress (ADR-011).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $name }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+    pod-security.kubernetes.io/enforce: {{ $ns.podSecurity | required (printf "namespaces.%s.podSecurity is required" $name) }}
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    app.jterrazz.com/tier: platform
+---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: default-deny-ingress
-  namespace: platform-telemetry
+  namespace: {{ $name }}
 spec:
   podSelector: {}
   policyTypes:
     - Ingress
-
+{{- if $ns.sameNamespace }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-same-namespace
-  namespace: platform-telemetry
+  namespace: {{ $name }}
 spec:
   podSelector: {}
   policyTypes:
@@ -25,14 +37,14 @@ spec:
     - from:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: platform-telemetry
-
+              kubernetes.io/metadata.name: {{ $name }}
+{{- end }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-egress
-  namespace: platform-telemetry
+  namespace: {{ $name }}
 spec:
   podSelector: {}
   policyTypes:
@@ -45,10 +57,13 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
+    {{- if $ns.sameNamespaceEgress }}
     - to:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: platform-telemetry
+              kubernetes.io/metadata.name: {{ $name }}
+    {{- end }}
+    {{- if $ns.https }}
     # hazard: no `except`: the apiserver is RFC1918 (10.43.0.1:443 -> node:6443) (ADR-011).
     - to:
         - ipBlock:
@@ -58,3 +73,5 @@ spec:
           port: 443
         - protocol: TCP
           port: 6443
+    {{- end }}
+{{- end }}

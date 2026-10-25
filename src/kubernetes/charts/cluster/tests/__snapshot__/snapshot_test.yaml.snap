@@ -1,0 +1,936 @@
+matches the recorded render:
+  1: |
+    apiVersion: admissionregistration.k8s.io/v1
+    kind: ValidatingAdmissionPolicy
+    metadata:
+      name: app-deployer-ownership
+    spec:
+      failurePolicy: Fail
+      matchConditions:
+        - expression: request.userInfo.username.startsWith('github:')
+          name: github-actions-identity
+      matchConstraints:
+        resourceRules:
+          - apiGroups:
+              - '*'
+            apiVersions:
+              - '*'
+            operations:
+              - CREATE
+              - UPDATE
+              - DELETE
+            resources:
+              - '*/*'
+            scope: '*'
+      validations:
+        - expression: variables.owned || variables.namespaceOwner == variables.repo
+          messageExpression: '''namespace '' + request.namespace + '' is not owned by '' + variables.repo'
+        - expression: '!variables.owned || (request.operation == ''CREATE'' ? variables.newOwner == variables.repo : request.operation == ''DELETE'' ? variables.oldOwner == variables.repo : variables.oldOwner == variables.repo && variables.newOwner == variables.repo)'
+          messageExpression: request.resource.resource + ' ' + request.name + ' must carry ' + variables.key + '=' + variables.repo
+        - expression: '!variables.isNamespace || object == null || !has(object.metadata.labels) || object.metadata.labels.all(k, !(k.startsWith(''pod-security.kubernetes.io/'') && object.metadata.labels[k] == ''privileged''))'
+          message: a namespace created by an app may not opt out of Pod Security
+        - expression: '!variables.isVolume || object == null || (object.metadata.name.endsWith(''-data'') && has(object.spec.hostPath) && object.spec.hostPath.path == ''/var/lib/k8s-data/'' + object.metadata.name.substring(0, size(object.metadata.name) - 5))'
+          message: an app volume is a hostPath at /var/lib/k8s-data/<name minus -data>
+        - expression: |-
+            !variables.isInfisicalSecret || object == null || (
+              object.spec.hostAPI == 'https://eu.infisical.com' &&
+              object.spec.authentication.all(method, method == 'universalAuth') &&
+              object.spec.authentication.universalAuth.credentialsRef.secretNamespace == 'platform-secrets' &&
+              object.spec.authentication.universalAuth.credentialsRef.secretName == 'infisical-credentials' &&
+              !has(object.spec.managedSecretReference) &&
+              has(object.spec.managedKubeSecretReferences) &&
+              object.spec.managedKubeSecretReferences.all(r, r.secretNamespace == request.namespace) &&
+              (
+                (object.spec.authentication.universalAuth.secretsScope.projectSlug == 'jterrazz' &&
+                 variables.app != '' &&
+                 object.spec.authentication.universalAuth.secretsScope.secretsPath == '/' + variables.app) ||
+                (object.spec.authentication.universalAuth.secretsScope.projectSlug == variables.registryProject &&
+                 object.spec.authentication.universalAuth.secretsScope.secretsPath == '/' &&
+                 object.spec.managedKubeSecretReferences.all(r, has(r.template) && r.template.data == {'.dockerconfigjson': variables.registryTemplate}))
+              )
+            )
+          messageExpression: '''an app InfisicalSecret reads /'' + variables.app + '' or the registry pull pair, into its own namespace'''
+        - expression: '!(request.resource.group == ''rbac.authorization.k8s.io'' && request.resource.resource == ''rolebindings'') || object == null || (object.roleRef.kind == ''ClusterRole'' && object.roleRef.name == ''app-namespace-admin'' && has(object.subjects) && object.subjects.all(s, s.kind == ''User'' && s.name == request.userInfo.username))'
+          message: an app RoleBinding binds app-namespace-admin to its own identity only
+      variables:
+        - expression: request.userInfo.username.substring(request.userInfo.username.indexOf('/') + 1)
+          name: repo
+        - expression: '''app.jterrazz.com/repository'''
+          name: key
+        - expression: 'object == null || !has(object.metadata.labels) || !(variables.key in object.metadata.labels) ? '''' : object.metadata.labels[variables.key]'
+          name: newOwner
+        - expression: 'oldObject == null || !has(oldObject.metadata.labels) || !(variables.key in oldObject.metadata.labels) ? '''' : oldObject.metadata.labels[variables.key]'
+          name: oldOwner
+        - expression: 'namespaceObject == null || !has(namespaceObject.metadata.labels) || !(variables.key in namespaceObject.metadata.labels) ? '''' : namespaceObject.metadata.labels[variables.key]'
+          name: namespaceOwner
+        - expression: request.resource.group == '' && request.resource.resource == 'namespaces'
+          name: isNamespace
+        - expression: request.resource.group == '' && request.resource.resource == 'persistentvolumes'
+          name: isVolume
+        - expression: variables.isNamespace || variables.isVolume
+          name: owned
+        - expression: request.resource.group == 'secrets.infisical.com' && request.resource.resource == 'infisicalsecrets'
+          name: isInfisicalSecret
+        - expression: 'namespaceObject == null || !has(namespaceObject.metadata.labels) || !(''app.jterrazz.com/environment'' in namespaceObject.metadata.labels) ? '''' : request.namespace.substring(0, size(request.namespace) - size(namespaceObject.metadata.labels[''app.jterrazz.com/environment'']) - 1)'
+          name: app
+        - expression: '''jterrazz-ci-v-nh-8'''
+          name: registryProject
+        - expression: '''{{ dict "auths" (dict "registry.internal.jterrazz.com" (dict "username" .REGISTRY_PULL_USERNAME.Value "password" .REGISTRY_PULL_PASSWORD.Value "auth" (list .REGISTRY_PULL_USERNAME.Value .REGISTRY_PULL_PASSWORD.Value | join ":" | b64enc))) | toJson }}'''
+          name: registryTemplate
+  2: |
+    apiVersion: admissionregistration.k8s.io/v1
+    kind: ValidatingAdmissionPolicyBinding
+    metadata:
+      name: app-deployer-ownership
+    spec:
+      policyName: app-deployer-ownership
+      validationActions:
+        - Deny
+  3: |
+    apiVersion: admissionregistration.k8s.io/v1
+    kind: ValidatingAdmissionPolicy
+    metadata:
+      name: host-access
+    spec:
+      failurePolicy: Fail
+      matchConstraints:
+        resourceRules:
+          - apiGroups:
+              - ""
+            apiVersions:
+              - v1
+            operations:
+              - CREATE
+              - UPDATE
+            resources:
+              - pods
+            scope: '*'
+      validations:
+        - expression: '!variables.touchesHost || variables.allowed'
+          messageExpression: '''pod '' + object.metadata.?name.orValue(object.metadata.?generateName.orValue('''')) + '' asks for host access, which only node-exporter and otel-collector in platform-telemetry may have'''
+      variables:
+        - expression: object.spec.containers + object.spec.?initContainers.orValue([]) + object.spec.?ephemeralContainers.orValue([])
+          name: containers
+        - expression: object.spec.?hostNetwork.orValue(false) || object.spec.?hostPID.orValue(false) || object.spec.?hostIPC.orValue(false) || object.spec.?volumes.orValue([]).exists(v, has(v.hostPath)) || variables.containers.exists(c, c.?securityContext.?privileged.orValue(false))
+          name: touchesHost
+        - expression: |-
+            namespaceObject.metadata.name == 'kube-system' || (namespaceObject.metadata.name == 'platform-telemetry' &&
+             object.spec.?serviceAccountName.orValue('default') in ['node-exporter', 'otel-collector'])
+          name: allowed
+  4: |
+    apiVersion: admissionregistration.k8s.io/v1
+    kind: ValidatingAdmissionPolicyBinding
+    metadata:
+      name: host-access
+    spec:
+      policyName: host-access
+      validationActions:
+        - Deny
+  5: |
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      annotations:
+        helm.sh/resource-policy: keep
+      labels:
+        app.jterrazz.com/tier: platform
+        pod-security.kubernetes.io/audit: restricted
+        pod-security.kubernetes.io/enforce: baseline
+        pod-security.kubernetes.io/warn: restricted
+      name: platform-analytics
+  6: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: default-deny-ingress
+      namespace: platform-analytics
+    spec:
+      podSelector: {}
+      policyTypes:
+        - Ingress
+  7: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-same-namespace
+      namespace: platform-analytics
+    spec:
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: platform-analytics
+      podSelector: {}
+      policyTypes:
+        - Ingress
+  8: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-egress
+      namespace: platform-analytics
+    spec:
+      egress:
+        - ports:
+            - port: 53
+              protocol: UDP
+            - port: 53
+              protocol: TCP
+          to:
+            - namespaceSelector: {}
+      podSelector: {}
+      policyTypes:
+        - Egress
+  9: |
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      annotations:
+        helm.sh/resource-policy: keep
+      labels:
+        app.jterrazz.com/tier: platform
+        pod-security.kubernetes.io/audit: restricted
+        pod-security.kubernetes.io/enforce: baseline
+        pod-security.kubernetes.io/warn: restricted
+      name: platform-networking
+  10: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: default-deny-ingress
+      namespace: platform-networking
+    spec:
+      podSelector: {}
+      policyTypes:
+        - Ingress
+  11: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-egress
+      namespace: platform-networking
+    spec:
+      egress:
+        - ports:
+            - port: 53
+              protocol: UDP
+            - port: 53
+              protocol: TCP
+          to:
+            - namespaceSelector: {}
+      podSelector: {}
+      policyTypes:
+        - Egress
+  12: |
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      annotations:
+        helm.sh/resource-policy: keep
+      labels:
+        app.jterrazz.com/tier: platform
+        pod-security.kubernetes.io/audit: restricted
+        pod-security.kubernetes.io/enforce: baseline
+        pod-security.kubernetes.io/warn: restricted
+      name: platform-registry
+  13: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: default-deny-ingress
+      namespace: platform-registry
+    spec:
+      podSelector: {}
+      policyTypes:
+        - Ingress
+  14: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-same-namespace
+      namespace: platform-registry
+    spec:
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: platform-registry
+      podSelector: {}
+      policyTypes:
+        - Ingress
+  15: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-egress
+      namespace: platform-registry
+    spec:
+      egress:
+        - ports:
+            - port: 53
+              protocol: UDP
+            - port: 53
+              protocol: TCP
+          to:
+            - namespaceSelector: {}
+      podSelector: {}
+      policyTypes:
+        - Egress
+  16: |
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      annotations:
+        helm.sh/resource-policy: keep
+      labels:
+        app.jterrazz.com/tier: platform
+        pod-security.kubernetes.io/audit: restricted
+        pod-security.kubernetes.io/enforce: baseline
+        pod-security.kubernetes.io/warn: restricted
+      name: platform-secrets
+  17: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: default-deny-ingress
+      namespace: platform-secrets
+    spec:
+      podSelector: {}
+      policyTypes:
+        - Ingress
+  18: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-egress
+      namespace: platform-secrets
+    spec:
+      egress:
+        - ports:
+            - port: 53
+              protocol: UDP
+            - port: 53
+              protocol: TCP
+          to:
+            - namespaceSelector: {}
+        - ports:
+            - port: 443
+              protocol: TCP
+            - port: 6443
+              protocol: TCP
+          to:
+            - ipBlock:
+                cidr: 0.0.0.0/0
+      podSelector: {}
+      policyTypes:
+        - Egress
+  19: |
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      annotations:
+        helm.sh/resource-policy: keep
+      labels:
+        app.jterrazz.com/tier: platform
+        pod-security.kubernetes.io/audit: restricted
+        pod-security.kubernetes.io/enforce: privileged
+        pod-security.kubernetes.io/warn: restricted
+      name: platform-telemetry
+  20: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: default-deny-ingress
+      namespace: platform-telemetry
+    spec:
+      podSelector: {}
+      policyTypes:
+        - Ingress
+  21: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-same-namespace
+      namespace: platform-telemetry
+    spec:
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: platform-telemetry
+      podSelector: {}
+      policyTypes:
+        - Ingress
+  22: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-egress
+      namespace: platform-telemetry
+    spec:
+      egress:
+        - ports:
+            - port: 53
+              protocol: UDP
+            - port: 53
+              protocol: TCP
+          to:
+            - namespaceSelector: {}
+        - to:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: platform-telemetry
+        - ports:
+            - port: 443
+              protocol: TCP
+            - port: 6443
+              protocol: TCP
+          to:
+            - ipBlock:
+                cidr: 0.0.0.0/0
+      podSelector: {}
+      policyTypes:
+        - Egress
+  23: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: default-deny-ingress
+      namespace: kube-system
+    spec:
+      podSelector: {}
+      policyTypes:
+        - Ingress
+  24: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-dns
+      namespace: kube-system
+    spec:
+      ingress:
+        - from:
+            - namespaceSelector: {}
+          ports:
+            - port: 53
+              protocol: UDP
+            - port: 53
+              protocol: TCP
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+      policyTypes:
+        - Ingress
+  25: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-traefik-ingress
+      namespace: kube-system
+    spec:
+      ingress:
+        - from:
+            - podSelector:
+                matchLabels:
+                  svccontroller.k3s.cattle.io/svcname: traefik
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: platform-networking
+              podSelector:
+                matchLabels:
+                  app: cloudflared
+            - ipBlock:
+                cidr: 0.0.0.0/0
+                except:
+                  - 10.42.0.0/16
+          ports:
+            - port: 8000
+              protocol: TCP
+            - port: 8443
+              protocol: TCP
+            - port: 8443
+              protocol: UDP
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: traefik
+      policyTypes:
+        - Ingress
+  26: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-svclb-ingress
+      namespace: kube-system
+    spec:
+      ingress:
+        - from:
+            - ipBlock:
+                cidr: 0.0.0.0/0
+          ports:
+            - port: 80
+              protocol: TCP
+            - port: 443
+              protocol: TCP
+            - port: 443
+              protocol: UDP
+      podSelector:
+        matchLabels:
+          svccontroller.k3s.cattle.io/svcname: traefik
+      policyTypes:
+        - Ingress
+  27: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-metrics-server
+      namespace: kube-system
+    spec:
+      ingress:
+        - from:
+            - ipBlock:
+                cidr: 0.0.0.0/0
+          ports:
+            - port: 10250
+              protocol: TCP
+      podSelector:
+        matchLabels:
+          k8s-app: metrics-server
+      policyTypes:
+        - Ingress
+  28: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-telemetry-scrape
+      namespace: kube-system
+    spec:
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: platform-telemetry
+          ports:
+            - port: 9153
+              protocol: TCP
+            - port: 9100
+              protocol: TCP
+      podSelector: {}
+      policyTypes:
+        - Ingress
+  29: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-cert-manager-ingress
+      namespace: platform-networking
+    spec:
+      ingress:
+        - ports:
+            - port: 10250
+              protocol: TCP
+            - port: 9402
+              protocol: TCP
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/instance: cert-manager
+      policyTypes:
+        - Ingress
+  30: |
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-cert-manager-egress
+      namespace: platform-networking
+    spec:
+      egress:
+        - ports:
+            - port: 53
+              protocol: UDP
+            - port: 53
+              protocol: TCP
+          to:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: kube-system
+        - ports:
+            - port: 443
+              protocol: TCP
+            - port: 6443
+              protocol: TCP
+          to:
+            - ipBlock:
+                cidr: 0.0.0.0/0
+        - ports:
+            - port: 53
+              protocol: UDP
+            - port: 53
+              protocol: TCP
+          to:
+            - ipBlock:
+                cidr: 0.0.0.0/0
+                except:
+                  - 10.0.0.0/8
+                  - 172.16.0.0/12
+                  - 192.168.0.0/16
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/instance: cert-manager
+      policyTypes:
+        - Egress
+  31: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: app-deployer
+    rules:
+      - apiGroups:
+          - ""
+        resources:
+          - namespaces
+        verbs:
+          - get
+          - create
+          - update
+          - patch
+      - apiGroups:
+          - ""
+        resources:
+          - persistentvolumes
+        verbs:
+          - get
+          - create
+          - update
+          - patch
+          - delete
+      - apiGroups:
+          - rbac.authorization.k8s.io
+        resources:
+          - rolebindings
+        verbs:
+          - get
+          - create
+          - update
+          - patch
+      - apiGroups:
+          - rbac.authorization.k8s.io
+        resourceNames:
+          - app-namespace-admin
+        resources:
+          - clusterroles
+        verbs:
+          - bind
+  32: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: app-deployer
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: app-deployer
+    subjects:
+      - apiGroup: rbac.authorization.k8s.io
+        kind: Group
+        name: github-actions:jterrazz
+  33: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: app-namespace-admin
+    rules:
+      - apiGroups:
+          - ""
+        resources:
+          - configmaps
+          - secrets
+          - services
+          - persistentvolumeclaims
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+      - apiGroups:
+          - ""
+        resources:
+          - pods
+          - pods/log
+          - events
+          - endpoints
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - apps
+        resources:
+          - deployments
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+      - apiGroups:
+          - apps
+        resources:
+          - replicasets
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - batch
+        resources:
+          - cronjobs
+          - jobs
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+      - apiGroups:
+          - networking.k8s.io
+        resources:
+          - networkpolicies
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+      - apiGroups:
+          - traefik.io
+        resources:
+          - ingressroutes
+          - middlewares
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+      - apiGroups:
+          - cert-manager.io
+        resources:
+          - certificates
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+      - apiGroups:
+          - secrets.infisical.com
+        resources:
+          - infisicalsecrets
+        verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+  34: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: platform-reader
+    rules:
+      - apiGroups:
+          - ""
+        resources:
+          - namespaces
+          - services
+          - serviceaccounts
+          - persistentvolumes
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - apps
+        resources:
+          - deployments
+          - statefulsets
+          - daemonsets
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - batch
+        resources:
+          - cronjobs
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - networking.k8s.io
+        resources:
+          - networkpolicies
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - discovery.k8s.io
+        resources:
+          - endpointslices
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - cert-manager.io
+        resources:
+          - certificates
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - secrets.infisical.com
+        resources:
+          - infisicalsecrets
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - traefik.io
+        resources:
+          - ingressroutes
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - authorization.k8s.io
+        resources:
+          - subjectaccessreviews
+        verbs:
+          - create
+  35: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: platform-reader
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: platform-reader
+    subjects:
+      - apiGroup: rbac.authorization.k8s.io
+        kind: User
+        name: github:jterrazz/jterrazz-infrastructure
+  36: |
+    apiVersion: storage.k8s.io/v1
+    kind: StorageClass
+    metadata:
+      name: manual
+    provisioner: kubernetes.io/no-provisioner
+    reclaimPolicy: Retain
+    volumeBindingMode: WaitForFirstConsumer
+  37: |
+    apiVersion: traefik.io/v1alpha1
+    kind: Middleware
+    metadata:
+      labels:
+        app.kubernetes.io/component: rate-limit
+        app.kubernetes.io/name: traefik
+      name: rate-limit
+      namespace: platform-networking
+    spec:
+      rateLimit:
+        average: 100
+        burst: 200
+        sourceCriterion:
+          requestHeaderName: Cf-Connecting-Ip
+  38: |
+    apiVersion: traefik.io/v1alpha1
+    kind: Middleware
+    metadata:
+      labels:
+        app.kubernetes.io/name: traefik
+      name: compress
+      namespace: platform-networking
+    spec:
+      compress:
+        includedContentTypes:
+          - text/html
+          - text/css
+          - text/plain
+          - text/javascript
+          - application/javascript
+          - application/json
+          - application/xml
+          - image/svg+xml
+  39: |
+    apiVersion: traefik.io/v1alpha1
+    kind: Middleware
+    metadata:
+      labels:
+        app.kubernetes.io/name: traefik
+      name: security-headers
+      namespace: platform-networking
+    spec:
+      headers:
+        contentTypeNosniff: true
+        customResponseHeaders:
+          Server: ""
+          X-Powered-By: ""
+        frameDeny: true
+        referrerPolicy: strict-origin-when-cross-origin
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000
+  40: |
+    apiVersion: traefik.io/v1alpha1
+    kind: Middleware
+    metadata:
+      labels:
+        app.kubernetes.io/component: access-control
+        app.kubernetes.io/name: traefik
+      name: private-access
+      namespace: platform-networking
+    spec:
+      ipAllowList:
+        sourceRange:
+          - 10.42.0.0/16
+  41: |
+    apiVersion: traefik.io/v1alpha1
+    kind: TLSOption
+    metadata:
+      name: default
+      namespace: kube-system
+    spec:
+      minVersion: VersionTLS13
+  42: |
+    apiVersion: traefik.io/v1alpha1
+    kind: TLSStore
+    metadata:
+      name: default
+      namespace: kube-system
+    spec:
+      certificates:
+        - secretName: wildcard-internal-tls
+        - secretName: wildcard-staging-tls
+      defaultCertificate:
+        secretName: wildcard-internal-tls

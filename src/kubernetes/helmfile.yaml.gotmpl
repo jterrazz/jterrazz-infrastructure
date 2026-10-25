@@ -39,12 +39,23 @@ templates:
           nodeName: {{ requiredEnv "NODE_NAME" | quote }}
 
 releases:
+  # invariant: the cluster's own objects, first: every namespace the releases below install into,
+  # their baselines, RBAC, the admission policies and Traefik's shared objects. A release, so a
+  # file removed is an object removed (ADR-009).
+  - name: cluster
+    namespace: kube-system
+    chart: ./charts/cluster
+    labels:
+      pass: operators
+
   # invariant: `pass: operators` goes first: later passes need its CRDs (ADR-009).
   - name: cert-manager
     namespace: platform-networking
     chart: jetstack/cert-manager
     version: v1.21.3
     wait: true
+    needs:
+      - kube-system/cluster
     labels:
       pass: operators
     values:
@@ -55,6 +66,8 @@ releases:
     chart: infisical/secrets-operator
     version: 0.11.15
     wait: true
+    needs:
+      - kube-system/cluster
     labels:
       pass: operators
     values:

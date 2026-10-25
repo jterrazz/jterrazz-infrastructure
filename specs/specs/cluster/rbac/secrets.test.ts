@@ -27,8 +27,6 @@ const MAY_LIST_EVERY_SECRET: Record<string, string> = {
         'the cainjector reads CA Secrets to patch webhook configurations',
     'platform-secrets:infisical-secre-controller-manager':
         'the Infisical operator writes the Secrets of every app namespace',
-    'platform-telemetry:kube-state-metrics':
-        "kube-state-metrics' secrets collector exports each Secret's metadata",
 };
 
 describe('secrets', () => {

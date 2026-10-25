@@ -5,5 +5,5 @@ helmfile_version: "v1.8.2"
 helm_diff_version: "v3.15.15"
 
 # hazard: never skip a minor; a minor can move the bundled Traefik chart, so re-read
-# src/kubernetes/cluster/traefik/helm-chart-config.yaml in the same change (ADR-003, ADR-007).
+# src/kubernetes/services/traefik/helm-chart-config.yaml in the same change (ADR-003, ADR-007).
 k3s_version: "v1.37.1+k3s1"

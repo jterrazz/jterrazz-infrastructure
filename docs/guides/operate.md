@@ -79,10 +79,10 @@ orb -m jterrazz-infrastructure -u root resolvectl status eth0                 # 
 
 - **Use fully-qualified CRD names** with kubectl: `certificate.cert-manager.io`,
   `ingressroute.traefik.io`.
-- **Delete by hand an object you remove from `src/kubernetes/cluster/`**: the deploy
-  applies that tree without pruning. Delete it after the deploy that stops
-  referencing it: a Middleware deleted while a route names it 404s the route.
-  A release dropped from the helmfile stays installed the same way: set
+- **The cluster's own objects are a release** (`charts/cluster`): a file removed
+  is an object removed on the next deploy, except a namespace, which
+  `helm.sh/resource-policy: keep` leaves standing with its data; delete one by
+  hand. A release dropped from the helmfile stays installed: set
   `installed: false` for one deploy, then remove its entry.
 - **Helm adopts an existing object** only with the annotations
   `meta.helm.sh/release-name` and `meta.helm.sh/release-namespace` and the label
@@ -266,10 +266,10 @@ values file per release, named after the chart that renders it
 ([Architecture](../concepts/architecture.md#four-layers)). Prefer a maintained
 upstream chart, else the app chart; a raw manifest is the last resort.
 
-1. **Namespace**: add it to `src/kubernetes/cluster/namespaces.yaml`, and its
-   baseline to `src/kubernetes/cluster/network-policies/<ns>.yaml`: default-deny,
-   same-namespace, DNS egress, and rules for a workload only when no release of
-   ours can declare them (cert-manager's).
+1. **Namespace**: add it to `src/kubernetes/charts/cluster/values.yaml` with its
+   Pod Security level and baseline flags; a rule for a workload goes there,
+   under `templates/network-policies/`, only when no release of ours can
+   declare it (cert-manager's).
 2. **Values**: `service.yaml` for the route, certificate, volumes, credentials
    and policy, plus `values.yaml` for an upstream chart or one app-chart file
    per workload. `registry/` is the single-workload example, `openpanel/` the

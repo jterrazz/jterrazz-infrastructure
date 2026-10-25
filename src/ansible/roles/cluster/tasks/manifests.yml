@@ -7,7 +7,7 @@
       - kubectl
       - apply
       - -f
-      - "{{ kubernetes_dir }}/cluster/traefik/helm-chart-config.yaml"
+      - "{{ kubernetes_dir }}/services/traefik/helm-chart-config.yaml"
   register: traefik_config_apply
   changed_when: "'created' in traefik_config_apply.stdout or 'configured' in traefik_config_apply.stdout"
 
@@ -58,10 +58,3 @@
     executable: /bin/bash
   register: pv_clear
   changed_when: pv_clear.stdout != ''
-
-# invariant: kubectl walks the tree lexically, so namespaces.yaml applies before network-policies/.
-- name: Apply src/kubernetes/cluster
-  ansible.builtin.command:
-    cmd: kubectl apply -f {{ kubernetes_dir }}/cluster -R
-  register: cluster_base_result
-  changed_when: "'created' in cluster_base_result.stdout or 'configured' in cluster_base_result.stdout"

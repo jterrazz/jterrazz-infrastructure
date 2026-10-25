@@ -45,7 +45,7 @@ node, and `make diff` reads it from the Mac.
   then an unselected pass, so a release with no `pass:` label is still applied.
   Redeploying one release is `helmfile apply -l name=<release>`, not an
   Ansible tag.
-- **Namespaces are never created by helm**: `cluster/namespaces.yaml`
+- **Namespaces are never created by helm**: `charts/cluster/values.yaml`
   declares them with their Pod Security labels, and helm's
   `--create-namespace` would win the race with an unlabelled one.
 - **A pass is done only when no release is failed.** helm-diff compares with

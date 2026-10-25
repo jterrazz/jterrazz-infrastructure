@@ -1,0 +1,63 @@
+suite: platform namespaces and their baselines
+templates:
+  - templates/namespaces.yaml
+# invariant: each case renders one namespace, the others nulled, so a selector meets one object.
+tests:
+  - it: never deletes a namespace with the release
+    # hazard: a namespace holds the data its PVCs bind.
+    documentSelector:
+      path: metadata.name
+      value: platform-analytics
+    asserts:
+      - isKind:
+          of: Namespace
+      - equal:
+          path: metadata.annotations["helm.sh/resource-policy"]
+          value: keep
+
+  - it: lets an isolated datastore's neighbours reach it, never it reach them
+    # invariant: same-namespace ingress for analytics, but no namespace-wide egress beyond DNS,
+    # which would union with op-postgres' isolated policy and let it dial out.
+    set:
+      namespaces:
+        platform-networking: null
+        platform-registry: null
+        platform-secrets: null
+        platform-telemetry: null
+    asserts:
+      - hasDocuments:
+          count: 4 # Namespace, default-deny-ingress, allow-same-namespace, allow-egress
+      - equal:
+          path: spec.egress
+          value:
+            - to:
+                - namespaceSelector: {}
+              ports:
+                - { protocol: UDP, port: 53 }
+                - { protocol: TCP, port: 53 }
+        documentSelector:
+          path: metadata.name
+          value: allow-egress
+
+  - it: gives telemetry its same-namespace egress and the API server
+    set:
+      namespaces:
+        platform-networking: null
+        platform-registry: null
+        platform-secrets: null
+        platform-analytics: null
+    documentSelector:
+      path: metadata.name
+      value: allow-egress
+    asserts:
+      - lengthEqual:
+          path: spec.egress
+          count: 3
+
+  - it: fails a namespace that names no Pod Security level
+    set:
+      namespaces:
+        platform-x: {}
+    asserts:
+      - failedTemplate:
+          errorMessage: namespaces.platform-x.podSecurity is required

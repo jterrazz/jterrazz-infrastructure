@@ -28,7 +28,7 @@ missing tool fails `make check`.
 
 - **`ansible-playbook --syntax-check`** of both playbooks, each against the
   inventory that runs it.
-- **kubeconform** over `src/kubernetes/cluster`, each chart rendered with its
+- **kubeconform** over every chart, `cluster` included, each rendered with its
   fixture, and every raw manifest under `src/kubernetes/services` (a file with
   a top-level `apiVersion:`). Never `-ignore-missing-schemas`: a CRD kind with no
   schema fails ([ADR-020](../decisions/020-validation-gates-fail-loudly-and-pin-what-they-run.md)).
