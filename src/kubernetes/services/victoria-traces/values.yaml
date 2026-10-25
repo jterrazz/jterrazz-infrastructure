@@ -1,6 +1,11 @@
 server:
   fullnameOverride: victoria-traces
 
+  # invariant: scraped by annotation like every pod, the store watching itself (ADR-005).
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "10428"
+
   # hazard: the PVC service.yaml declares; unset, the store starts empty.
   persistentVolume:
     existingClaim: victoria-traces-data

@@ -7,3 +7,22 @@ resources:
     memory: 64Mi
   limits:
     memory: 192Mi
+
+# value: the objects a panel or rule reads; secrets, configmaps, leases and the rest were series
+# nobody queried (ADR-005).
+collectors:
+  - cronjobs
+  - daemonsets
+  - deployments
+  - jobs
+  - namespaces
+  - nodes
+  - persistentvolumeclaims
+  - persistentvolumes
+  - pods
+  - statefulsets
+
+# invariant: the metrics port alone; unannotated, the endpoints job scraped 8081's self-metrics too.
+service:
+  annotations:
+    prometheus.io/port: "8080"

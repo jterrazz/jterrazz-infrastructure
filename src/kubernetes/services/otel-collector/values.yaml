@@ -64,6 +64,14 @@ ports:
     enabled: false
   zipkin:
     enabled: false
+  # invariant: the collector's own counters (sent, failed, dropped per exporter), scraped by
+  # annotation like every pod (ADR-005).
+  metrics:
+    enabled: true
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8888"
 
 extraEnvs:
   - name: LANGFUSE_BASIC_AUTH
@@ -79,13 +87,6 @@ config:
       timeout: 10s
 
   receivers:
-    otlp:
-      protocols:
-        grpc:
-          endpoint: 0.0.0.0:4317
-        http:
-          endpoint: 0.0.0.0:4318
-
     # hazard: never /var/log/containers: the container operator parses this path layout only.
     file_log:
       include: [/var/log/pods/*/*/*.log]
@@ -104,6 +105,13 @@ config:
           max_log_size: 102400
 
   processors:
+    # value: the chart's guard, which these pipelines replaced: a file_log replay after downtime
+    # is when the collector's memory spikes.
+    memory_limiter:
+      check_interval: 1s
+      limit_percentage: 80
+      spike_limit_percentage: 25
+
     batch:
       timeout: 5s
       send_batch_size: 1024
@@ -189,21 +197,21 @@ config:
     pipelines:
       traces:
         receivers: [otlp]
-        processors: [filter/drop-orphan-client-spans, batch]
+        processors: [memory_limiter, filter/drop-orphan-client-spans, batch]
         exporters: [otlp_http/victoria-traces]
       traces/langfuse:
         receivers: [otlp]
-        processors: [filter/genai, batch]
+        processors: [memory_limiter, filter/genai, batch]
         exporters: [otlp_http/langfuse]
       logs:
         receivers: [otlp]
-        processors: [batch]
+        processors: [memory_limiter, batch]
         exporters: [otlp_http/victoria-logs]
       logs/pods:
         receivers: [file_log]
-        processors: [k8s_attributes, filter/drop-env-dumps, batch]
+        processors: [memory_limiter, k8s_attributes, filter/drop-env-dumps, batch]
         exporters: [otlp_http/victoria-logs-pods]
       metrics:
         receivers: [otlp]
-        processors: [batch]
+        processors: [memory_limiter, batch]
         exporters: [prometheus_remote_write]

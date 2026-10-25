@@ -1,3 +1,8 @@
+# invariant: scraped by annotation like every pod (ADR-005).
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "3000"
+
 persistence:
   enabled: true
   existingClaim: grafana-data

@@ -1,6 +1,11 @@
 server:
   fullnameOverride: victoria-metrics
 
+  # invariant: scraped by annotation like every pod, the store watching itself (ADR-005).
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8428"
+
   # hazard: the PVC service.yaml declares; unset, the store starts empty.
   persistentVolume:
     existingClaim: victoria-metrics-data
@@ -32,10 +37,6 @@ server:
         scrape_interval: 1m
 
       scrape_configs:
-        - job_name: victoriametrics
-          static_configs:
-            - targets: ["localhost:8428"]
-
         # outside: k3s is one binary, so the kubelet's /metrics also serves the apiserver's
         # registry; the kubelet's own series are kept, the control plane's 65k are not (ADR-005).
         - job_name: kubernetes-nodes
