@@ -278,8 +278,7 @@ upstream chart, else the app chart; a raw manifest is the last resort.
 3. **Release**: one block in `src/kubernetes/helmfile.yaml.gotmpl` with its pinned
    `version:`; the `<svc>-platform` sibling inherits the `platform-service`
    template. That block is the whole declaration.
-4. **Route**: `access` defaults to `private`; add the hostname to
-   `private_hostnames`. A public zone is
+4. **Route**: `access` defaults to `private`, under `*.internal`. A public zone is
    [three steps](develop.md#dns-has-exactly-three-owners). Add `smoke:` only
    when `GET /` does not answer 200.
 5. **Network**: a `network:` block in `service.yaml` for an upstream chart, with

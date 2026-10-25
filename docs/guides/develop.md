@@ -107,8 +107,8 @@ tuning on this host spends fewer fsyncs, never fewer bytes: a guest fsync is a
 - **Private**: one wildcard per private zone, `*.internal.jterrazz.com` for
   products and platform services (`console.internal`, `grafana.internal`) and
   `*.staging.jterrazz.com` for staging environments. A new private host needs
-  no DNS change, only a line in `private_hostnames` and `public: false` on its
-  route.
+  no change here, only `public: false` on its route: CoreDNS answers both
+  zones in-cluster, the public wildcards outside.
 - **Public**: the Cloudflare tunnel's Public Hostnames own the records; add one
   in the Zero Trust dashboard, and nothing lands here.
 - **The platform deploy**: `dns_records` in group_vars, the three records

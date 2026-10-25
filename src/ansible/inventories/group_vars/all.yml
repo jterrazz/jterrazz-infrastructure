@@ -14,17 +14,6 @@ k3s_oidc_audience: "jterrazz-infrastructure"
 k3s_data_dir: "/var/lib/rancher/k3s"
 k3s_node_ip: "{{ ansible_default_ipv4.address }}"
 
-# invariant: answered in-cluster with the node's tailnet IP; exact names only. The platform
-# contract checks it against the live routes both ways (ADR-012).
-private_hostnames:
-  - registry.internal.jterrazz.com
-  - grafana.internal.jterrazz.com
-  - intelligence.internal.jterrazz.com
-  - signews.internal.jterrazz.com
-  - console.internal.jterrazz.com
-  - openpanel.internal.jterrazz.com
-  - signews.staging.jterrazz.com
-
 # invariant: only the records no other owner creates; one wildcard per private zone (ADR-012).
 dns_zone: jterrazz.com
 dns_records:

@@ -96,9 +96,9 @@ jobs:
           path: ${{ runner.temp }}/ingressroutes.json
           retention-days: 1
 
-      - name: Routes, certificates, cluster invariants, health, private_hostnames
+      - name: Routes, certificates, cluster invariants, health
         working-directory: specs
-        run: npx vitest --run specs/api/routes specs/api/certificates specs/cluster specs/health specs/routes
+        run: npx vitest --run specs/api/routes specs/api/certificates specs/cluster specs/health
 
   internet:
     name: Boundary from the internet

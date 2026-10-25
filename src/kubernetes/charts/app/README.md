@@ -262,8 +262,7 @@ ingress:
   Trust dashboard, and a new zone must be added to cert-manager's
   `issuers.yaml`. A private name sits under one of the two wildcard zones,
   `<product>.internal.jterrazz.com` or `<name>.staging.jterrazz.com`, and
-  needs no DNS work, only `public: false` and a line in the infrastructure
-  repo's `private_hostnames`. Staging is always private.
+  needs nothing but `public: false`. Staging is always private.
 
 #### `smoke:` names what the probe should get back
 

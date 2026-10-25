@@ -17,14 +17,14 @@
     tasks_from: facts
   when: tailscale_ip is not defined
 
-# hazard: an empty tailscale_ip renders one-field CoreDNS hosts entries and crashloops cluster DNS.
+# hazard: an empty tailscale_ip renders an A answer with no address and takes cluster DNS down.
 - name: Assert the node has a tailnet address
   ansible.builtin.assert:
     that:
       - tailscale_ip | default('') | length > 0
     fail_msg: >-
-      This node has no Tailscale IPv4 address, so the CoreDNS private-hostname
-      overrides would render as blank hosts entries and take cluster DNS down.
+      This node has no Tailscale IPv4 address, so CoreDNS would answer the
+      private zones with no address and take cluster DNS down.
       Join the tailnet first: `make deploy` (the tailscale role), or on the node
       `/usr/local/bin/tailscale-autoauth.sh`.
     quiet: true

@@ -5,3 +5,5 @@ manifest_dir: /tmp/k8s-manifests
 # hazard: the `.gotmpl` suffix makes helmfile render its `requiredEnv` calls (ADR-009).
 platform_helmfile: "{{ manifest_dir }}/kubernetes/helmfile.yaml.gotmpl"
 helmfile_arch: "{{ {'aarch64': 'arm64', 'x86_64': 'amd64'}[ansible_architecture] }}"
+# invariant: one label under each private wildcard, as the DNS wildcards match (ADR-012).
+coredns_private_zones_regexp: '^[^.]+\.(internal|staging)\.jterrazz\.com\.$'

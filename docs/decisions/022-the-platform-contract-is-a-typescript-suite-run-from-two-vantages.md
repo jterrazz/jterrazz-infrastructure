@@ -3,6 +3,9 @@
 **Status:** Accepted
 **Date:** 2026-10-24
 
+Revised 2026-10-25: `specs/specs/health` joined the suite, and the
+`private_hostnames` inventory left with the list.
+
 ## Context
 
 What the deployed platform promises was checked by `src/scripts/smoke.sh`, 419
@@ -35,9 +38,10 @@ each claim needs.
   the internet every private host never answers while every public host
   refuses a request that names a private one.
 - **What the API server holds is a repository suite** (`specs/specs/cluster/`,
-  `specs/specs/routes/`): Secret reads by service account against an allow-list,
-  the github-actions group's reach, Traefik's Service, namespace ownership,
-  and `private_hostnames` against the tailnet-only routes, both ways.
+  `specs/specs/health/`): Secret reads by service account against an
+  allow-list, the github-actions group's reach, Traefik's Service, namespace
+  ownership, network policy selectors, and the health of every workload,
+  endpoint, certificate, synced secret and volume.
 - **The ownership policy is proven on k3d** (`specs/specs/admission/`): its cases
   impersonate app identities, which needs an admin credential, so they run
   in the upgrade test and never against the live cluster.
