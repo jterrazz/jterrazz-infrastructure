@@ -1,8 +1,8 @@
 import { specification } from '@jterrazz/test';
 import { afterAll } from 'vitest';
 
-import { discoverRoutes } from '../__setup__/routes.ts';
-import type { Route } from '../__setup__/routes.ts';
+import { discoverRoutes } from './__setup__/routes.ts';
+import type { Route } from './__setup__/routes.ts';
 
 // value: a cold Next.js pod can take seconds to answer its first request. Every request names
 // its host whole, so the url is only where a bare path would go.

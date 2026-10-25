@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 
-import { isKubeList, kubectlList } from './kubectl.ts';
-import type { KubeList, KubeObject } from './kubectl.ts';
+import { isKubeList, kubectlList } from '../../__setup__/kubectl.ts';
+import type { KubeList, KubeObject } from '../../__setup__/kubectl.ts';
 
 /** What one route's smoke contract asks of its host, read off its `smoke.jterrazz.com/*` annotations. */
 export type Probe = {

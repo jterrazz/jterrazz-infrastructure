@@ -1,6 +1,6 @@
 import type { ApiDeployedSpecification, ExchangeResult } from '@jterrazz/test';
 
-import type { Route } from '../../../__setup__/routes.ts';
+import type { Route } from '../../__setup__/routes.ts';
 
 // invariant: a POST probe sends an empty JSON object: without a JSON content type the ingest
 // endpoint answers 415 before it reads anything, a pass for the wrong reason.
