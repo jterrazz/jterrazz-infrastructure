@@ -21,7 +21,7 @@ Nothing is vendored: `charts/` and `Chart.lock` are gitignored.
 | `common.infisicalSecret`                  | an `InfisicalSecret`                                                  | when `spec.secrets.path` is set                                      | when `secrets:` is set                                      |
 | `common.smokeAnnotations`                 | the `smoke.jterrazz.com/*` annotations on an `IngressRoute`           | derived per ingress entry, `smoke:` overrides it                     | from the `smoke:` block                                     |
 | `common.alerts`, `common.alertsConfigMap` | the Grafana alert rule files, as a sidecar-labelled ConfigMap         | `spec.alerts`, from `.infrastructure/alerts/*.yaml`                  | `alerts:`                                                   |
-| `common.dashboards`                       | one ConfigMap per dashboard, its identity derived                     | `spec.dashboards`, from `.infrastructure/dashboards/<kind>.json`     | `dashboards:`, owner `infrastructure`                       |
+| `common.dashboards`                       | one ConfigMap per dashboard, its identity derived                     | `spec.dashboards`, from `.infrastructure/dashboards/<kind>.json`     | `dashboards:`, owner `studio-infrastructure`                |
 
 Each template's header lists its inputs and the hazard it absorbs. The peer
 vocabulary and its traps are documented once, in

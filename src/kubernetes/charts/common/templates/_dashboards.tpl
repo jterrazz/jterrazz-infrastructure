@@ -1,7 +1,7 @@
-{{/* Input dict: owner (the app's name, or `infrastructure` for what this repository runs), dashboards
+{{/* Input dict: owner (the app's name, or `studio-infrastructure` for what this repository runs), dashboards
 (file name -> Grafana dashboard JSON), field (how an error names the map), labels (rendered lines),
 configMapPrefix, and workload (optional: namespace and container, for a link to the generic
-`infrastructure / Workload`, so an app's dashboards never copy its CPU, memory and log panels). One ConfigMap per dashboard, for the sidecar to file under the owner's folder.
+`studio-infrastructure / Workload`, so an app's dashboards never copy its CPU, memory and log panels). One ConfigMap per dashboard, for the sidecar to file under the owner's folder.
 invariant: the file name is the dashboard's kind (`service`, `business`, or a subsystem an
 investigation keeps returning to), and the identity is derived from it, never written: uid
 `<owner>-<kind>`, title `<owner> / <Kind>`, tags `[<owner>, <kind>]`, a link to every dashboard of
@@ -33,7 +33,7 @@ which is how one dashboard turns into everything; the render refuses it. */}}
 {{- $links := list (dict "type" "dashboards" "tags" (list $owner) "asDropdown" false "includeVars" true "keepTime" true "title" $owner) -}}
 {{- with $.workload -}}
 {{- $links = append $links (dict "type" "link" "title" "workload" "icon" "dashboard" "keepTime" true "targetBlank" false
-      "url" (printf "/d/infrastructure-workload?var-namespace=%s&var-container=%s" .namespace .container)) -}}
+      "url" (printf "/d/studio-infrastructure-workload?var-namespace=%s&var-container=%s" .namespace .container)) -}}
 {{- end -}}
 {{- $_ := set $doc "links" $links }}
 ---

@@ -21,10 +21,10 @@ metrics) is the `studio-telemetry` skill's, not this one's.
 - **Write panels, never identity.** The chart derives uid `<owner>-<kind>`, title
   `<owner> / <Kind>`, tags, folder and links from the owner and the file name,
   and overwrites whatever the file says.
-- **Do not copy what `infrastructure` already shows.** CPU, memory, restarts and
-  a container's logs are `infrastructure / Workload` (linked from every app
+- **Do not copy what `studio-infrastructure` already shows.** CPU, memory, restarts and
+  a container's logs are `studio-infrastructure / Workload` (linked from every app
   dashboard); request rate, errors and latency of a routed app are
-  `infrastructure / Ingress`. An app dashboard holds what is its own: its
+  `studio-infrastructure / Ingress`. An app dashboard holds what is its own: its
   domain, its dependencies, its runtime.
 - **Top row first**: four to six numbers with thresholds; then symptoms before
   causes; a description and a unit on every panel; datasources by uid.
@@ -93,7 +93,7 @@ metrics) is the `studio-telemetry` skill's, not this one's.
 - In LogsQL a filter after a pipe needs `| filter`; a Go duration (`3.82s`) turns
   into seconds with `| math dur / 1e9 as seconds` once its padding is stripped.
 - Traefik's `service` label is `<namespace>-<route>-<hash>@kubernetescrd`;
-  `infrastructure / Ingress` shows how to group it by app.
+  `studio-infrastructure / Ingress` shows how to group it by app.
 - Traefik's access lines are fields in `{k8s.namespace.name="kube-system"}`:
   filter on `KubernetesIngressRouteNamespace:="<app>-prod"`, read
   `RequestPath`, `DownstreamStatus`, `Duration` (nanoseconds). Fold ids into

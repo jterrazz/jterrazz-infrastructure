@@ -96,7 +96,7 @@ spec:
           defaultMode: drop
 
     # invariant: request rate, errors and latency per Kubernetes service, the one RED source every
-    # routed app has without instrumenting anything (infrastructure / Ingress, ADR-027).
+    # routed app has without instrumenting anything (studio-infrastructure / Ingress, ADR-027).
     # value: buckets from 50ms to a minute: the default four (0.1, 0.3, 1.2, 5) put every p95 at
     # 95ms or 5s, and a server-rendered page or a streamed answer runs past 5s.
     metrics:

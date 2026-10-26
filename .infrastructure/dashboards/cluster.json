@@ -486,7 +486,7 @@
                 "value": [
                   {
                     "title": "Open the workload",
-                    "url": "/d/infrastructure-workload?var-namespace=${__data.fields.namespace}&var-container=${__data.fields.container}&${__url_time_range}"
+                    "url": "/d/studio-infrastructure-workload?var-namespace=${__data.fields.namespace}&var-container=${__data.fields.container}&${__url_time_range}"
                   }
                 ]
               }
@@ -583,7 +583,7 @@
                 "value": [
                   {
                     "title": "Open the workload",
-                    "url": "/d/infrastructure-workload?var-namespace=${__data.fields.namespace}&var-container=${__data.fields.container}&${__url_time_range}"
+                    "url": "/d/studio-infrastructure-workload?var-namespace=${__data.fields.namespace}&var-container=${__data.fields.container}&${__url_time_range}"
                   }
                 ]
               }
@@ -799,7 +799,7 @@
           "links": [
             {
               "title": "Open the workload",
-              "url": "/d/infrastructure-workload?var-namespace=${__field.labels.namespace}&var-container=${__field.labels.container}&${__url_time_range}"
+              "url": "/d/studio-infrastructure-workload?var-namespace=${__field.labels.namespace}&var-container=${__field.labels.container}&${__url_time_range}"
             }
           ]
         },

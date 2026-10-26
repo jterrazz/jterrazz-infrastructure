@@ -3,6 +3,10 @@
 **Status:** Proposed
 **Date:** 2026-10-25
 
+Revised 2026-10-26: what this repository runs is owned by `studio-infrastructure`, the
+repository's name, like every app's (studio-os ADR-012); its uids are
+`studio-infrastructure-<kind>`.
+
 ## Context
 
 Five dashboards existed, written by hand with no shared rule: titles
@@ -32,12 +36,12 @@ nothing else.
 - **The file name is the kind, and the identity is derived from it.**
   `common.dashboards` stamps uid `<owner>-<kind>`, title `<owner> / <Kind>`,
   tags `[<owner>, <kind>]`, folder `<owner>`, a link to every dashboard of the
-  owner and, for an app, a link to `infrastructure / Workload` on its prod
-  namespace. The owner is the app's name, or `infrastructure` for what this
+  owner and, for an app, a link to `studio-infrastructure / Workload` on its prod
+  namespace. The owner is the app's name, or `studio-infrastructure` for what this
   repository runs: node, cluster and platform services together, like the
   repository. Whatever the file says about its own identity is overwritten, and
   a catch-all kind (`overview`, `misc`, `general`, `main`) fails the render.
-- **What every workload shares lives once, in `infrastructure`.** `Node` (the
+- **What every workload shares lives once, in `studio-infrastructure`.** `Node` (the
   machine), `Cluster` (what is broken, where capacity goes), `Workload` (one
   container's resources against its requests and limits, restarts and logs,
   for any namespace) and `Ingress` (rate, errors and latency per app, from

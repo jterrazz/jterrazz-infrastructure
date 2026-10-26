@@ -4,7 +4,7 @@ apiVersion: 1
 groups:
 - orgId: 1
   name: platform
-  folder: infrastructure
+  folder: studio-infrastructure
   interval: 1m
   rules:
   - uid: platform-node-disk
@@ -17,7 +17,7 @@ groups:
     annotations:
       summary: 'The VM''s disk has under 10% free: images and the datastore stop writing first.'
       value: '{{ humanizePercentage $values.B.Value }} free (alert under 10%)'
-      __dashboardUid__: infrastructure-node
+      __dashboardUid__: studio-infrastructure-node
       __panelId__: '5'
     data:
     - refId: A
@@ -57,7 +57,7 @@ groups:
     annotations:
       summary: The Mac's disk, which holds every volume and the backups, has under 10% free.
       value: '{{ humanizePercentage $values.B.Value }} free (alert under 10%)'
-      __dashboardUid__: infrastructure-node
+      __dashboardUid__: studio-infrastructure-node
       __panelId__: '6'
     data:
     - refId: A
@@ -97,7 +97,7 @@ groups:
     annotations:
       summary: 'The VM has under 8% of its memory available: the kernel is about to reclaim or kill.'
       value: '{{ humanizePercentage $values.B.Value }} available (alert under 8%)'
-      __dashboardUid__: infrastructure-node
+      __dashboardUid__: studio-infrastructure-node
       __panelId__: '3'
     data:
     - refId: A
@@ -137,7 +137,7 @@ groups:
     annotations:
       summary: '{{ $labels.namespace }}/{{ $labels.pod }} restarted more than 3 times in 30 minutes.'
       value: '{{ humanize $values.B.Value }} restarts in 30 min (alert over 3)'
-      __dashboardUid__: infrastructure-cluster
+      __dashboardUid__: studio-infrastructure-cluster
       __panelId__: '4'
     data:
     - refId: A
@@ -177,7 +177,7 @@ groups:
     annotations:
       summary: '{{ $labels.namespace }}/{{ $labels.deployment }} has had unavailable replicas for 15 minutes.'
       value: '{{ humanize $values.B.Value }} replica(s) unavailable'
-      __dashboardUid__: infrastructure-cluster
+      __dashboardUid__: studio-infrastructure-cluster
       __panelId__: '3'
     data:
     - refId: A
@@ -292,7 +292,7 @@ groups:
     annotations:
       summary: 'The last successful weekly backup is over 8 days old: run make backup ARGS=--verify, and read the studio-backup unit''s journal.'
       value: '{{ humanize $values.B.Value }} days since the last backup (alert over 8)'
-      __dashboardUid__: infrastructure-node
+      __dashboardUid__: studio-infrastructure-node
       __panelId__: '7'
     data:
     - refId: A

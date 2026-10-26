@@ -25,7 +25,7 @@ tests:
           apiVersion: 1
           groups:
             - name: ci
-              folder: infrastructure
+              folder: studio-infrastructure
               rules:
                 - uid: ci-silent
                   execErrState: OK

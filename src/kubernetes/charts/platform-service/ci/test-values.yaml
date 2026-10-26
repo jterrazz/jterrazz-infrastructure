@@ -80,6 +80,6 @@ alerts:
     apiVersion: 1
     groups:
       - name: ci
-        folder: infrastructure
+        folder: studio-infrastructure
         rules:
           - uid: ci-test-rule

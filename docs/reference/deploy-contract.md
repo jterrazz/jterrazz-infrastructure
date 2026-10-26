@@ -19,7 +19,7 @@ here; the workflows that execute the contract are
   or a subsystem's name; never `overview`. The chart derives the uid
   (`<app>-<kind>`), title, tags, folder and links, so the file holds panels
   only, and the CPU, memory and log panels every workload shares are
-  `infrastructure / Workload`'s, linked rather than copied
+  `studio-infrastructure / Workload`'s, linked rather than copied
   ([ADR-027](../decisions/027-a-dashboard-answers-one-audience-and-its-identity-is-derived.md)).
   An alert rule carries `__dashboardUid__` and `__panelId__` for the panel
   that explains it.

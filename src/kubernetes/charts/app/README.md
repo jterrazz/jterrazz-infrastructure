@@ -401,7 +401,7 @@ The kind is `service`, `business` or a subsystem's name, in kebab-case;
 `overview`, `misc`, `general` and `main` fail the render. `common.dashboards`
 overwrites the identity: uid `<app>-<kind>`, title `<app> / <Kind>`, tags
 `[<app>, <kind>]`, a link to each of the app's dashboards and one to
-`infrastructure / Workload` on `<app>-prod`
+`studio-infrastructure / Workload` on `<app>-prod`
 ([ADR-027](../../../../docs/decisions/027-a-dashboard-answers-one-audience-and-its-identity-is-derived.md)).
 
 App CI fills this map for you: `studio-actions/actions/docker-deploy` scans

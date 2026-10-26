@@ -1,7 +1,7 @@
-{{- /* invariant: what this repository runs is one owner, `infrastructure`: the node, the cluster and
+{{- /* invariant: what this repository runs is one owner, `studio-infrastructure`: the node, the cluster and
 the platform services; an app ships its own through the app chart's spec.dashboards. */ -}}
 {{ include "common.dashboards" (dict
-     "owner" "infrastructure"
+     "owner" "studio-infrastructure"
      "dashboards" .Values.dashboards
      "field" "dashboards"
      "labels" (include "platform-service.labels" .)

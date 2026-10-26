@@ -4,7 +4,7 @@ templates:
 values:
   - ../ci/test-values.yaml
 tests:
-  - it: renders a ConfigMap Grafana's sidecar loads into the infrastructure folder
+  - it: renders a ConfigMap Grafana's sidecar loads into the studio-infrastructure folder
     # invariant: the sidecar selects on grafana_dashboard and files by grafana_folder.
     asserts:
       - equal:
@@ -15,12 +15,12 @@ tests:
           value: "1"
       - equal:
           path: metadata.annotations.grafana_folder
-          value: infrastructure
+          value: studio-infrastructure
 
   - it: derives uid, title, tags and links, whatever the file says, and drops its id
     asserts:
       - equal:
-          path: data["infrastructure-node.json"]
+          path: data["studio-infrastructure-node.json"]
           value: |
             {
               "links": [
@@ -29,19 +29,19 @@ tests:
                   "includeVars": true,
                   "keepTime": true,
                   "tags": [
-                    "infrastructure"
+                    "studio-infrastructure"
                   ],
-                  "title": "infrastructure",
+                  "title": "studio-infrastructure",
                   "type": "dashboards"
                 }
               ],
               "panels": [],
               "tags": [
-                "infrastructure",
+                "studio-infrastructure",
                 "node"
               ],
-              "title": "infrastructure / Node",
-              "uid": "infrastructure-node"
+              "title": "studio-infrastructure / Node",
+              "uid": "studio-infrastructure-node"
             }
 
   - it: titles a kebab-case kind word by word
@@ -54,8 +54,8 @@ tests:
           path: metadata.name
           value: dashboard-content-pipeline
       - matchRegex:
-          path: data["infrastructure-content-pipeline.json"]
-          pattern: '"title": "infrastructure / Content Pipeline"'
+          path: data["studio-infrastructure-content-pipeline.json"]
+          pattern: '"title": "studio-infrastructure / Content Pipeline"'
 
   - it: refuses a catch-all kind
     # hazard: `overview` names no audience, which is how one dashboard becomes everything.

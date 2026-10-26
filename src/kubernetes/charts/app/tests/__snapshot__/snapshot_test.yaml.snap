@@ -66,7 +66,7 @@ matches the recorded render of the CI fixture:
               "targetBlank": false,
               "title": "workload",
               "type": "link",
-              "url": "/d/infrastructure-workload?var-namespace=ci-test-app-prod\u0026var-container=ci-test-app"
+              "url": "/d/studio-infrastructure-workload?var-namespace=ci-test-app-prod\u0026var-container=ci-test-app"
             }
           ],
           "panels": [],
