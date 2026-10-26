@@ -5,8 +5,8 @@
 
 Revised 2026-10-25: the gateway variable is `STUDIO_INTELLIGENCE_BASE_URL`.
 Revised 2026-10-26: the substrate brand is `studio` (studio-os ADR-012), so
-`jterrazz-intelligence` is `studio-intelligence-gateway`, the alert relay is
-`studio-alert-relay`, and `os` is `studio-console`; the variable keeps its name.
+`jterrazz-intelligence` is `studio-intelligence`, the alert relay is
+`studio-alerts`, and `os` is `studio-console`; the variable keeps its name.
 
 ## Context
 

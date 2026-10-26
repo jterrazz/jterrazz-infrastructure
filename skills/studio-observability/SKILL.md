@@ -35,7 +35,7 @@ metrics) is the `studio-telemetry` skill's, not this one's.
 - **An alert says its impact and its value**: `summary` is one sentence a
   reader acts on, `value` renders the number with its unit and threshold
   (`{{ humanize $values.B.Value }} ms (alert over 1000 ms)`). Slack shows both;
-  the relay `studio-alert-relay` turns the message green when it resolves (ADR-028).
+  the relay `studio-alerts` turns the message green when it resolves (ADR-028).
 - **An alert points at its panel** (`__dashboardUid__`, `__panelId__`), never sets
   `execErrState: OK`, and keeps a uid under 40 characters.
 
