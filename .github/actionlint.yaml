@@ -1,0 +1,4 @@
+# outside: actionlint 1.7.12 predates GitHub's ubuntu-26.04 images; drop this once it knows them.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04-arm

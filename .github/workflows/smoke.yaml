@@ -25,7 +25,7 @@ concurrency:
 jobs:
   tailnet:
     name: Contract from the tailnet
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04-arm
     # invariant: after a failed deploy a probe would only report that failure twice.
     if: >-
       github.event_name != 'workflow_run' ||
@@ -64,7 +64,7 @@ jobs:
 
   internet:
     name: Boundary from the internet
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04-arm
     needs: tailnet
     # invariant: never on the tailnet: this job stands where an outsider does.
     if: ${{ !cancelled() && needs.tailnet.result != 'skipped' }}
