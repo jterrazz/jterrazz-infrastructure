@@ -118,11 +118,13 @@
 - name: Apply every platform release
   ansible.builtin.include_tasks: apply.yml
 
-# invariant: after every release, so Grafana is up and both sidecars have provisioned.
+# invariant: after every release, so Grafana is up and both sidecars have provisioned; skipped
+# where the deploy does not wait for pods (the upgrade test, whose dummy secrets never start Grafana).
 - name: Wait for Grafana
   ansible.builtin.command:
     cmd: kubectl rollout status deployment/grafana -n platform-telemetry --timeout=180s
   changed_when: false
+  when: platform_helm_wait | default(true) | bool
 
 # hazard: a fresh database races the two sidecars into twin folders of one title (2026-10-26).
 - name: Remove Grafana's empty twin folders
@@ -131,3 +133,4 @@
     stdin: "{{ lookup('ansible.builtin.file', 'grafana-folders.py') }}"
   register: grafana_folders
   changed_when: grafana_folders.stdout | trim | length > 0
+  when: platform_helm_wait | default(true) | bool
