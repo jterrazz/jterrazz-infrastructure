@@ -44,10 +44,10 @@ spec:
     size: 2Gi
     mountPath: /data
 
-  # invariant: both catalog entries; jterrazz-intelligence also stamps its clientLabel.
+  # invariant: both catalog entries; studio-intelligence also stamps its clientLabel.
   platformServices:
     - otel-collector
-    - jterrazz-intelligence
+    - studio-intelligence
 
   # invariant: a peer that cannot stamp the clientLabel, plus one declared egress rule.
   network:

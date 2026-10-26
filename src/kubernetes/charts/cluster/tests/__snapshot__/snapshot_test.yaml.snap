@@ -849,7 +849,7 @@ matches the recorded render:
     subjects:
       - apiGroup: rbac.authorization.k8s.io
         kind: User
-        name: github:jterrazz/jterrazz-infrastructure
+        name: github:jterrazz/studio-infrastructure
   36: |
     apiVersion: storage.k8s.io/v1
     kind: StorageClass

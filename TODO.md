@@ -9,7 +9,7 @@ Work deliberately left for later. Each line says what unblocks it.
   clean shutdown, and a week of data is the most a loss costs.
   - Candidate fix, open to other ideas: dump the databases hot, nightly,
     without stopping anything: `pg_dump` in op-postgres, SQLite's `.backup`
-    in signews-api and jterrazz-console, each through `kubectl exec`, then
+    in signews-api and studio-console, each through `kubectl exec`, then
     age-encrypted like today. About 700 MB of data, a few hundred MB
     compressed. A loss then costs a day, and a `pg_dump` restores into a
     newer PostgreSQL major, which a file copy does not. The cold full copy

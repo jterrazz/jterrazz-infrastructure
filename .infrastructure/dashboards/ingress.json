@@ -1,5 +1,5 @@
 {
-  "description": "Every request that reaches Traefik, per app: rate, errors, latency, and which paths fail or crawl, the signals no app has to instrument. Public routes enter on `tunnel`, private ones on `websecure`. A call between pods (an app to jterrazz-intelligence) never crosses Traefik and is not here.",
+  "description": "Every request that reaches Traefik, per app: rate, errors, latency, and which paths fail or crawl, the signals no app has to instrument. Public routes enter on `tunnel`, private ones on `websecure`. A call between pods (an app to studio-intelligence) never crosses Traefik and is not here.",
   "editable": true,
   "graphTooltip": 1,
   "panels": [

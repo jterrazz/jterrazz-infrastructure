@@ -9,8 +9,8 @@ gestures that rotate a credential or add a service. Where each secret lives is
 ## Reaching the cluster
 
 ```bash
-orb -m jterrazz-infrastructure -u root kubectl get pod -A   # from the Mac, always
-ssh root@jterrazz-infrastructure@orb                        # OrbStack's SSH proxy
+orb -m studio-infrastructure -u root kubectl get pod -A   # from the Mac, always
+ssh root@studio-infrastructure@orb                        # OrbStack's SSH proxy
 export KUBECONFIG=./kubeconfig.yaml                         # from a tailnet client
 ```
 
@@ -57,12 +57,12 @@ revision and skips it. Read `helm history <release> -n <ns>`, fix the cause,
 then run `helmfile sync -l name=<release>` on the node, which does not diff.
 
 **Tailscale identity collision.** A VM recreated without `tailscale logout`
-joins as `jterrazz-infrastructure-2` and every private hostname breaks. Delete
+joins as `studio-infrastructure-2` and every private hostname breaks. Delete
 the stale device in the Tailscale admin console, or rename the new one:
 
 ```bash
 curl -H "Authorization: Bearer $TS_API_KEY" -X POST \
-  "https://api.tailscale.com/api/v2/device/<id>/name" -d '{"name":"jterrazz-infrastructure"}'
+  "https://api.tailscale.com/api/v2/device/<id>/name" -d '{"name":"studio-infrastructure"}'
 ```
 
 A node back **logged out** after a reboot logs itself in through
@@ -75,8 +75,8 @@ OrbStack's DHCP hands out a resolver (`0.250.250.200`) that drops queries;
 never `/etc/resolv.conf`, which always shows the 127.0.0.53 stub:
 
 ```bash
-orb -m jterrazz-infrastructure -u root cat /run/systemd/resolve/resolv.conf   # 1.1.1.1 and 9.9.9.9 only
-orb -m jterrazz-infrastructure -u root resolvectl status eth0                 # no "DNS Servers:" line
+orb -m studio-infrastructure -u root cat /run/systemd/resolve/resolv.conf   # 1.1.1.1 and 9.9.9.9 only
+orb -m studio-infrastructure -u root resolvectl status eth0                 # no "DNS Servers:" line
 ```
 
 ### Objects that need a gesture before they move
@@ -118,10 +118,10 @@ ts-postrouting` must list no MASQUERADE (`--snat-subnet-routes=false`, ADR-006).
 make -s redeploy-apps ARGS=--dry-run > ~/fleet-$(date +%F).txt
 
 # 1. Stop the workloads: `systemctl stop k3s` leaves the containers writing.
-orb -m jterrazz-infrastructure -u root /usr/local/bin/k3s-killall.sh
+orb -m studio-infrastructure -u root /usr/local/bin/k3s-killall.sh
 
 # 2. Back up the data directory (or `make backup`).
-tar -czf ~/k8s-data-$(date +%F).tar.gz -C ~/.jterrazz-infrastructure data
+tar -czf ~/k8s-data-$(date +%F).tar.gz -C ~/.studio-infrastructure data
 
 # 3. Repave: the VM goes, the data directory on the Mac stays.
 make destroy && make deploy
@@ -139,7 +139,7 @@ with its repository.
 
 The node snapshots every persistent volume but the registry each Sunday at
 03:30, stopping the workloads for about a minute, encrypted with age to a
-public key, into `~/.jterrazz-infrastructure/backups/`, the four newest kept
+public key, into `~/.studio-infrastructure/backups/`, the four newest kept
 ([ADR-024](../decisions/024-backups-are-weekly-consistent-and-encrypted-to-a-public-key.md)).
 `make backup` takes one now; `make backup ARGS=--verify` decrypts the newest
 with `BACKUP_AGE_IDENTITY` and lists what it holds.
@@ -147,7 +147,7 @@ with `BACKUP_AGE_IDENTITY` and lists what it holds.
 ## Restoring from backup
 
 All persistent state is `/var/lib/k8s-data` on the node, a symlink to
-`~/.jterrazz-infrastructure/data` on the Mac. To restore, stop the consumer,
+`~/.studio-infrastructure/data` on the Mac. To restore, stop the consumer,
 replace its directory from a snapshot, and start it again:
 
 ```bash
@@ -179,7 +179,7 @@ in [the OpenPanel README](../../src/kubernetes/services/openpanel/README.md#back
 | `CLOUDFLARE_DNS01_TOKEN`   | A new token (Zone, DNS, Edit on `jterrazz.com`) at `/jterrazz-infrastructure`, then `make deploy-platform`, which rewrites `cloudflare-api-token`; revoke the old one.                                                                                                                                     |
 | `CLOUDFLARE_RECORDS_TOKEN` | A new token (Zone, DNS, Edit on every public zone; Account, Cloudflare Tunnel, Edit) at `/jterrazz-infrastructure`, a resync, then `kubectl rollout restart deploy/external-dns -n platform-networking`; revoke the old one.                                                                               |
 | The registry accounts      | Two accounts overlapping, never a swap: [below](#rotating-the-registry-password).                                                                                                                                                                                                                          |
-| CI deploy SSH key          | `ssh-keygen -t ed25519`, the public half into `security_ci_deploy_pubkey`, `gh secret set CI_DEPLOY_SSH_PRIVATE -R jterrazz/jterrazz-infrastructure`, then `make deploy`.                                                                                                                                  |
+| CI deploy SSH key          | `ssh-keygen -t ed25519`, the public half into `security_ci_deploy_pubkey`, `gh secret set CI_DEPLOY_SSH_PRIVATE -R jterrazz/studio-infrastructure`, then `make deploy`.                                                                                                                                  |
 
 ### A deleted managed Secret does not come back
 
@@ -243,7 +243,7 @@ control-plane=controller-manager`; no app redeploy is needed.
    Infisical alone. Restart the registry, then list the names again.
 
    ```bash
-   gh workflow run deploy-platform.yaml -R jterrazz/jterrazz-infrastructure   # or make deploy-platform
+   gh workflow run deploy-platform.yaml -R jterrazz/studio-infrastructure   # or make deploy-platform
    kubectl rollout restart deploy/registry -n platform-registry
    ```
 

@@ -5,7 +5,7 @@ host: grafana.internal.jterrazz.com
 smoke:
   expect: "302,200"
 
-# invariant: the operator's template, not Helm's. Every notification goes to jterrazz-alerts, the
+# invariant: the operator's template, not Helm's. Every notification goes to studio-alerts, the
 # relay that keeps one Slack message per incident and turns it green when it resolves (ADR-028).
 # hazard: an alert about the relay itself cannot travel through it, so whatever names its namespace
 # goes straight to the plain Slack webhook, when SLACK_WEBHOOK_URL is set.
@@ -18,12 +18,12 @@ secrets:
         apiVersion: 1
         contactPoints:
           - orgId: 1
-            name: jterrazz-alerts
+            name: studio-alerts
             receivers:
-              - uid: jterrazz-alerts
+              - uid: studio-alerts
                 type: webhook
                 settings:
-                  url: http://jterrazz-alerts.jterrazz-alerts-prod.svc.cluster.local/grafana
+                  url: http://studio-alerts.studio-alerts-prod.svc.cluster.local/grafana
                   httpMethod: POST
         {{- with .SLACK_WEBHOOK_URL.Value }}
           - orgId: 1
@@ -36,13 +36,13 @@ secrets:
         {{- end }}
         policies:
           - orgId: 1
-            receiver: jterrazz-alerts
+            receiver: studio-alerts
             group_by: [grafana_folder, alertname]
         {{- with .SLACK_WEBHOOK_URL.Value }}
             routes:
               - receiver: slack
                 object_matchers:
-                  - [namespace, =, jterrazz-alerts-prod]
+                  - [namespace, =, studio-alerts-prod]
         {{- end }}
 
 storage:
@@ -60,6 +60,6 @@ network:
     - from: traefik
       ports: [3000]
   egress:
-    # invariant: notifications go to jterrazz-alerts, the Slack relay (ADR-028); its pod port.
-    - to: namespace:jterrazz-alerts-prod
+    # invariant: notifications go to studio-alerts, the Slack relay (ADR-028); its pod port.
+    - to: namespace:studio-alerts-prod
       ports: [8080]

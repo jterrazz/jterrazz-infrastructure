@@ -3,7 +3,7 @@ name: platform-service
 description: A platform service's route, certificates, volumes, credentials and network policy
 type: application
 # invariant: never published; the version is bookkeeping.
-version: 3.3.0
+version: 3.4.0
 
 # invariant: common's exact version.
 dependencies:

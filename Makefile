@@ -3,7 +3,7 @@
 .DEFAULT_GOAL := help
 .PHONY: help deploy deploy-platform destroy redeploy-apps kubeconfig diff backup smoke test-host test test-admission check-tools check lint check-docs check-specs print-helm-unittest-version
 
-VM_NAME := jterrazz-infrastructure
+VM_NAME := studio-infrastructure
 KUBECONFIG_FILE := kubeconfig.yaml
 NODE_FQDN := $(shell awk '/ansible_host:/ {print $$2; exit}' src/ansible/inventories/ci.yml)
 # invariant: snapshots reproduce only against the helm-unittest that wrote them; validate.yaml
@@ -96,7 +96,7 @@ check: ## Run the checks CI runs on the tree
 # hazard: `--package` plus the bin name: npm infers `typescript` from the short form, which
 # collides with a dependency (ADR-020).
 check-docs: ## Check the repository as content (manual layout, Markdown, comments, names, secrets)
-	npx --yes --package=@jterrazz/typescript@11.3.0 -- typescript check
+	npx --yes --package=@jterrazz/typescript@12.0.0 -- typescript check
 
 check-specs: specs/node_modules/.install ## Check the specs project (types, lint, format, test conventions)
 	cd specs && npx typescript check

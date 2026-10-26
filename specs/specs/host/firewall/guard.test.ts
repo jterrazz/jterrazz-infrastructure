@@ -24,7 +24,7 @@ function guardDefaults(): { interface: string; tailnetTcp: number[] } {
 describe('guard', () => {
     test('the node takes connections from the tailnet on its declared ports alone, and none from the bridge', async () => {
         // Given - the nftables guard roles/security installs, as the kernel holds it
-        const table = await onHost(['nft', 'list', 'table', 'inet', 'jterrazz_guard']);
+        const table = await onHost(['nft', 'list', 'table', 'inet', 'studio_guard']);
         const rules = table.stdout.split('\n').map((line) => line.trim());
         const { interface: bridge, tailnetTcp } = guardDefaults();
         const on = (prefix: string): string[] => rules.filter((rule) => rule.startsWith(prefix));

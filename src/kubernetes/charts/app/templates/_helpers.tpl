@@ -99,14 +99,14 @@ otel-collector:
     ports:
       - 4317
       - 4318
-jterrazz-intelligence:
+studio-intelligence:
   env:
-    JTERRAZZ_INTELLIGENCE_BASE_URL: "http://jterrazz-intelligence.jterrazz-intelligence-prod.svc.cluster.local/v1"
+    STUDIO_INTELLIGENCE_BASE_URL: "http://studio-intelligence.studio-intelligence-prod.svc.cluster.local/v1"
   egress:
-    namespace: jterrazz-intelligence-prod
+    namespace: studio-intelligence-prod
     ports:
       - 8317
-  clientLabel: platform-client.jterrazz.com/jterrazz-intelligence
+  clientLabel: platform-client.jterrazz.com/studio-intelligence
 {{- end -}}
 
 {{/* invariant: the one accessor every consumer calls, so an unknown name always fails. */}}

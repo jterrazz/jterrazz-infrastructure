@@ -1,12 +1,12 @@
 ---
-name: jterrazz-infrastructure
+name: studio-infrastructure
 description: "Infrastructure and deployment for jterrazz projects: k3s, Helm, Traefik, CI/CD deploy. Use when deploying apps, configuring Kubernetes, adding domains, or troubleshooting infra."
 ---
 
 # @jterrazz Infrastructure
 
-One k3s cluster on one machine: an OrbStack VM (`jterrazz-infrastructure`,
-Debian 13 trixie, arm64) on the dev Mac, in the `jterrazz-infrastructure`
+One k3s cluster on one machine: an OrbStack VM (`studio-infrastructure`,
+Debian 13 trixie, arm64) on the dev Mac, in the `studio-infrastructure`
 repository. `src/scripts/deploy.sh` creates it, Ansible configures it, and
 Helmfile deploys every platform release declared in
 `src/kubernetes/helmfile.yaml.gotmpl`. Public traffic enters through a
@@ -29,7 +29,7 @@ repositories and deploy themselves, as their GitHub OIDC identity, through the
 | Secrets, troubleshooting, repave, restore         | `docs/guides/operate.md`              |
 | What proves a change, and what a deploy proves    | `docs/guides/test.md`                 |
 | Why a choice was made                             | `docs/decisions/`                     |
-| Dashboards and alert rules                        | the `jterrazz-observability` skill    |
+| Dashboards and alert rules                        | the `studio-observability` skill    |
 
 ## Commands
 
@@ -41,7 +41,7 @@ make smoke            # the platform contract from the Mac
 make redeploy-apps    # rebuild every app (ARGS=--dry-run lists the repositories)
 make check            # the checks CI runs (alias: make lint)
 
-orb -m jterrazz-infrastructure -u root kubectl get pod -A   # cluster access from the Mac
+orb -m studio-infrastructure -u root kubectl get pod -A   # cluster access from the Mac
 ./src/scripts/helmfile.sh diff -l name=grafana              # one release
 ```
 
@@ -58,7 +58,7 @@ orb -m jterrazz-infrastructure -u root kubectl get pod -A   # cluster access fro
   `src/kubernetes/charts/cluster/values.yaml`, and an app's are created by its
   deploy as `<app>-<env>`.
 - **Never name an app after anything but its owner**: `<brand>-<role>`
-  (`jterrazz-console`, `signews-api`), one name for its release, image,
+  (`studio-console`, `signews-api`), one name for its release, image,
   volume, data directory and Infisical folder (ADR-023).
 - **Never commit a secret**: Infisical holds them; `.env` holds only the
   identity that reads it.

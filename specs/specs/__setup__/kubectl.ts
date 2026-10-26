@@ -22,7 +22,7 @@ export type KubeObject = {
 export type KubeList<T extends KubeObject = KubeObject> = { items: T[] };
 
 const REACH =
-    'Reach the cluster with CLUSTER_KUBECTL="orb -m jterrazz-infrastructure -u root kubectl" (the Mac), ' +
+    'Reach the cluster with CLUSTER_KUBECTL="orb -m studio-infrastructure -u root kubectl" (the Mac), ' +
     'KUBECONFIG=<file> (CI, k3d), or `make kubeconfig` (a machine on the tailnet).';
 
 // invariant: in order: CLUSTER_KUBECTL (a whole command line, the Mac's `orb ... kubectl`), then

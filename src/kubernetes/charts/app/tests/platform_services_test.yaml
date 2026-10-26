@@ -11,7 +11,7 @@ tests:
         - otel-colector
     asserts:
       - failedTemplate:
-          errorMessage: 'spec.platformServices: unknown service "otel-colector" (valid: jterrazz-intelligence, otel-collector)'
+          errorMessage: 'spec.platformServices: unknown service "otel-colector" (valid: otel-collector, studio-intelligence)'
 
   - it: hard-fails even when only one name of several is wrong
     set:
@@ -20,16 +20,16 @@ tests:
         - nope
     asserts:
       - failedTemplate:
-          errorMessage: 'spec.platformServices: unknown service "nope" (valid: jterrazz-intelligence, otel-collector)'
+          errorMessage: 'spec.platformServices: unknown service "nope" (valid: otel-collector, studio-intelligence)'
 
   - it: hard-fails on a name introduced by an environment override
     # invariant: checked on the resolved list, since an environment replaces it.
     set:
       environments.prod.platformServices:
-        - jterrazz-inteligence
+        - studio-inteligence
     asserts:
       - failedTemplate:
-          errorMessage: 'spec.platformServices: unknown service "jterrazz-inteligence" (valid: jterrazz-intelligence, otel-collector)'
+          errorMessage: 'spec.platformServices: unknown service "studio-inteligence" (valid: otel-collector, studio-intelligence)'
 
   - it: injects the catalog env for each declared service
     templates:
@@ -43,8 +43,8 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: JTERRAZZ_INTELLIGENCE_BASE_URL
-            value: "http://jterrazz-intelligence.jterrazz-intelligence-prod.svc.cluster.local/v1"
+            name: STUDIO_INTELLIGENCE_BASE_URL
+            value: "http://studio-intelligence.studio-intelligence-prod.svc.cluster.local/v1"
 
   - it: lets an app-declared env of the same name win over the catalog
     templates:
@@ -69,7 +69,7 @@ tests:
       - templates/deployment.yaml
     asserts:
       - equal:
-          path: spec.template.metadata.labels["platform-client.jterrazz.com/jterrazz-intelligence"]
+          path: spec.template.metadata.labels["platform-client.jterrazz.com/studio-intelligence"]
           value: "true"
 
   - it: keeps the client label OUT of the immutable selector
@@ -77,7 +77,7 @@ tests:
       - templates/deployment.yaml
     asserts:
       - notExists:
-          path: spec.selector.matchLabels["platform-client.jterrazz.com/jterrazz-intelligence"]
+          path: spec.selector.matchLabels["platform-client.jterrazz.com/studio-intelligence"]
       - equal:
           path: spec.selector.matchLabels
           value:
@@ -105,7 +105,7 @@ tests:
             to:
               - namespaceSelector:
                   matchLabels:
-                    kubernetes.io/metadata.name: jterrazz-intelligence-prod
+                    kubernetes.io/metadata.name: studio-intelligence-prod
             ports:
               - port: 8317
 
@@ -124,7 +124,7 @@ tests:
       - notContains:
           path: spec.template.spec.containers[0].env
           content:
-            name: JTERRAZZ_INTELLIGENCE_BASE_URL
+            name: STUDIO_INTELLIGENCE_BASE_URL
           any: true
 
   - it: renders the server-side ingress rule when the app IS a catalog target
@@ -132,12 +132,12 @@ tests:
     templates:
       - templates/network-policy.yaml
     set:
-      metadata.name: jterrazz-intelligence
+      metadata.name: studio-intelligence
       spec.platformServices: []
     # value: selects the app's own policy; `<app>-cronjobs` also renders.
     documentSelector:
       path: metadata.name
-      value: jterrazz-intelligence
+      value: studio-intelligence
     asserts:
       - contains:
           path: spec.ingress
@@ -146,6 +146,6 @@ tests:
               - namespaceSelector: {}
                 podSelector:
                   matchLabels:
-                    platform-client.jterrazz.com/jterrazz-intelligence: "true"
+                    platform-client.jterrazz.com/studio-intelligence: "true"
             ports:
               - port: 3000

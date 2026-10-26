@@ -7,7 +7,7 @@ the shape of the system; its boundary gate by gate is
 
 ## The machine
 
-A single OrbStack VM (`jterrazz-infrastructure`, Debian 13 trixie, arm64) on
+A single OrbStack VM (`studio-infrastructure`, Debian 13 trixie, arm64) on
 the dev Mac, running single-node k3s on SQLite
 ([ADR-007](../decisions/007-k3s-runs-single-node-on-sqlite.md)).
 `src/scripts/deploy.sh` creates it with one `orbctl create` when it does not
@@ -88,7 +88,7 @@ shut
 ## Data outlives the cluster
 
 Every `manual` PV is a hostPath under `/var/lib/k8s-data`, a symlink to
-`~/.jterrazz-infrastructure/data` on the Mac through OrbStack's `/mnt/mac`
+`~/.studio-infrastructure/data` on the Mac through OrbStack's `/mnt/mac`
 share, so `make destroy && make deploy` repaves the VM and keeps the data
 ([ADR-008](../decisions/008-storage-on-orbstack-spends-fsyncs-not-bytes.md)).
 
@@ -97,7 +97,7 @@ share, so `make destroy && make deploy` repaves the VM and keeps the data
 Every name says who owns the thing
 ([ADR-023](../decisions/023-names-follow-the-owner-and-one-name-runs-through-everything.md)).
 A platform namespace is `platform-<capability>`, declared in
-`charts/cluster/values.yaml`. An app is `<brand>-<role>` (`jterrazz-console`,
+`charts/cluster/values.yaml`. An app is `<brand>-<role>` (`studio-console`,
 `signews-api`), and that one name is its release, image, volume, data
 directory and Infisical folder; each environment gets a namespace
 `<app>-<env>`, created by the app's own deploy. Every namespace but

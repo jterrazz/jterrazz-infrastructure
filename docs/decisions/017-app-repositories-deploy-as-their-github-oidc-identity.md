@@ -27,7 +27,7 @@ identity may do is RBAC plus one ValidatingAdmissionPolicy.
   with it; nothing is stored. The claim rules are the whole trust boundary:
   without the `repository_owner` rule any public repository could mint an
   accepted token, without the ref rule any branch could deploy. The audience
-  is hand-synced with `jterrazz-actions/actions/docker-deploy`.
+  is hand-synced with `studio-actions/actions/docker-deploy`.
 - **RBAC.** Cluster-wide, the group gets `app-deployer` (namespaces
   get/create/update/patch, PersistentVolumes, RoleBindings, and `bind` on
   `app-namespace-admin` only). Inside a namespace, the repository binds

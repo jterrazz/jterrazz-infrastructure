@@ -8,6 +8,6 @@
 
 {{- define "platform-service.labels" -}}
 app.kubernetes.io/name: {{ include "platform-service.name" . }}
-app.kubernetes.io/part-of: jterrazz-infrastructure
+app.kubernetes.io/part-of: studio-infrastructure
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}

@@ -5,7 +5,7 @@ all:
   children:
     cluster:
       hosts:
-        jterrazz-infrastructure:
+        studio-infrastructure:
           ansible_host: orb
-          ansible_user: root@jterrazz-infrastructure
+          ansible_user: root@studio-infrastructure
           ansible_ssh_common_args: "-F {{ lookup('env', 'HOME') }}/.orbstack/ssh/config -o StrictHostKeyChecking=no"

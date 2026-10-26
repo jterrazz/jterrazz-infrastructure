@@ -28,7 +28,7 @@
     proxied: "{{ item.proxied }}"
     ttl: 1
     solo: true
-    comment: "Managed by jterrazz-infrastructure: dns_records in src/ansible/inventories/group_vars/all/dns.yml"
+    comment: "Managed by studio-infrastructure: dns_records in src/ansible/inventories/group_vars/all/dns.yml"
   loop: "{{ dns_records }}"
   loop_control:
     label: "{{ item.record }}"

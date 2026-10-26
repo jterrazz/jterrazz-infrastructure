@@ -12,26 +12,26 @@
 
 - name: Install the backup script
   ansible.builtin.template:
-    src: jterrazz-backup.sh.j2
-    dest: /usr/local/bin/jterrazz-backup
+    src: studio-backup.sh.j2
+    dest: /usr/local/bin/studio-backup
     mode: "0755"
 
 - name: Install the backup service
   ansible.builtin.copy:
-    dest: /etc/systemd/system/jterrazz-backup.service
+    dest: /etc/systemd/system/studio-backup.service
     mode: "0644"
     content: |
       [Unit]
       Description=Encrypted snapshot of the persistent volumes (roles/backup)
       [Service]
       Type=oneshot
-      ExecStart=/usr/local/bin/jterrazz-backup
+      ExecStart=/usr/local/bin/studio-backup
   notify: Reload systemd
 
 # value: Sunday 03:30, when nobody reads the sites; Persistent catches a run the Mac slept through.
 - name: Install the backup timer
   ansible.builtin.copy:
-    dest: /etc/systemd/system/jterrazz-backup.timer
+    dest: /etc/systemd/system/studio-backup.timer
     mode: "0644"
     content: |
       [Unit]
@@ -48,6 +48,6 @@
 
 - name: Enable the backup timer
   ansible.builtin.systemd_service:
-    name: jterrazz-backup.timer
+    name: studio-backup.timer
     enabled: true
     state: started

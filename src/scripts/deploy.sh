@@ -16,8 +16,8 @@ source "$SCRIPT_DIR/lib/common.sh"
 
 # hazard: one string, three identities: the OrbStack machine, the inventory host and the
 # Tailscale hostname the private wildcards resolve to.
-VM_NAME="jterrazz-infrastructure"
-VM_DATA_DIR="$HOME/.jterrazz-infrastructure/data"
+VM_NAME="studio-infrastructure"
+VM_DATA_DIR="$HOME/.studio-infrastructure/data"
 INVENTORY="$PROJECT_DIR/src/ansible/inventories/laptop.yml"
 
 if [ ! -f "$PROJECT_DIR/.env" ]; then

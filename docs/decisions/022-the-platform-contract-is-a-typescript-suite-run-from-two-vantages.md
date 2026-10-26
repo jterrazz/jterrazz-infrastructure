@@ -55,7 +55,7 @@ each claim needs.
   apiserver.
 - **CI reads the cluster as itself.** The tailnet job builds an OIDC
   kubeconfig as `docker-deploy` does and reads as user
-  `github:jterrazz/jterrazz-infrastructure`, bound to the read-only
+  `github:jterrazz/studio-infrastructure`, bound to the read-only
   `platform-reader` ClusterRole (`src/kubernetes/charts/cluster/templates/rbac/platform-reader.yaml`);
   the smoke workflow holds no SSH key any more.
 - **The suite is a project of its own.** `specs/` is a private `cli` on

@@ -16,7 +16,7 @@ release that mounts it.
 ## Setting up a tunnel
 
 1. In Zero Trust, Networks, Tunnels, create a **Cloudflared** tunnel named
-   `jterrazz-infrastructure` and copy its token (`eyJ...`).
+   `studio-infrastructure` and copy its token (`eyJ...`).
 2. Store it as `CLOUDFLARE_TUNNEL_TOKEN` in Infisical, project `jterrazz`,
    env `prod`, path `/jterrazz-infrastructure`.
 3. Nothing else: the platform deploy sets the tunnel's one catch-all rule and

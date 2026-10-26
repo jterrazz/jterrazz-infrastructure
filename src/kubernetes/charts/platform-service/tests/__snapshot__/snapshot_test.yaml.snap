@@ -14,7 +14,7 @@ matches the recorded render of the CI fixture:
       labels:
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
-        app.kubernetes.io/part-of: jterrazz-infrastructure
+        app.kubernetes.io/part-of: studio-infrastructure
         grafana_alert: "1"
       name: ci-test-service-alerts
   2: |
@@ -24,7 +24,7 @@ matches the recorded render of the CI fixture:
       labels:
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
-        app.kubernetes.io/part-of: jterrazz-infrastructure
+        app.kubernetes.io/part-of: studio-infrastructure
       name: ci-test-shared-tls
     spec:
       dnsNames:
@@ -65,7 +65,7 @@ matches the recorded render of the CI fixture:
       labels:
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
-        app.kubernetes.io/part-of: jterrazz-infrastructure
+        app.kubernetes.io/part-of: studio-infrastructure
         grafana_dashboard: "1"
       name: dashboard-node
   4: |
@@ -75,7 +75,7 @@ matches the recorded render of the CI fixture:
       labels:
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
-        app.kubernetes.io/part-of: jterrazz-infrastructure
+        app.kubernetes.io/part-of: studio-infrastructure
         ci_test_watcher: "1"
       name: ci-test-service-infisical
     spec:
@@ -108,7 +108,7 @@ matches the recorded render of the CI fixture:
       labels:
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
-        app.kubernetes.io/part-of: jterrazz-infrastructure
+        app.kubernetes.io/part-of: studio-infrastructure
       name: ci-test-service
     spec:
       entryPoints:
@@ -127,7 +127,7 @@ matches the recorded render of the CI fixture:
       labels:
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
-        app.kubernetes.io/part-of: jterrazz-infrastructure
+        app.kubernetes.io/part-of: studio-infrastructure
       name: ci-test-service
     spec:
       egress:
@@ -188,7 +188,7 @@ matches the recorded render of the CI fixture:
         app.kubernetes.io/component: storage
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
-        app.kubernetes.io/part-of: jterrazz-infrastructure
+        app.kubernetes.io/part-of: studio-infrastructure
       name: ci-test-service-data
     spec:
       accessModes:
@@ -216,7 +216,7 @@ matches the recorded render of the CI fixture:
         app.kubernetes.io/component: storage
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
-        app.kubernetes.io/part-of: jterrazz-infrastructure
+        app.kubernetes.io/part-of: studio-infrastructure
       name: ci-test-service-data
     spec:
       accessModes:
@@ -234,7 +234,7 @@ matches the recorded render of the CI fixture:
         app.kubernetes.io/component: storage
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
-        app.kubernetes.io/part-of: jterrazz-infrastructure
+        app.kubernetes.io/part-of: studio-infrastructure
       name: ci-test-service-metrics
     spec:
       accessModes:
@@ -262,7 +262,7 @@ matches the recorded render of the CI fixture:
         app.kubernetes.io/component: storage
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
-        app.kubernetes.io/part-of: jterrazz-infrastructure
+        app.kubernetes.io/part-of: studio-infrastructure
       name: storage-ci-test-0
     spec:
       accessModes:
@@ -280,7 +280,7 @@ matches the recorded render of the CI fixture:
         app.kubernetes.io/component: storage
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
-        app.kubernetes.io/part-of: jterrazz-infrastructure
+        app.kubernetes.io/part-of: studio-infrastructure
       name: ci-test-service-node-local
     spec:
       accessModes:
@@ -308,7 +308,7 @@ matches the recorded render of the CI fixture:
         app.kubernetes.io/component: storage
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
-        app.kubernetes.io/part-of: jterrazz-infrastructure
+        app.kubernetes.io/part-of: studio-infrastructure
       name: ci-test-service-node-local
     spec:
       accessModes:
@@ -326,7 +326,7 @@ matches the recorded render of the CI fixture:
         app.kubernetes.io/component: storage
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
-        app.kubernetes.io/part-of: jterrazz-infrastructure
+        app.kubernetes.io/part-of: studio-infrastructure
       name: ci-test-service-uploads
     spec:
       accessModes:
@@ -354,7 +354,7 @@ matches the recorded render of the CI fixture:
         app.kubernetes.io/component: storage
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
-        app.kubernetes.io/part-of: jterrazz-infrastructure
+        app.kubernetes.io/part-of: studio-infrastructure
       name: ci-test-service-uploads
     spec:
       accessModes:

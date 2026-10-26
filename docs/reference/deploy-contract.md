@@ -2,7 +2,7 @@
 
 What an app repo owes this repo, and what it gets back. The chart is owned
 here; the workflows that execute the contract are
-[jterrazz/jterrazz-actions](https://github.com/jterrazz/jterrazz-actions).
+[jterrazz/studio-actions](https://github.com/jterrazz/studio-actions).
 
 ## What an app repo owes
 
@@ -30,7 +30,7 @@ here; the workflows that execute the contract are
 ## How a deploy authenticates
 
 With nothing stored. The deploy job's GitHub OIDC token, audience
-`jterrazz-infrastructure`, is accepted by the apiserver for any
+`studio-infrastructure`, is accepted by the apiserver for any
 `jterrazz/<repo>` workflow running on `main` or a `v*` tag, as user
 `github:jterrazz/<repo>`
 ([authentication.yaml.j2](../../src/ansible/roles/k3s/templates/authentication.yaml.j2),
@@ -50,7 +50,7 @@ there is no list of apps in it. A repo:
 3. may create a hostPath volume only at `/var/lib/k8s-data/<pv name minus -data>`,
    labelled with its name, and may not opt a namespace out of Pod Security.
 
-`jterrazz-actions/actions/docker-deploy` does all three before `helm upgrade`,
+`studio-actions/actions/docker-deploy` does all three before `helm upgrade`,
 and deploys the image by digest. The environments stay the app's choice, in
 its own manifest. One residual risk is written down in the policy: nothing
 owns a hostname, so a repo could declare a route or certificate for any name
@@ -80,4 +80,4 @@ empty.
 
 Node and Next.js packaging traps (pnpm `--ignore-scripts`, `output:
 'standalone'`, `mkdir -p public`) are the shared workflows' business, in
-`jterrazz-actions`.
+`studio-actions`.

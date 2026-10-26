@@ -15,7 +15,7 @@ source "$SCRIPT_DIR/lib/common.sh"
 
 : "${KUBECONFIG:=$PROJECT_DIR/kubeconfig.yaml}"
 export KUBECONFIG
-export NODE_NAME="${NODE_NAME:-jterrazz-infrastructure}"
+export NODE_NAME="${NODE_NAME:-studio-infrastructure}"
 # invariant: helm-diff redacts Secrets, so a preview needs no real password.
 export GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD:-preview-placeholder}"
 

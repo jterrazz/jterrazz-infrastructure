@@ -100,9 +100,9 @@ kubectl debug -q -i pod/<op-postgres-pod> -n platform-analytics --profile=baseli
 
 # 3. Stop postgres and MOVE the old data aside: it is the rollback.
 kubectl scale -n platform-analytics --replicas=0 deploy/op-postgres
-mv ~/.jterrazz-infrastructure/data/openpanel/postgres/pgdata \
-   ~/.jterrazz-infrastructure/data/openpanel/postgres/pgdata-pg<old>-$(date +%F)
-mkdir -p ~/.jterrazz-infrastructure/data/openpanel/postgres/pgdata
+mv ~/.studio-infrastructure/data/openpanel/postgres/pgdata \
+   ~/.studio-infrastructure/data/openpanel/postgres/pgdata-pg<old>-$(date +%F)
+mkdir -p ~/.studio-infrastructure/data/openpanel/postgres/pgdata
 
 # 4. Bump the image in src/kubernetes/services/openpanel/op-postgres.yaml and deploy it.
 kubectl rollout status -n platform-analytics deploy/op-postgres --timeout=180s

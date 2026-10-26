@@ -12,7 +12,7 @@ Five dashboards existed, written by hand with no shared rule: titles
 both technical, so neither was the one to open. Every app copied the same CPU,
 memory and restart panels. Grafana folders outlived what they held: a
 `registry` folder stayed after its only alert went with distribution. The one
-written rule lived in the workstation's corpus (jterrazz-os
+written rule lived in the workstation's corpus (studio-os
 `home/_all/context/observability.md`), far from the chart that renders the
 dashboards, and nothing enforced it.
 
@@ -49,7 +49,7 @@ nothing else.
   client address is the visitor's real IP once Traefik trusts cloudflared's
   `X-Forwarded-For`, and a query string can carry a token. It is the per-path
   signal apps without instrumentation lack: jterrazz-web, signews-web,
-  spwn-web and jterrazz-console have nothing else, so their `service`
+  spwn-web and studio-console have nothing else, so their `service`
   dashboards are their routes, paths and latency read from it.
 - **One reading order.** A top row of four to six numbers with thresholds, then
   symptoms before causes; a description and a unit on every panel; datasources

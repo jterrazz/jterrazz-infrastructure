@@ -103,7 +103,7 @@ renews at 30, so 15 means renewal has failed for two weeks.
 
 - **The tailnet** (`smoke.yaml`'s first job): routes and certificates of both
   scopes, `specs/specs/cluster` and `specs/specs/health`, reading the cluster as
-  `github:jterrazz/jterrazz-infrastructure` through the read-only
+  `github:jterrazz/studio-infrastructure` through the read-only
   `platform-reader` role. It snapshots the IngressRoutes for the second job.
 - **The internet** (the second job, never on the tailnet): the public routes
   and `api/boundary`, against that snapshot.

@@ -290,7 +290,7 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: 'The last successful weekly backup is over 8 days old: run make backup ARGS=--verify, and read the jterrazz-backup unit''s journal.'
+      summary: 'The last successful weekly backup is over 8 days old: run make backup ARGS=--verify, and read the studio-backup unit''s journal.'
       value: '{{ humanize $values.B.Value }} days since the last backup (alert over 8)'
       __dashboardUid__: infrastructure-node
       __panelId__: '7'
@@ -302,7 +302,7 @@ groups:
       datasourceUid: victoria-metrics
       model:
         refId: A
-        expr: (time() - max(jterrazz_backup_last_success_timestamp_seconds)) / 86400
+        expr: (time() - max(studio_backup_last_success_timestamp_seconds)) / 86400
         instant: true
     - refId: B
       datasourceUid: __expr__

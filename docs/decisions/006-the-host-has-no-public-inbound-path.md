@@ -27,7 +27,7 @@ answered a neighbouring machine.
 
 ## Decision
 
-- **One firewall, an nftables guard** (`table inet jterrazz_guard`, input
+- **One firewall, an nftables guard** (`table inet studio_guard`, input
   hook at priority -10, ahead of k3s' own rules): loopback and established
   traffic pass; the NodePort range is dropped from every source, because a
   NodePort answers on the node address and bypasses the tailnet gate (audit

@@ -107,7 +107,7 @@ tuning on this host spends fewer fsyncs, never fewer bytes: a guest fsync is a
   works while every tailnet client is refused
   ([ADR-003](../decisions/003-traefiks-service-is-the-tailnet-gate.md)).
 - **buildkit runs with `network=host` in app CI**
-  (`jterrazz-actions/actions/docker-build`), or the registry's name
+  (`studio-actions/actions/docker-build`), or the registry's name
   NXDOMAINs on the public CNAME chain.
 
 ## DNS has exactly three owners

@@ -6,7 +6,7 @@ security_ssh_client_alive_interval: 300
 security_ssh_client_alive_count_max: 2
 
 # hazard: the public half of the CI_DEPLOY_SSH_PRIVATE secret; rotation is docs/guides/operate.md.
-security_ci_deploy_pubkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPPCsf2boqXrePRFuhL3KfJjpabJ0bjAeNqpTLl7GREf ci-deploy@jterrazz-infrastructure"
+security_ci_deploy_pubkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPPCsf2boqXrePRFuhL3KfJjpabJ0bjAeNqpTLl7GREf ci-deploy@studio-infrastructure"
 
 # invariant: what the kernel defaults leave open: source routing. rp_filter stays systemd's loose
 # 2, which Tailscale's subnet routes need.

@@ -371,7 +371,7 @@
             "type": "prometheus",
             "uid": "victoria-metrics"
           },
-          "expr": "time() - max(jterrazz_backup_last_success_timestamp_seconds)",
+          "expr": "time() - max(studio_backup_last_success_timestamp_seconds)",
           "legendFormat": "",
           "refId": "A"
         }

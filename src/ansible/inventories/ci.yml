@@ -5,7 +5,7 @@ all:
   children:
     cluster:
       hosts:
-        jterrazz-infrastructure:
-          ansible_host: jterrazz-infrastructure.tail77a797.ts.net
+        studio-infrastructure:
+          ansible_host: studio-infrastructure.tail77a797.ts.net
           ansible_user: root
           ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes"

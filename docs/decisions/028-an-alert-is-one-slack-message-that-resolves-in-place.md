@@ -17,7 +17,7 @@ every link it sent pointed at `http://localhost:3000`.
 
 ## Decision
 
-- **A relay owns the Slack side.** `jterrazz-alerts`, an app of its own
+- **A relay owns the Slack side.** `studio-alerts`, an app of its own
   repository, receives Grafana's webhook and talks to the Slack Web API with a
   bot token. It posts one message per incident (an alert's fingerprint and the
   time it started), edits that message as the alert fires again, and turns it

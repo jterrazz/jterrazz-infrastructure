@@ -2,7 +2,7 @@
 
 Every application in the fleet deploys through this one chart. An app repo
 owns a single file, `.infrastructure/application.yaml`, and the shared CI
-workflow (`jterrazz/jterrazz-actions/.github/workflows/release-docker.yaml`)
+workflow (`jterrazz/studio-actions/.github/workflows/release-docker.yaml`)
 runs, in essence:
 
 ```bash
@@ -14,7 +14,7 @@ helm upgrade --install <app>-<env> oci://registry.internal.jterrazz.com/charts/a
   --set meta.repository=<owner>/<repo>
 ```
 
-(The exact invocation lives in `jterrazz-actions/actions/docker-deploy`; the
+(The exact invocation lives in `studio-actions/actions/docker-deploy`; the
 three `--set` values above are the contract this chart expects from CI;
 everything else comes from `application.yaml`. No credential is among them: the
 registry pull secret is synced from Infisical, see
@@ -404,7 +404,7 @@ overwrites the identity: uid `<app>-<kind>`, title `<app> / <Kind>`, tags
 `infrastructure / Workload` on `<app>-prod`
 ([ADR-027](../../../../docs/decisions/027-a-dashboard-answers-one-audience-and-its-identity-is-derived.md)).
 
-App CI fills this map for you: `jterrazz-actions/actions/docker-deploy` scans
+App CI fills this map for you: `studio-actions/actions/docker-deploy` scans
 `.infrastructure/dashboards/*.json` and appends
 `--set-file spec.dashboards.<basename>=<file>` per file. Dashboards therefore
 never appear in `application.yaml`; dropping a JSON file in that directory is
@@ -493,7 +493,7 @@ source of truth in `templates/_helpers.tpl` (`app.platformCatalog`):
 | Name                    | Injects env                                                                                                   | Opens egress to                    | Client label                                         |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------- |
 | `otel-collector`        | `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.platform-telemetry:4318`                                   | `platform-telemetry` :4317, :4318  | none                                                 |
-| `jterrazz-intelligence` | `JTERRAZZ_INTELLIGENCE_BASE_URL=http://jterrazz-intelligence.jterrazz-intelligence-prod.svc.cluster.local/v1` | `jterrazz-intelligence-prod` :8317 | `platform-client.jterrazz.com/jterrazz-intelligence` |
+| `studio-intelligence` | `STUDIO_INTELLIGENCE_BASE_URL=http://studio-intelligence.studio-intelligence-prod.svc.cluster.local/v1` | `studio-intelligence-prod` :8317 | `platform-client.jterrazz.com/studio-intelligence` |
 
 Declaring a name wires the whole bundle at once:
 
@@ -506,18 +506,18 @@ Declaring a name wires the whole bundle at once:
    selecting that label. A new consumer therefore needs **zero** edits on the
    target.
 
-Ports are pinned per namespace, so `jterrazz-intelligence` resolves to its
+Ports are pinned per namespace, so `studio-intelligence` resolves to its
 `-prod` namespace regardless of which environment the consumer runs in.
 
 An unknown name **hard-fails the render** with the valid list. Telemetry is
 opt-in: an app that doesn't declare `otel-collector` gets no OTLP endpoint.
 
 Env names are the contract the client reads, not the service's name:
-`JTERRAZZ_INTELLIGENCE_BASE_URL` is what a consumer passes to
+`STUDIO_INTELLIGENCE_BASE_URL` is what a consumer passes to
 `@jterrazz/intelligence` as the gateway's base URL, and
 `OTEL_EXPORTER_OTLP_ENDPOINT` is the OTel SDK's.
 
-`jterrazz-intelligence` is an app (repository `gateway-intelligence`) that
+`studio-intelligence` is an app (repository `studio-intelligence`) that
 enforces no API key, so this client label and its private-only route are its
 whole boundary. Its consumers pass the non-secret placeholder `gateway-noauth`
 that the OpenAI and Anthropic SDKs require.

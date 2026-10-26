@@ -64,7 +64,7 @@
     user: root
     key: "{{ security_ci_deploy_pubkey }}"
     state: present
-    comment: "ci-deploy (jterrazz-infrastructure GHA)"
+    comment: "ci-deploy (studio-infrastructure GHA)"
 
 # invariant: the nft guard is the one firewall; UFW, which repeated part of it, is gone.
 - name: Remove UFW and its rules
@@ -82,7 +82,7 @@
 - name: Install the peer-isolation nftables guard
   ansible.builtin.template:
     src: nft-guard.conf.j2
-    dest: /etc/nftables.d/jterrazz-guard.conf
+    dest: /etc/nftables.d/studio-guard.conf
     mode: "0644"
   notify: Reload the nftables guard
 
@@ -100,8 +100,8 @@
       [Service]
       Type=oneshot
       RemainAfterExit=yes
-      ExecStart=/usr/sbin/nft -f /etc/nftables.d/jterrazz-guard.conf
-      ExecStop=/usr/sbin/nft delete table inet jterrazz_guard
+      ExecStart=/usr/sbin/nft -f /etc/nftables.d/studio-guard.conf
+      ExecStop=/usr/sbin/nft delete table inet studio_guard
 
       [Install]
       WantedBy=multi-user.target

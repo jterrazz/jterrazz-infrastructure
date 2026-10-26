@@ -45,7 +45,7 @@
         path:
           - "{{ (playbook_dir ~ '/../../kubernetes') | realpath }}"
           - "{{ (playbook_dir ~ '/../../../.infrastructure') | realpath }}"
-        dest: "{{ lookup('ansible.builtin.env', 'TMPDIR') | default('/tmp', true) }}/jterrazz-platform.tgz"
+        dest: "{{ lookup('ansible.builtin.env', 'TMPDIR') | default('/tmp', true) }}/studio-platform.tgz"
         exclude_path:
           - "{{ (playbook_dir ~ '/../../kubernetes/charts/app/tests') | realpath }}"
           - "{{ (playbook_dir ~ '/../../kubernetes/charts/platform-service/tests') | realpath }}"
@@ -58,7 +58,7 @@
 
     - name: Unpack them on the node
       ansible.builtin.unarchive:
-        src: "{{ lookup('ansible.builtin.env', 'TMPDIR') | default('/tmp', true) }}/jterrazz-platform.tgz"
+        src: "{{ lookup('ansible.builtin.env', 'TMPDIR') | default('/tmp', true) }}/studio-platform.tgz"
         dest: "{{ manifest_dir }}"
       changed_when: false
       tags: [always]

@@ -4,14 +4,14 @@ import { execFile } from 'node:child_process';
 export type HostOutcome = { code: number; stderr: string; stdout: string };
 
 // invariant: HOST_SHELL is the command line that runs a command as root on the node: the Mac's
-// `orb -m jterrazz-infrastructure -u root`, CI's `ssh -i <deploy key> ... root@<node>`. ssh joins
+// `orb -m studio-infrastructure -u root`, CI's `ssh -i <deploy key> ... root@<node>`. ssh joins
 // the words into one remote line, so every command here is plain words, no shell syntax.
 /** Runs one command as root on the node, `input` on its stdin. */
 export async function onHost(command: readonly string[], input = ''): Promise<HostOutcome> {
     const shell = (process.env.HOST_SHELL ?? '').trim();
     if (shell === '') {
         throw new Error(
-            'HOST_SHELL is not set: `orb -m jterrazz-infrastructure -u root` from the Mac, ' +
+            'HOST_SHELL is not set: `orb -m studio-infrastructure -u root` from the Mac, ' +
                 '`ssh -i <key> root@<node>` from CI',
         );
     }

@@ -58,7 +58,7 @@ the HelmChartConfig, applied before Traefik's install job is awaited.
   remain, and the host guard drops the NodePort range regardless.
 - **`readTimeout` 10m**, not v3's 60s: an image layer pushed over the
   tailnet (often DERP-relayed from a runner) takes longer, Traefik cut the
-  body and answered 499, and buildx reported a failed push (jterrazz-os,
+  body and answered 499, and buildx reported a failed push (studio-os,
   twice on 2026-10-24). The Cloudflare edge already bounds slow public
   clients.
 - **`advertisedPort` 443**: Traefik defaults it to the entrypoint's

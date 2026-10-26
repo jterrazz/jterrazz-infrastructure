@@ -54,7 +54,7 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Join the tailnet
-        uses: jterrazz/jterrazz-actions/actions/infra-connect@a56e32078360198f0262f9d6bacd0594ac310237 # main, 2026-10-24
+        uses: jterrazz/studio-actions/actions/infra-connect@a56e32078360198f0262f9d6bacd0594ac310237 # main, 2026-10-24
 
       - name: Setup Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -72,7 +72,7 @@ jobs:
           CI_DEPLOY_SSH_PRIVATE: ${{ secrets.CI_DEPLOY_SSH_PRIVATE }}
         run: |
           if [ -z "${CI_DEPLOY_SSH_PRIVATE:-}" ]; then
-            echo "::error::CI_DEPLOY_SSH_PRIVATE missing; set it via: gh secret set CI_DEPLOY_SSH_PRIVATE -R jterrazz/jterrazz-infrastructure < /tmp/ci-deploy"
+            echo "::error::CI_DEPLOY_SSH_PRIVATE missing; set it via: gh secret set CI_DEPLOY_SSH_PRIVATE -R jterrazz/studio-infrastructure < /tmp/ci-deploy"
             exit 1
           fi
           KEY_FILE="$(mktemp -t ci-deploy-XXXXXX.key)"

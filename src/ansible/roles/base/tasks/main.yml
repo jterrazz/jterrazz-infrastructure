@@ -100,7 +100,7 @@
 # src/scripts/deploy.sh creates, so the data survives `make destroy`.
 - name: Link /var/lib/k8s-data to the Mac data directory
   ansible.builtin.file:
-    src: "/mnt/mac/Users/{{ lookup('env', 'USER') }}/.jterrazz-infrastructure/data"
+    src: "/mnt/mac/Users/{{ lookup('env', 'USER') }}/.studio-infrastructure/data"
     dest: /var/lib/k8s-data
     state: link
     force: true

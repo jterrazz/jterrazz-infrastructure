@@ -9,8 +9,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/common.sh"
 
-MACHINE="${ORB_MACHINE:-jterrazz-infrastructure}"
-OUT_DIR="$HOME/.jterrazz-infrastructure/backups"
+MACHINE="${ORB_MACHINE:-studio-infrastructure}"
+OUT_DIR="$HOME/.studio-infrastructure/backups"
 
 # invariant: the private key travels on stdin end to end, never in argv where `ps` reads it.
 identity() {
@@ -34,8 +34,8 @@ identity() {
 case "${1:-}" in
     "")
         section "Snapshot"
-        orb -m "$MACHINE" -u root systemctl start jterrazz-backup.service
-        orb -m "$MACHINE" -u root journalctl -u jterrazz-backup -n 1 -o cat
+        orb -m "$MACHINE" -u root systemctl start studio-backup.service
+        orb -m "$MACHINE" -u root journalctl -u studio-backup -n 1 -o cat
         ;;
     --verify)
         latest=$(find "$OUT_DIR" -name 'k8s-data-*.tar.gz.age' | sort | tail -1)

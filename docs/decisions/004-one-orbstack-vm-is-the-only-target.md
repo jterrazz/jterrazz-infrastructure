@@ -61,7 +61,7 @@ no provisioning state and no `target` branch anywhere.
   concept), so group_vars and selectors stay portable.
 - **Data lives on the Mac.** `/var/lib/k8s-data`, baked into every PV, is a
   symlink into OrbStack's share of the Mac home
-  (`~/.jterrazz-infrastructure/data`), created by `deploy.sh` before the VM,
+  (`~/.studio-infrastructure/data`), created by `deploy.sh` before the VM,
   so the data survives `make destroy`.
 - **The records Pulumi made are converged by the platform deploy**
   (`dns_records`, see [the private-hostnames record](012-private-hostnames-are-wildcard-zones.md)).

@@ -1,3 +1,3 @@
 ---
-# hazard: hand-synced with `audience:` in jterrazz-actions/actions/docker-deploy (ADR-017).
-k3s_oidc_audience: "jterrazz-infrastructure"
+# hazard: hand-synced with `audience:` in studio-actions/actions/docker-deploy (ADR-017).
+k3s_oidc_audience: "studio-infrastructure"

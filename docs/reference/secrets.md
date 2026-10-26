@@ -49,7 +49,7 @@ The operator syncs an `InfisicalSecret` rendered by the release that needs it
 
 | Where                              | Secrets                                                                                                                      |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `jterrazz/jterrazz-infrastructure` | `INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET`, `CI_DEPLOY_SSH_PRIVATE` (whose public half is `security_ci_deploy_pubkey`) |
+| `jterrazz/studio-infrastructure` | `INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET`, `CI_DEPLOY_SSH_PRIVATE` (whose public half is `security_ci_deploy_pubkey`) |
 | every app repository               | none: an app deploy authenticates with its job's OIDC token                                                                  |
 | `.env` (gitignored)                | `INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET`                                                                             |
 

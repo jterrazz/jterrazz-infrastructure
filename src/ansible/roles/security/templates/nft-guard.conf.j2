@@ -3,7 +3,7 @@
 # SSH, Traefik and the API server, the hypervisor host reaches everything, pods reach the node,
 # and nothing else opens a connection (ADR-006).
 
-table inet jterrazz_guard {
+table inet studio_guard {
   chain input {
     type filter hook input priority -10; policy accept;
 
