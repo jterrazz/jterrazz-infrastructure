@@ -1,4 +1,4 @@
-{{/* The peer vocabulary both charts speak (platform-service/README.md, "Peers").
+{{/* The peer vocabulary both charts speak (platform/README.md, "Peers").
 hazard: ports are pod ports, never Service ports; hostNetwork clients match only an ipBlock.
 Input dict: name, labels and podSelector (rendered lines, "" for the namespace), policyTypes,
 ingress ({ from, ports? }), egress ({ to, ports? }). A bare port is TCP. */}}

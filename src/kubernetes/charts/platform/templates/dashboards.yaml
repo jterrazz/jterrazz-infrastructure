@@ -4,5 +4,5 @@ the platform services; an app ships its own through the app chart's spec.dashboa
      "owner" "studio-infrastructure"
      "dashboards" .Values.dashboards
      "field" "dashboards"
-     "labels" (include "platform-service.labels" .)
+     "labels" (include "platform.labels" .)
      "configMapPrefix" "dashboard-") }}

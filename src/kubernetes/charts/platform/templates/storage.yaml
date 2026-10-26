@@ -1,7 +1,7 @@
 {{- /* hazard: PV <name>-<key> at /var/lib/k8s-data/<name>[/<pathSuffix>]: renaming either
        moves live data. */ -}}
-{{- $name := include "platform-service.name" . -}}
-{{- $labels := include "platform-service.labels" . -}}
+{{- $name := include "platform.name" . -}}
+{{- $labels := include "platform.labels" . -}}
 {{- $nodeName := .Values.infrastructure.nodeName | default "" -}}
 {{- range $key, $volume := .Values.storage }}
 {{- $size := $volume.size | required (printf "storage.%s.size is required" $key) }}

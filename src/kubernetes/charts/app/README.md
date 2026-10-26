@@ -90,7 +90,7 @@ PR. Start from it when you're unsure of a shape.
 
 **Where the templates live.** The IngressRoute, PV/PVC,
 NetworkPolicy and InfisicalSecret this chart emits are rendered by
-`src/kubernetes/charts/common`, a library chart shared with `platform-service` and
+`src/kubernetes/charts/common`, a library chart shared with `platform` and
 bundled into this chart's published `.tgz`, so an app repo still pulls one
 unversioned chart and needs no new repository. What is written down there is
 the _shape_ and its constraints; what is written down here is what an app
@@ -409,7 +409,7 @@ every image writes as its own user (ADR-008). A target with a real filesystem
 would need that chown back.
 
 The PV carries **no `nodeAffinity`**: only app CI installs this chart and it
-passes no node name. (`platform-service`, whose PVs Ansible creates, does pin
+passes no node name. (`platform`, whose PVs Ansible creates, does pin
 it.) If a second node is ever added, this needs restoring: an unpinned hostPath
 PV can bind on a node whose disk holds an empty directory.
 
@@ -543,10 +543,10 @@ A consumer names the capabilities it **uses**; the catalog,
 `app.capabilities` in `templates/_helpers.tpl`, is the one place that says
 where each lives:
 
-| Capability     | Injects env                                                                                   | Opens egress to            |
-| -------------- | --------------------------------------------------------------------------------------------- | -------------------------- |
-| `telemetry`    | `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.platform-telemetry:4318`                   | `platform-telemetry` :4317, :4318 |
-| `intelligence` | `STUDIO_INTELLIGENCE_BASE_URL=http://studio-intelligence.studio-intelligence.svc.cluster.local/v1` | `studio-intelligence` :8317 |
+| Capability     | Injects env                                                                                        | Opens egress to                   |
+| -------------- | -------------------------------------------------------------------------------------------------- | --------------------------------- |
+| `telemetry`    | `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.platform-telemetry:4318`                        | `platform-telemetry` :4317, :4318 |
+| `intelligence` | `STUDIO_INTELLIGENCE_BASE_URL=http://studio-intelligence.studio-intelligence.svc.cluster.local/v1` | `studio-intelligence` :8317       |
 
 `uses` injects the env (a user-set var of the same name always wins) and an
 egress rule to the provider's namespace on its **pod** ports. It grants

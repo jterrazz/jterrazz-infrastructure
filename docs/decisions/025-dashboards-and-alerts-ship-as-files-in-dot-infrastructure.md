@@ -24,7 +24,7 @@ LogQL against the `loki` uid, and every one failed to parse.
   `.infrastructure/alerts/<name>.yaml` (Grafana alert provisioning documents).
   App CI's `docker-deploy` turns each file into a `spec.dashboards` or
   `spec.alerts` entry; this repository's root `.infrastructure/` holds the
-  platform's, which `grafana-platform` renders through the platform-service
+  platform's, which `grafana-platform` renders through the platform
   chart's `dashboards` and `alerts`.
 - **One validation.** `common.alerts` checks every rule of both charts: an
   `apiVersion: 1` document, named groups, a unique uid of at most 40

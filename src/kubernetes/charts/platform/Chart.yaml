@@ -1,9 +1,9 @@
 apiVersion: v2
-name: platform-service
+name: platform
 description: A platform service's route, certificates, volumes, credentials and network policy
 type: application
 # invariant: never published; the version is bookkeeping.
-version: 4.0.0
+version: 5.0.0
 
 # invariant: common's exact version.
 dependencies:

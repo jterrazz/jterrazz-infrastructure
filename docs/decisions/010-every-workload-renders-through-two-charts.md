@@ -3,9 +3,12 @@
 **Status:** Accepted
 **Date:** 2026-08-30
 
+Revised 2026-10-27: the `platform-service` chart is named `platform` (5.0.0), one word beside
+`app`, `cluster` and `common`.
+
 Written 2026-10-24 from the comments in `src/kubernetes/charts/`,
 `src/kubernetes/services/openpanel/` and `roles/platform/tasks/publish-app-chart.yml`
-that this record replaces (the platform-service rename, 076bc79; app chart
+that this record replaces (the platform rename, 076bc79; app chart
 2.11, which absorbed OpenPanel and the registry; OpenPanel's in-cluster SSR
 on 2026-09-19).
 
@@ -24,7 +27,7 @@ a Secret created by an Ansible task, and a namespace-wide policy file.
 ## Decision
 
 Three charts. `app` renders any workload, published to the registry and
-pulled unversioned by every app's CI; `platform-service` renders a service's
+pulled unversioned by every app's CI; `platform` renders a service's
 storage, certificates, routes, secrets and policy (the `<name>-platform`
 releases); `common` is a library both include, never installed, resolved as
 an exact-version `file://` dependency (a mismatch fails `helm dependency

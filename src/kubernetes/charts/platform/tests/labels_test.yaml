@@ -1,4 +1,4 @@
-suite: platform-service.labels is stamped on all four kinds
+suite: platform.labels is stamped on all four kinds
 # invariant: every kind carries part-of=studio-infrastructure ("what does the platform own").
 # Per template, because the include has been forgotten on a new template before.
 values:

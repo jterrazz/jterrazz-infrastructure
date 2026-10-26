@@ -3,7 +3,7 @@
 ---
 {{ include "common.certificate" (dict
      "name" $name
-     "labels" (include "platform-service.labels" $)
+     "labels" (include "platform.labels" $)
      "secretName" $name
      "dnsNames" ($cert.dnsNames | required (printf "certificates.%s.dnsNames is required" $name))) }}
 {{- end }}

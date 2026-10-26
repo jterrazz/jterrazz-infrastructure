@@ -49,7 +49,7 @@ a list that names one is stale, never a cue to bring it back.
 | How do I bring a rented target back?                    | [docs/guides/resurrect-hetzner.md](docs/guides/resurrect-hetzner.md)                                                                                                     |
 | Why was a choice made?                                  | [docs/decisions/](docs/decisions/)                                                                                                                                       |
 | The `application.yaml` schema                           | [src/kubernetes/charts/app/README.md](src/kubernetes/charts/app/README.md)                                                                                               |
-| A platform service's `service.yaml`                     | [src/kubernetes/charts/platform-service/README.md](src/kubernetes/charts/platform-service/README.md)                                                                     |
+| A platform service's `service.yaml`                     | [src/kubernetes/charts/platform/README.md](src/kubernetes/charts/platform/README.md)                                                                                     |
 | What the two charts share                               | [src/kubernetes/charts/common/README.md](src/kubernetes/charts/common/README.md)                                                                                         |
 
 ## Gestures

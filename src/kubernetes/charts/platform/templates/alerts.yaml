@@ -2,7 +2,7 @@
 {{- $alerts := fromYaml (include "common.alerts" (dict "alerts" .Values.alerts "field" "alerts")) -}}
 {{- if $alerts }}
 {{ include "common.alertsConfigMap" (dict
-     "name" (printf "%s-alerts" (include "platform-service.name" .))
-     "labels" (include "platform-service.labels" .)
+     "name" (printf "%s-alerts" (include "platform.name" .))
+     "labels" (include "platform.labels" .)
      "alerts" $alerts) }}
 {{- end }}

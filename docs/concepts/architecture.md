@@ -30,7 +30,7 @@ bringing a rented one back is [Resurrect Hetzner](../guides/resurrect-hetzner.md
 
 Every file under `src/kubernetes/services/<svc>/` is a values file named after
 the chart that consumes it: `values.yaml` for an upstream chart, `service.yaml`
-for `charts/platform-service` (release `<svc>-platform`, a name frozen because
+for `charts/platform` (release `<svc>-platform`, a name frozen because
 it owns live volumes), and any other name for one app-chart release
 (`op-api.yaml`, or `app.yaml` for a single workload). A name starting with
 `_` is values several releases share (`openpanel/_common.yaml`). The
@@ -45,7 +45,7 @@ cert-manager's ClusterIssuers, applied once its CRDs exist.
 implementation of every object the other two share (IngressRoute and its
 middlewares, the wildcard Certificates, the hostPath PV and PVC, NetworkPolicy,
 InfisicalSecret, the smoke annotations). It invents no name, since those names
-address live volumes and routes. `charts/platform-service` renders a platform
+address live volumes and routes. `charts/platform` renders a platform
 service's shared surface from its `service.yaml`. `charts/app` renders any
 workload, an app's or a platform service's; it is published to the registry
 and pulled unversioned
@@ -114,7 +114,7 @@ estate invents is under `studio.jterrazz.com/`
 Two words carry more than one meaning here:
 
 - **platform** is the layer above k3s, so `playbooks/platform.yml`,
-  `make deploy-platform`, the `platform-*` namespaces, the `<svc>-platform` releases of `charts/platform-service` and
+  `make deploy-platform`, the `platform-*` namespaces, the `<svc>-platform` releases of `charts/platform` and
   the platform's own services all name the layer, never the chart.
 - **tier** is only the namespace label above. The helmfile's deploy passes are
   `pass: cluster | operators | claims` ([ADR-009](../decisions/009-one-helmfile-declares-every-platform-release.md)).
@@ -128,7 +128,7 @@ src/
 │                   inventories/            laptop.yml (OrbStack SSH) · ci.yml (tailnet) · k3d.yml
 │                                           group_vars/all/, the config surface
 ├── kubernetes/     helmfile.yaml.gotmpl    every platform release, declared once (ADR-009)
-│                   charts/                 common · platform-service · app · cluster
+│                   charts/                 common · platform · app · cluster
 │                   services/<svc>/         one values file per release
 │                   schemas/                a vendored kubeconform CRD schema
 └── scripts/        deploy.sh · helmfile.sh · backup.sh · redeploy-apps.sh · lib/

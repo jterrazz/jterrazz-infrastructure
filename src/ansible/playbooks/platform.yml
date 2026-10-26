@@ -48,7 +48,7 @@
         dest: "{{ lookup('ansible.builtin.env', 'TMPDIR') | default('/tmp', true) }}/studio-platform.tgz"
         exclude_path:
           - "{{ (playbook_dir ~ '/../../kubernetes/charts/app/tests') | realpath }}"
-          - "{{ (playbook_dir ~ '/../../kubernetes/charts/platform-service/tests') | realpath }}"
+          - "{{ (playbook_dir ~ '/../../kubernetes/charts/platform/tests') | realpath }}"
         mode: "0600"
       delegate_to: localhost
       become: false

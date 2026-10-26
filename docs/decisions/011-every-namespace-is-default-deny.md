@@ -29,7 +29,7 @@ egress and the HTTPS/API-server egress. A rule for an upstream workload no
 release of ours renders (cert-manager, kube-system's) is a file under
 `charts/cluster/templates/network-policies/`. Every rule that names one
 workload is declared by that service, in the `network:` block of its values
-file (platform-service) or its `spec.network` (app chart), in a peer
+file (platform) or its `spec.network` (app chart), in a peer
 vocabulary defined once in `common/templates/_network-policy.tpl`.
 
 The rules carry the traps already paid for:

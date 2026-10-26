@@ -137,7 +137,7 @@ jobs:
         run: |
           set -euo pipefail
           helm lint src/kubernetes/charts/common
-          for chart in app platform-service; do
+          for chart in app platform; do
             fixture="src/kubernetes/charts/$chart/ci/test-values.yaml"
             echo "== $chart chart =="
             helm dependency update "src/kubernetes/charts/$chart"
@@ -156,7 +156,7 @@ jobs:
 
       # hazard: without `--strict` a typo'd assertion name silently never runs.
       - name: Helm chart unit tests
-        run: helm unittest --strict src/kubernetes/charts/app src/kubernetes/charts/platform-service src/kubernetes/charts/cluster
+        run: helm unittest --strict src/kubernetes/charts/app src/kubernetes/charts/platform src/kubernetes/charts/cluster
 
       - name: Install helmfile
         run: |

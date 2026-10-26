@@ -1,0 +1,10 @@
+{{- if .Values.host }}
+{{- include "common.ingressRoute" (dict
+      "name" (include "platform.name" .)
+      "labels" (include "platform.labels" .)
+      "annotations" (include "common.smokeAnnotations" .Values.smoke)
+      "match" (printf "Host(`%s`)" (include "platform.host" .))
+      "public" .Values.public
+      "serviceName" (include "platform.name" .)
+      "servicePort" .Values.port) }}
+{{- end }}

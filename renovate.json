@@ -15,7 +15,7 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Bare image pins in platform-service and app-chart values files.",
+      "description": "Bare image pins in platform and app-chart values files.",
       "managerFilePatterns": [
         "/^src/kubernetes/services/.+\\.ya?ml$/"
       ],

@@ -110,7 +110,7 @@
   register: issuers_result
   changed_when: "'created' in issuers_result.stdout or 'configured' in issuers_result.stdout"
 
-- name: Install the platform-service releases
+- name: Install the platform releases
   ansible.builtin.include_tasks: apply.yml
   vars:
     helmfile_pass: claims

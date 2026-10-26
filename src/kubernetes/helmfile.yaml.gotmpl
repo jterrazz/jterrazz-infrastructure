@@ -28,8 +28,8 @@ helmDefaults:
   historyMax: 3
 
 templates:
-  platform-service:
-    chart: ./charts/platform-service
+  platform:
+    chart: ./charts/platform
     timeout: 120
     needs:
       - platform-networking/cert-manager
@@ -78,7 +78,7 @@ releases:
   - name: grafana-platform
     namespace: platform-telemetry
     inherit:
-      - template: platform-service
+      - template: platform
     values:
       - services/grafana/service.yaml
       # invariant: the platform's dashboards and alert rules, in the layout every app ships
@@ -95,21 +95,21 @@ releases:
   - name: victoria-metrics-platform
     namespace: platform-telemetry
     inherit:
-      - template: platform-service
+      - template: platform
     values:
       - services/victoria-metrics/service.yaml
 
   - name: victoria-logs-platform
     namespace: platform-telemetry
     inherit:
-      - template: platform-service
+      - template: platform
     values:
       - services/victoria-logs/service.yaml
 
   - name: victoria-traces-platform
     namespace: platform-telemetry
     inherit:
-      - template: platform-service
+      - template: platform
     values:
       - services/victoria-traces/service.yaml
 
@@ -158,7 +158,7 @@ releases:
   - name: otel-collector-platform
     namespace: platform-telemetry
     inherit:
-      - template: platform-service
+      - template: platform
     values:
       - services/otel-collector/service.yaml
 
@@ -189,14 +189,14 @@ releases:
   - name: traefik-platform
     namespace: kube-system
     inherit:
-      - template: platform-service
+      - template: platform
     values:
       - services/traefik/service.yaml
 
   - name: cloudflared-platform
     namespace: platform-networking
     inherit:
-      - template: platform-service
+      - template: platform
     values:
       - services/cloudflared/service.yaml
 
@@ -211,7 +211,7 @@ releases:
   - name: external-dns-platform
     namespace: platform-networking
     inherit:
-      - template: platform-service
+      - template: platform
     values:
       - services/external-dns/service.yaml
 
@@ -231,7 +231,7 @@ releases:
   - name: openpanel-platform
     namespace: platform-analytics
     inherit:
-      - template: platform-service
+      - template: platform
     values:
       - services/openpanel/service.yaml
 
@@ -293,7 +293,7 @@ releases:
   - name: registry-platform
     namespace: platform-registry
     inherit:
-      - template: platform-service
+      - template: platform
     values:
       - services/registry/service.yaml
 

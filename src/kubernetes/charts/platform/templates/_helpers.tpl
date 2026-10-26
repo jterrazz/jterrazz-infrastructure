@@ -1,13 +1,13 @@
-{{- define "platform-service.name" -}}
+{{- define "platform.name" -}}
 {{- required "name is required" .Values.name -}}
 {{- end -}}
 
-{{- define "platform-service.host" -}}
+{{- define "platform.host" -}}
 {{- required "host is required" .Values.host -}}
 {{- end -}}
 
-{{- define "platform-service.labels" -}}
-app.kubernetes.io/name: {{ include "platform-service.name" . }}
+{{- define "platform.labels" -}}
+app.kubernetes.io/name: {{ include "platform.name" . }}
 app.kubernetes.io/part-of: studio-infrastructure
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}

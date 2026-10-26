@@ -175,11 +175,11 @@ in [the OpenPanel README](../../src/kubernetes/services/openpanel/README.md#back
 | What                       | How                                                                                                                                                                                                                                                                                                        |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Any Infisical-held secret  | Change it in Infisical. The operator resyncs every 5 minutes (its default; no CR sets `syncConfig`), and `kubectl delete pod -n platform-secrets -l control-plane=controller-manager` forces it. A consumer reading it as env still needs a rollout restart, and a deploy secret a `make deploy-platform`. |
-| `CLOUDFLARE_TUNNEL_TOKEN`  | A new connector token in Zero Trust, stored at `/studio-infrastructure`, a resync, then `kubectl rollout restart deploy/cloudflared -n platform-networking`.                                                                                                                                             |
-| `CLOUDFLARE_DNS01_TOKEN`   | A new token (Zone, DNS, Edit on `jterrazz.com`) at `/studio-infrastructure`, then `make deploy-platform`, which rewrites `cloudflare-api-token`; revoke the old one.                                                                                                                                     |
-| `CLOUDFLARE_RECORDS_TOKEN` | A new token (Zone, DNS, Edit on every public zone; Account, Cloudflare Tunnel, Edit) at `/studio-infrastructure`, a resync, then `kubectl rollout restart deploy/external-dns -n platform-networking`; revoke the old one.                                                                               |
+| `CLOUDFLARE_TUNNEL_TOKEN`  | A new connector token in Zero Trust, stored at `/studio-infrastructure`, a resync, then `kubectl rollout restart deploy/cloudflared -n platform-networking`.                                                                                                                                               |
+| `CLOUDFLARE_DNS01_TOKEN`   | A new token (Zone, DNS, Edit on `jterrazz.com`) at `/studio-infrastructure`, then `make deploy-platform`, which rewrites `cloudflare-api-token`; revoke the old one.                                                                                                                                       |
+| `CLOUDFLARE_RECORDS_TOKEN` | A new token (Zone, DNS, Edit on every public zone; Account, Cloudflare Tunnel, Edit) at `/studio-infrastructure`, a resync, then `kubectl rollout restart deploy/external-dns -n platform-networking`; revoke the old one.                                                                                 |
 | The registry accounts      | Two accounts overlapping, never a swap: [below](#rotating-the-registry-password).                                                                                                                                                                                                                          |
-| CI deploy SSH key          | `ssh-keygen -t ed25519`, the public half into `security_ci_deploy_pubkey`, `gh secret set CI_DEPLOY_SSH_PRIVATE -R jterrazz/studio-infrastructure`, then `make deploy`.                                                                                                                                  |
+| CI deploy SSH key          | `ssh-keygen -t ed25519`, the public half into `security_ci_deploy_pubkey`, `gh secret set CI_DEPLOY_SSH_PRIVATE -R jterrazz/studio-infrastructure`, then `make deploy`.                                                                                                                                    |
 
 ### A deleted managed Secret does not come back
 
@@ -281,7 +281,7 @@ upstream chart, else the app chart; a raw manifest is the last resort.
    per workload. `registry/` is the single-workload example, `openpanel/` the
    multi-workload one.
 3. **Release**: one block in `src/kubernetes/helmfile.yaml.gotmpl` with its pinned
-   `version:`; the `<svc>-platform` sibling inherits the `platform-service`
+   `version:`; the `<svc>-platform` sibling inherits the `platform`
    template. That block is the whole declaration.
 4. **Route**: `access` defaults to `private`, under `*.internal`. A public zone is
    [three steps](develop.md#dns-has-exactly-three-owners). Add `smoke:` only

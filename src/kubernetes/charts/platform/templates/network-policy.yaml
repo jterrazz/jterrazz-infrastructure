@@ -9,8 +9,8 @@
 {{- fail "network: declares neither `ingress:` nor `egress:`; a policy that selects pods and grants nothing is a silent deny" }}
 {{- end }}
 {{- include "common.networkPolicy" (dict
-      "name" (include "platform-service.name" .)
-      "labels" (include "platform-service.labels" .)
+      "name" (include "platform.name" .)
+      "labels" (include "platform.labels" .)
       "podSelector" (toYaml $selector)
       "policyTypes" $policyTypes
       "ingress" ($net.ingress | default list)

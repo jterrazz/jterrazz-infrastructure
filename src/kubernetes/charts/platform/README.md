@@ -1,4 +1,4 @@
-# platform-service chart
+# platform chart
 
 The half of a platform service that this repo owns. The workload itself comes
 from an upstream chart or the app chart; this chart supplies what an upstream
@@ -171,15 +171,15 @@ denying it.
 
 ### Peers
 
-| `from:` / `to:`                    | Selects                                             |
-| ---------------------------------- | --------------------------------------------------- |
-| `traefik`                          | the `kube-system` namespace, where k3s runs Traefik |
-| `namespace:<ns>`                   | one namespace, by its `kubernetes.io/metadata.name` |
-| `any-namespace`                    | every namespace, which is what DNS egress needs     |
-| `pods:<key>=<value>`               | pods carrying a label, in **this** namespace        |
-| `namespace-label:<key>=<v>[,<v>]`  | every namespace whose label is one of the values    |
-| `internet`                         | `0.0.0.0/0` **except** RFC1918                      |
-| `anywhere`                         | `0.0.0.0/0`, no exception                           |
+| `from:` / `to:`                   | Selects                                             |
+| --------------------------------- | --------------------------------------------------- |
+| `traefik`                         | the `kube-system` namespace, where k3s runs Traefik |
+| `namespace:<ns>`                  | one namespace, by its `kubernetes.io/metadata.name` |
+| `any-namespace`                   | every namespace, which is what DNS egress needs     |
+| `pods:<key>=<value>`              | pods carrying a label, in **this** namespace        |
+| `namespace-label:<key>=<v>[,<v>]` | every namespace whose label is one of the values    |
+| `internet`                        | `0.0.0.0/0` **except** RFC1918                      |
+| `anywhere`                        | `0.0.0.0/0`, no exception                           |
 
 `internet` and `anywhere` are deliberately distinct and one is not a tidier
 spelling of the other. On this cluster the apiserver is RFC1918 twice over:
@@ -227,9 +227,9 @@ a file and deleting the file deletes it.
 ## Working on the chart
 
 ```bash
-helm dependency update src/kubernetes/charts/platform-service   # resolves ../common
-helm template ci-test src/kubernetes/charts/platform-service \
-  -f src/kubernetes/charts/platform-service/ci/test-values.yaml
+helm dependency update src/kubernetes/charts/platform   # resolves ../common
+helm template ci-test src/kubernetes/charts/platform \
+  -f src/kubernetes/charts/platform/ci/test-values.yaml
 make check
 ```
 

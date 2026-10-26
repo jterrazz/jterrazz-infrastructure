@@ -1,12 +1,12 @@
 {{- /* invariant: `secretName` is read literally by its consumer, so it is required. */ -}}
 {{- if .Values.secrets }}
 {{- $secrets := .Values.secrets }}
-{{- $labels := include "platform-service.labels" . }}
+{{- $labels := include "platform.labels" . }}
 {{- with $secrets.labels }}
 {{- $labels = printf "%s\n%s" $labels (toYaml .) }}
 {{- end }}
 {{- include "common.infisicalSecret" (dict
-      "name" (printf "%s-infisical" (include "platform-service.name" .))
+      "name" (printf "%s-infisical" (include "platform.name" .))
       "labels" $labels
       "envSlug" ($secrets.env | default "prod")
       "secretsPath" ($secrets.path | required "secrets.path is required: the Infisical path this service's credentials live at")
