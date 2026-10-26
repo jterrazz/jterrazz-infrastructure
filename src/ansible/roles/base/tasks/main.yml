@@ -11,6 +11,8 @@
       - python3-kubernetes
       # outside: deb822_repository needs it; Debian 13 has no apt-key.
       - python3-debian
+      # outside: `helm plugin install <url>` clones the plugin with git (roles/helm).
+      - git
       - iptables
       - systemd-resolved
       # outside: OrbStack VMs ship without sshd.
