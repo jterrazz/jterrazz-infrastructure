@@ -1,8 +1,8 @@
 {{- /* invariant: always rendered; the rules are README.md's "NetworkPolicy" section. */ -}}
 {{- if eq (include "app.envExists" .) "true" -}}
 {{- $catalog := fromYaml (include "app.platformCatalog" .) -}}
-{{- $platformServices := fromYamlArray (include "app.platformServices" .) -}}
 {{- $spec := fromYaml (include "app.merged" .) -}}
+{{- $platformServices := fromYamlArray (include "app.platformServices" $spec) -}}
 {{- $net := $spec.network | default dict -}}
 {{- $appName := include "app.name" . -}}
 {{- $ingress := list -}}

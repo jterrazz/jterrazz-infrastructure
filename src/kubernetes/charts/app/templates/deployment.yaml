@@ -1,7 +1,7 @@
 {{- if eq (include "app.envExists" .) "true" -}}
 {{- $spec := fromYaml (include "app.merged" .) -}}
 {{- $resources := $spec.resources -}}
-{{- $platformClientLabels := fromYaml (include "app.platformClientLabels" .) -}}
+{{- $platformClientLabels := fromYaml (include "app.platformClientLabels" $spec) -}}
 {{- $storage := $spec.storage -}}
 {{- /* invariant: an RWO hostPath never gets two writers, so storage implies Recreate. */ -}}
 {{- $strategy := $spec.strategy | default (ternary "Recreate" "" (not (not $storage))) -}}
@@ -45,18 +45,18 @@ spec:
         {{- end }}
     spec:
       automountServiceAccountToken: false
-      {{- with include "app.podSecurityContext" . }}
+      {{- with include "app.podSecurityContext" $spec }}
       {{- . | nindent 6 }}
       {{- end }}
-      {{- if eq (include "app.privateImage" .) "true" }}
+      {{- if eq (include "app.privateImage" (dict "ctx" . "spec" $spec)) "true" }}
       imagePullSecrets:
         - name: registry-credentials
       {{- end }}
       containers:
         - name: {{ include "app.name" . }}
-          image: {{ include "app.image" . }}
+          image: {{ include "app.image" $spec }}
           securityContext:
-            {{- include "app.containerSecurityContext" . | nindent 12 }}
+            {{- include "app.containerSecurityContext" (dict "ctx" . "spec" $spec) | nindent 12 }}
           {{- if $spec.command }}
           command:
             {{- range $spec.command }}
@@ -72,30 +72,30 @@ spec:
           ports:
             - containerPort: {{ $spec.port }}
           env:
-            {{- include "app.containerEnv" (dict "ctx" . "resources" $resources) | trim | nindent 12 }}
+            {{- include "app.containerEnv" (dict "ctx" . "spec" $spec) | trim | nindent 12 }}
           {{- if or $storage $spec.configFiles $spec.secretMounts }}
           volumeMounts:
-            {{- include "app.volumeMounts" (dict "ctx" . "storage" (not (not $storage))) | trim | nindent 12 }}
+            {{- include "app.volumeMounts" (dict "spec" $spec) | trim | nindent 12 }}
           {{- end }}
           resources:
             requests:
               cpu: {{ $resources.cpu }}
               memory: {{ $resources.memory }}
             limits:
-              memory: {{ include "app.memoryLimit" . }}
+              memory: {{ include "app.memoryLimit" $resources }}
           {{- /* value: 5s, not 1s: a Node app doing background work answers late; 30 x 10s of boot grace. */}}
           startupProbe:
-            {{- include "app.probe" (dict "ctx" . "liveness" true) | nindent 12 }}
+            {{- include "app.probe" (dict "spec" $spec "liveness" true) | nindent 12 }}
             timeoutSeconds: 5
             failureThreshold: 30
           livenessProbe:
-            {{- include "app.probe" (dict "ctx" . "liveness" true) | nindent 12 }}
+            {{- include "app.probe" (dict "spec" $spec "liveness" true) | nindent 12 }}
             timeoutSeconds: 5
           readinessProbe:
-            {{- include "app.probe" (dict "ctx" . "liveness" false) | nindent 12 }}
+            {{- include "app.probe" (dict "spec" $spec "liveness" false) | nindent 12 }}
             timeoutSeconds: 5
       {{- if or $storage $spec.configFiles $spec.secretMounts }}
       volumes:
-        {{- include "app.volumes" (dict "ctx" . "storage" (not (not $storage))) | trim | nindent 8 }}
+        {{- include "app.volumes" (dict "ctx" . "spec" $spec) | trim | nindent 8 }}
       {{- end }}
 {{- end }}

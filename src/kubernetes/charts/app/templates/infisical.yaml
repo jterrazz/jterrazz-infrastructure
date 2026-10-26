@@ -1,17 +1,18 @@
 {{- if eq (include "app.envExists" .) "true" -}}
 {{- $appName := include "app.name" . -}}
-{{- $secrets := (fromYaml (include "app.merged" .)).secrets -}}
+{{- $spec := fromYaml (include "app.merged" .) -}}
+{{- $secrets := $spec.secrets -}}
 {{- if $secrets.path }}
 ---
 {{ include "common.infisicalSecret" (dict
      "name" (printf "%s-infisical" $appName)
      "labels" (include "app.labels" .)
-     "envSlug" (include "app.infisicalEnv" .)
+     "envSlug" (include "app.infisicalEnv" (dict "ctx" . "spec" $spec))
      "secretsPath" $secrets.path
      "secretName" (include "app.secretsName" .)
      "secretNamespace" .Release.Namespace) }}
 {{- end }}
-{{- if eq (include "app.privateImage" .) "true" }}
+{{- if eq (include "app.privateImage" (dict "ctx" . "spec" $spec)) "true" }}
 {{- /* hazard: the backticked string is the operator's template, not Helm's; dict|toJson
        survives a `"` in the password, and containerd prefers `auth` (ADR-015). */}}
 {{- $dockerconfig := printf `{{ dict "auths" (dict %q (dict "username" .REGISTRY_PULL_USERNAME.Value "password" .REGISTRY_PULL_PASSWORD.Value "auth" (list .REGISTRY_PULL_USERNAME.Value .REGISTRY_PULL_PASSWORD.Value | join ":" | b64enc))) | toJson }}` .Values.registry.server }}

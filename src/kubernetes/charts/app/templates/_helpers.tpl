@@ -23,8 +23,9 @@ false
 {{- end -}}
 {{- end -}}
 
+{{/* Input: the resolved spec, here and in every helper below that takes one. */}}
 {{- define "app.ingressList" -}}
-{{- $list := (fromYaml (include "app.merged" .)).ingress -}}
+{{- $list := .ingress -}}
 {{- if not (kindIs "slice" $list) -}}
 {{- fail "ingress must be a list of { host, path?, public } entries" -}}
 {{- end -}}
@@ -33,7 +34,7 @@ false
 
 {{/* invariant: set by app CI as `<registry>/<app>@sha256:...`, or pinned in a platform values file. */}}
 {{- define "app.image" -}}
-{{- (fromYaml (include "app.merged" .)).image | required "spec.image is required: app CI sets it to the image digest it built" -}}
+{{- .image | required "spec.image is required: app CI sets it to the image digest it built" -}}
 {{- end -}}
 
 {{/* invariant: `<n>Mi` or `<n>Gi` in MiB, else "", which every caller leaves alone. */}}
@@ -46,12 +47,8 @@ false
 {{- end -}}
 {{- end -}}
 
-{{/* invariant: memoryLimit, else twice the request in Mi. */}}
+{{/* invariant: memoryLimit, else twice the request in Mi. Input: spec.resources. */}}
 {{- define "app.memoryLimit" -}}
-{{- include "app.memoryLimitOf" (fromYaml (include "app.merged" .)).resources -}}
-{{- end -}}
-
-{{- define "app.memoryLimitOf" -}}
 {{- $resources := . -}}
 {{- $memLimit := $resources.memoryLimit -}}
 {{- if $memLimit -}}
@@ -67,12 +64,9 @@ false
 {{- end -}}
 {{- end -}}
 
-{{/* invariant: 75% of the request, and nothing below 512Mi, where the cap starved SSR boot. */}}
+{{/* invariant: 75% of the request, and nothing below 512Mi, where the cap starved SSR boot.
+Input: spec.resources. */}}
 {{- define "app.nodeMaxOldSpace" -}}
-{{- include "app.nodeMaxOldSpaceOf" (fromYaml (include "app.merged" .)).resources -}}
-{{- end -}}
-
-{{- define "app.nodeMaxOldSpaceOf" -}}
 {{- $mem := .memory -}}
 {{- $reqMi := include "app.memMi" $mem | default "0" | int -}}
 {{- if ge $reqMi 512 -}}
@@ -80,8 +74,9 @@ false
 {{- end -}}
 {{- end -}}
 
+{{/* Input dict: ctx, spec. */}}
 {{- define "app.infisicalEnv" -}}
-{{- (fromYaml (include "app.merged" .)).secretsEnv | default .Values.environment -}}
+{{- .spec.secretsEnv | default .ctx.Values.environment -}}
 {{- end -}}
 
 {{- define "app.secretsName" -}}
@@ -112,7 +107,7 @@ studio-intelligence:
 {{/* invariant: the one accessor every consumer calls, so an unknown name always fails. */}}
 {{- define "app.platformServices" -}}
 {{- $catalog := fromYaml (include "app.platformCatalog" .) -}}
-{{- $services := (fromYaml (include "app.merged" .)).platformServices -}}
+{{- $services := .platformServices -}}
 {{- range $svc := $services -}}
 {{- if not (hasKey $catalog $svc) -}}
 {{- fail (printf "spec.platformServices: unknown service %q (valid: %s)" $svc (keys $catalog | sortAlpha | join ", ")) -}}
@@ -125,13 +120,8 @@ studio-intelligence:
 {{- $catalog := fromYaml (include "app.platformCatalog" .) -}}
 {{- $out := dict -}}
 {{- range $svc := (fromYamlArray (include "app.platformServices" .)) -}}
-{{- if hasKey $catalog $svc -}}
-{{- $entry := index $catalog $svc -}}
-{{- if $entry.env -}}
-{{- range $k, $v := $entry.env -}}
+{{- range $k, $v := (index $catalog $svc).env -}}
 {{- $_ := set $out $k $v -}}
-{{- end -}}
-{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- $out | toYaml -}}
@@ -141,11 +131,8 @@ studio-intelligence:
 {{- $catalog := fromYaml (include "app.platformCatalog" .) -}}
 {{- $out := dict -}}
 {{- range $svc := (fromYamlArray (include "app.platformServices" .)) -}}
-{{- if hasKey $catalog $svc -}}
-{{- $entry := index $catalog $svc -}}
-{{- if $entry.clientLabel -}}
-{{- $_ := set $out $entry.clientLabel "true" -}}
-{{- end -}}
+{{- with (index $catalog $svc).clientLabel -}}
+{{- $_ := set $out . "true" -}}
 {{- end -}}
 {{- end -}}
 {{- $out | toYaml -}}
@@ -164,9 +151,10 @@ app: {{ include "app.name" . }}
 environment: {{ .Values.environment }}
 {{- end -}}
 
-{{/* invariant: exec, then tcp, then httpGet; livenessPath applies to startup and liveness. */}}
+{{/* invariant: exec, then httpGet; livenessPath applies to startup and liveness.
+Input dict: spec, liveness. */}}
 {{- define "app.probe" -}}
-{{- $spec := fromYaml (include "app.merged" .ctx) -}}
+{{- $spec := .spec -}}
 {{- $health := $spec.health -}}
 {{- if $health.exec -}}
 exec:
@@ -181,9 +169,10 @@ httpGet:
 {{- end -}}
 {{- end -}}
 
-{{/* invariant: an image on our registry gets the pull secret; nothing else does. */}}
+{{/* invariant: an image on our registry gets the pull secret; nothing else does.
+Input dict: ctx, spec. */}}
 {{- define "app.privateImage" -}}
-{{- if hasPrefix (printf "%s/" .Values.registry.server) (include "app.image" .) -}}
+{{- if hasPrefix (printf "%s/" .ctx.Values.registry.server) (include "app.image" .spec) -}}
 true
 {{- end -}}
 {{- end -}}
@@ -207,9 +196,9 @@ image wants it. */}}
 {{- end -}}
 
 {{/* invariant: the hardened defaults with spec.securityContext merged over them; anything past
-baseline Pod Security fails the render. */}}
+baseline Pod Security fails the render. Input dict: ctx, spec. */}}
 {{- define "app.containerSecurityContext" -}}
-{{- $spec := fromYaml (include "app.merged" .) -}}
+{{- $spec := .spec -}}
 {{- $secDefaults := dict
       "allowPrivilegeEscalation" false
       "capabilities" (dict "drop" (list "ALL"))
@@ -220,13 +209,13 @@ baseline Pod Security fails the render. */}}
 {{- $override := $spec.securityContext | default dict -}}
 {{- $extraCaps := without (dig "capabilities" "add" (list) $override) "NET_BIND_SERVICE" -}}
 {{- if or $override.privileged $override.allowPrivilegeEscalation $extraCaps -}}
-{{- fail (printf "spec.securityContext of %s may not set privileged, allowPrivilegeEscalation or add a capability other than NET_BIND_SERVICE: Pod Security refuses them in an app namespace, and this chart refuses them first, at render time" (include "app.name" .)) -}}
+{{- fail (printf "spec.securityContext of %s may not set privileged, allowPrivilegeEscalation or add a capability other than NET_BIND_SERVICE: Pod Security refuses them in an app namespace, and this chart refuses them first, at render time" (include "app.name" .ctx)) -}}
 {{- end -}}
 {{- toYaml (mergeOverwrite (deepCopy $secDefaults) $override) -}}
 {{- end -}}
 
 {{- define "app.podSecurityContext" -}}
-{{- if not (fromYaml (include "app.merged" .)).runAsRoot -}}
+{{- if not .runAsRoot -}}
 securityContext:
   runAsUser: 1000
   runAsGroup: 1000
@@ -234,13 +223,14 @@ securityContext:
 {{- end -}}
 {{- end -}}
 
-{{/* invariant: shared by the Deployment and every cron job, so a job runs with the app's env. */}}
+{{/* invariant: shared by the Deployment and every cron job, so a job runs with the app's env.
+Input dict: ctx, spec. */}}
 {{- define "app.containerEnv" -}}
 {{- $ctx := .ctx -}}
-{{- $spec := fromYaml (include "app.merged" $ctx) -}}
+{{- $spec := .spec -}}
 {{- $envVars := $spec.env -}}
 {{- $secrets := $spec.secrets -}}
-{{- $platformEnv := fromYaml (include "app.platformEnv" $ctx) -}}
+{{- $platformEnv := fromYaml (include "app.platformEnv" $spec) -}}
 - name: PORT
   value: {{ $spec.port | quote }}
 {{- range $key, $value := $envVars }}
@@ -262,7 +252,7 @@ securityContext:
   value: {{ $value | quote }}
 {{- end }}
 {{- end }}
-{{- $nodeHeap := include "app.nodeMaxOldSpaceOf" .resources }}
+{{- $nodeHeap := include "app.nodeMaxOldSpace" $spec.resources }}
 {{- if and $nodeHeap (not (hasKey $envVars "NODE_OPTIONS")) }}
 - name: NODE_OPTIONS
   value: "--max-old-space-size={{ $nodeHeap }}"
@@ -278,9 +268,10 @@ securityContext:
 {{- end }}
 {{- end -}}
 
+{{/* Input dict: spec. */}}
 {{- define "app.volumeMounts" -}}
-{{- $spec := fromYaml (include "app.merged" .ctx) -}}
-{{- if .storage }}
+{{- $spec := .spec -}}
+{{- if $spec.storage }}
 - name: data
   mountPath: {{ $spec.storage.mountPath }}
 {{- end }}
@@ -297,10 +288,11 @@ securityContext:
 {{- end }}
 {{- end -}}
 
+{{/* Input dict: ctx, spec. */}}
 {{- define "app.volumes" -}}
 {{- $ctx := .ctx -}}
-{{- $spec := fromYaml (include "app.merged" $ctx) -}}
-{{- if .storage }}
+{{- $spec := .spec -}}
+{{- if $spec.storage }}
 - name: data
   persistentVolumeClaim:
     claimName: {{ $spec.storage.claimName | default (printf "%s-data" (include "app.name" $ctx)) }}
@@ -318,7 +310,7 @@ securityContext:
 {{- end -}}
 
 {{- define "app.alerts" -}}
-{{- include "common.alerts" (dict "alerts" (fromYaml (include "app.merged" .)).alerts "field" "spec.alerts") -}}
+{{- include "common.alerts" (dict "alerts" .alerts "field" "spec.alerts") -}}
 {{- end -}}
 
 {{/* invariant: the label the ownership policy judges a PV by; a value cannot hold the `/`. */}}

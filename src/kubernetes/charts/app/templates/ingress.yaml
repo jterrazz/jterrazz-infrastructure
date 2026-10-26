@@ -2,7 +2,7 @@
 {{- $spec := fromYaml (include "app.merged" .) -}}
 {{- $appName := include "app.name" . -}}
 {{- $labels := include "app.labels" . -}}
-{{- $ingressList := fromYamlArray (include "app.ingressList" .) -}}
+{{- $ingressList := fromYamlArray (include "app.ingressList" $spec) -}}
 {{- $healthPath := $spec.health.path | default "/" -}}
 {{- if not (hasPrefix "/" $healthPath) }}{{ $healthPath = printf "/%s" $healthPath }}{{ end -}}
 

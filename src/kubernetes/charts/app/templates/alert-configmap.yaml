@@ -1,6 +1,6 @@
 {{- /* invariant: prod only, since rule uids are global; validated in every environment. */}}
 {{- if eq (include "app.envExists" .) "true" -}}
-{{- $alerts := fromYaml (include "app.alerts" .) -}}
+{{- $alerts := fromYaml (include "app.alerts" (fromYaml (include "app.merged" .))) -}}
 {{- if and $alerts (eq .Values.environment "prod") }}
 {{ include "common.alertsConfigMap" (dict
      "name" (printf "%s-alerts" (include "app.name" .))
