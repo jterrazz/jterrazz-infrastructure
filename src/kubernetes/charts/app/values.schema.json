@@ -390,6 +390,11 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
+            "path": {
+              "description": "Platform releases only: an Infisical folder other than /<metadata.name>. An app's CI identity is refused anything but /<app> by the admission policy.",
+              "type": "string",
+              "pattern": "^/"
+            },
             "env": {
               "description": "Keys of the Infisical folder /<metadata.name>, in the release's environment, projected as env vars.",
               "type": "array",

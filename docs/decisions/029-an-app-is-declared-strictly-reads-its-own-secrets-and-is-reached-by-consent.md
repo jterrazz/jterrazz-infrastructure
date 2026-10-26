@@ -35,8 +35,10 @@ the namespace's name.
    default 30s grace period, because Traefik routes to a terminating pod until
    its endpoint is removed.
 3. **The secrets folder is derived**: `spec.secrets` is `{ env: [KEY...] }`,
-   read from `/<metadata.name>`. OpenPanel's releases read `/op-<name>` like
-   any app.
+   read from `/<metadata.name>`. An optional `path` overrides it for platform
+   releases only, which the admin identity deploys and the policy never judges
+   (OpenPanel's four share `/studio-infrastructure/openpanel`); an app's CI
+   identity is refused anything but `/<app>`.
 4. **An environment names its `branch`**: `environments.<env>.branch`
    (`main`, `next`, or an image tag a dispatch pins), read by app CI alone.
 5. **No environment reads another's secrets**: `secretsEnv` is gone; an app

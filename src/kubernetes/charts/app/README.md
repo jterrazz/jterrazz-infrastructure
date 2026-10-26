@@ -32,8 +32,8 @@ CI has not run since the action gained that flag stamps nothing and is
 
 So `application.yaml` **is** a Helm values file, and `values.schema.json`
 judges it strictly: draft-07, `additionalProperties: false` at every level, so
-a typo or a retired key (`secrets.path`, `secretsEnv`, `platformServices`, an
-environment's `tag`) fails `helm upgrade` instead of being ignored. The header
+a typo or a retired key (`secretsEnv`, `platformServices`, an environment's
+`tag`) fails `helm upgrade` instead of being ignored. The header
 is pinned too: `apiVersion: studio.jterrazz.com/v1`, `kind: Application`
 ([ADR-029](../../../../docs/decisions/029-an-app-is-declared-strictly-reads-its-own-secrets-and-is-reached-by-consent.md)).
 
@@ -355,6 +355,12 @@ shared app): nothing in `application.yaml` names another, and the cluster's
 ownership policy refuses any other pair, so an environment never reads
 another's secrets. An environment with no keys in Infisical yet gets them
 there, not borrowed.
+
+`secrets.path` overrides the folder, and is for **platform releases only**:
+an app's CI identity is refused anything but `/<app>` by the admission policy,
+while a platform release is deployed by the admin identity, which the policy
+never judges. OpenPanel's four releases share `/studio-infrastructure/openpanel`
+this way.
 
 ### `spec.env`
 

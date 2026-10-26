@@ -37,12 +37,12 @@ tests:
       - failedTemplate:
           errorPattern: "at '/environments/prod': additional properties 'tag' not allowed"
 
-  - it: refuses a secrets path, which is always /<app>
+  - it: refuses a secrets path that is not absolute
     set:
-      spec.secrets.path: /another-app
+      spec.secrets.path: another-app
     asserts:
       - failedTemplate:
-          errorPattern: "at '/spec/secrets': additional properties 'path' not allowed"
+          errorPattern: "at '/spec/secrets/path'"
 
   - it: refuses another environment's secrets
     set:
