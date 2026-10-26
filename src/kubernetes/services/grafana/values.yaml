@@ -17,8 +17,11 @@ grafana.ini:
   database:
     wal: true
   # value: none of the five preinstalled apps (323 MB) reads a VictoriaMetrics-family source.
+  # hazard: never `preinstall_disabled`: it skips preinstall_sync too, so the VictoriaLogs plugin
+  # below never lands and every log panel and log alert errors "plugin not registered"
+  # (2026-10-26). A disabled plugin is dropped from both lists and never loads.
   plugins:
-    preinstall_disabled: true
+    disable_plugins: grafana-lokiexplore-app,grafana-pyroscope-app,grafana-exploretraces-app,grafana-metricsdrilldown-app,grafana-advisor-app
 
 resources:
   requests:
