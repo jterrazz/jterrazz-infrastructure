@@ -80,19 +80,13 @@ spec:
               {{- range splitList "," $pair._1 }}
               - {{ . | quote }}
               {{- end }}
-{{- else if hasPrefix "any-namespace-pods:" $peer }}
-{{- $pair := splitn "=" 2 (trimPrefix "any-namespace-pods:" $peer) }}
-    - namespaceSelector: {}
-      podSelector:
-        matchLabels:
-          {{ $pair._0 }}: {{ $pair._1 | quote }}
 {{- else if hasPrefix "pods:" $peer }}
 {{- $pair := splitn "=" 2 (trimPrefix "pods:" $peer) }}
     - podSelector:
         matchLabels:
           {{ $pair._0 }}: {{ $pair._1 | quote }}
 {{- else }}
-{{- fail (printf "network: unknown peer %q (valid: traefik, any-namespace, internet, anywhere, namespace:<ns>, pods:<key>=<value>, any-namespace-pods:<key>=<value>, namespace-label:<key>=<value>[,<value>...])" $peer) }}
+{{- fail (printf "network: unknown peer %q (valid: traefik, any-namespace, internet, anywhere, namespace:<ns>, pods:<key>=<value>, namespace-label:<key>=<value>[,<value>...])" $peer) }}
 {{- end }}
 {{- if $rule.ports }}
   ports:

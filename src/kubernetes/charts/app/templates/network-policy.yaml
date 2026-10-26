@@ -1,19 +1,19 @@
 {{- /* invariant: always rendered; the rules are README.md's "NetworkPolicy" section. */ -}}
 {{- if eq (include "app.envExists" .) "true" -}}
-{{- $catalog := fromYaml (include "app.platformCatalog" .) -}}
 {{- $spec := fromYaml (include "app.merged" .) -}}
-{{- $platformServices := fromYamlArray (include "app.platformServices" $spec) -}}
 {{- $net := $spec.network | default dict -}}
-{{- $appName := include "app.name" . -}}
 {{- $ingress := list -}}
 {{- if not $net.isolated -}}
 {{- $ingress = append $ingress (dict "from" "traefik" "ports" (list $spec.port)) -}}
 {{- end -}}
-{{- if hasKey $catalog $appName -}}
-{{- $selfEntry := index $catalog $appName -}}
-{{- if $selfEntry.clientLabel -}}
-{{- $ingress = append $ingress (dict "from" (printf "any-namespace-pods:%s=true" $selfEntry.clientLabel) "ports" (list $spec.port)) -}}
+{{- /* invariant: the provider's half of the consent `uses` asks for, judged on namespace labels,
+       which only a namespace's owning repository sets (ADR-029). */ -}}
+{{- with $spec.serves -}}
+{{- $peer := printf "namespace-label:studio.jterrazz.com/app=%s" (join "," .) -}}
+{{- if has "all" . -}}
+{{- $peer = "namespace-label:studio.jterrazz.com/tier=app" -}}
 {{- end -}}
+{{- $ingress = append $ingress (dict "from" $peer "ports" (list $spec.port)) -}}
 {{- end -}}
 {{- range $peer := ($net.exposeTo | default list) -}}
 {{- $ingress = append $ingress (dict "from" $peer "ports" (list $spec.port)) -}}
@@ -25,12 +25,11 @@
 {{- range $rule := ($net.egress | default list) -}}
 {{- $egress = append $egress $rule -}}
 {{- end -}}
-{{- range $svc := $platformServices -}}
-{{- $entry := index $catalog $svc -}}
-{{- $egress = append $egress (dict "to" (printf "namespace:%s" $entry.egress.namespace) "ports" $entry.egress.ports) -}}
+{{- range $entry := fromYamlArray (include "app.uses" $spec) -}}
+{{- $egress = append $egress (dict "to" (printf "namespace:%s" $entry.namespace) "ports" $entry.ports) -}}
 {{- end -}}
 {{- include "common.networkPolicy" (dict
-      "name" $appName
+      "name" (include "app.name" .)
       "labels" (include "app.labels" .)
       "podSelector" (include "app.selectorLabels" .)
       "policyTypes" (list "Ingress" "Egress")

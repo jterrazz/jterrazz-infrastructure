@@ -33,7 +33,8 @@ spec:
     isolated: false
     exposeTo: []
     egress: []
-  platformServices: []
+  uses: []
+  serves: []
   health:
     path: /health
     livenessPath: ""

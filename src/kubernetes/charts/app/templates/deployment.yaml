@@ -1,7 +1,6 @@
 {{- if eq (include "app.envExists" .) "true" -}}
 {{- $spec := fromYaml (include "app.merged" .) -}}
 {{- $resources := $spec.resources -}}
-{{- $platformClientLabels := fromYaml (include "app.platformClientLabels" $spec) -}}
 {{- $storage := $spec.storage -}}
 {{- /* invariant: an RWO hostPath never gets two writers, so storage implies Recreate. */ -}}
 {{- $strategy := $spec.strategy | default (ternary "Recreate" "" (not (not $storage))) -}}
@@ -39,10 +38,6 @@ spec:
         checksum/config: {{ $spec.configFiles | default dict | toJson | sha256sum | quote }}
       labels:
         {{- include "app.labels" . | nindent 8 }}
-        {{- /* invariant: pod labels only: selectorLabels are immutable. */}}
-        {{- range $key, $value := $platformClientLabels }}
-        {{ $key }}: {{ $value | quote }}
-        {{- end }}
     spec:
       automountServiceAccountToken: false
       {{- with include "app.podSecurityContext" $spec }}

@@ -44,12 +44,17 @@ spec:
     size: 2Gi
     mountPath: /data
 
-  # invariant: both catalog entries; studio-intelligence also stamps its clientLabel.
-  platformServices:
-    - otel-collector
-    - studio-intelligence
+  # invariant: both catalog entries.
+  uses:
+    - telemetry
+    - intelligence
 
-  # invariant: a peer that cannot stamp the clientLabel, plus one declared egress rule.
+  # invariant: named consumers; `all` is the other arm, which tests/uses_serves_test.yaml renders.
+  serves:
+    - ci-test-client
+    - ci-test-other
+
+  # invariant: a peer no capability names, plus one declared egress rule.
   network:
     exposeTo:
       - namespace:platform-telemetry

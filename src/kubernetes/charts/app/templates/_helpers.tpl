@@ -102,57 +102,35 @@ Input: spec.resources. */}}
 {{ include "app.name" . }}-secrets
 {{- end -}}
 
-{{/* invariant: the one catalog of platform services: the env a consumer gets, the egress it
-opens on POD ports, and the clientLabel the target's ingress selects on (README.md). */}}
-{{- define "app.platformCatalog" -}}
-otel-collector:
+{{/* invariant: the one catalog of what an app `uses`: the provider's namespace, its POD ports and
+the env a consumer reads. It grants NO access: the provider admits a consumer by its own `serves`,
+so reaching one takes both sides' consent (README.md, ADR-029). */}}
+{{- define "app.capabilities" -}}
+telemetry:
+  namespace: platform-telemetry
+  ports:
+    - 4317
+    - 4318
   env:
     OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.platform-telemetry:4318"
-  egress:
-    namespace: platform-telemetry
-    ports:
-      - 4317
-      - 4318
-studio-intelligence:
+intelligence:
+  namespace: studio-intelligence
+  ports:
+    - 8317
   env:
-    STUDIO_INTELLIGENCE_BASE_URL: "http://studio-intelligence.studio-intelligence-prod.svc.cluster.local/v1"
-  egress:
-    namespace: studio-intelligence-prod
-    ports:
-      - 8317
-  clientLabel: platform-client.jterrazz.com/studio-intelligence
+    STUDIO_INTELLIGENCE_BASE_URL: "http://studio-intelligence.studio-intelligence.svc.cluster.local/v1"
 {{- end -}}
 
-{{/* invariant: the one accessor every consumer calls, so an unknown name always fails. */}}
-{{- define "app.platformServices" -}}
-{{- $catalog := fromYaml (include "app.platformCatalog" .) -}}
-{{- $services := .platformServices -}}
-{{- range $svc := $services -}}
-{{- if not (hasKey $catalog $svc) -}}
-{{- fail (printf "spec.platformServices: unknown service %q (valid: %s)" $svc (keys $catalog | sortAlpha | join ", ")) -}}
+{{/* invariant: the one accessor every consumer calls, so an unknown name always fails.
+Returns the catalog entries of spec.uses, in order. */}}
+{{- define "app.uses" -}}
+{{- $catalog := fromYaml (include "app.capabilities" .) -}}
+{{- $out := list -}}
+{{- range $name := .uses -}}
+{{- if not (hasKey $catalog $name) -}}
+{{- fail (printf "spec.uses: unknown capability %q (valid: %s)" $name (keys $catalog | sortAlpha | join ", ")) -}}
 {{- end -}}
-{{- end -}}
-{{- $services | toYaml -}}
-{{- end -}}
-
-{{- define "app.platformEnv" -}}
-{{- $catalog := fromYaml (include "app.platformCatalog" .) -}}
-{{- $out := dict -}}
-{{- range $svc := (fromYamlArray (include "app.platformServices" .)) -}}
-{{- range $k, $v := (index $catalog $svc).env -}}
-{{- $_ := set $out $k $v -}}
-{{- end -}}
-{{- end -}}
-{{- $out | toYaml -}}
-{{- end -}}
-
-{{- define "app.platformClientLabels" -}}
-{{- $catalog := fromYaml (include "app.platformCatalog" .) -}}
-{{- $out := dict -}}
-{{- range $svc := (fromYamlArray (include "app.platformServices" .)) -}}
-{{- with (index $catalog $svc).clientLabel -}}
-{{- $_ := set $out . "true" -}}
-{{- end -}}
+{{- $out = append $out (index $catalog $name) -}}
 {{- end -}}
 {{- $out | toYaml -}}
 {{- end -}}
@@ -250,7 +228,10 @@ Input dict: ctx, spec. */}}
 {{- $spec := .spec -}}
 {{- $envVars := $spec.env -}}
 {{- $secrets := $spec.secrets -}}
-{{- $platformEnv := fromYaml (include "app.platformEnv" $spec) -}}
+{{- $usesEnv := dict -}}
+{{- range $entry := fromYamlArray (include "app.uses" $spec) -}}
+{{- $usesEnv = mergeOverwrite $usesEnv $entry.env -}}
+{{- end -}}
 - name: PORT
   value: {{ $spec.port | quote }}
 {{- range $key, $value := $envVars }}
@@ -266,7 +247,7 @@ Input dict: ctx, spec. */}}
 - name: OTEL_RESOURCE_ATTRIBUTES
   value: "deployment.environment={{ $ctx.Values.environment }},deployment.environment.name={{ $ctx.Values.environment }}"
 {{- end }}
-{{- range $key, $value := $platformEnv }}
+{{- range $key, $value := $usesEnv }}
 {{- if not (hasKey $envVars $key) }}
 - name: {{ $key }}
   value: {{ $value | quote }}

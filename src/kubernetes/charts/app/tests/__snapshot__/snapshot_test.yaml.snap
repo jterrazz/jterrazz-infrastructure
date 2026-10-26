@@ -116,7 +116,6 @@ matches the recorded render of the CI fixture:
             app.kubernetes.io/instance: RELEASE-NAME
             app.kubernetes.io/managed-by: Helm
             app.kubernetes.io/name: ci-test-app
-            platform-client.jterrazz.com/studio-intelligence: "true"
             studio.jterrazz.com/environment: prod
         spec:
           automountServiceAccountToken: false
@@ -138,7 +137,7 @@ matches the recorded render of the CI fixture:
                 - name: OTEL_EXPORTER_OTLP_ENDPOINT
                   value: http://otel-collector.platform-telemetry:4318
                 - name: STUDIO_INTELLIGENCE_BASE_URL
-                  value: http://studio-intelligence.studio-intelligence-prod.svc.cluster.local/v1
+                  value: http://studio-intelligence.studio-intelligence.svc.cluster.local/v1
                 - name: NODE_OPTIONS
                   value: --max-old-space-size=384
                 - name: DATABASE_URL
@@ -553,12 +552,22 @@ matches the recorded render of the CI fixture:
           to:
             - namespaceSelector:
                 matchLabels:
-                  kubernetes.io/metadata.name: studio-intelligence-prod
+                  kubernetes.io/metadata.name: studio-intelligence
       ingress:
         - from:
             - namespaceSelector:
                 matchLabels:
                   kubernetes.io/metadata.name: kube-system
+          ports:
+            - port: 3000
+        - from:
+            - namespaceSelector:
+                matchExpressions:
+                  - key: studio.jterrazz.com/app
+                    operator: In
+                    values:
+                      - ci-test-client
+                      - ci-test-other
           ports:
             - port: 3000
         - from:

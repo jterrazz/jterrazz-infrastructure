@@ -203,7 +203,7 @@ tests:
                     - 169.254.0.0/16
 
   - it: admits a same-namespace pod label and nothing wider
-    # invariant: `pods:` means this namespace; `any-namespace-pods:` would admit the cluster.
+    # invariant: `pods:` means this namespace alone; a pod label is no identity across namespaces.
     set:
       environment: staging
     templates:

@@ -1,0 +1,157 @@
+suite: a capability is reached only when the consumer uses it and the provider serves it
+# invariant: `uses` wires the consumer (env, egress on the provider's POD ports); `serves` is the
+# provider's own ingress, by namespace label; neither grants access alone (ADR-029).
+values:
+  - ../ci/test-values.yaml
+tests:
+  - it: hard-fails the render on an unknown capability
+    # invariant: a typo is a build error, never telemetry quietly off.
+    set:
+      spec.uses:
+        - telemetry
+        - telemtry
+    asserts:
+      - failedTemplate:
+          errorMessage: 'spec.uses: unknown capability "telemtry" (valid: intelligence, telemetry)'
+
+  - it: hard-fails on a name introduced by an environment override
+    # invariant: checked on the resolved list, since an environment replaces it.
+    set:
+      environments.prod.uses:
+        - inteligence
+    asserts:
+      - failedTemplate:
+          errorMessage: 'spec.uses: unknown capability "inteligence" (valid: intelligence, telemetry)'
+
+  - it: injects the catalog env for each capability used
+    templates:
+      - templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: "http://otel-collector.platform-telemetry:4318"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: STUDIO_INTELLIGENCE_BASE_URL
+            value: "http://studio-intelligence.studio-intelligence.svc.cluster.local/v1"
+
+  - it: lets an app-declared env of the same name win over the catalog
+    templates:
+      - templates/deployment.yaml
+    set:
+      spec.env.OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4318"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: "http://localhost:4318"
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: "http://otel-collector.platform-telemetry:4318"
+
+  - it: opens one egress rule per capability, to its namespace on the POD ports
+    # hazard: the provider's POD ports; the Service port would yield a policy that drops all.
+    templates:
+      - templates/network-policy.yaml
+    asserts:
+      - contains:
+          path: spec.egress
+          content:
+            to:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: platform-telemetry
+            ports:
+              - port: 4317
+              - port: 4318
+      - contains:
+          path: spec.egress
+          content:
+            to:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: studio-intelligence
+            ports:
+              - port: 8317
+
+  - it: stamps no client label on the consumer's pods
+    # invariant: a pod label is no identity: any workload could stamp it.
+    templates:
+      - templates/deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.template.metadata.labels["platform-client.jterrazz.com/studio-intelligence"]
+
+  - it: opts out completely when nothing is used
+    templates:
+      - templates/deployment.yaml
+    set:
+      spec.uses: []
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_EXPORTER_OTLP_ENDPOINT
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: STUDIO_INTELLIGENCE_BASE_URL
+          any: true
+
+  - it: admits the namespaces of the apps it serves, by their app label, on its port
+    templates:
+      - templates/network-policy.yaml
+    asserts:
+      - contains:
+          path: spec.ingress
+          content:
+            from:
+              - namespaceSelector:
+                  matchExpressions:
+                    - key: studio.jterrazz.com/app
+                      operator: In
+                      values: [ci-test-client, ci-test-other]
+            ports:
+              - port: 3000
+
+  - it: admits every app namespace when it serves all
+    templates:
+      - templates/network-policy.yaml
+    set:
+      spec.serves: [all]
+    asserts:
+      - contains:
+          path: spec.ingress
+          content:
+            from:
+              - namespaceSelector:
+                  matchExpressions:
+                    - key: studio.jterrazz.com/tier
+                      operator: In
+                      values: [app]
+            ports:
+              - port: 3000
+
+  - it: admits no consumer when it serves none, whoever uses it
+    templates:
+      - templates/network-policy.yaml
+    set:
+      spec.serves: []
+      spec.network.exposeTo: []
+    asserts:
+      - equal:
+          path: spec.ingress
+          value:
+            - from:
+                - namespaceSelector:
+                    matchLabels:
+                      kubernetes.io/metadata.name: kube-system
+              ports:
+                - port: 3000

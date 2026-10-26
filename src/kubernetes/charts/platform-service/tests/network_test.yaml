@@ -111,7 +111,7 @@ tests:
         - to: namespcae:platform-telemetry
     asserts:
       - failedTemplate:
-          errorMessage: 'network: unknown peer "namespcae:platform-telemetry" (valid: traefik, any-namespace, internet, anywhere, namespace:<ns>, pods:<key>=<value>, any-namespace-pods:<key>=<value>, namespace-label:<key>=<value>[,<value>...])'
+          errorMessage: 'network: unknown peer "namespcae:platform-telemetry" (valid: traefik, any-namespace, internet, anywhere, namespace:<ns>, pods:<key>=<value>, namespace-label:<key>=<value>[,<value>...])'
 
   - it: hard-fails a network block with no podSelector
     set:
