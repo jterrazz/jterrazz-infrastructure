@@ -4,13 +4,16 @@
 **Date:** 2026-10-25
 
 Revised 2026-10-25: the gateway variable is `STUDIO_INTELLIGENCE_BASE_URL`.
+Revised 2026-10-26: the substrate brand is `studio` (studio-os ADR-012), so
+`jterrazz-intelligence` is `studio-intelligence-gateway`, the alert relay is
+`studio-alert-relay`, and `os` is `studio-console`; the variable keeps its name.
 
 ## Context
 
 Names had drifted: app namespaces were `<env>-<app>` (`prod-signews-api`)
 while the same app's volume and data directory were `<app>-<env>`
 (`signews-api-prod-data`, `/var/lib/k8s-data/signews-api-prod`); two apps
-carried no brand (`os`, `studio-intelligence`) when every other one did; the
+carried no brand (`os`, `gateway-intelligence`) when every other one did; the
 gateway's name was `<role>-<product>` where the others are `<brand>-<role>`;
 and a namespace was told apart from the platform's by parsing its name.
 
@@ -29,8 +32,8 @@ name has to say who owns it.
 - **An app is `<brand>-<role>`.** Brands: `jterrazz`, `signews`, `spwn`.
   Roles: `web`, `api`, `console`, and the product word where the role is a
   product (`intelligence`). `os` became `studio-console` (the console of the
-  studio-os repository) and `studio-intelligence` became
-  `studio-intelligence` (the server the `@jterrazz/intelligence` clients
+  studio-os repository) and `gateway-intelligence` became
+  `jterrazz-intelligence` (the server the `@jterrazz/intelligence` clients
   call). An app's name is decoupled from its repository's name: the
   ownership label still names the repository.
 - **One name runs through everything.** The namespace and the Helm release are

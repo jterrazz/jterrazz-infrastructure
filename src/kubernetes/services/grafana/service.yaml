@@ -5,7 +5,7 @@ host: grafana.internal.jterrazz.com
 smoke:
   expect: "302,200"
 
-# invariant: the operator's template, not Helm's. Every notification goes to studio-alerts, the
+# invariant: the operator's template, not Helm's. Every notification goes to studio-alert-relay, the
 # relay that keeps one Slack message per incident and turns it green when it resolves (ADR-028).
 # hazard: an alert about the relay itself cannot travel through it, so whatever names its namespace
 # goes straight to the plain Slack webhook, when SLACK_WEBHOOK_URL is set.
@@ -18,12 +18,12 @@ secrets:
         apiVersion: 1
         contactPoints:
           - orgId: 1
-            name: studio-alerts
+            name: studio-alert-relay
             receivers:
-              - uid: studio-alerts
+              - uid: studio-alert-relay
                 type: webhook
                 settings:
-                  url: http://studio-alerts.studio-alerts-prod.svc.cluster.local/grafana
+                  url: http://studio-alert-relay.studio-alerts-prod.svc.cluster.local/grafana
                   httpMethod: POST
         {{- with .SLACK_WEBHOOK_URL.Value }}
           - orgId: 1
@@ -36,13 +36,13 @@ secrets:
         {{- end }}
         policies:
           - orgId: 1
-            receiver: studio-alerts
+            receiver: studio-alert-relay
             group_by: [grafana_folder, alertname]
         {{- with .SLACK_WEBHOOK_URL.Value }}
             routes:
               - receiver: slack
                 object_matchers:
-                  - [namespace, =, studio-alerts-prod]
+                  - [namespace, =, studio-alert-relay-prod]
         {{- end }}
 
 storage:
@@ -60,6 +60,6 @@ network:
     - from: traefik
       ports: [3000]
   egress:
-    # invariant: notifications go to studio-alerts, the Slack relay (ADR-028); its pod port.
-    - to: namespace:studio-alerts-prod
+    # invariant: notifications go to studio-alert-relay, the Slack relay (ADR-028); its pod port.
+    - to: namespace:studio-alert-relay-prod
       ports: [8080]

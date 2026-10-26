@@ -17,7 +17,7 @@ every link it sent pointed at `http://localhost:3000`.
 
 ## Decision
 
-- **A relay owns the Slack side.** `studio-alerts`, an app of its own
+- **A relay owns the Slack side.** `studio-alert-relay`, an app of its own
   repository, receives Grafana's webhook and talks to the Slack Web API with a
   bot token. It posts one message per incident (an alert's fingerprint and the
   time it started), edits that message as the alert fires again, and turns it
@@ -48,7 +48,7 @@ every link it sent pointed at `http://localhost:3000`.
 
 ## Consequences
 
-- The bot token and the channel live in Infisical `/studio-alerts`, the one
+- The bot token and the channel live in Infisical `/studio-alert-relay`, the one
   folder the app may read (ADR-017); the webhook URL stays in
   `/studio-infrastructure/grafana` for the fallback route.
 - The NetworkPolicy is the relay's only authentication: Grafana's namespace

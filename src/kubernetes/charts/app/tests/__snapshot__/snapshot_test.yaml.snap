@@ -119,7 +119,7 @@ matches the recorded render of the CI fixture:
           labels:
             app: ci-test-app
             environment: prod
-            platform-client.jterrazz.com/studio-intelligence: "true"
+            platform-client.jterrazz.com/studio-intelligence-gateway: "true"
         spec:
           automountServiceAccountToken: false
           containers:
@@ -140,7 +140,7 @@ matches the recorded render of the CI fixture:
                 - name: OTEL_EXPORTER_OTLP_ENDPOINT
                   value: http://otel-collector.platform-telemetry:4318
                 - name: STUDIO_INTELLIGENCE_BASE_URL
-                  value: http://studio-intelligence.studio-intelligence-prod.svc.cluster.local/v1
+                  value: http://studio-intelligence-gateway.studio-intelligence-prod.svc.cluster.local/v1
                 - name: NODE_OPTIONS
                   value: --max-old-space-size=384
                 - name: DATABASE_URL
@@ -565,7 +565,7 @@ matches the recorded render of the CI fixture:
           to:
             - namespaceSelector:
                 matchLabels:
-                  kubernetes.io/metadata.name: studio-intelligence-prod
+                  kubernetes.io/metadata.name: studio-intelligence-gateway-prod
       ingress:
         - from:
             - namespaceSelector:

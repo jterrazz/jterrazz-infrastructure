@@ -158,7 +158,7 @@ network:
     - from: traefik
       ports: [3000]
   egress:
-    - to: namespace:studio-intelligence-prod
+    - to: namespace:studio-intelligence-gateway-prod
       ports: [8317, 80]
     - to: internet
       ports: [443]

@@ -9,7 +9,7 @@ to type when a gate misbehaves is [Operate](../guides/operate.md).
 The node holds every app's data, the registry every image, and Infisical every
 secret the workloads read. Several stores authenticate nothing by design
 (VictoriaMetrics, VictoriaLogs, VictoriaTraces, ClickHouse, Redis), and the
-model gateway `studio-intelligence` takes no API key. So the network is the
+model gateway `studio-intelligence-gateway` takes no API key. So the network is the
 boundary for them, and each layer below assumes the one above it can fail.
 
 ## The gates, outside in

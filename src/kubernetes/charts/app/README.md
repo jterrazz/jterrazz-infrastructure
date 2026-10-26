@@ -493,7 +493,7 @@ source of truth in `templates/_helpers.tpl` (`app.platformCatalog`):
 | Name                    | Injects env                                                                                                   | Opens egress to                    | Client label                                         |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------- |
 | `otel-collector`        | `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.platform-telemetry:4318`                                   | `platform-telemetry` :4317, :4318  | none                                                 |
-| `studio-intelligence` | `STUDIO_INTELLIGENCE_BASE_URL=http://studio-intelligence.studio-intelligence-prod.svc.cluster.local/v1` | `studio-intelligence-prod` :8317 | `platform-client.jterrazz.com/studio-intelligence` |
+| `studio-intelligence-gateway` | `STUDIO_INTELLIGENCE_BASE_URL=http://studio-intelligence-gateway.studio-intelligence-prod.svc.cluster.local/v1` | `studio-intelligence-gateway-prod` :8317 | `platform-client.jterrazz.com/studio-intelligence-gateway` |
 
 Declaring a name wires the whole bundle at once:
 
@@ -506,7 +506,7 @@ Declaring a name wires the whole bundle at once:
    selecting that label. A new consumer therefore needs **zero** edits on the
    target.
 
-Ports are pinned per namespace, so `studio-intelligence` resolves to its
+Ports are pinned per namespace, so `studio-intelligence-gateway` resolves to its
 `-prod` namespace regardless of which environment the consumer runs in.
 
 An unknown name **hard-fails the render** with the valid list. Telemetry is
@@ -517,7 +517,7 @@ Env names are the contract the client reads, not the service's name:
 `@jterrazz/intelligence` as the gateway's base URL, and
 `OTEL_EXPORTER_OTLP_ENDPOINT` is the OTel SDK's.
 
-`studio-intelligence` is an app (repository `studio-intelligence`) that
+`studio-intelligence-gateway` is an app (repository `studio-intelligence-gateway`) that
 enforces no API key, so this client label and its private-only route are its
 whole boundary. Its consumers pass the non-secret placeholder `gateway-noauth`
 that the OpenAI and Anthropic SDKs require.

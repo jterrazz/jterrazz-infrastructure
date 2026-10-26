@@ -61,7 +61,7 @@ async function podsOfTheCluster(): Promise<Pod[]> {
 const APP_TIER = 'app.jterrazz.com/tier';
 
 // hazard: the upgrade test's k3d cluster deploys no app, so a platform peer naming an app's namespace
-// (Grafana's egress to studio-alerts-prod) cannot match there; the live cluster judges it.
+// (Grafana's egress to studio-alert-relay-prod) cannot match there; the live cluster judges it.
 function namesAnAbsentApp({ namespaceSelector }: Peer, hasApps: boolean): boolean {
     return (
         !hasApps &&

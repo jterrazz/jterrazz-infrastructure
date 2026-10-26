@@ -18,7 +18,7 @@ service with several moving parts keeps a README beside its values.
 | OpenPanel                                     | `platform-analytics`  | product analytics, six app-chart releases ([README](../../src/kubernetes/services/openpanel/README.md))                                                              |
 | Traefik                                       | `kube-system`         | k3s' bundled ingress, shaped by its HelmChartConfig ([ADR-003](../decisions/003-traefiks-service-is-the-tailnet-gate.md))                                            |
 
-An app other workloads call, such as the model gateway `studio-intelligence`,
+An app other workloads call, such as the model gateway `studio-intelligence-gateway`,
 stays an app: it is a target in the app chart's
 [`platformServices` catalog](../../src/kubernetes/charts/app/README.md#specplatformservices),
 not a row here.
