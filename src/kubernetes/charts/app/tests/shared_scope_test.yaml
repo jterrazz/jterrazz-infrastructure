@@ -1,0 +1,73 @@
+suite: a shared app is one release, in namespace <app>, for every environment
+# invariant: `scope: shared` renders environment `shared`: no env suffix on its names, prod's
+# secrets, and the dashboards and alerts a prod release would carry (ADR-029).
+values:
+  - ../ci/test-values.yaml
+set:
+  scope: shared
+  environment: shared
+  environments: null
+tests:
+  - it: names the volume and its directory <app>, with no environment
+    # invariant: the ownership policy's volume rule, /var/lib/k8s-data/<name minus -data>.
+    templates:
+      - templates/storage.yaml
+    documentSelector:
+      path: kind
+      value: PersistentVolume
+    asserts:
+      - equal:
+          path: metadata.name
+          value: ci-test-app-data
+      - equal:
+          path: spec.hostPath.path
+          value: /var/lib/k8s-data/ci-test-app
+
+  - it: reads prod's secrets, since it serves prod too
+    templates:
+      - templates/infisical.yaml
+    documentSelector:
+      path: metadata.name
+      value: ci-test-app-infisical
+    asserts:
+      - equal:
+          path: spec.authentication.universalAuth.secretsScope.envSlug
+          value: prod
+
+  - it: reports environment shared to the pods and their telemetry
+    templates:
+      - templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels["studio.jterrazz.com/environment"]
+          value: shared
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_RESOURCE_ATTRIBUTES
+            value: deployment.environment=shared,deployment.environment.name=shared
+
+  - it: provisions the dashboards, linked to the workload in namespace <app>
+    templates:
+      - templates/dashboard-configmap.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+      - matchRegex:
+          path: data["ci-test-app-service.json"]
+          pattern: var-namespace=ci-test-app\\u0026
+
+  - it: provisions the alert rules
+    templates:
+      - templates/alert-configmap.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: renders nothing for any environment but shared
+    # hazard: an empty release, as for an undeclared environment (ADR-010).
+    set:
+      environment: prod
+    asserts:
+      - hasDocuments:
+          count: 0

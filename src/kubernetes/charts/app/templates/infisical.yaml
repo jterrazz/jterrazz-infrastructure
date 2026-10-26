@@ -9,7 +9,7 @@
 {{ include "common.infisicalSecret" (dict
      "name" (printf "%s-infisical" $appName)
      "labels" (include "app.labels" .)
-     "envSlug" .Values.environment
+     "envSlug" (include "app.secretsEnv" .)
      "secretsPath" (printf "/%s" $appName)
      "secretName" (include "app.secretsName" .)
      "secretNamespace" .Release.Namespace) }}

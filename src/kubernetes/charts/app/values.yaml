@@ -41,6 +41,10 @@ spec:
 
 environments: {}
 
+# invariant: "shared" for an app every environment calls (studio-intelligence), deployed once as
+# environment `shared` into namespace <app>; empty, one release per `environments` key (ADR-029).
+scope: ""
+
 environment: ""
 
 # invariant: no credential: the pull secret is synced from this Infisical project.

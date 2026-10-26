@@ -1,5 +1,6 @@
-{{- /* invariant: prod only, since a dashboard uid is global; the identity is common.dashboards'. */ -}}
-{{- if and (eq (include "app.envExists" .) "true") (eq .Values.environment "prod") -}}
+{{- /* invariant: the primary release only, since a dashboard uid is global; the identity is
+       common.dashboards'. */ -}}
+{{- if and (eq (include "app.envExists" .) "true") (eq (include "app.isPrimary" .) "true") -}}
 {{- $spec := fromYaml (include "app.merged" .) -}}
 {{ include "common.dashboards" (dict
      "owner" (include "app.name" .)
@@ -7,5 +8,5 @@
      "field" "spec.dashboards"
      "labels" (include "app.labels" .)
      "configMapPrefix" (printf "%s-dashboard-" (include "app.name" .))
-     "workload" (dict "namespace" (printf "%s-prod" (include "app.name" .)) "container" (include "app.name" .))) }}
+     "workload" (dict "namespace" (include "app.instanceName" .) "container" (include "app.name" .))) }}
 {{- end }}

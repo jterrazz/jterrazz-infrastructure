@@ -1,7 +1,7 @@
-{{- /* invariant: prod only, since rule uids are global; validated in every environment. */}}
+{{- /* invariant: the primary release only, since rule uids are global; validated in every environment. */}}
 {{- if eq (include "app.envExists" .) "true" -}}
 {{- $alerts := fromYaml (include "app.alerts" (fromYaml (include "app.merged" .))) -}}
-{{- if and $alerts (eq .Values.environment "prod") }}
+{{- if and $alerts (eq (include "app.isPrimary" .) "true") }}
 {{ include "common.alertsConfigMap" (dict
      "name" (printf "%s-alerts" (include "app.name" .))
      "labels" (include "app.labels" .)

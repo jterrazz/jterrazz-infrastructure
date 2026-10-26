@@ -9,11 +9,11 @@
 {{- $size := $spec.storage.size | required (printf "spec.storage.size is required when spec.storage is set without a claimName (app %s)" $appName) -}}
 {{- /* hazard: no nodeAffinity, since app CI passes no node name; a second node needs one. */ -}}
 {{- include "common.volume" (dict
-      "name" (printf "%s-%s-data" $appName .Values.environment)
+      "name" (printf "%s-data" (include "app.instanceName" .))
       "claimName" (printf "%s-data" $appName)
       "labels" (include "app.volumeLabels" .)
       "size" $size
-      "path" (printf "/var/lib/k8s-data/%s-%s" $appName .Values.environment)
+      "path" (printf "/var/lib/k8s-data/%s" (include "app.instanceName" .))
       "nodeName" "") }}
 {{- end }}
 {{- end }}

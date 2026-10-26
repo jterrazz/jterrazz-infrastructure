@@ -7,20 +7,44 @@ environment winning, lists are replaced (README.md, Merge semantics). */}}
 {{- define "app.merged" -}}
 {{- $env := .Values.environment -}}
 {{- $envConfig := dict -}}
-{{- if hasKey .Values.environments $env -}}
-{{- $envConfig = index .Values.environments $env -}}
+{{- if hasKey (.Values.environments | default dict) $env -}}
+{{- $envConfig = index (.Values.environments | default dict) $env -}}
 {{- end -}}
 {{- mergeOverwrite (deepCopy .Values.spec) (deepCopy $envConfig) | toYaml -}}
 {{- end -}}
 
-{{/* hazard: an undeclared environment renders an empty release (ADR-010). */}}
+{{/* hazard: an undeclared environment renders an empty release (ADR-010); a shared app's one
+environment is `shared`. */}}
 {{- define "app.envExists" -}}
 {{- $env := .Values.environment -}}
-{{- if and $env (hasKey .Values.environments $env) -}}
+{{- if eq .Values.scope "shared" -}}
+{{- eq $env "shared" -}}
+{{- else if and $env (hasKey (.Values.environments | default dict) $env) -}}
 true
 {{- else -}}
 false
 {{- end -}}
+{{- end -}}
+
+{{/* invariant: <app>-<env>, or <app> for a shared app: the namespace, volume and data directory's
+one name (ADR-023). */}}
+{{- define "app.instanceName" -}}
+{{- if eq .Values.scope "shared" -}}
+{{- include "app.name" . -}}
+{{- else -}}
+{{- printf "%s-%s" (include "app.name" .) .Values.environment -}}
+{{- end -}}
+{{- end -}}
+
+{{/* invariant: the release whose dashboards and alert rules Grafana provisions, since their uids
+are global: prod, or a shared app's only one. */}}
+{{- define "app.isPrimary" -}}
+{{- or (eq .Values.environment "prod") (eq .Values.scope "shared") -}}
+{{- end -}}
+
+{{/* invariant: a shared app serves prod too, so it reads prod's secrets (ADR-029). */}}
+{{- define "app.secretsEnv" -}}
+{{- ternary "prod" .Values.environment (eq .Values.scope "shared") -}}
 {{- end -}}
 
 {{/* Input: the resolved spec, here and in every helper below that takes one. */}}
