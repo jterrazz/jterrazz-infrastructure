@@ -54,7 +54,7 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Join the tailnet
-        uses: jterrazz/studio-actions/actions/infra-connect@a56e32078360198f0262f9d6bacd0594ac310237 # main, 2026-10-24
+        uses: jterrazz/studio-actions/actions/infra-connect@0e9286b35be9b4029d5cc04f94be8ef1261a4e43 # main, 2026-10-26
 
       - name: Setup Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
