@@ -1,7 +1,7 @@
 #!/bin/bash
 # outside: dispatches every app repository's "Build and Deploy" workflow, so a rebuilt cluster
 # gets its apps back. The fleet is discovered: each Deployment in a namespace an app owns (label
-# app.jterrazz.com/repository) names its repository in the annotation of the same key.
+# studio.jterrazz.com/repository) names its repository in the annotation of the same key.
 #
 #   ./src/scripts/redeploy-apps.sh               # discover, then dispatch
 #   ./src/scripts/redeploy-apps.sh --dry-run     # print one repository per line, dispatch nothing
@@ -20,10 +20,10 @@ read -r -a KUBECTL <<< "${CLUSTER_KUBECTL:-kubectl}"
 
 discover() {
     local namespaces lines
-    namespaces=$("${KUBECTL[@]}" get namespaces -l app.jterrazz.com/repository -o jsonpath='{.items[*].metadata.name}')
+    namespaces=$("${KUBECTL[@]}" get namespaces -l studio.jterrazz.com/repository -o jsonpath='{.items[*].metadata.name}')
     lines=$(for namespace in $namespaces; do
         "${KUBECTL[@]}" get deployments -n "$namespace" \
-            -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name} {.metadata.annotations.app\.jterrazz\.com/repository}{"\n"}{end}'
+            -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name} {.metadata.annotations.studio\.jterrazz\.com/repository}{"\n"}{end}'
     done)
     if awk 'NF == 1 { print "  - " $1; missing = 1 } END { exit !missing }' <<< "$lines" >&2; then
         error "These app Deployments name no repository: redeploy each once from its own CI."

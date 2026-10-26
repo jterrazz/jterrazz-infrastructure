@@ -12,7 +12,7 @@ tests:
       value: PersistentVolume
     asserts:
       - equal:
-          path: metadata.labels["app.jterrazz.com/repository"]
+          path: metadata.labels["studio.jterrazz.com/repository"]
           value: ci-test-app
 
   - it: leaves the label off when CI passes no repository
@@ -23,4 +23,4 @@ tests:
       value: PersistentVolume
     asserts:
       - notExists:
-          path: metadata.labels["app.jterrazz.com/repository"]
+          path: metadata.labels["studio.jterrazz.com/repository"]

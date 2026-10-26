@@ -9,12 +9,12 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "app.name" . }}
-  {{- if or .Values.meta.repository $spec.secrets.path }}
+  {{- if or .Values.meta.repository $spec.secrets.env }}
   annotations:
     {{- with .Values.meta.repository }}
-    app.jterrazz.com/repository: {{ . | quote }}
+    studio.jterrazz.com/repository: {{ . | quote }}
     {{- end }}
-    {{- if $spec.secrets.path }}
+    {{- if $spec.secrets.env }}
     {{- /* invariant: the operator rolls the pods when a synced value changes, the one event that needs it. */}}
     secrets.infisical.com/auto-reload: "true"
     {{- end }}
@@ -38,7 +38,7 @@ spec:
       annotations:
         checksum/config: {{ $spec.configFiles | default dict | toJson | sha256sum | quote }}
       labels:
-        {{- include "app.selectorLabels" . | nindent 8 }}
+        {{- include "app.labels" . | nindent 8 }}
         {{- /* invariant: pod labels only: selectorLabels are immutable. */}}
         {{- range $key, $value := $platformClientLabels }}
         {{ $key }}: {{ $value | quote }}
@@ -71,6 +71,12 @@ spec:
           {{- end }}
           ports:
             - containerPort: {{ $spec.port }}
+          {{- /* hazard: Traefik keeps routing to a terminating pod until its endpoint is removed; the
+                 sleep holds SIGTERM until it is, inside the default 30s grace period. */}}
+          lifecycle:
+            preStop:
+              sleep:
+                seconds: 5
           env:
             {{- include "app.containerEnv" (dict "ctx" . "spec" $spec) | trim | nindent 12 }}
           {{- if or $storage $spec.configFiles $spec.secretMounts }}

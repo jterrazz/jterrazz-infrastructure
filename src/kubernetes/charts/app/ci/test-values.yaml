@@ -5,7 +5,7 @@
 metadata:
   name: ci-test-app
 
-# value: pinned so the app.jterrazz.com/repository annotation branch renders.
+# value: pinned so the studio.jterrazz.com/repository annotation branch renders.
 meta:
   repository: jterrazz/ci-test-app
 
@@ -58,7 +58,6 @@ spec:
         ports: [5432]
 
   secrets:
-    path: /studio-ci/ci-test-app
     env:
       - DATABASE_URL
       - API_TOKEN
@@ -153,7 +152,6 @@ environments:
   staging:
     tag: main
     replicas: 1
-    secretsEnv: prod
     runAsRoot: true
     resources:
       memory: 256Mi
@@ -172,7 +170,7 @@ environments:
     network:
       isolated: true
       exposeTo:
-        - pods:app=ci-test-worker
+        - pods:app.kubernetes.io/name=ci-test-worker
     ingress:
       - host: ci-test-app-staging.jterrazz.com
         path: /

@@ -81,8 +81,8 @@ tests:
       - equal:
           path: spec.selector.matchLabels
           value:
-            app: ci-test-app
-            environment: prod
+            app.kubernetes.io/name: ci-test-app
+            studio.jterrazz.com/environment: prod
 
   - it: opens one egress rule per declared service, on the POD ports
     # hazard: the catalog's POD ports; the Service port would yield a policy that drops all.

@@ -28,7 +28,6 @@ spec:
   runAsRoot: false
   env: {}
   secrets: {}
-  secretsEnv: ""
   ingress: []
   network:
     isolated: false

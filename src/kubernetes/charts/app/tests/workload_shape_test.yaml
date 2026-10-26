@@ -74,6 +74,19 @@ tests:
           path: spec.ports[0].targetPort
           value: 3000
 
+  - it: holds SIGTERM for 5s, while Traefik drops the terminating endpoint
+    # hazard: without it a rollout answers 502s for the endpoint's last requests.
+    templates:
+      - templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].lifecycle.preStop
+          value:
+            sleep:
+              seconds: 5
+      - notExists:
+          path: spec.template.spec.terminationGracePeriodSeconds
+
   - it: probes with exec when the server does not speak HTTP
     set:
       environment: staging
@@ -206,7 +219,7 @@ tests:
             from:
               - podSelector:
                   matchLabels:
-                    app: ci-test-worker
+                    app.kubernetes.io/name: ci-test-worker
             ports:
               - port: 3000
 

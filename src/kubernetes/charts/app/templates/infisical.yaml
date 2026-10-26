@@ -2,13 +2,15 @@
 {{- $appName := include "app.name" . -}}
 {{- $spec := fromYaml (include "app.merged" .) -}}
 {{- $secrets := $spec.secrets -}}
-{{- if $secrets.path }}
+{{- /* invariant: the folder is the app's name and the env its own, the only pair the
+       app-deployer-ownership policy admits (ADR-029). */}}
+{{- if $secrets.env }}
 ---
 {{ include "common.infisicalSecret" (dict
      "name" (printf "%s-infisical" $appName)
      "labels" (include "app.labels" .)
-     "envSlug" (include "app.infisicalEnv" (dict "ctx" . "spec" $spec))
-     "secretsPath" $secrets.path
+     "envSlug" .Values.environment
+     "secretsPath" (printf "/%s" $appName)
      "secretName" (include "app.secretsName" .)
      "secretNamespace" .Release.Namespace) }}
 {{- end }}

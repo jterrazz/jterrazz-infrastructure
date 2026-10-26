@@ -1,0 +1,30 @@
+suite: the labels every object carries and the pods are selected by
+# invariant: standard app.kubernetes.io/* keys, the estate's own under studio.jterrazz.com/;
+# no bare `app` or `environment` key (ADR-029).
+values:
+  - ../ci/test-values.yaml
+templates:
+  - templates/deployment.yaml
+tests:
+  - it: selects the pods on the app's name and its environment
+    # hazard: immutable; a change here is a Deployment deleted and recreated.
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels
+          value:
+            app.kubernetes.io/name: ci-test-app
+            studio.jterrazz.com/environment: prod
+
+  - it: labels the pods with the full set, the selector a subset of it
+    asserts:
+      - isSubset:
+          path: spec.template.metadata.labels
+          content:
+            app.kubernetes.io/name: ci-test-app
+            app.kubernetes.io/instance: RELEASE-NAME
+            app.kubernetes.io/managed-by: Helm
+            studio.jterrazz.com/environment: prod
+      - notExists:
+          path: spec.template.metadata.labels.app
+      - notExists:
+          path: spec.template.metadata.labels.environment

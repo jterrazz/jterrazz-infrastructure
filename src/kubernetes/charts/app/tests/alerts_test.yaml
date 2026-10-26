@@ -29,8 +29,8 @@ tests:
       - isSubset:
           path: metadata.labels
           content:
-            app: ci-test-app
-            environment: prod
+            app.kubernetes.io/name: ci-test-app
+            studio.jterrazz.com/environment: prod
             grafana_alert: "1"
       # invariant: no grafana_folder annotation: each group names its own `folder:`.
       - notExists:

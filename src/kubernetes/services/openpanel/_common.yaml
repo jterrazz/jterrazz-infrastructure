@@ -17,8 +17,8 @@ spec:
     # hazard: a sending site missing here is refused at the CORS preflight, silently.
     API_CORS_ORIGINS: "https://openpanel.internal.jterrazz.com,https://jterrazz.com,https://www.jterrazz.com,https://spwn.sh,https://sig.news"
 
+  # invariant: each release reads its own Infisical folder, /<release> (ADR-029).
   secrets:
-    path: /studio-infrastructure/openpanel
     env:
       - DATABASE_URL
       - DATABASE_URL_DIRECT

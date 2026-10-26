@@ -8,7 +8,7 @@ tests:
       - ../ci/test-values.yaml
     asserts:
       - equal:
-          path: metadata.annotations["app.jterrazz.com/repository"]
+          path: metadata.annotations["studio.jterrazz.com/repository"]
           value: jterrazz/ci-test-app
 
   - it: stamps nothing when CI passed no repository
@@ -21,7 +21,7 @@ tests:
       meta.repository: ""
     asserts:
       - notExists:
-          path: metadata.annotations["app.jterrazz.com/repository"]
+          path: metadata.annotations["studio.jterrazz.com/repository"]
 
   - it: opens the app port to every peer in spec.network.exposeTo
     templates:

@@ -21,12 +21,11 @@ matches the recorded render of the CI fixture:
     kind: ConfigMap
     metadata:
       labels:
-        app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
-        environment: prod
         grafana_alert: "1"
+        studio.jterrazz.com/environment: prod
       name: ci-test-app-alerts
   2: |
     apiVersion: v1
@@ -38,11 +37,10 @@ matches the recorded render of the CI fixture:
     kind: ConfigMap
     metadata:
       labels:
-        app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
-        environment: prod
+        studio.jterrazz.com/environment: prod
       name: ci-test-app-config
   3: |
     apiVersion: v1
@@ -82,34 +80,32 @@ matches the recorded render of the CI fixture:
       annotations:
         grafana_folder: ci-test-app
       labels:
-        app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
-        environment: prod
         grafana_dashboard: "1"
+        studio.jterrazz.com/environment: prod
       name: ci-test-app-dashboard-service
   4: |
     apiVersion: apps/v1
     kind: Deployment
     metadata:
       annotations:
-        app.jterrazz.com/repository: jterrazz/ci-test-app
         secrets.infisical.com/auto-reload: "true"
+        studio.jterrazz.com/repository: jterrazz/ci-test-app
       labels:
-        app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
-        environment: prod
+        studio.jterrazz.com/environment: prod
       name: ci-test-app
     spec:
       replicas: 1
       revisionHistoryLimit: 3
       selector:
         matchLabels:
-          app: ci-test-app
-          environment: prod
+          app.kubernetes.io/name: ci-test-app
+          studio.jterrazz.com/environment: prod
       strategy:
         type: Recreate
       template:
@@ -117,9 +113,11 @@ matches the recorded render of the CI fixture:
           annotations:
             checksum/config: b3983c4ad012e8409ac26322266e0ae97c7b09732a5ef969b9175c18a899bf55
           labels:
-            app: ci-test-app
-            environment: prod
+            app.kubernetes.io/instance: RELEASE-NAME
+            app.kubernetes.io/managed-by: Helm
+            app.kubernetes.io/name: ci-test-app
             platform-client.jterrazz.com/studio-intelligence: "true"
+            studio.jterrazz.com/environment: prod
         spec:
           automountServiceAccountToken: false
           containers:
@@ -154,6 +152,10 @@ matches the recorded render of the CI fixture:
                       key: API_TOKEN
                       name: ci-test-app-secrets
               image: registry.internal.jterrazz.com/ci-test-app:ci
+              lifecycle:
+                preStop:
+                  sleep:
+                    seconds: 5
               livenessProbe:
                 httpGet:
                   path: /healthz
@@ -224,11 +226,10 @@ matches the recorded render of the CI fixture:
     kind: InfisicalSecret
     metadata:
       labels:
-        app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
-        environment: prod
+        studio.jterrazz.com/environment: prod
       name: ci-test-app-infisical
     spec:
       authentication:
@@ -239,7 +240,7 @@ matches the recorded render of the CI fixture:
           secretsScope:
             envSlug: prod
             projectSlug: studio-infrastructure
-            secretsPath: /studio-ci/ci-test-app
+            secretsPath: /ci-test-app
       hostAPI: https://eu.infisical.com
       managedKubeSecretReferences:
         - secretName: ci-test-app-secrets
@@ -252,11 +253,10 @@ matches the recorded render of the CI fixture:
     kind: InfisicalSecret
     metadata:
       labels:
-        app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
-        environment: prod
+        studio.jterrazz.com/environment: prod
       name: ci-test-app-registry-infisical
     spec:
       authentication:
@@ -283,11 +283,10 @@ matches the recorded render of the CI fixture:
     kind: Middleware
     metadata:
       labels:
-        app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
-        environment: prod
+        studio.jterrazz.com/environment: prod
       name: ci-test-app-0-strip-prefix
     spec:
       stripPrefix:
@@ -302,11 +301,10 @@ matches the recorded render of the CI fixture:
         studio.jterrazz.com/smoke-expect: "200"
         studio.jterrazz.com/smoke-path: /api/health
       labels:
-        app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
-        environment: prod
+        studio.jterrazz.com/environment: prod
       name: ci-test-app-0
     spec:
       entryPoints:
@@ -327,11 +325,10 @@ matches the recorded render of the CI fixture:
         studio.jterrazz.com/smoke-expect: "200"
         studio.jterrazz.com/smoke-path: /health
       labels:
-        app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
-        environment: prod
+        studio.jterrazz.com/environment: prod
       name: ci-test-app-1
     spec:
       entryPoints:
@@ -351,11 +348,10 @@ matches the recorded render of the CI fixture:
         external-dns.alpha.kubernetes.io/target: tunnel.jterrazz.com
         studio.jterrazz.com/smoke-probe: "false"
       labels:
-        app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
-        environment: prod
+        studio.jterrazz.com/environment: prod
       name: ci-test-app-2
     spec:
       entryPoints:
@@ -371,11 +367,10 @@ matches the recorded render of the CI fixture:
     kind: Middleware
     metadata:
       labels:
-        app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
-        environment: prod
+        studio.jterrazz.com/environment: prod
       name: ci-test-app-3-redirect
     spec:
       redirectRegex:
@@ -392,11 +387,10 @@ matches the recorded render of the CI fixture:
         studio.jterrazz.com/smoke-location: https://ci-test-app.jterrazz.com/
         studio.jterrazz.com/smoke-path: /
       labels:
-        app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
-        environment: prod
+        studio.jterrazz.com/environment: prod
       name: ci-test-app-3
     spec:
       entryPoints:
@@ -414,11 +408,10 @@ matches the recorded render of the CI fixture:
     kind: Middleware
     metadata:
       labels:
-        app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
-        environment: prod
+        studio.jterrazz.com/environment: prod
       name: ci-test-app-4-redirect
     spec:
       redirectRegex:
@@ -435,11 +428,10 @@ matches the recorded render of the CI fixture:
         studio.jterrazz.com/smoke-location: https://ci-test-app.jterrazz.com/moved
         studio.jterrazz.com/smoke-path: /
       labels:
-        app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
-        environment: prod
+        studio.jterrazz.com/environment: prod
       name: ci-test-app-4
     spec:
       entryPoints:
@@ -460,11 +452,10 @@ matches the recorded render of the CI fixture:
         studio.jterrazz.com/smoke-expect: 204,200
         studio.jterrazz.com/smoke-path: /ready
       labels:
-        app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
-        environment: prod
+        studio.jterrazz.com/environment: prod
       name: ci-test-app-5
     spec:
       entryPoints:
@@ -481,11 +472,10 @@ matches the recorded render of the CI fixture:
     kind: Middleware
     metadata:
       labels:
-        app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
-        environment: prod
+        studio.jterrazz.com/environment: prod
       name: ci-test-app-6-strip-prefix
     spec:
       stripPrefix:
@@ -501,11 +491,10 @@ matches the recorded render of the CI fixture:
         studio.jterrazz.com/smoke-method: POST
         studio.jterrazz.com/smoke-path: /api/track
       labels:
-        app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
-        environment: prod
+        studio.jterrazz.com/environment: prod
       name: ci-test-app-6
     spec:
       entryPoints:
@@ -523,11 +512,10 @@ matches the recorded render of the CI fixture:
     kind: NetworkPolicy
     metadata:
       labels:
-        app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
-        environment: prod
+        studio.jterrazz.com/environment: prod
       name: ci-test-app
     spec:
       egress:
@@ -581,8 +569,8 @@ matches the recorded render of the CI fixture:
             - port: 3000
       podSelector:
         matchLabels:
-          app: ci-test-app
-          environment: prod
+          app.kubernetes.io/name: ci-test-app
+          studio.jterrazz.com/environment: prod
       policyTypes:
         - Ingress
         - Egress
@@ -591,30 +579,28 @@ matches the recorded render of the CI fixture:
     kind: Service
     metadata:
       labels:
-        app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
-        environment: prod
+        studio.jterrazz.com/environment: prod
       name: ci-test-app
     spec:
       ports:
         - port: 80
           targetPort: 3000
       selector:
-        app: ci-test-app
-        environment: prod
+        app.kubernetes.io/name: ci-test-app
+        studio.jterrazz.com/environment: prod
   20: |
     apiVersion: v1
     kind: PersistentVolume
     metadata:
       labels:
-        app: ci-test-app
-        app.jterrazz.com/repository: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
-        environment: prod
+        studio.jterrazz.com/environment: prod
+        studio.jterrazz.com/repository: ci-test-app
       name: ci-test-app-prod-data
     spec:
       accessModes:
@@ -631,12 +617,11 @@ matches the recorded render of the CI fixture:
     kind: PersistentVolumeClaim
     metadata:
       labels:
-        app: ci-test-app
-        app.jterrazz.com/repository: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-app
-        environment: prod
+        studio.jterrazz.com/environment: prod
+        studio.jterrazz.com/repository: ci-test-app
       name: ci-test-app-data
     spec:
       accessModes:

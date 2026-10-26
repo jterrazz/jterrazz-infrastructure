@@ -74,11 +74,6 @@ Input: spec.resources. */}}
 {{- end -}}
 {{- end -}}
 
-{{/* Input dict: ctx, spec. */}}
-{{- define "app.infisicalEnv" -}}
-{{- .spec.secretsEnv | default .ctx.Values.environment -}}
-{{- end -}}
-
 {{- define "app.secretsName" -}}
 {{ include "app.name" . }}-secrets
 {{- end -}}
@@ -138,17 +133,18 @@ studio-intelligence:
 {{- $out | toYaml -}}
 {{- end -}}
 
+{{/* invariant: the keys this estate invents live under studio.jterrazz.com/ (ADR-029). */}}
 {{- define "app.labels" -}}
-app: {{ include "app.name" . }}
 app.kubernetes.io/name: {{ include "app.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-environment: {{ .Values.environment }}
+studio.jterrazz.com/environment: {{ .Values.environment }}
 {{- end -}}
 
+{{/* hazard: a Deployment's selector is immutable: changing it is a delete and recreate. */}}
 {{- define "app.selectorLabels" -}}
-app: {{ include "app.name" . }}
-environment: {{ .Values.environment }}
+app.kubernetes.io/name: {{ include "app.name" . }}
+studio.jterrazz.com/environment: {{ .Values.environment }}
 {{- end -}}
 
 {{/* invariant: exec, then httpGet; livenessPath applies to startup and liveness.
@@ -317,6 +313,6 @@ Input dict: ctx, spec. */}}
 {{- define "app.volumeLabels" -}}
 {{ include "app.labels" . }}
 {{- with .Values.meta.repository }}
-app.jterrazz.com/repository: {{ splitList "/" . | last | quote }}
+studio.jterrazz.com/repository: {{ splitList "/" . | last | quote }}
 {{- end }}
 {{- end }}
