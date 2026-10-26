@@ -19,6 +19,6 @@ service with several moving parts keeps a README beside its values.
 | Traefik                                       | `kube-system`         | k3s' bundled ingress, shaped by its HelmChartConfig ([ADR-003](../decisions/003-traefiks-service-is-the-tailnet-gate.md))                                            |
 
 An app other workloads call, such as the model gateway `studio-intelligence`,
-stays an app: it is a target in the app chart's
-[`platformServices` catalog](../../src/kubernetes/charts/app/README.md#specplatformservices),
-not a row here.
+stays an app: a shared one, a capability of the app chart's
+[`uses` catalog](../../src/kubernetes/charts/app/README.md#specuses-and-specserves-access-is-a-consent-from-both-sides)
+that admits its consumers with `serves`, not a row here.

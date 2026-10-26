@@ -68,5 +68,5 @@ orb -m studio-infrastructure -u root kubectl get pod -A   # cluster access from 
   one catch-all rule the deploy converges, and a route is public by
   `public: true` on its ingress entry (ADR-026).
 - **Never add a hostname table to the platform contract**: each route's
-  `smoke.jterrazz.com/*` annotations are its check, set in the values file or
+  `studio.jterrazz.com/smoke-*` annotations are its check, set in the values file or
   `application.yaml` that owns the route.

@@ -39,11 +39,11 @@ The operator syncs an `InfisicalSecret` rendered by the release that needs it
 | ----------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | `/studio-infrastructure`                | `cloudflared-secrets`                        | `CLOUDFLARE_TUNNEL_TOKEN`                                                                        |
 | `/studio-infrastructure`                | `external-dns-secrets`                       | `CF_API_TOKEN`, from `CLOUDFLARE_RECORDS_TOKEN`                                                  |
-| `/studio-infrastructure/openpanel`      | `op-{api,worker,dashboard,postgres}-secrets` | the keys each release names                                                                      |
+| `/op-{api,worker,dashboard,postgres}`   | `op-{api,worker,dashboard,postgres}-secrets` | the keys each release names, from its own folder like any app's                                  |
 | `/studio-infrastructure/otel-collector` | `otel-collector-secrets`                     | `LANGFUSE_BASIC_AUTH`                                                                            |
 | `/studio-infrastructure/grafana`        | `grafana-alerting`                           | `contact-point-slack.yaml`, from the optional `SLACK_WEBHOOK_URL`                                |
 | `studio-ci`, `/`                        | `registry-credentials`                       | `.dockerconfigjson` from the read-only account, in every app namespace pulling from our registry |
-| `/<app>`                                  | `<app>-secrets`                              | the app's `spec.secrets.env`                                                                     |
+| `/<app>`, the release's environment       | `<app>-secrets`                              | the app's `spec.secrets.env`; `prod` for a shared app, never another environment's               |
 
 ## GitHub and local secrets
 

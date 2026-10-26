@@ -20,16 +20,22 @@ everything else comes from `application.yaml`. No credential is among them: the
 registry pull secret is synced from Infisical, see
 [`spec.image`](#specimage-and-what-the-registry-decides).)
 
+(A shared app, [`scope: shared`](#scope-shared-one-release-for-every-environment),
+installs `<app>` into namespace `<app>` with `--set environment=shared`.)
+
 `meta.repository` is `${{ github.repository }}`, stamped on the Deployment as
-the `app.jterrazz.com/repository` annotation. It is how the infrastructure
+the `studio.jterrazz.com/repository` annotation. It is how the infrastructure
 repo's `make redeploy-apps` finds the fleet: it reads the annotation off every
 app Deployment instead of holding a list of repos that goes stale. An app whose
 CI has not run since the action gained that flag stamps nothing and is
 **reported as missing**, never silently skipped.
 
-So `application.yaml` **is** a Helm values file; the `apiVersion`/`kind`
-header at the top is decorative (Helm ignores unknown top-level keys) and
-kept only because it reads like a manifest.
+So `application.yaml` **is** a Helm values file, and `values.schema.json`
+judges it strictly: draft-07, `additionalProperties: false` at every level, so
+a typo or a retired key (`secrets.path`, `secretsEnv`, `platformServices`, an
+environment's `tag`) fails `helm upgrade` instead of being ignored. The header
+is pinned too: `apiVersion: studio.jterrazz.com/v1`, `kind: Application`
+([ADR-029](../../../../docs/decisions/029-an-app-is-declared-strictly-reads-its-own-secrets-and-is-reached-by-consent.md)).
 
 The chart is pulled **unversioned**. There is no version pin anywhere in the
 app CI, which means a chart push reaches every app on its next deploy, so read
@@ -38,10 +44,10 @@ app CI, which means a chart push reaches every app on its next deploy, so read
 ## Shape
 
 ```yaml
-apiVersion: jterrazz.com/v1
+apiVersion: studio.jterrazz.com/v1
 kind: Application
 metadata:
-  name: my-app # required; names every object, and CI's namespace <name>-<env>
+  name: my-app # required; names every object, the Infisical folder, and CI's namespace <name>-<env>
 spec:
   port: 3000 # container port; the Service listens on servicePort (80)
   resources:
@@ -54,24 +60,23 @@ spec:
   env:
     LOG_LEVEL: info
   secrets:
-    path: /my-app # Infisical path -> InfisicalSecret
-    env: [DATABASE_URL, API_TOKEN]
+    env: [DATABASE_URL, API_TOKEN] # keys of Infisical's /my-app, in this environment
   ingress: # base default; an environment may replace it
     - host: my-app.jterrazz.com
       path: /
       public: true
-  platformServices: [otel-collector]
+  uses: [telemetry] # capabilities consumed; the provider must serve this app
+  serves: [another-app] # apps whose namespaces may reach spec.port, or [all]
   storage:
     size: 2Gi
     mountPath: /data
 
 environments:
   prod:
-    tag: main
+    branch: main # app CI deploys this environment on a push to main
     replicas: 1
   next:
-    tag: next
-    secretsEnv: prod # this env's secrets live in Infisical env `prod`
+    branch: next # ...and this one on a version tag
     resources: { memory: 512Mi }
     ingress:
       - host: my-app-next.staging.jterrazz.com
@@ -99,15 +104,40 @@ chart default**. Whole-value replacement, not deep merge, with two exceptions:
 | Key                                                    | Rule                                                                                                                         |
 | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
 | any map (`resources`, `env`, `secrets`, `health`, ...) | Deep-merged per key: `resources: {memory: ...}` in an env keeps the base `cpu`. **The environment wins** on a key collision. |
-| any list (`ingress`, `platformServices`)               | **Replaces**: an env's list fully supersedes `spec`'s, deliberately (a half-merged list of network surfaces is unreadable)   |
+| any list (`ingress`, `uses`, `serves`)                 | **Replaces**: an env's list fully supersedes `spec`'s, deliberately (a half-merged list of network surfaces is unreadable)   |
 | any scalar                                             | Env value if present, else `spec`, else default                                                                              |
 
 One resolver implements all of it: `app.merged` in `templates/_helpers.tpl`,
 which is why an environment can override **any** `spec` key.
 
 **Nothing renders for an environment that isn't declared.** Every template is
-gated on `environment` existing as a key under `environments:`, and a typo'd
-`--set environment=prd` produces an empty release, not an error.
+gated on `environment` existing as a key under `environments:` (or being
+`shared`, for a shared app), and a typo'd `--set environment=prd` produces an
+empty release, not an error.
+
+`environments.<env>.branch` is read by app CI alone
+(`studio-actions/.github/workflows/release-docker.yaml`): `main` deploys the
+environment on a push to main, `next` on a version tag, anything else is an
+image tag a manual dispatch pins.
+
+## `scope: shared`: one release for every environment
+
+An app every environment calls (studio-intelligence, the model gateway;
+studio-alerts, Grafana's relay) is not per-environment. It declares, at the
+root:
+
+```yaml
+scope: shared
+branch: main # which push deploys it; a shared app has no `environments`
+spec: ...
+```
+
+CI then deploys one release, environment `shared`, into namespace `<app>`. Its
+volume is `<app>-data` at `/var/lib/k8s-data/<app>`, it reads Infisical's
+`prod` env (it serves prod too), its telemetry says
+`deployment.environment=shared`, and it carries the dashboards and alert rules
+a prod release would, their workload link on namespace `<app>`. The schema
+refuses `environments` beside `scope: shared`, and a root `branch` without it.
 
 ## Fields
 
@@ -309,19 +339,22 @@ an explicit block:
   smoke: { method: POST, path: /api/track, expect: "400" } # an empty body is refused
 ```
 
-### `spec.secrets` and `secretsEnv`
+### `spec.secrets`
 
 ```yaml
 secrets:
-  path: /my-app # Infisical secretsPath (project `studio-infrastructure`)
   env: [DATABASE_URL] # keys projected into the container as secretKeyRef
 ```
 
-Renders an `InfisicalSecret` (`<app>-infisical`) that syncs into Secret
-`<app>-secrets` in the app's namespace at the operator's own resync interval,
-using the shared `infisical-credentials` in `platform-secrets`. The Infisical **env slug**
-defaults to the deploy environment name; an environment that has no matching
-Infisical env sets `secretsEnv:` to borrow another one (`secretsEnv: prod`).
+Renders an `InfisicalSecret` (`<app>-infisical`) that syncs folder `/<app>`
+(project `studio-infrastructure`) into Secret `<app>-secrets` in the app's
+namespace at the operator's own resync interval, using the shared
+`infisical-credentials` in `platform-secrets`. The folder is always the app's
+name and the **env slug** always the release's environment (`prod` for a
+shared app): nothing in `application.yaml` names another, and the cluster's
+ownership policy refuses any other pair, so an environment never reads
+another's secrets. An environment with no keys in Infisical yet gets them
+there, not borrowed.
 
 ### `spec.env`
 
@@ -329,6 +362,18 @@ Plain map of literal env vars, merged base + environment. Always quoted on
 render, so numbers and booleans arrive as strings. Also auto-injected unless
 the app sets them itself: `PORT`, `OTEL_SERVICE_NAME` (= app name),
 `OTEL_RESOURCE_ATTRIBUTES` (`deployment.environment=<env>,deployment.environment.name=<env>`).
+
+### Labels and the graceful stop
+
+Every object carries `app.kubernetes.io/{name,instance,managed-by}` and
+`studio.jterrazz.com/environment`; the pods are selected by
+`app.kubernetes.io/name` and `studio.jterrazz.com/environment`, an immutable
+selector, so changing it is a Deployment deleted and recreated. Every key the
+estate invents is under `studio.jterrazz.com/`.
+
+Each container sleeps 5s in `preStop` before its SIGTERM, inside the default
+30s grace period: Traefik keeps routing to a terminating pod until its
+endpoint is removed, and the sleep covers that window.
 
 ### `spec.storage`
 
@@ -349,7 +394,8 @@ own (so `size` is unused): two releases owning one volume is how a
 `helm uninstall` of the wrong one deletes a bound claim.
 
 Renders a `Retain` hostPath PV `<app>-<env>-data` at
-`/var/lib/k8s-data/<app>-<env>` (`storageClassName: manual`,
+`/var/lib/k8s-data/<app>-<env>` (`<app>-data` at `/var/lib/k8s-data/<app>`
+for a shared app) (`storageClassName: manual`,
 `DirectoryOrCreate`) plus PVC `<app>-data` bound by `volumeName`, and flips
 the Deployment to `strategy: Recreate`. No init container chowns it: on
 OrbStack's virtiofs ownership is not enforced and `chown` changes nothing, so
@@ -395,13 +441,13 @@ htpasswd is the one user. For a credential that arrives as env vars, use
 Map of `kind -> Grafana dashboard JSON`. Renders a ConfigMap
 `<app>-dashboard-<kind>` labelled `grafana_dashboard: "1"` and annotated
 `grafana_folder: <app>`, which Grafana's sidecar picks up. **Only rendered
-when `environment == prod`**: one dashboard per app, not one per environment.
+in prod, or in a shared app's one release**: one dashboard per app, not one per environment.
 
 The kind is `service`, `business` or a subsystem's name, in kebab-case;
 `overview`, `misc`, `general` and `main` fail the render. `common.dashboards`
 overwrites the identity: uid `<app>-<kind>`, title `<app> / <Kind>`, tags
 `[<app>, <kind>]`, a link to each of the app's dashboards and one to
-`studio-infrastructure / Workload` on `<app>-prod`
+`studio-infrastructure / Workload` on `<app>-prod` (`<app>` for a shared app)
 ([ADR-027](../../../../docs/decisions/027-a-dashboard-answers-one-audience-and-its-identity-is-derived.md)).
 
 App CI fills this map for you: `studio-actions/actions/docker-deploy` scans
@@ -442,7 +488,7 @@ groups:
 A query names its datasource by the store's uid: `victoria-metrics`,
 `victoria-logs` (LogsQL, never LogQL) or `victoria-traces`.
 
-**Only rendered when `environment == prod`**, and for a harder reason than
+**Only rendered in prod (or a shared app's one release)**, and for a harder reason than
 dashboards: a rule `uid:` is global in Grafana, so a staging copy of a rule
 would not sit beside the prod one; it would provision _over_ it.
 
@@ -485,52 +531,49 @@ YAML
 sleep 60 && kubectl -n platform-telemetry delete configmap delete-rule
 ```
 
-### `spec.platformServices`
+### `spec.uses` and `spec.serves`: access is a consent from both sides
 
-Opt-in wiring to in-cluster platform services. The catalog is the single
-source of truth in `templates/_helpers.tpl` (`app.platformCatalog`):
+A consumer names the capabilities it **uses**; the catalog,
+`app.capabilities` in `templates/_helpers.tpl`, is the one place that says
+where each lives:
 
-| Name                    | Injects env                                                                                                   | Opens egress to                    | Client label                                         |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------- |
-| `otel-collector`        | `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.platform-telemetry:4318`                                   | `platform-telemetry` :4317, :4318  | none                                                 |
-| `studio-intelligence` | `STUDIO_INTELLIGENCE_BASE_URL=http://studio-intelligence.studio-intelligence-prod.svc.cluster.local/v1` | `studio-intelligence-prod` :8317 | `platform-client.jterrazz.com/studio-intelligence` |
+| Capability     | Injects env                                                                                   | Opens egress to            |
+| -------------- | --------------------------------------------------------------------------------------------- | -------------------------- |
+| `telemetry`    | `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.platform-telemetry:4318`                   | `platform-telemetry` :4317, :4318 |
+| `intelligence` | `STUDIO_INTELLIGENCE_BASE_URL=http://studio-intelligence.studio-intelligence.svc.cluster.local/v1` | `studio-intelligence` :8317 |
 
-Declaring a name wires the whole bundle at once:
+`uses` injects the env (a user-set var of the same name always wins) and an
+egress rule to the provider's namespace on its **pod** ports. It grants
+**nothing**: the provider admits its consumers itself, with **serves**:
 
-1. **env injection** into the consumer (a user-set var of the same name
-   always wins),
-2. an **egress NetworkPolicy** hole to the catalog namespace on the **pod**
-   ports (never the Service port),
-3. a **pod label** on the consumer, when the entry has a `clientLabel`, and
-   the target service, being itself a catalog entry, renders an ingress rule
-   selecting that label. A new consumer therefore needs **zero** edits on the
-   target.
+```yaml
+spec:
+  serves: [signews-api] # namespaces labelled studio.jterrazz.com/app=signews-api
+  # serves: [all]       # every namespace labelled studio.jterrazz.com/tier=app
+```
 
-Ports are pinned per namespace, so `studio-intelligence` resolves to its
-`-prod` namespace regardless of which environment the consumer runs in.
+which renders one ingress rule on `spec.port` from the namespaces whose
+`studio.jterrazz.com/app` label is in the list (every environment of those
+apps), or every app namespace for `all`. Those labels sit on the namespace,
+which only its owning repository's deploy may set, never on a pod, which any
+workload could stamp. The collector, a platform service, serves every app
+namespace on its own (its `service.yaml`).
 
-An unknown name **hard-fails the render** with the valid list. Telemetry is
-opt-in: an app that doesn't declare `otel-collector` gets no OTLP endpoint.
-
-Env names are the contract the client reads, not the service's name:
-`STUDIO_INTELLIGENCE_BASE_URL` is what a consumer passes to
-`@jterrazz/intelligence` as the gateway's base URL, and
-`OTEL_EXPORTER_OTLP_ENDPOINT` is the OTel SDK's.
-
-`studio-intelligence` is an app (repository `studio-intelligence`) that
-enforces no API key, so this client label and its private-only route are its
-whole boundary. Its consumers pass the non-secret placeholder `gateway-noauth`
-that the OpenAI and Anthropic SDKs require.
+An unknown capability **hard-fails the render** with the valid list.
+Telemetry is opt-in: an app that does not use it gets no OTLP endpoint. Env
+names are the contract the client reads: `STUDIO_INTELLIGENCE_BASE_URL` is what
+a consumer passes to `@jterrazz/intelligence`, `OTEL_EXPORTER_OTLP_ENDPOINT`
+the OTel SDK's. studio-intelligence enforces no API key, so its `serves` and its
+private-only route are its whole boundary; its consumers pass the non-secret
+placeholder `gateway-noauth` the OpenAI and Anthropic SDKs require.
 
 ### NetworkPolicy
 
 Always rendered. Derived, so an app configures nothing: ingress from
-`kube-system` (Traefik) on `spec.port`; ingress from any pod, in any namespace,
-carrying this app's `clientLabel` **if** the app is itself a `platformServices`
-catalog target; egress to DNS; and egress to the whole internet **except**
-RFC1918. Every other in-cluster destination comes from `platformServices`, which
-opens both directions at once or, when nothing in the catalog fits, from
-`spec.network` below.
+`kube-system` (Traefik) on `spec.port`; ingress from the namespaces it
+`serves`; egress to DNS; egress to the whole internet **except** RFC1918; and
+egress to the provider of each capability it `uses`. Every other in-cluster
+destination comes from `spec.network` below.
 
 The policy itself, with the peer vocabulary it is written in and the two traps
 it exists to absorb (ports are POD ports; hostNetwork clients are not pods),
@@ -552,18 +595,16 @@ spec:
 `exposeTo` names extra clients allowed to reach this app on `spec.port`, and
 `egress` extra destinations it may dial; both are appended to the rules the
 chart already writes. Each peer is a `src/kubernetes/charts/common` NetworkPolicy
-peer: `namespace:<ns>`, `pods:<key>=<value>`,
-`any-namespace-pods:<key>=<value>`, `traefik`, `any-namespace`, `internet`,
-`anywhere`; an unknown one **hard-fails the render** with the valid list. Ports
+peer: `namespace:<ns>`, `namespace-label:<key>=<value>[,<value>...]`,
+`pods:<key>=<value>`, `traefik`, `any-namespace`, `internet`, `anywhere`; an
+unknown one **hard-fails the render** with the valid list. Ports
 are **pod** ports, never Service ports.
 
-Reach for `exposeTo` only when the client **cannot** opt in through
-`platformServices`, which is the mechanism that needs no edit here at all: a
-third-party chart renders its pods and cannot stamp the catalog's client label.
-Declaring the client's namespace on the TARGET is what replaces a hand-written
-NetworkPolicy in the infrastructure repo's `cluster` chart: a rule
-there would be granting access to an app that repo does not deploy. No
-in-cluster client needs this today; `platformServices` covers them all.
+Reach for `exposeTo` only when the client is not an app `serves` can name: a
+platform namespace, such as Grafana's `platform-telemetry` calling
+studio-alerts. Declaring the client's namespace on the TARGET is what replaces
+a hand-written NetworkPolicy in the infrastructure repo's `cluster` chart: a
+rule there would be granting access to an app that repo does not deploy.
 
 **`isolated: true` drops the two DERIVED rules** (Traefik ingress on
 `spec.port` and egress to the whole internet), leaving DNS plus exactly what
@@ -616,7 +657,8 @@ you reach for; fix the image.
 
 ## What gets rendered
 
-For a declared environment, namespace `<app>-<environment>` (ADR-023):
+For a declared environment, namespace `<app>-<environment>` (ADR-023), or
+`<app>` for a shared app:
 
 | Object                            | Name                              | Condition                                                                             |
 | --------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------- |
@@ -626,12 +668,12 @@ For a declared environment, namespace `<app>-<environment>` (ADR-023):
 | IngressRoute                      | `<app>-<idx>`                     | per ingress entry                                                                     |
 | Middleware (stripPrefix)          | `<app>-<idx>-strip-prefix`        | entry has a non-`/` path, `stripPrefix` is not false, and it is not a redirect        |
 | Middleware (redirectRegex)        | `<app>-<idx>-redirect`            | entry sets `redirectTo`                                                               |
-| InfisicalSecret                   | `<app>-infisical`                 | `spec.secrets.path` set                                                               |
+| InfisicalSecret                   | `<app>-infisical`                 | `spec.secrets.env` lists a key                                                        |
 | InfisicalSecret                   | `<app>-registry-infisical`        | `spec.image` is on our registry; it syncs the `registry-credentials` dockerconfigjson |
 | ConfigMap                         | `<app>-config`                    | `spec.configFiles` set                                                                |
-| ConfigMap                         | `<app>-dashboard-<name>`          | `spec.dashboards` set **and** env is prod                                             |
-| ConfigMap                         | `<app>-alerts`                    | `spec.alerts` set **and** env is prod                                                 |
-| PV / PVC                          | `<app>-<env>-data` / `<app>-data` | `spec.storage` set **without** a `claimName`                                          |
+| ConfigMap                         | `<app>-dashboard-<name>`          | `spec.dashboards` set **and** env is prod or shared                                   |
+| ConfigMap                         | `<app>-alerts`                    | `spec.alerts` set **and** env is prod or shared                                       |
+| PV / PVC                          | `<app>-<env>-data` / `<app>-data` | `spec.storage` set **without** a `claimName` (PV `<app>-data` when shared)            |
 
 ## Versioning and publishing
 

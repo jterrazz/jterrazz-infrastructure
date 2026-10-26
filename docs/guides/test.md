@@ -66,7 +66,7 @@ A green playbook is not "the site loads". An apply can succeed and leave a
 service unreachable, or leave a door open nothing reached for. The platform
 contract closes both gaps, read from the live objects rather than from a list
 ([ADR-022](../decisions/022-the-platform-contract-is-a-typescript-suite-run-from-two-vantages.md)):
-every IngressRoute carries its expectations as `smoke.jterrazz.com/*`
+every IngressRoute carries its expectations as `studio.jterrazz.com/smoke-*`
 annotations, which the charts stamp, so a route an app added yesterday is
 probed today with no edit here.
 

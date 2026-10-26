@@ -17,9 +17,9 @@ Nothing is vendored: `charts/` and `Chart.lock` are gitignored.
 | `common.middleware.redirect`              | a `redirectRegex` Middleware                                          | `<app>-<idx>-redirect`                                               | none                                                        |
 | `common.certificate`                      | a cert-manager `Certificate`                                          | none: routes are served from the default TLSStore                    | one per `certificates.<key>` (the private zones' wildcards) |
 | `common.volume`                           | a hostPath `PersistentVolume` + its `PersistentVolumeClaim`           | the single `spec.storage`                                            | one pair per `storage.<key>`                                |
-| `common.networkPolicy`                    | one `NetworkPolicy`                                                   | always: the platformServices catalogue plus the `spec.network` block | from the `network:` block                                   |
-| `common.infisicalSecret`                  | an `InfisicalSecret`                                                  | when `spec.secrets.path` is set                                      | when `secrets:` is set                                      |
-| `common.smokeAnnotations`                 | the `smoke.jterrazz.com/*` annotations on an `IngressRoute`           | derived per ingress entry, `smoke:` overrides it                     | from the `smoke:` block                                     |
+| `common.networkPolicy`                    | one `NetworkPolicy`                                                   | always: `uses`, `serves` and the `spec.network` block               | from the `network:` block                                   |
+| `common.infisicalSecret`                  | an `InfisicalSecret`                                                  | when `spec.secrets.env` lists a key, from `/<app>`                   | when `secrets:` is set                                      |
+| `common.smokeAnnotations`                 | the `studio.jterrazz.com/smoke-*` annotations on an `IngressRoute`   | derived per ingress entry, `smoke:` overrides it                     | from the `smoke:` block                                     |
 | `common.alerts`, `common.alertsConfigMap` | the Grafana alert rule files, as a sidecar-labelled ConfigMap         | `spec.alerts`, from `.infrastructure/alerts/*.yaml`                  | `alerts:`                                                   |
 | `common.dashboards`                       | one ConfigMap per dashboard, its identity derived                     | `spec.dashboards`, from `.infrastructure/dashboards/<kind>.json`     | `dashboards:`, owner `studio-infrastructure`                |
 
@@ -35,7 +35,7 @@ name the same kind of object differently, and those names address live data and
 live routes. A shared template that derived a name would rename something.
 
 **Labels arrive as a rendered string, not a map.** Each chart's label set has
-its own deliberate order (`app.labels` leads with `app:`,
-`platform-service.labels` with `app.kubernetes.io/name:`), and `toYaml` would
+its own deliberate order (`app.labels` ends with `studio.jterrazz.com/environment:`,
+`platform-service.labels` with `app.kubernetes.io/managed-by:`), and `toYaml` would
 sort them alphabetically, a diff on every object for no reason. So callers
 pass `include "<chart>.labels" .` and this chart `nindent`s it.

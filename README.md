@@ -20,7 +20,7 @@ An app repo declares itself in `.infrastructure/application.yaml` and its CI
 renders the chart published from here:
 
 ```yaml
-apiVersion: jterrazz.com/v1
+apiVersion: studio.jterrazz.com/v1
 kind: Application
 metadata:
   name: my-app
@@ -31,9 +31,13 @@ spec:
     memory: 256Mi
   health:
     path: /health
-  ingress:
-    - host: my-app.jterrazz.com
-      public: true
+
+environments:
+  prod:
+    branch: main
+    ingress:
+      - host: my-app.jterrazz.com
+        public: true
 ```
 
 The full schema is [the app chart's README](src/kubernetes/charts/app/README.md);

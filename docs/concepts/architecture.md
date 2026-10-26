@@ -100,16 +100,22 @@ A platform namespace is `platform-<capability>`, declared in
 `charts/cluster/values.yaml`. An app is `<brand>-<role>` (`studio-console`,
 `signews-api`), and that one name is its release, image, volume, data
 directory and Infisical folder; each environment gets a namespace
-`<app>-<env>`, created by the app's own deploy. Every namespace but
-Kubernetes' own carries `app.jterrazz.com/tier: platform | app`, and an app
-namespace also `app.jterrazz.com/repository` and `app.jterrazz.com/environment`,
-which the ownership policy and the platform contract select on.
+`<app>-<env>`, created by the app's own deploy, and an app every environment
+calls (`scope: shared`) one namespace `<app>`.
+
+Every namespace but
+Kubernetes' own carries `studio.jterrazz.com/tier: platform | app`, and an app
+namespace also `studio.jterrazz.com/repository`, `studio.jterrazz.com/app` and
+`studio.jterrazz.com/environment` (or `studio.jterrazz.com/scope: shared`),
+which the ownership policy and the platform contract select on; every key the
+estate invents is under `studio.jterrazz.com/`
+([ADR-029](../decisions/029-an-app-is-declared-strictly-reads-its-own-secrets-and-is-reached-by-consent.md)).
 
 Two words carry more than one meaning here:
 
 - **platform** is the layer above k3s, so `playbooks/platform.yml`,
   `make deploy-platform`, the `platform-*` namespaces, the `<svc>-platform` releases of `charts/platform-service` and
-  the app chart's `platformServices` all name the layer, never the chart.
+  the platform's own services all name the layer, never the chart.
 - **tier** is only the namespace label above. The helmfile's deploy passes are
   `pass: cluster | operators | claims` ([ADR-009](../decisions/009-one-helmfile-declares-every-platform-release.md)).
 

@@ -8,10 +8,11 @@ here; the workflows that execute the contract are
 
 - **One manifest**, `.infrastructure/application.yaml`, an `Application` the
   app chart renders: port, resources, ingress, storage, secrets, per
-  environment. The schema, its merge semantics, `platformServices` and storage
+  environment. The schema, its merge semantics, `uses`/`serves` and storage
   are [src/kubernetes/charts/app/README.md](../../src/kubernetes/charts/app/README.md).
-- **`tag:` on every environment.** Without it the workflow takes a legacy
-  branch that deploys "staging" and leaves prod silently stale.
+- **`branch:` on every environment** (`main`, `next`), or at the root of a
+  shared app. Without it the workflow takes a legacy branch that deploys
+  "staging" and leaves prod silently stale.
 - **One universal CI interface**: `make build`, `make lint`, `make test`,
   whatever the toolchain.
 - **Dashboards named by their kind**, `.infrastructure/dashboards/service.json`
@@ -41,16 +42,21 @@ What the identity may do is
 [`charts/cluster/templates/admission/app-deployer-ownership.yaml`](../../src/kubernetes/charts/cluster/templates/admission/app-deployer-ownership.yaml), and
 there is no list of apps in it. A repo:
 
-1. creates one namespace per environment on its first deploy, `<app>-<env>`,
-   labelled `app.jterrazz.com/tier: app`, `app.jterrazz.com/environment: <env>`
-   and `app.jterrazz.com/repository: <repo>`, and from then on owns them and
-   nothing else (the `app-deployer-ownership` admission policy);
+1. creates one namespace per environment on its first deploy, `<app>-<env>`
+   (`<app>` for a shared app), labelled `studio.jterrazz.com/tier: app`,
+   `studio.jterrazz.com/app: <app>`, `studio.jterrazz.com/environment: <env>`
+   (or `studio.jterrazz.com/scope: shared`) and
+   `studio.jterrazz.com/repository: <repo>`, and from then on owns them and
+   nothing else (the `app-deployer-ownership` admission policy, which also
+   holds the name to what the labels state);
 2. grants itself `app-namespace-admin` inside each of them with a RoleBinding,
    which is the only way it reads or writes anything namespaced;
 3. may create a hostPath volume only at `/var/lib/k8s-data/<pv name minus -data>`,
-   labelled with its name, and may not opt a namespace out of Pod Security.
+   labelled with its name, and may not opt a namespace out of Pod Security;
+4. may sync only its own Infisical folder `/<app>`, in its namespace's own
+   environment (`prod` for a shared app), or the registry pull pair.
 
-`studio-actions/actions/docker-deploy` does all three before `helm upgrade`,
+`studio-actions/actions/docker-deploy` does the first three before `helm upgrade`,
 and deploys the image by digest. The environments stay the app's choice, in
 its own manifest. One residual risk is written down in the policy: nothing
 owns a hostname, so a repo could declare a route or certificate for any name
@@ -66,7 +72,7 @@ in our zones from inside its own namespace.
   version, which is why a template edit must bump `version:` in
   `charts/app/Chart.yaml`; see [Hand-synced pairs](hand-synced-pairs.md).
 - **Discovery instead of registration.** Its routes are probed from their own
-  `smoke.jterrazz.com/*` annotations and its repository is read back for a
+  `studio.jterrazz.com/smoke-*` annotations and its repository is read back for a
   repave, so nothing here lists hostnames, status codes or repositories
   ([Test](../guides/test.md#what-a-deploy-proves)).
 

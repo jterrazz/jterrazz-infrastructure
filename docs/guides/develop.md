@@ -82,8 +82,8 @@ fires its handler, a k3s restart for the k3s templates.
   the registry and OpenPanel's services are app-chart releases; no workload is
   a raw manifest.
 - **The cluster is discovered, never listed.** The platform contract
-  (`specs/specs/api`) probes what each IngressRoute's `smoke.jterrazz.com/*`
-  annotations say, and `make redeploy-apps` reads `app.jterrazz.com/repository`
+  (`specs/specs/api`) probes what each IngressRoute's `studio.jterrazz.com/smoke-*`
+  annotations say, and `make redeploy-apps` reads `studio.jterrazz.com/repository`
   off the app Deployments
   ([ADR-016](../decisions/016-every-fact-has-one-home.md)). An unannotated route
   is probed with `GET / -> 200` and named `fallback`.

@@ -158,7 +158,7 @@ network:
     - from: traefik
       ports: [3000]
   egress:
-    - to: namespace:studio-intelligence-prod
+    - to: namespace:studio-intelligence
       ports: [8317, 80]
     - to: internet
       ports: [443]
@@ -177,7 +177,7 @@ denying it.
 | `namespace:<ns>`                   | one namespace, by its `kubernetes.io/metadata.name` |
 | `any-namespace`                    | every namespace, which is what DNS egress needs     |
 | `pods:<key>=<value>`               | pods carrying a label, in **this** namespace        |
-| `any-namespace-pods:<key>=<value>` | pods carrying a label, in any namespace             |
+| `namespace-label:<key>=<v>[,<v>]`  | every namespace whose label is one of the values    |
 | `internet`                         | `0.0.0.0/0` **except** RFC1918                      |
 | `anywhere`                         | `0.0.0.0/0`, no exception                           |
 
@@ -194,10 +194,13 @@ kube-proxy's DNAT, so the destination it sees is the containerPort. Grafana's
 Service is `80 -> 3000`; a rule naming 80 applies to nothing, and the traffic is
 dropped by the namespace default-deny with nothing logged anywhere.
 
-**`pods:` is not `any-namespace-pods:`.** The first is a bare `podSelector`,
-which NetworkPolicy reads as "in this policy's own namespace"; the second adds
-an empty `namespaceSelector` and admits a pod of that name from anywhere in the
-cluster. For an unauthenticated database that difference is the whole control.
+**A peer outside the namespace is named by a namespace label, never a pod
+label.** `pods:` is a bare `podSelector`, which NetworkPolicy reads as "in
+this policy's own namespace"; a pod label matched across namespaces would admit
+any workload that stamps it. `namespace-label:` matches labels only a
+namespace's owner sets: the collector admits
+`namespace-label:studio.jterrazz.com/tier=app`, every app namespace
+([ADR-029](../../../../docs/decisions/029-an-app-is-declared-strictly-reads-its-own-secrets-and-is-reached-by-consent.md)).
 
 **hostNetwork clients are not pods.** The apiserver and node-exporter arrive
 as the node address, so only an `ipBlock` peer matches them; a namespace- or
