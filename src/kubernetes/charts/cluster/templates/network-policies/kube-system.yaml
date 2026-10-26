@@ -70,8 +70,8 @@ spec:
               kubernetes.io/metadata.name: platform-networking
           podSelector:
             matchLabels:
-              # invariant: the app chart's pod label; app.kubernetes.io/* sits on the objects only.
-              app: cloudflared
+              # invariant: the app chart's pod selector label (ADR-029); a rename 502s the tunnel.
+              app.kubernetes.io/name: cloudflared
       ports:
         - port: 8090
           protocol: TCP

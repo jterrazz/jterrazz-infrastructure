@@ -131,9 +131,11 @@ config:
           - k8s.container.name
           - k8s.node.name
           - k8s.deployment.name
+        # invariant: the `app` stream field is the workload's standard name; the app chart sets no bare
+        # `app` label (ADR-029).
         labels:
           - tag_name: app
-            key: app
+            key: app.kubernetes.io/name
             from: pod
 
     # value: parentless client spans were 99% of all traces (ADR-005).

@@ -23,7 +23,7 @@ secrets:
               - uid: studio-alerts
                 type: webhook
                 settings:
-                  url: http://studio-alerts.studio-alerts-prod.svc.cluster.local/grafana
+                  url: http://studio-alerts.studio-alerts.svc.cluster.local/grafana
                   httpMethod: POST
         {{- with .SLACK_WEBHOOK_URL.Value }}
           - orgId: 1
@@ -42,7 +42,7 @@ secrets:
             routes:
               - receiver: slack
                 object_matchers:
-                  - [namespace, =, studio-alerts-prod]
+                  - [namespace, =, studio-alerts]
         {{- end }}
 
 storage:
@@ -60,6 +60,7 @@ network:
     - from: traefik
       ports: [3000]
   egress:
-    # invariant: notifications go to studio-alerts, the Slack relay (ADR-028); its pod port.
-    - to: namespace:studio-alerts-prod
+    # invariant: notifications go to studio-alerts, the Slack relay (ADR-028), a shared app in
+    # namespace studio-alerts (ADR-029); its pod port.
+    - to: namespace:studio-alerts
       ports: [8080]

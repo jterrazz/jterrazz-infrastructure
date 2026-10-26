@@ -466,7 +466,7 @@ matches the recorded render:
                   kubernetes.io/metadata.name: platform-networking
               podSelector:
                 matchLabels:
-                  app: cloudflared
+                  app.kubernetes.io/name: cloudflared
           ports:
             - port: 8090
               protocol: TCP

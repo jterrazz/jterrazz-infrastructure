@@ -5,11 +5,13 @@ secrets:
   path: /studio-infrastructure/otel-collector
   secretName: otel-collector-secrets
 
-# invariant: any namespace may write OTLP; nothing narrower is expressible yet (ADR-011).
+# invariant: it serves every app (`uses: [telemetry]`), so every app namespace may write OTLP, by the
+# tier label only an app's own deploy sets; its own namespace's pods reach it through the baseline
+# (ADR-011, ADR-029).
 network:
   podSelector:
     app.kubernetes.io/name: opentelemetry-collector
     app.kubernetes.io/instance: otel-collector
   ingress:
-    - from: any-namespace
+    - from: namespace-label:studio.jterrazz.com/tier=app
       ports: [4317, 4318]
