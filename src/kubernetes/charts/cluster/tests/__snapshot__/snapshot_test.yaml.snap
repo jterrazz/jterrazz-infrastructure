@@ -32,6 +32,15 @@ matches the recorded render:
         - expression: |-
             !variables.isNamespace || object == null || (
               has(object.metadata.labels) && 'studio.jterrazz.com/app' in object.metadata.labels && (
+                object.metadata.labels['studio.jterrazz.com/app'] == variables.repo ||
+                (variables.repo in variables.repositoryApps &&
+                 object.metadata.labels['studio.jterrazz.com/app'] in variables.repositoryApps[variables.repo])
+              )
+            )
+          messageExpression: '''an app namespace states an app named '' + variables.repo + '', or one the policy pairs with it'''
+        - expression: |-
+            !variables.isNamespace || object == null || (
+              has(object.metadata.labels) && 'studio.jterrazz.com/app' in object.metadata.labels && (
                 'studio.jterrazz.com/scope' in object.metadata.labels
                   ? object.metadata.labels['studio.jterrazz.com/scope'] == 'shared' &&
                     !('studio.jterrazz.com/environment' in object.metadata.labels) &&
@@ -54,7 +63,7 @@ matches the recorded render:
               object.spec.managedKubeSecretReferences.all(r, r.secretNamespace == request.namespace) &&
               (
                 (object.spec.authentication.universalAuth.secretsScope.projectSlug == 'studio-infrastructure' &&
-                 variables.app != '' &&
+                 variables.appIsTheRepository &&
                  object.spec.authentication.universalAuth.secretsScope.secretsPath == '/' + variables.app &&
                  variables.secretsEnv != '' &&
                  object.spec.authentication.universalAuth.secretsScope.envSlug == variables.secretsEnv) ||
@@ -71,6 +80,8 @@ matches the recorded render:
           name: repo
         - expression: '''studio.jterrazz.com/repository'''
           name: key
+        - expression: '{''studio-os'': [''studio-console'']}'
+          name: repositoryApps
         - expression: 'object == null || !has(object.metadata.labels) || !(variables.key in object.metadata.labels) ? '''' : object.metadata.labels[variables.key]'
           name: newOwner
         - expression: 'oldObject == null || !has(oldObject.metadata.labels) || !(variables.key in oldObject.metadata.labels) ? '''' : oldObject.metadata.labels[variables.key]'
@@ -87,6 +98,8 @@ matches the recorded render:
           name: isInfisicalSecret
         - expression: 'namespaceObject == null || !has(namespaceObject.metadata.labels) || !(''studio.jterrazz.com/app'' in namespaceObject.metadata.labels) ? '''' : namespaceObject.metadata.labels[''studio.jterrazz.com/app'']'
           name: app
+        - expression: variables.app != '' && (variables.app == variables.repo || (variables.repo in variables.repositoryApps && variables.app in variables.repositoryApps[variables.repo]))
+          name: appIsTheRepository
         - expression: 'namespaceObject == null || !has(namespaceObject.metadata.labels) ? '''' : ''studio.jterrazz.com/scope'' in namespaceObject.metadata.labels && namespaceObject.metadata.labels[''studio.jterrazz.com/scope''] == ''shared'' ? ''prod'' : !(''studio.jterrazz.com/environment'' in namespaceObject.metadata.labels) ? '''' : namespaceObject.metadata.labels[''studio.jterrazz.com/environment'']'
           name: secretsEnv
         - expression: '''studio-ci'''

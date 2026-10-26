@@ -48,7 +48,8 @@ there is no list of apps in it. A repo:
    (or `studio.jterrazz.com/scope: shared`) and
    `studio.jterrazz.com/repository: <repo>`, and from then on owns them and
    nothing else (the `app-deployer-ownership` admission policy, which also
-   holds the name to what the labels state);
+   holds the name to what the labels state, and the app to the repository's
+   own name or an app its allowlist pairs with the repository);
 2. grants itself `app-namespace-admin` inside each of them with a RoleBinding,
    which is the only way it reads or writes anything namespaced;
 3. may create a hostPath volume only at `/var/lib/k8s-data/<pv name minus -data>`,

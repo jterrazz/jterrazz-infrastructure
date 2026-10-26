@@ -52,7 +52,11 @@ the namespace's name.
    `app.kubernetes.io/{name,instance,managed-by}` and
    `studio.jterrazz.com/environment`, and are selected by the name and the
    environment. The policy reads the app off the namespace's `app` label, and
-   admits an app namespace only when its name is what its labels state.
+   admits an app namespace only when its name is what its labels state and
+   its app is the deploying repository's: the repository's own name, or an
+   app the policy pairs with it in one explicit allowlist (today
+   `studio-os → studio-console`). No repository can label a namespace as
+   another's app and so read `/<that app>`.
 7. **Each template resolves its spec once** and hands it to the helpers.
 8. **The dead re-checks behind the catalog accessor go.**
 9. **`scope: shared`** declares an app every environment calls: one release,
@@ -78,9 +82,8 @@ the namespace's name.
   `/var/lib/k8s-data/studio-intelligence`; dashboards and alert rules that
   named `<app>-prod` name `<app>`.
 - signews-api's staging needs its own `staging` keys in Infisical.
-- A namespace's `app` label is still claimed first-come: a repository may
-  create a namespace for an app name no namespace holds yet. The policy keeps
-  the label consistent with the name, not with a registry of who owns which
-  app.
+- An app is named after its repository. A repository whose app is named
+  apart (studio-os deploys studio-console) needs an entry in the policy's
+  allowlist, and that entry is a grant: it is reviewed like RBAC.
 - A typo, a retired key or a cross-environment read is now a failed deploy,
   never a silent one.

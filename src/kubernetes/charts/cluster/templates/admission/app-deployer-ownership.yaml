@@ -22,6 +22,10 @@ spec:
       expression: "request.userInfo.username.substring(request.userInfo.username.indexOf('/') + 1)"
     - name: key
       expression: "'studio.jterrazz.com/repository'"
+    # invariant: an app is named after its repository; these are the repositories whose app is
+    # named apart, each with the apps it may deploy (ADR-029). hazard: an entry here is a grant.
+    - name: repositoryApps
+      expression: "{'studio-os': ['studio-console']}"
     - name: newOwner
       expression: "object == null || !has(object.metadata.labels) || !(variables.key in object.metadata.labels) ? '' : object.metadata.labels[variables.key]"
     - name: oldOwner
@@ -44,6 +48,12 @@ spec:
         namespaceObject.metadata.labels['studio.jterrazz.com/app']
     # invariant: the Infisical env the namespace may read: its own environment, or prod for a shared
     # app, which serves prod too (ADR-029).
+    # invariant: the app the deploying repository may act as: its own name, or an app the
+    # allowlist pairs with it, so no repository claims another's app, and with it /<app>.
+    - name: appIsTheRepository
+      expression: >-
+        variables.app != '' && (variables.app == variables.repo ||
+        (variables.repo in variables.repositoryApps && variables.app in variables.repositoryApps[variables.repo]))
     - name: secretsEnv
       expression: >-
         namespaceObject == null || !has(namespaceObject.metadata.labels) ? '' :
@@ -65,6 +75,15 @@ spec:
       messageExpression: "request.resource.resource + ' ' + request.name + ' must carry ' + variables.key + '=' + variables.repo"
     - expression: "!variables.isNamespace || object == null || !has(object.metadata.labels) || object.metadata.labels.all(k, !(k.startsWith('pod-security.kubernetes.io/') && object.metadata.labels[k] == 'privileged'))"
       message: a namespace created by an app may not opt out of Pod Security
+    - expression: >-
+        !variables.isNamespace || object == null || (
+          has(object.metadata.labels) && 'studio.jterrazz.com/app' in object.metadata.labels && (
+            object.metadata.labels['studio.jterrazz.com/app'] == variables.repo ||
+            (variables.repo in variables.repositoryApps &&
+             object.metadata.labels['studio.jterrazz.com/app'] in variables.repositoryApps[variables.repo])
+          )
+        )
+      messageExpression: "'an app namespace states an app named ' + variables.repo + ', or one the policy pairs with it'"
     # invariant: an app namespace is <app>-<environment>, or <app> when shared (ADR-023), so the
     # labels the secrets rule reads agree with the name every other object follows.
     - expression: >-
@@ -95,7 +114,7 @@ spec:
           object.spec.managedKubeSecretReferences.all(r, r.secretNamespace == request.namespace) &&
           (
             (object.spec.authentication.universalAuth.secretsScope.projectSlug == 'studio-infrastructure' &&
-             variables.app != '' &&
+             variables.appIsTheRepository &&
              object.spec.authentication.universalAuth.secretsScope.secretsPath == '/' + variables.app &&
              variables.secretsEnv != '' &&
              object.spec.authentication.universalAuth.secretsScope.envSlug == variables.secretsEnv) ||

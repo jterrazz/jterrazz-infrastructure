@@ -10,10 +10,10 @@ const A = 'contract-probe-a';
 const B = 'contract-probe-b';
 const KEY = 'studio.jterrazz.com/repository';
 // invariant: the fixtures are app namespaces like any other (ADR-023): `<app>-test`, tier app, and
-// `<app>` for a shared one, whose app is named apart from the repository.
+// `<app>` for a shared one; each app is named after its repository (ADR-029).
 const NS_A = `${A}-test`;
 const NS_B = `${B}-test`;
-const SHARED = `${A}-shared`;
+const SHARED = A;
 const appLabels = (app: string, environment: string): Record<string, string> => ({
     'studio.jterrazz.com/app': app,
     'studio.jterrazz.com/environment': environment,
@@ -24,11 +24,13 @@ const SHARED_LABELS = {
     'studio.jterrazz.com/scope': 'shared',
     'studio.jterrazz.com/tier': 'app',
 };
-const AS_A = [
-    `--as=github:jterrazz/${A}`,
+const identity = (repository: string): string[] => [
+    `--as=github:jterrazz/${repository}`,
     '--as-group=github-actions:jterrazz',
     '--as-group=system:authenticated',
 ];
+// invariant: the one repository the policy pairs with an app named apart from it.
+const PAIRED = { app: 'studio-console', repository: 'studio-os' };
 
 const namespace = (name: string, labels: Record<string, string>): object => ({
     apiVersion: 'v1',
@@ -150,14 +152,14 @@ const FIXTURES = [
 ];
 
 // invariant: a request is the kubectl arguments after the verb's own, and the manifest it sends, if any.
-type Request = { args: string[]; manifest?: object };
+type Request = { args: string[]; as?: string; manifest?: object };
 
 const create = (manifest: object): Request => ({ args: ['create', '-f', '-'], manifest });
 
 // invariant: admitted, the policy's own sentence when it denies, or the first line of any other refusal (RBAC's).
-async function outcomeOf({ args, manifest }: Request): Promise<string> {
+async function outcomeOf({ args, as = A, manifest }: Request): Promise<string> {
     const outcome = await kubectl(
-        [...args, '--dry-run=server', ...AS_A],
+        [...args, '--dry-run=server', ...identity(as)],
         manifest === undefined ? '' : JSON.stringify(manifest),
     );
     if (outcome.code === 0) {
@@ -258,14 +260,36 @@ const CASES: [string, Request, string][] = [
     [
         'creates a shared namespace that also states an environment',
         create(
-            namespace(`${A}-gateway`, {
+            namespace(`${A}-prod`, {
                 ...SHARED_LABELS,
-                'studio.jterrazz.com/app': `${A}-gateway`,
                 'studio.jterrazz.com/environment': 'prod',
                 [KEY]: A,
             }),
         ),
         NAMING_DENIAL,
+    ],
+    [
+        "creates a namespace for another repository's app, to read its folder",
+        create(namespace(`${B}-next`, { ...appLabels(B, 'next'), [KEY]: A })),
+        `denied: an app namespace states an app named ${A}, or one the policy pairs with it`,
+    ],
+    [
+        "creates a shared namespace for another repository's app, to read its prod folder",
+        create(namespace(B, { ...SHARED_LABELS, 'studio.jterrazz.com/app': B, [KEY]: A })),
+        `denied: an app namespace states an app named ${A}, or one the policy pairs with it`,
+    ],
+    [
+        'creates a namespace for the app the policy pairs it with',
+        {
+            ...create(
+                namespace(`${PAIRED.app}-contract-probe`, {
+                    ...appLabels(PAIRED.app, 'contract-probe'),
+                    [KEY]: PAIRED.repository,
+                }),
+            ),
+            as: PAIRED.repository,
+        },
+        'admitted',
     ],
     [
         'creates its volume at /var/lib/k8s-data/<name>',
