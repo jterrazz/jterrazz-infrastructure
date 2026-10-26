@@ -17,8 +17,8 @@ release that mounts it.
 
 1. In Zero Trust, Networks, Tunnels, create a **Cloudflared** tunnel named
    `studio-infrastructure` and copy its token (`eyJ...`).
-2. Store it as `CLOUDFLARE_TUNNEL_TOKEN` in Infisical, project `jterrazz`,
-   env `prod`, path `/jterrazz-infrastructure`.
+2. Store it as `CLOUDFLARE_TUNNEL_TOKEN` in Infisical, project `studio-infrastructure`,
+   env `prod`, path `/studio-infrastructure`.
 3. Nothing else: the platform deploy sets the tunnel's one catch-all rule and
    its `tunnel.jterrazz.com` alias, and external-dns writes each public host's
    record ([ADR-026](../../../../docs/decisions/026-a-public-route-is-published-by-its-ingressroute.md)).

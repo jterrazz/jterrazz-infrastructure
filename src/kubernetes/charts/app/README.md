@@ -313,7 +313,7 @@ an explicit block:
 
 ```yaml
 secrets:
-  path: /my-app # Infisical secretsPath (project `jterrazz`)
+  path: /my-app # Infisical secretsPath (project `studio-infrastructure`)
   env: [DATABASE_URL] # keys projected into the container as secretKeyRef
 ```
 
@@ -586,7 +586,7 @@ knob:
   pod start. That Secret is not built from values: the chart renders a second
   `InfisicalSecret` (`<app>-registry-infisical`) and the operator syncs the
   registry's read-only account (`REGISTRY_PULL_USERNAME` /
-  `REGISTRY_PULL_PASSWORD`, project `jterrazz-ci`) into a
+  `REGISTRY_PULL_PASSWORD`, project `studio-ci`) into a
   `kubernetes.io/dockerconfigjson`. The password is never a chart value, so it
   never lands in a release Secret or on a runner's argv, and rotating it needs
   no app deploy.

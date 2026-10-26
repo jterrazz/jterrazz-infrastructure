@@ -238,8 +238,8 @@ matches the recorded render of the CI fixture:
             secretNamespace: platform-secrets
           secretsScope:
             envSlug: prod
-            projectSlug: jterrazz
-            secretsPath: /jterrazz-ci/ci-test-app
+            projectSlug: studio-infrastructure
+            secretsPath: /studio-ci/ci-test-app
       hostAPI: https://eu.infisical.com
       managedKubeSecretReferences:
         - secretName: ci-test-app-secrets
@@ -266,7 +266,7 @@ matches the recorded render of the CI fixture:
             secretNamespace: platform-secrets
           secretsScope:
             envSlug: prod
-            projectSlug: jterrazz-ci-v-nh-8
+            projectSlug: studio-ci
             secretsPath: /
       hostAPI: https://eu.infisical.com
       managedKubeSecretReferences:

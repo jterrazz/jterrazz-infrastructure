@@ -13,11 +13,11 @@ each folder explicitly, and stops on a missing key before anything deploys
 
 | Project, path                                  | Keys                                                                            | Read by                      |
 | ---------------------------------------------- | ------------------------------------------------------------------------------- | ---------------------------- |
-| `jterrazz`, `/jterrazz-infrastructure`         | `CLOUDFLARE_DNS01_TOKEN`, `CLOUDFLARE_RECORDS_TOKEN`, `CLOUDFLARE_TUNNEL_TOKEN` | both playbooks               |
+| `studio-infrastructure`, `/studio-infrastructure`         | `CLOUDFLARE_DNS01_TOKEN`, `CLOUDFLARE_RECORDS_TOKEN`, `CLOUDFLARE_TUNNEL_TOKEN` | both playbooks               |
 |                                                | `TAILSCALE_OAUTH_CLIENT_ID`, `TAILSCALE_OAUTH_CLIENT_SECRET`                    | `site.yml` only              |
 |                                                | `BACKUP_AGE_IDENTITY`                                                           | `make backup` only           |
-| `jterrazz`, `/jterrazz-infrastructure/grafana` | `ADMIN_PASSWORD`                                                                | both playbooks               |
-| `jterrazz-ci`, `/`                             | `DOCKER_REGISTRY_USERNAME`, `DOCKER_REGISTRY_PASSWORD`: the push account        | both playbooks, app CI       |
+| `studio-infrastructure`, `/studio-infrastructure/grafana` | `ADMIN_PASSWORD`                                                                | both playbooks               |
+| `studio-ci`, `/`                             | `DOCKER_REGISTRY_USERNAME`, `DOCKER_REGISTRY_PASSWORD`: the push account        | both playbooks, app CI       |
 |                                                | `REGISTRY_PULL_USERNAME`, `REGISTRY_PULL_PASSWORD`: the read-only account       | both playbooks, the operator |
 
 The Infisical identity itself (`INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET`)
@@ -25,7 +25,7 @@ comes from `.env` locally and from the repository's GitHub secrets in CI; the
 deploy writes it into `platform-secrets/infisical-credentials` for the
 operator.
 
-`jterrazz-ci` is a project of its own because CI reads it over GitHub OIDC:
+`studio-ci` is a project of its own because CI reads it over GitHub OIDC:
 the machine identity `github-actions` (subject
 `repo:jterrazz@18480834/*:ref:refs/heads/main`, audience
 `https://github.com/jterrazz`) is a Viewer of that project and of nothing else.
@@ -37,12 +37,12 @@ The operator syncs an `InfisicalSecret` rendered by the release that needs it
 
 | Infisical path                            | Secret                                       | Keys                                                                                             |
 | ----------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `/jterrazz-infrastructure`                | `cloudflared-secrets`                        | `CLOUDFLARE_TUNNEL_TOKEN`                                                                        |
-| `/jterrazz-infrastructure`                | `external-dns-secrets`                       | `CF_API_TOKEN`, from `CLOUDFLARE_RECORDS_TOKEN`                                                  |
-| `/jterrazz-infrastructure/openpanel`      | `op-{api,worker,dashboard,postgres}-secrets` | the keys each release names                                                                      |
-| `/jterrazz-infrastructure/otel-collector` | `otel-collector-secrets`                     | `LANGFUSE_BASIC_AUTH`                                                                            |
-| `/jterrazz-infrastructure/grafana`        | `grafana-alerting`                           | `contact-point-slack.yaml`, from the optional `SLACK_WEBHOOK_URL`                                |
-| `jterrazz-ci`, `/`                        | `registry-credentials`                       | `.dockerconfigjson` from the read-only account, in every app namespace pulling from our registry |
+| `/studio-infrastructure`                | `cloudflared-secrets`                        | `CLOUDFLARE_TUNNEL_TOKEN`                                                                        |
+| `/studio-infrastructure`                | `external-dns-secrets`                       | `CF_API_TOKEN`, from `CLOUDFLARE_RECORDS_TOKEN`                                                  |
+| `/studio-infrastructure/openpanel`      | `op-{api,worker,dashboard,postgres}-secrets` | the keys each release names                                                                      |
+| `/studio-infrastructure/otel-collector` | `otel-collector-secrets`                     | `LANGFUSE_BASIC_AUTH`                                                                            |
+| `/studio-infrastructure/grafana`        | `grafana-alerting`                           | `contact-point-slack.yaml`, from the optional `SLACK_WEBHOOK_URL`                                |
+| `studio-ci`, `/`                        | `registry-credentials`                       | `.dockerconfigjson` from the read-only account, in every app namespace pulling from our registry |
 | `/<app>`                                  | `<app>-secrets`                              | the app's `spec.secrets.env`                                                                     |
 
 ## GitHub and local secrets

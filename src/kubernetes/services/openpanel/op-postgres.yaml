@@ -21,7 +21,7 @@ spec:
     PGDATA: /var/lib/postgresql/data/pgdata
 
   secrets:
-    path: /jterrazz-infrastructure/openpanel
+    path: /studio-infrastructure/openpanel
     env:
       - POSTGRES_PASSWORD
 

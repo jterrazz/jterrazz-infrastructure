@@ -24,7 +24,7 @@ annotationFilter: external-dns.alpha.kubernetes.io/target=tunnel.jterrazz.com
 # hand. `%{record_type}` keeps an apex's TXT inside its zone and off the CNAME's own name.
 policy: upsert-only
 registry: txt
-txtOwnerId: jterrazz-infrastructure
+txtOwnerId: studio-infrastructure
 txtPrefix: "_externaldns.%{record_type}."
 
 # value: an IngressRoute event runs the loop at once; the interval only repairs drift made by hand.

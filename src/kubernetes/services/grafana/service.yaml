@@ -10,7 +10,7 @@ smoke:
 # hazard: an alert about the relay itself cannot travel through it, so whatever names its namespace
 # goes straight to the plain Slack webhook, when SLACK_WEBHOOK_URL is set.
 secrets:
-  path: /jterrazz-infrastructure/grafana
+  path: /studio-infrastructure/grafana
   secretName: grafana-alerting
   template:
     data:

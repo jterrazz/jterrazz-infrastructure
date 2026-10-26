@@ -37,7 +37,7 @@ tailnet.
 
 ## Secrets and config
 
-Infisical `/jterrazz-infrastructure/openpanel` (env `prod`) holds
+Infisical `/studio-infrastructure/openpanel` (env `prod`) holds
 `POSTGRES_PASSWORD`, `COOKIE_SECRET`, `DATABASE_URL` and `DATABASE_URL_DIRECT`
 (`postgresql://openpanel:<POSTGRES_PASSWORD>@op-postgres:5432/openpanel`). Each
 release projects only the keys it names. ClickHouse and Redis hold no

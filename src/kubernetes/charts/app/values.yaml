@@ -47,4 +47,4 @@ environment: ""
 # invariant: no credential: the pull secret is synced from this Infisical project.
 registry:
   server: registry.internal.jterrazz.com
-  infisicalProject: jterrazz-ci-v-nh-8
+  infisicalProject: studio-ci

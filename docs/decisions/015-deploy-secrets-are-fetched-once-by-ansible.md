@@ -9,7 +9,7 @@ Written 2026-10-24 from the comments in `group_vars`, `src/ansible/roles/secrets
 
 ## Context
 
-Every secret lives in Infisical (project `jterrazz`, environment `prod`). Two
+Every secret lives in Infisical (project `studio-infrastructure`, environment `prod`). Two
 kinds of consumer read them: the deploy itself (the Cloudflare tokens, the
 registry account, Grafana's admin password, the Tailscale OAuth pair), and
 workloads running in the cluster. A secret checked only where it is used
@@ -43,7 +43,7 @@ release Secrets and `helm get values`.
   into a Secret whose name is a contract (`secretName` is required; managed
   Secrets are `Orphan`, so deleting a release does not log a service out).
 - **The registry pull secret carries no credential in the chart.**
-  `registry-credentials` is written by the operator from the `jterrazz-ci` project
+  `registry-credentials` is written by the operator from the `studio-ci` project
   (env `prod`), the same path CI reads its own `docker login` from. Four
   things hold, and only the unit tests check them: the type is
   `kubernetes.io/dockerconfigjson` (an `Opaque` one named in

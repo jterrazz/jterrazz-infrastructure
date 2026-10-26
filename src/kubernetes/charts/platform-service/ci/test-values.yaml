@@ -19,7 +19,7 @@ certificates:
 
 # invariant: `secretName` is a consumer contract, required and never derived.
 secrets:
-  path: /jterrazz-infrastructure/ci-test-service
+  path: /studio-infrastructure/ci-test-service
   secretName: ci-test-service-credentials
   labels:
     ci_test_watcher: "1"

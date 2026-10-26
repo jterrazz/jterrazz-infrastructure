@@ -41,7 +41,7 @@ matches the recorded render:
               has(object.spec.managedKubeSecretReferences) &&
               object.spec.managedKubeSecretReferences.all(r, r.secretNamespace == request.namespace) &&
               (
-                (object.spec.authentication.universalAuth.secretsScope.projectSlug == 'jterrazz' &&
+                (object.spec.authentication.universalAuth.secretsScope.projectSlug == 'studio-infrastructure' &&
                  variables.app != '' &&
                  object.spec.authentication.universalAuth.secretsScope.secretsPath == '/' + variables.app) ||
                 (object.spec.authentication.universalAuth.secretsScope.projectSlug == variables.registryProject &&
@@ -73,7 +73,7 @@ matches the recorded render:
           name: isInfisicalSecret
         - expression: 'namespaceObject == null || !has(namespaceObject.metadata.labels) || !(''app.jterrazz.com/environment'' in namespaceObject.metadata.labels) ? '''' : request.namespace.substring(0, size(request.namespace) - size(namespaceObject.metadata.labels[''app.jterrazz.com/environment'']) - 1)'
           name: app
-        - expression: '''jterrazz-ci-v-nh-8'''
+        - expression: '''studio-ci'''
           name: registryProject
         - expression: '''{{ dict "auths" (dict "registry.internal.jterrazz.com" (dict "username" .REGISTRY_PULL_USERNAME.Value "password" .REGISTRY_PULL_PASSWORD.Value "auth" (list .REGISTRY_PULL_USERNAME.Value .REGISTRY_PULL_PASSWORD.Value | join ":" | b64enc))) | toJson }}'''
           name: registryTemplate

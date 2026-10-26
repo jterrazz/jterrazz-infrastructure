@@ -1,5 +1,5 @@
 {{/* Input dict: name, labels, envSlug, secretsPath, secretName, secretNamespace; optional
-projectSlug (default jterrazz), secretType (default Opaque) and template, the operator's own
+projectSlug (default studio-infrastructure), secretType (default Opaque) and template, the operator's own
 transform, which replaces the key-per-secret copy. The managed Secret is Orphan: it outlives
 the CR. */}}
 {{- define "common.infisicalSecret" -}}
@@ -18,7 +18,7 @@ spec:
   authentication:
     universalAuth:
       secretsScope:
-        projectSlug: {{ .projectSlug | default "jterrazz" }}
+        projectSlug: {{ .projectSlug | default "studio-infrastructure" }}
         envSlug: {{ .envSlug }}
         secretsPath: {{ .secretsPath }}
       credentialsRef:

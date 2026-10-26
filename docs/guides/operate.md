@@ -175,9 +175,9 @@ in [the OpenPanel README](../../src/kubernetes/services/openpanel/README.md#back
 | What                       | How                                                                                                                                                                                                                                                                                                        |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Any Infisical-held secret  | Change it in Infisical. The operator resyncs every 5 minutes (its default; no CR sets `syncConfig`), and `kubectl delete pod -n platform-secrets -l control-plane=controller-manager` forces it. A consumer reading it as env still needs a rollout restart, and a deploy secret a `make deploy-platform`. |
-| `CLOUDFLARE_TUNNEL_TOKEN`  | A new connector token in Zero Trust, stored at `/jterrazz-infrastructure`, a resync, then `kubectl rollout restart deploy/cloudflared -n platform-networking`.                                                                                                                                             |
-| `CLOUDFLARE_DNS01_TOKEN`   | A new token (Zone, DNS, Edit on `jterrazz.com`) at `/jterrazz-infrastructure`, then `make deploy-platform`, which rewrites `cloudflare-api-token`; revoke the old one.                                                                                                                                     |
-| `CLOUDFLARE_RECORDS_TOKEN` | A new token (Zone, DNS, Edit on every public zone; Account, Cloudflare Tunnel, Edit) at `/jterrazz-infrastructure`, a resync, then `kubectl rollout restart deploy/external-dns -n platform-networking`; revoke the old one.                                                                               |
+| `CLOUDFLARE_TUNNEL_TOKEN`  | A new connector token in Zero Trust, stored at `/studio-infrastructure`, a resync, then `kubectl rollout restart deploy/cloudflared -n platform-networking`.                                                                                                                                             |
+| `CLOUDFLARE_DNS01_TOKEN`   | A new token (Zone, DNS, Edit on `jterrazz.com`) at `/studio-infrastructure`, then `make deploy-platform`, which rewrites `cloudflare-api-token`; revoke the old one.                                                                                                                                     |
+| `CLOUDFLARE_RECORDS_TOKEN` | A new token (Zone, DNS, Edit on every public zone; Account, Cloudflare Tunnel, Edit) at `/studio-infrastructure`, a resync, then `kubectl rollout restart deploy/external-dns -n platform-networking`; revoke the old one.                                                                               |
 | The registry accounts      | Two accounts overlapping, never a swap: [below](#rotating-the-registry-password).                                                                                                                                                                                                                          |
 | CI deploy SSH key          | `ssh-keygen -t ed25519`, the public half into `security_ci_deploy_pubkey`, `gh secret set CI_DEPLOY_SSH_PRIVATE -R jterrazz/studio-infrastructure`, then `make deploy`.                                                                                                                                  |
 
@@ -223,7 +223,7 @@ it from Infisical and pass it through the environment.
    kubectl rollout restart deploy/registry -n platform-registry   # Zot reads it at start
    ```
 
-2. **Store the new pair in `jterrazz-ci`**, generated without whitespace: a
+2. **Store the new pair in `studio-ci`**, generated without whitespace: a
    netrc line cannot carry one.
 
 3. **Resync** with `kubectl delete pod -n platform-secrets -l

@@ -58,7 +58,7 @@ spec:
         ports: [5432]
 
   secrets:
-    path: /jterrazz-ci/ci-test-app
+    path: /studio-ci/ci-test-app
     env:
       - DATABASE_URL
       - API_TOKEN

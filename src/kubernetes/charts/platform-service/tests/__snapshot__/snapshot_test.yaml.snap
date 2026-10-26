@@ -86,8 +86,8 @@ matches the recorded render of the CI fixture:
             secretNamespace: platform-secrets
           secretsScope:
             envSlug: prod
-            projectSlug: jterrazz
-            secretsPath: /jterrazz-infrastructure/ci-test-service
+            projectSlug: studio-infrastructure
+            secretsPath: /studio-infrastructure/ci-test-service
       hostAPI: https://eu.infisical.com
       managedKubeSecretReferences:
         - secretName: ci-test-service-credentials

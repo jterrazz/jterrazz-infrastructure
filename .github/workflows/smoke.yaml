@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Join the tailnet
-        uses: jterrazz/studio-actions/actions/infra-connect@0e9286b35be9b4029d5cc04f94be8ef1261a4e43 # main, 2026-10-26
+        uses: jterrazz/studio-actions/actions/infra-connect@a8c843f6a25b18bcbffc631b090bcd26bbd70451 # main, 2026-10-26
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -46,7 +46,7 @@ jobs:
 
       # invariant: the identity app deploys use, here reading through platform-reader.
       - name: Connect to the cluster
-        uses: jterrazz/studio-actions/actions/cluster-connect@0e9286b35be9b4029d5cc04f94be8ef1261a4e43 # main, 2026-10-26
+        uses: jterrazz/studio-actions/actions/cluster-connect@a8c843f6a25b18bcbffc631b090bcd26bbd70451 # main, 2026-10-26
 
       # invariant: the internet job cannot reach the apiserver, so it probes this snapshot.
       - name: Snapshot the IngressRoutes for the internet job

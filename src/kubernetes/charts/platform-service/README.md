@@ -58,7 +58,7 @@ only at something reconstructible (`grafana-data` is the one user).
 
 ```yaml
 secrets:
-  path: /jterrazz-infrastructure/otel-collector # Infisical secretsPath
+  path: /studio-infrastructure/otel-collector # Infisical secretsPath
   secretName: otel-collector-secrets # what the CONSUMER reads
   env: prod # Infisical env slug; the default
 ```

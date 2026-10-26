@@ -4,10 +4,10 @@ description: The chart every workload of the fleet deploys through
 type: application
 # hazard: bump with any template change: apps pull it unversioned and the publisher never
 # overwrites a version, so an unbumped change ships nothing (ADR-010).
-version: 5.0.0
+version: 5.1.0
 
 # invariant: common's exact version; bundled into the .tgz.
 dependencies:
   - name: common
-    version: 2.3.0
+    version: 2.4.0
     repository: file://../common

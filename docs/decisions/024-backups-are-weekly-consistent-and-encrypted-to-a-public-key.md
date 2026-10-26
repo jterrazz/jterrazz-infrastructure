@@ -19,7 +19,7 @@ most of its bytes were the registry, which git can rebuild.
   downtime a week against databases captured mid-write.
 - **Encrypted with age to a public key** committed in
   `group_vars/all/backup.yml`; the private half is `BACKUP_AGE_IDENTITY` in
-  Infisical `/jterrazz-infrastructure`, and nothing on the node or in the
+  Infisical `/studio-infrastructure`, and nothing on the node or in the
   deploy needs it. age authenticates what it decrypts, which CBC did not.
 - **The registry is left out**: `make redeploy-apps` rebuilds every image from
   its repository, and it was 4.2 of the 7.2 GB. The first snapshot was 1.9 GB.

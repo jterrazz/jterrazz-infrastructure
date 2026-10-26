@@ -44,7 +44,7 @@ spec:
         request.namespace.substring(0, size(request.namespace) - size(namespaceObject.metadata.labels['app.jterrazz.com/environment']) - 1)
     # invariant: the Infisical project CI reads, whose root holds the registry pull pair (ADR-015).
     - name: registryProject
-      expression: "'jterrazz-ci-v-nh-8'"
+      expression: "'studio-ci'"
     # hazard: hand-synced with charts/app/templates/infisical.yaml, which its registry_pull_secret_test pins; the admission spec reads that pin.
     - name: registryTemplate
       expression: |-
@@ -70,7 +70,7 @@ spec:
           has(object.spec.managedKubeSecretReferences) &&
           object.spec.managedKubeSecretReferences.all(r, r.secretNamespace == request.namespace) &&
           (
-            (object.spec.authentication.universalAuth.secretsScope.projectSlug == 'jterrazz' &&
+            (object.spec.authentication.universalAuth.secretsScope.projectSlug == 'studio-infrastructure' &&
              variables.app != '' &&
              object.spec.authentication.universalAuth.secretsScope.secretsPath == '/' + variables.app) ||
             (object.spec.authentication.universalAuth.secretsScope.projectSlug == variables.registryProject &&

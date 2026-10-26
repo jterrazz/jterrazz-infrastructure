@@ -48,9 +48,9 @@ every link it sent pointed at `http://localhost:3000`.
 
 ## Consequences
 
-- The bot token and the channel live in Infisical `/jterrazz-alerts`, the one
+- The bot token and the channel live in Infisical `/studio-alerts`, the one
   folder the app may read (ADR-017); the webhook URL stays in
-  `/jterrazz-infrastructure/grafana` for the fallback route.
+  `/studio-infrastructure/grafana` for the fallback route.
 - The NetworkPolicy is the relay's only authentication: Grafana's namespace
   alone may reach it.
 - Slack failing answers Grafana a 502, and Grafana retries; a relay that is

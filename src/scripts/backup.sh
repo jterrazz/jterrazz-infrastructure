@@ -27,8 +27,8 @@ identity() {
                 -H 'Content-Type: application/json' -d @- | jq -r .accessToken)
     curl -sf -G https://eu.infisical.com/api/v3/secrets/raw/BACKUP_AGE_IDENTITY \
         -H @<(printf 'Authorization: Bearer %s\n' "$token") \
-        --data-urlencode workspaceSlug=jterrazz --data-urlencode environment=prod \
-        --data-urlencode secretPath=/jterrazz-infrastructure | jq -r .secret.secretValue
+        --data-urlencode workspaceSlug=studio-infrastructure --data-urlencode environment=prod \
+        --data-urlencode secretPath=/studio-infrastructure | jq -r .secret.secretValue
 }
 
 case "${1:-}" in

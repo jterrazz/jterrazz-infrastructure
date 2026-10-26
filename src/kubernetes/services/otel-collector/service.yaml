@@ -2,7 +2,7 @@ name: otel-collector
 
 # invariant: LANGFUSE_BASIC_AUTH, base64("pk:sk"); values.yaml reads the Secret by name.
 secrets:
-  path: /jterrazz-infrastructure/otel-collector
+  path: /studio-infrastructure/otel-collector
   secretName: otel-collector-secrets
 
 # invariant: any namespace may write OTLP; nothing narrower is expressible yet (ADR-011).

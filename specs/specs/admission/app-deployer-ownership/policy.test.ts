@@ -104,8 +104,8 @@ const infisicalSecret = (
         ],
     },
 });
-const OWN = { path: `/${A}`, project: 'jterrazz' };
-const PULL = { path: '/', project: 'jterrazz-ci-v-nh-8' };
+const OWN = { path: `/${A}`, project: 'studio-infrastructure' };
+const PULL = { path: '/', project: 'studio-ci' };
 const pullReference = (template: string): Record<string, unknown> => ({
     secretType: 'kubernetes.io/dockerconfigjson',
     template: { data: { '.dockerconfigjson': template } },
@@ -179,7 +179,11 @@ const CASES: [string, Request, string][] = [
     [
         "syncs the platform's own folder",
         create(
-            infisicalSecret('own', { path: '/jterrazz-infrastructure', project: 'jterrazz' }, {}),
+            infisicalSecret(
+                'own',
+                { path: '/studio-infrastructure', project: 'studio-infrastructure' },
+                {},
+            ),
         ),
         SECRET_DENIAL,
     ],
