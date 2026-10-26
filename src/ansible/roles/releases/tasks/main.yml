@@ -126,8 +126,9 @@
   changed_when: false
   when: platform_helm_wait | default(true) | bool
 
-# hazard: a fresh database races the two sidecars into twin folders of one title (2026-10-26).
-- name: Remove Grafana's empty twin folders
+# hazard: nothing else removes a folder: a fresh database races the two sidecars into twin
+# folders of one title, and a renamed owner or a removed app leaves its own (2026-10-26).
+- name: Remove Grafana's empty folders
   ansible.builtin.command:
     argv: [kubectl, exec, -i, -n, platform-telemetry, deploy/grafana, -c, grafana-sc-alerts, --, python3, "-"]
     stdin: "{{ lookup('ansible.builtin.file', 'grafana-folders.py') }}"
