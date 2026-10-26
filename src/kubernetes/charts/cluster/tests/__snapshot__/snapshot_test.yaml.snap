@@ -29,6 +29,18 @@ matches the recorded render:
           messageExpression: request.resource.resource + ' ' + request.name + ' must carry ' + variables.key + '=' + variables.repo
         - expression: '!variables.isNamespace || object == null || !has(object.metadata.labels) || object.metadata.labels.all(k, !(k.startsWith(''pod-security.kubernetes.io/'') && object.metadata.labels[k] == ''privileged''))'
           message: a namespace created by an app may not opt out of Pod Security
+        - expression: |-
+            !variables.isNamespace || object == null || (
+              has(object.metadata.labels) && 'studio.jterrazz.com/app' in object.metadata.labels && (
+                'studio.jterrazz.com/scope' in object.metadata.labels
+                  ? object.metadata.labels['studio.jterrazz.com/scope'] == 'shared' &&
+                    !('studio.jterrazz.com/environment' in object.metadata.labels) &&
+                    object.metadata.name == object.metadata.labels['studio.jterrazz.com/app']
+                  : 'studio.jterrazz.com/environment' in object.metadata.labels &&
+                    object.metadata.name == object.metadata.labels['studio.jterrazz.com/app'] + '-' + object.metadata.labels['studio.jterrazz.com/environment']
+              )
+            )
+          message: an app namespace is <app>-<environment>, or <app> when shared, as its studio.jterrazz.com/ labels state
         - expression: '!variables.isVolume || object == null || (object.metadata.name.endsWith(''-data'') && has(object.spec.hostPath) && object.spec.hostPath.path == ''/var/lib/k8s-data/'' + object.metadata.name.substring(0, size(object.metadata.name) - 5))'
           message: an app volume is a hostPath at /var/lib/k8s-data/<name minus -data>
         - expression: |-
@@ -43,19 +55,21 @@ matches the recorded render:
               (
                 (object.spec.authentication.universalAuth.secretsScope.projectSlug == 'studio-infrastructure' &&
                  variables.app != '' &&
-                 object.spec.authentication.universalAuth.secretsScope.secretsPath == '/' + variables.app) ||
+                 object.spec.authentication.universalAuth.secretsScope.secretsPath == '/' + variables.app &&
+                 variables.secretsEnv != '' &&
+                 object.spec.authentication.universalAuth.secretsScope.envSlug == variables.secretsEnv) ||
                 (object.spec.authentication.universalAuth.secretsScope.projectSlug == variables.registryProject &&
                  object.spec.authentication.universalAuth.secretsScope.secretsPath == '/' &&
                  object.spec.managedKubeSecretReferences.all(r, has(r.template) && r.template.data == {'.dockerconfigjson': variables.registryTemplate}))
               )
             )
-          messageExpression: '''an app InfisicalSecret reads /'' + variables.app + '' or the registry pull pair, into its own namespace'''
+          messageExpression: '''an app InfisicalSecret reads /'' + variables.app + '' in env '' + variables.secretsEnv + '', or the registry pull pair, into its own namespace'''
         - expression: '!(request.resource.group == ''rbac.authorization.k8s.io'' && request.resource.resource == ''rolebindings'') || object == null || (object.roleRef.kind == ''ClusterRole'' && object.roleRef.name == ''app-namespace-admin'' && has(object.subjects) && object.subjects.all(s, s.kind == ''User'' && s.name == request.userInfo.username))'
           message: an app RoleBinding binds app-namespace-admin to its own identity only
       variables:
         - expression: request.userInfo.username.substring(request.userInfo.username.indexOf('/') + 1)
           name: repo
-        - expression: '''app.jterrazz.com/repository'''
+        - expression: '''studio.jterrazz.com/repository'''
           name: key
         - expression: 'object == null || !has(object.metadata.labels) || !(variables.key in object.metadata.labels) ? '''' : object.metadata.labels[variables.key]'
           name: newOwner
@@ -71,8 +85,10 @@ matches the recorded render:
           name: owned
         - expression: request.resource.group == 'secrets.infisical.com' && request.resource.resource == 'infisicalsecrets'
           name: isInfisicalSecret
-        - expression: 'namespaceObject == null || !has(namespaceObject.metadata.labels) || !(''app.jterrazz.com/environment'' in namespaceObject.metadata.labels) ? '''' : request.namespace.substring(0, size(request.namespace) - size(namespaceObject.metadata.labels[''app.jterrazz.com/environment'']) - 1)'
+        - expression: 'namespaceObject == null || !has(namespaceObject.metadata.labels) || !(''studio.jterrazz.com/app'' in namespaceObject.metadata.labels) ? '''' : namespaceObject.metadata.labels[''studio.jterrazz.com/app'']'
           name: app
+        - expression: 'namespaceObject == null || !has(namespaceObject.metadata.labels) ? '''' : ''studio.jterrazz.com/scope'' in namespaceObject.metadata.labels && namespaceObject.metadata.labels[''studio.jterrazz.com/scope''] == ''shared'' ? ''prod'' : !(''studio.jterrazz.com/environment'' in namespaceObject.metadata.labels) ? '''' : namespaceObject.metadata.labels[''studio.jterrazz.com/environment'']'
+          name: secretsEnv
         - expression: '''studio-ci'''
           name: registryProject
         - expression: '''{{ dict "auths" (dict "registry.internal.jterrazz.com" (dict "username" .REGISTRY_PULL_USERNAME.Value "password" .REGISTRY_PULL_PASSWORD.Value "auth" (list .REGISTRY_PULL_USERNAME.Value .REGISTRY_PULL_PASSWORD.Value | join ":" | b64enc))) | toJson }}'''
@@ -133,10 +149,10 @@ matches the recorded render:
       annotations:
         helm.sh/resource-policy: keep
       labels:
-        app.jterrazz.com/tier: platform
         pod-security.kubernetes.io/audit: restricted
         pod-security.kubernetes.io/enforce: baseline
         pod-security.kubernetes.io/warn: restricted
+        studio.jterrazz.com/tier: platform
       name: platform-analytics
   6: |
     apiVersion: networking.k8s.io/v1
@@ -188,10 +204,10 @@ matches the recorded render:
       annotations:
         helm.sh/resource-policy: keep
       labels:
-        app.jterrazz.com/tier: platform
         pod-security.kubernetes.io/audit: restricted
         pod-security.kubernetes.io/enforce: baseline
         pod-security.kubernetes.io/warn: restricted
+        studio.jterrazz.com/tier: platform
       name: platform-networking
   10: |
     apiVersion: networking.k8s.io/v1
@@ -228,10 +244,10 @@ matches the recorded render:
       annotations:
         helm.sh/resource-policy: keep
       labels:
-        app.jterrazz.com/tier: platform
         pod-security.kubernetes.io/audit: restricted
         pod-security.kubernetes.io/enforce: baseline
         pod-security.kubernetes.io/warn: restricted
+        studio.jterrazz.com/tier: platform
       name: platform-registry
   13: |
     apiVersion: networking.k8s.io/v1
@@ -283,10 +299,10 @@ matches the recorded render:
       annotations:
         helm.sh/resource-policy: keep
       labels:
-        app.jterrazz.com/tier: platform
         pod-security.kubernetes.io/audit: restricted
         pod-security.kubernetes.io/enforce: baseline
         pod-security.kubernetes.io/warn: restricted
+        studio.jterrazz.com/tier: platform
       name: platform-secrets
   17: |
     apiVersion: networking.k8s.io/v1
@@ -331,10 +347,10 @@ matches the recorded render:
       annotations:
         helm.sh/resource-policy: keep
       labels:
-        app.jterrazz.com/tier: platform
         pod-security.kubernetes.io/audit: restricted
         pod-security.kubernetes.io/enforce: privileged
         pod-security.kubernetes.io/warn: restricted
+        studio.jterrazz.com/tier: platform
       name: platform-telemetry
   20: |
     apiVersion: networking.k8s.io/v1

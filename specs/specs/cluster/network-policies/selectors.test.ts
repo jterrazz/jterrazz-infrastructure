@@ -58,15 +58,23 @@ async function podsOfTheCluster(): Promise<Pod[]> {
     );
 }
 
-const APP_TIER = 'app.jterrazz.com/tier';
+const TIER = 'studio.jterrazz.com/tier';
+const APP = 'studio.jterrazz.com/app';
+const PLATFORM_NAMESPACE = /^(?:default|kube-.+|platform-.+)$/u;
 
-// hazard: the upgrade test's k3d cluster deploys no app, so a platform peer naming an app's namespace
-// (Grafana's egress to studio-alerts-prod) cannot match there; the live cluster judges it.
+// hazard: the upgrade test's k3d cluster deploys no app, so a peer naming apps (Grafana's egress to
+// studio-alerts, the collector's ingress from every app namespace, a provider's `serves`) cannot
+// match there; the live cluster judges it.
 function namesAnAbsentApp({ namespaceSelector }: Peer, hasApps: boolean): boolean {
+    if (hasApps || namespaceSelector === undefined) {
+        return false;
+    }
+    const name = namespaceSelector.matchLabels?.['kubernetes.io/metadata.name'];
+
     return (
-        !hasApps &&
-        /-(?:prod|staging)$/u.test(
-            namespaceSelector?.matchLabels?.['kubernetes.io/metadata.name'] ?? '',
+        (name !== undefined && !PLATFORM_NAMESPACE.test(name)) ||
+        (namespaceSelector.matchExpressions ?? []).some(
+            ({ key, values = [] }) => key === APP || (key === TIER && values.includes('app')),
         )
     );
 }
@@ -82,7 +90,7 @@ describe('selectors', () => {
         const labelsOf = new Map(
             namespaces.items.map(({ metadata }) => [metadata.name, metadata.labels ?? {}]),
         );
-        const hasApps = [...labelsOf.values()].some((labels) => labels[APP_TIER] === 'app');
+        const hasApps = [...labelsOf.values()].some((labels) => labels[TIER] === 'app');
 
         // When - each selector is resolved against them; an ipBlock names no pod and is not read
         const violations = policies.items.flatMap(({ metadata, spec }) => {

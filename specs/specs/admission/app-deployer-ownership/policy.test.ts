@@ -8,11 +8,22 @@ import { kubectl, REPOSITORY_ROOT } from '../../__setup__/kubectl.ts';
 // every request of `a` is a server-side dry run, so admission judges it and nothing is written.
 const A = 'contract-probe-a';
 const B = 'contract-probe-b';
-const KEY = 'app.jterrazz.com/repository';
-// invariant: the fixtures are app namespaces like any other (ADR-023): `<repository>-test`, tier app.
+const KEY = 'studio.jterrazz.com/repository';
+// invariant: the fixtures are app namespaces like any other (ADR-023): `<app>-test`, tier app, and
+// `<app>` for a shared one, whose app is named apart from the repository.
 const NS_A = `${A}-test`;
 const NS_B = `${B}-test`;
-const APP = { 'app.jterrazz.com/environment': 'test', 'app.jterrazz.com/tier': 'app' };
+const SHARED = `${A}-shared`;
+const appLabels = (app: string, environment: string): Record<string, string> => ({
+    'studio.jterrazz.com/app': app,
+    'studio.jterrazz.com/environment': environment,
+    'studio.jterrazz.com/tier': 'app',
+});
+const SHARED_LABELS = {
+    'studio.jterrazz.com/app': SHARED,
+    'studio.jterrazz.com/scope': 'shared',
+    'studio.jterrazz.com/tier': 'app',
+};
 const AS_A = [
     `--as=github:jterrazz/${A}`,
     '--as-group=github-actions:jterrazz',
@@ -78,16 +89,16 @@ function chartRegistryTemplate(): string {
     return pin;
 }
 
-type Scope = { path: string; project: string };
+type Scope = { env: string; path: string; project: string };
 const infisicalSecret = (
     name: string,
-    { path, project }: Scope,
+    { env, path, project }: Scope,
     reference: Record<string, unknown>,
-    hostAPI = 'https://eu.infisical.com',
+    { hostAPI = 'https://eu.infisical.com', inNamespace = NS_A } = {},
 ): object => ({
     apiVersion: 'secrets.infisical.com/v1alpha1',
     kind: 'InfisicalSecret',
-    metadata: { name, namespace: NS_A },
+    metadata: { name, namespace: inNamespace },
     spec: {
         authentication: {
             universalAuth: {
@@ -95,24 +106,32 @@ const infisicalSecret = (
                     secretName: 'infisical-credentials',
                     secretNamespace: 'platform-secrets',
                 },
-                secretsScope: { envSlug: 'prod', projectSlug: project, secretsPath: path },
+                secretsScope: { envSlug: env, projectSlug: project, secretsPath: path },
             },
         },
         hostAPI,
         managedKubeSecretReferences: [
-            { creationPolicy: 'Orphan', secretName: name, secretNamespace: NS_A, ...reference },
+            {
+                creationPolicy: 'Orphan',
+                secretName: name,
+                secretNamespace: inNamespace,
+                ...reference,
+            },
         ],
     },
 });
-const OWN = { path: `/${A}`, project: 'studio-infrastructure' };
-const PULL = { path: '/', project: 'studio-ci' };
+const OWN = { env: 'test', path: `/${A}`, project: 'studio-infrastructure' };
+// invariant: `prod` is the pull project's env slug, whatever the namespace's environment.
+const PULL = { env: 'prod', path: '/', project: 'studio-ci' };
 const pullReference = (template: string): Record<string, unknown> => ({
     secretType: 'kubernetes.io/dockerconfigjson',
     template: { data: { '.dockerconfigjson': template } },
 });
 const PULL_THROUGH_THE_CHART = pullReference(chartRegistryTemplate());
 const PULL_OF_THE_PUSH_PASSWORD = pullReference('{{ .DOCKER_REGISTRY_PASSWORD.Value }}');
-const SECRET_DENIAL = `denied: an app InfisicalSecret reads /${A} or the registry pull pair, into its own namespace`;
+const SECRET_DENIAL = `denied: an app InfisicalSecret reads /${A} in env test, or the registry pull pair, into its own namespace`;
+const NAMING_DENIAL =
+    'denied: an app namespace is <app>-<environment>, or <app> when shared, as its studio.jterrazz.com/ labels state';
 
 // invariant: the RoleBinding a's deploy grants itself, under its own name: its namespaced writes
 // reach admission only through it.
@@ -122,9 +141,11 @@ const DEPLOY_BINDING = {
 };
 
 const FIXTURES = [
-    namespace(NS_A, { ...APP, [KEY]: A }),
+    namespace(NS_A, { ...appLabels(A, 'test'), [KEY]: A }),
     DEPLOY_BINDING,
-    namespace(NS_B, { ...APP, [KEY]: B }),
+    namespace(SHARED, { ...SHARED_LABELS, [KEY]: A }),
+    { ...DEPLOY_BINDING, metadata: { name: 'contract-probe-deploy', namespace: SHARED } },
+    namespace(NS_B, { ...appLabels(B, 'test'), [KEY]: B }),
     volume(`${B}-data`, `/var/lib/k8s-data/${B}`, B),
 ];
 
@@ -177,11 +198,28 @@ const CASES: [string, Request, string][] = [
         'admitted',
     ],
     [
+        'syncs its own folder from another environment',
+        create(infisicalSecret('own', { ...OWN, env: 'prod' }, { secretType: 'Opaque' })),
+        SECRET_DENIAL,
+    ],
+    [
+        "syncs a shared app's folder from prod into its namespace",
+        create(
+            infisicalSecret(
+                'own',
+                { ...OWN, env: 'prod', path: `/${SHARED}` },
+                { secretType: 'Opaque' },
+                { inNamespace: SHARED },
+            ),
+        ),
+        'admitted',
+    ],
+    [
         "syncs the platform's own folder",
         create(
             infisicalSecret(
                 'own',
-                { path: '/studio-infrastructure', project: 'studio-infrastructure' },
+                { env: 'test', path: '/studio-infrastructure', project: 'studio-infrastructure' },
                 {},
             ),
         ),
@@ -199,7 +237,7 @@ const CASES: [string, Request, string][] = [
     ],
     [
         'hands the platform credentials to a foreign host',
-        create(infisicalSecret('own', OWN, {}, 'https://evil.example')),
+        create(infisicalSecret('own', OWN, {}, { hostAPI: 'https://evil.example' })),
         SECRET_DENIAL,
     ],
     [
@@ -209,10 +247,25 @@ const CASES: [string, Request, string][] = [
     ],
     [
         'creates a namespace labelled as itself',
-        create(
-            namespace(`${A}-next`, { ...APP, 'app.jterrazz.com/environment': 'next', [KEY]: A }),
-        ),
+        create(namespace(`${A}-next`, { ...appLabels(A, 'next'), [KEY]: A })),
         'admitted',
+    ],
+    [
+        'creates a namespace named apart from the app and environment it states',
+        create(namespace(`${B}-next`, { ...appLabels(A, 'next'), [KEY]: A })),
+        NAMING_DENIAL,
+    ],
+    [
+        'creates a shared namespace that also states an environment',
+        create(
+            namespace(`${A}-gateway`, {
+                ...SHARED_LABELS,
+                'studio.jterrazz.com/app': `${A}-gateway`,
+                'studio.jterrazz.com/environment': 'prod',
+                [KEY]: A,
+            }),
+        ),
+        NAMING_DENIAL,
     ],
     [
         'creates its volume at /var/lib/k8s-data/<name>',
@@ -241,13 +294,14 @@ const CASES: [string, Request, string][] = [
     ],
     [
         'creates a namespace labelled as another repository',
-        create(namespace(`${A}-stolen`, { [KEY]: B })),
+        create(namespace(`${A}-stolen`, { ...appLabels(A, 'stolen'), [KEY]: B })),
         `denied: namespaces ${A}-stolen must carry ${KEY}=${A}`,
     ],
     [
         'creates its namespace with a privileged Pod Security label',
         create(
             namespace(`${A}-privileged`, {
+                ...appLabels(A, 'privileged'),
                 [KEY]: A,
                 'pod-security.kubernetes.io/enforce': 'privileged',
             }),

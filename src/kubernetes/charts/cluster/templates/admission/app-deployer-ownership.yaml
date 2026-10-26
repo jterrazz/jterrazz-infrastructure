@@ -1,5 +1,5 @@
 ---
-# invariant: the ownership RBAC cannot express, keyed on the app.jterrazz.com/repository label;
+# invariant: the ownership RBAC cannot express, keyed on the studio.jterrazz.com/repository label;
 # each message states its rule. hazard: nothing owns a hostname (ADR-017).
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicy
@@ -21,7 +21,7 @@ spec:
     - name: repo
       expression: "request.userInfo.username.substring(request.userInfo.username.indexOf('/') + 1)"
     - name: key
-      expression: "'app.jterrazz.com/repository'"
+      expression: "'studio.jterrazz.com/repository'"
     - name: newOwner
       expression: "object == null || !has(object.metadata.labels) || !(variables.key in object.metadata.labels) ? '' : object.metadata.labels[variables.key]"
     - name: oldOwner
@@ -36,12 +36,21 @@ spec:
       expression: "variables.isNamespace || variables.isVolume"
     - name: isInfisicalSecret
       expression: "request.resource.group == 'secrets.infisical.com' && request.resource.resource == 'infisicalsecrets'"
-    # invariant: an app namespace is <app>-<environment> (ADR-023), and its secrets folder is /<app>.
+    # invariant: the namespace states its app, whose secrets folder is /<app> (ADR-029).
     - name: app
       expression: >-
         namespaceObject == null || !has(namespaceObject.metadata.labels) ||
-        !('app.jterrazz.com/environment' in namespaceObject.metadata.labels) ? '' :
-        request.namespace.substring(0, size(request.namespace) - size(namespaceObject.metadata.labels['app.jterrazz.com/environment']) - 1)
+        !('studio.jterrazz.com/app' in namespaceObject.metadata.labels) ? '' :
+        namespaceObject.metadata.labels['studio.jterrazz.com/app']
+    # invariant: the Infisical env the namespace may read: its own environment, or prod for a shared
+    # app, which serves prod too (ADR-029).
+    - name: secretsEnv
+      expression: >-
+        namespaceObject == null || !has(namespaceObject.metadata.labels) ? '' :
+        'studio.jterrazz.com/scope' in namespaceObject.metadata.labels &&
+        namespaceObject.metadata.labels['studio.jterrazz.com/scope'] == 'shared' ? 'prod' :
+        !('studio.jterrazz.com/environment' in namespaceObject.metadata.labels) ? '' :
+        namespaceObject.metadata.labels['studio.jterrazz.com/environment']
     # invariant: the Infisical project CI reads, whose root holds the registry pull pair (ADR-015).
     - name: registryProject
       expression: "'studio-ci'"
@@ -56,10 +65,25 @@ spec:
       messageExpression: "request.resource.resource + ' ' + request.name + ' must carry ' + variables.key + '=' + variables.repo"
     - expression: "!variables.isNamespace || object == null || !has(object.metadata.labels) || object.metadata.labels.all(k, !(k.startsWith('pod-security.kubernetes.io/') && object.metadata.labels[k] == 'privileged'))"
       message: a namespace created by an app may not opt out of Pod Security
+    # invariant: an app namespace is <app>-<environment>, or <app> when shared (ADR-023), so the
+    # labels the secrets rule reads agree with the name every other object follows.
+    - expression: >-
+        !variables.isNamespace || object == null || (
+          has(object.metadata.labels) && 'studio.jterrazz.com/app' in object.metadata.labels && (
+            'studio.jterrazz.com/scope' in object.metadata.labels
+              ? object.metadata.labels['studio.jterrazz.com/scope'] == 'shared' &&
+                !('studio.jterrazz.com/environment' in object.metadata.labels) &&
+                object.metadata.name == object.metadata.labels['studio.jterrazz.com/app']
+              : 'studio.jterrazz.com/environment' in object.metadata.labels &&
+                object.metadata.name == object.metadata.labels['studio.jterrazz.com/app'] + '-' + object.metadata.labels['studio.jterrazz.com/environment']
+          )
+        )
+      message: an app namespace is <app>-<environment>, or <app> when shared, as its studio.jterrazz.com/ labels state
     - expression: "!variables.isVolume || object == null || (object.metadata.name.endsWith('-data') && has(object.spec.hostPath) && object.spec.hostPath.path == '/var/lib/k8s-data/' + object.metadata.name.substring(0, size(object.metadata.name) - 5))"
       message: an app volume is a hostPath at /var/lib/k8s-data/<name minus -data>
     # hazard: the operator reads with platform credentials, so an app CR may name only its own
-    # folder, or the registry pull pair through the chart's exact template, into its own namespace.
+    # folder in its own environment, or the registry pull pair through the chart's exact template,
+    # into its own namespace: never another environment's secrets (ADR-029).
     - expression: >-
         !variables.isInfisicalSecret || object == null || (
           object.spec.hostAPI == 'https://eu.infisical.com' &&
@@ -72,13 +96,15 @@ spec:
           (
             (object.spec.authentication.universalAuth.secretsScope.projectSlug == 'studio-infrastructure' &&
              variables.app != '' &&
-             object.spec.authentication.universalAuth.secretsScope.secretsPath == '/' + variables.app) ||
+             object.spec.authentication.universalAuth.secretsScope.secretsPath == '/' + variables.app &&
+             variables.secretsEnv != '' &&
+             object.spec.authentication.universalAuth.secretsScope.envSlug == variables.secretsEnv) ||
             (object.spec.authentication.universalAuth.secretsScope.projectSlug == variables.registryProject &&
              object.spec.authentication.universalAuth.secretsScope.secretsPath == '/' &&
              object.spec.managedKubeSecretReferences.all(r, has(r.template) && r.template.data == {'.dockerconfigjson': variables.registryTemplate}))
           )
         )
-      messageExpression: "'an app InfisicalSecret reads /' + variables.app + ' or the registry pull pair, into its own namespace'"
+      messageExpression: "'an app InfisicalSecret reads /' + variables.app + ' in env ' + variables.secretsEnv + ', or the registry pull pair, into its own namespace'"
     - expression: "!(request.resource.group == 'rbac.authorization.k8s.io' && request.resource.resource == 'rolebindings') || object == null || (object.roleRef.kind == 'ClusterRole' && object.roleRef.name == 'app-namespace-admin' && has(object.subjects) && object.subjects.all(s, s.kind == 'User' && s.name == request.userInfo.username))"
       message: an app RoleBinding binds app-namespace-admin to its own identity only
 ---
