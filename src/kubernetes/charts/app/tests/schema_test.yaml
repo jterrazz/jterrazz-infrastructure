@@ -1,0 +1,91 @@
+suite: values.schema.json refuses what no template reads
+# invariant: additionalProperties false at every level, so a typo in an application.yaml fails
+# `helm upgrade` instead of being ignored (ADR-029).
+values:
+  - ../ci/test-values.yaml
+templates:
+  - templates/deployment.yaml
+tests:
+  - it: refuses an unknown key under spec
+    set:
+      spec.replica: 2
+    asserts:
+      - failedTemplate:
+          errorPattern: "at '/spec': additional properties 'replica' not allowed"
+
+  - it: refuses an unknown key at the root
+    set:
+      enviroments: {}
+    asserts:
+      - failedTemplate:
+          errorPattern: "at '': additional properties 'enviroments' not allowed"
+
+  - it: refuses an unknown key in an ingress entry
+    set:
+      spec.ingress:
+        - host: ci-test-app.jterrazz.com
+          public: true
+          stripPrefx: false
+    asserts:
+      - failedTemplate:
+          errorPattern: "at '/spec/ingress/0': additional properties 'stripPrefx' not allowed"
+
+  - it: refuses an unknown key in an environment's partial spec
+    set:
+      environments.prod.tag: main
+    asserts:
+      - failedTemplate:
+          errorPattern: "at '/environments/prod': additional properties 'tag' not allowed"
+
+  - it: refuses a secrets path, which is always /<app>
+    set:
+      spec.secrets.path: /another-app
+    asserts:
+      - failedTemplate:
+          errorPattern: "at '/spec/secrets': additional properties 'path' not allowed"
+
+  - it: refuses another environment's secrets
+    set:
+      environments.staging.secretsEnv: prod
+    asserts:
+      - failedTemplate:
+          errorPattern: "at '/environments/staging': additional properties 'secretsEnv' not allowed"
+
+  - it: refuses the retired platformServices
+    set:
+      spec.platformServices: [otel-collector]
+    asserts:
+      - failedTemplate:
+          errorPattern: "at '/spec': additional properties 'platformServices' not allowed"
+
+  - it: refuses the old apiVersion
+    set:
+      apiVersion: jterrazz.com/v1
+    asserts:
+      - failedTemplate:
+          errorPattern: "at '/apiVersion': value must be 'studio.jterrazz.com/v1'"
+
+  - it: refuses a root branch on a per-environment app, whose branches are per environment
+    set:
+      branch: main
+    asserts:
+      - failedTemplate:
+          errorPattern: "at '/branch': false schema"
+
+  - it: refuses environments on a shared app
+    set:
+      scope: shared
+      branch: main
+      environment: shared
+    asserts:
+      - failedTemplate:
+          errorPattern: "at '/environments': maxProperties: got 2, want 0"
+
+  - it: refuses a shared app that names no branch to deploy from
+    set:
+      scope: shared
+      environment: shared
+      environments: null
+    asserts:
+      - failedTemplate:
+          errorPattern: "at '': missing property 'branch'"

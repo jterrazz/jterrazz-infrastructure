@@ -1,0 +1,558 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "application.yaml",
+  "description": "The app chart's values: an app's .infrastructure/application.yaml, plus what CI and the platform set (README.md).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": {
+      "const": "studio.jterrazz.com/v1"
+    },
+    "kind": {
+      "const": "Application"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Names every object, the namespace, the Infisical folder.",
+          "type": "string",
+          "pattern": "^([a-z0-9]([-a-z0-9]*[a-z0-9])?)?$"
+        }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repository": {
+          "description": "Set by app CI: <owner>/<repo>.",
+          "type": "string"
+        }
+      }
+    },
+    "spec": {
+      "$ref": "#/definitions/spec"
+    },
+    "environments": {
+      "description": "One release per key, namespace <app>-<key>.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/environment"
+      }
+    },
+    "scope": {
+      "description": "shared: one release, environment `shared`, in namespace <app>.",
+      "enum": [
+        "",
+        "shared"
+      ]
+    },
+    "branch": {
+      "description": "A shared app's: which push deploys it, read by app CI alone.",
+      "type": "string"
+    },
+    "environment": {
+      "description": "Set by CI: the key of `environments` to render, or `shared`.",
+      "type": "string"
+    },
+    "registry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "server": {
+          "type": "string"
+        },
+        "infisicalProject": {
+          "type": "string"
+        }
+      }
+    },
+    "common": {
+      "description": "Helm's own: the library dependency's values, which hold only `global`.",
+      "type": "object"
+    }
+  },
+  "if": {
+    "properties": {
+      "scope": {
+        "const": "shared"
+      }
+    },
+    "required": [
+      "scope"
+    ]
+  },
+  "then": {
+    "required": [
+      "branch"
+    ],
+    "properties": {
+      "environments": {
+        "maxProperties": 0
+      }
+    }
+  },
+  "else": {
+    "properties": {
+      "branch": false,
+      "environments": {
+        "minProperties": 1
+      }
+    }
+  },
+  "definitions": {
+    "port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "ports": {
+      "description": "Pod ports; a bare port is TCP, `<port>/<PROTO>` names the protocol.",
+      "type": "array",
+      "items": {
+        "type": [
+          "integer",
+          "string"
+        ]
+      }
+    },
+    "ingressEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host"
+      ],
+      "properties": {
+        "host": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "public": {
+          "description": "Required by the render: network visibility is never defaulted.",
+          "type": "boolean"
+        },
+        "stripPrefix": {
+          "type": [
+            "boolean",
+            "string"
+          ]
+        },
+        "redirectTo": {
+          "type": "string"
+        },
+        "preservePath": {
+          "type": "boolean"
+        },
+        "smoke": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "expect": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ]
+                },
+                "method": {
+                  "type": "string"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "image": {
+          "description": "Set by app CI to the digest it built; required at render.",
+          "type": "string"
+        },
+        "port": {
+          "description": "The container port, and every probe's.",
+          "$ref": "#/definitions/port"
+        },
+        "servicePort": {
+          "description": "The Service's port, for clients that dial it by name.",
+          "$ref": "#/definitions/port"
+        },
+        "replicas": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "strategy": {
+          "description": "Derived from storage when empty.",
+          "enum": [
+            "",
+            "Recreate",
+            "RollingUpdate"
+          ]
+        },
+        "resources": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "cpu": {
+              "type": [
+                "string",
+                "integer"
+              ]
+            },
+            "memory": {
+              "type": [
+                "string",
+                "integer"
+              ]
+            },
+            "memoryLimit": {
+              "type": [
+                "string",
+                "integer"
+              ]
+            }
+          }
+        },
+        "storage": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "size": {
+              "type": "string"
+            },
+            "mountPath": {
+              "type": "string"
+            },
+            "claimName": {
+              "description": "A claim another release owns: mounted, never rendered.",
+              "type": "string"
+            }
+          }
+        },
+        "configFiles": {
+          "description": "filename -> content at /app/<filename>, or { path, content } where the image wants it.",
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path",
+                  "content"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "content": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "secretMounts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "secretName",
+              "mountPath"
+            ],
+            "properties": {
+              "secretName": {
+                "type": "string"
+              },
+              "mountPath": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "dashboards": {
+          "description": "kind -> Grafana dashboard JSON; app CI --set-files .infrastructure/dashboards/*.json.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "alerts": {
+          "description": "name -> Grafana alert provisioning YAML; app CI --set-files .infrastructure/alerts/*.yaml.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "securityContext": {
+          "description": "Merged over the hardened defaults.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "allowPrivilegeEscalation": {
+              "type": "boolean"
+            },
+            "privileged": {
+              "type": "boolean"
+            },
+            "readOnlyRootFilesystem": {
+              "type": "boolean"
+            },
+            "runAsNonRoot": {
+              "type": "boolean"
+            },
+            "runAsUser": {
+              "type": "integer"
+            },
+            "runAsGroup": {
+              "type": "integer"
+            },
+            "procMount": {
+              "type": "string"
+            },
+            "capabilities": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "add": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "drop": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "seccompProfile": {
+              "type": "object"
+            },
+            "appArmorProfile": {
+              "type": "object"
+            },
+            "seLinuxOptions": {
+              "type": "object"
+            },
+            "windowsOptions": {
+              "type": "object"
+            }
+          }
+        },
+        "runAsRoot": {
+          "type": "boolean"
+        },
+        "env": {
+          "description": "Literal env vars, quoted on render.",
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        },
+        "secrets": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "env": {
+              "description": "Keys of the Infisical folder /<metadata.name>, in the release's environment, projected as env vars.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+              }
+            }
+          }
+        },
+        "ingress": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ingressEntry"
+          }
+        },
+        "network": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "isolated": {
+              "type": "boolean"
+            },
+            "exposeTo": {
+              "description": "common.networkPolicy peers admitted on spec.port.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "egress": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "to"
+                ],
+                "properties": {
+                  "to": {
+                    "type": "string"
+                  },
+                  "ports": {
+                    "$ref": "#/definitions/ports"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "uses": {
+          "description": "Capabilities this app consumes (app.capabilities); the provider must serve it too.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "serves": {
+          "description": "The apps whose namespaces may reach spec.port, by their studio.jterrazz.com/app label, or [all].",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+          },
+          "uniqueItems": true
+        },
+        "health": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "livenessPath": {
+              "type": "string"
+            },
+            "exec": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "environment": {
+      "description": "A partial spec, merged over `spec`, plus the branch CI deploys it from.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "image": {
+          "$ref": "#/definitions/spec/properties/image"
+        },
+        "port": {
+          "$ref": "#/definitions/spec/properties/port"
+        },
+        "servicePort": {
+          "$ref": "#/definitions/spec/properties/servicePort"
+        },
+        "replicas": {
+          "$ref": "#/definitions/spec/properties/replicas"
+        },
+        "command": {
+          "$ref": "#/definitions/spec/properties/command"
+        },
+        "args": {
+          "$ref": "#/definitions/spec/properties/args"
+        },
+        "strategy": {
+          "$ref": "#/definitions/spec/properties/strategy"
+        },
+        "resources": {
+          "$ref": "#/definitions/spec/properties/resources"
+        },
+        "storage": {
+          "$ref": "#/definitions/spec/properties/storage"
+        },
+        "configFiles": {
+          "$ref": "#/definitions/spec/properties/configFiles"
+        },
+        "secretMounts": {
+          "$ref": "#/definitions/spec/properties/secretMounts"
+        },
+        "dashboards": {
+          "$ref": "#/definitions/spec/properties/dashboards"
+        },
+        "alerts": {
+          "$ref": "#/definitions/spec/properties/alerts"
+        },
+        "securityContext": {
+          "$ref": "#/definitions/spec/properties/securityContext"
+        },
+        "runAsRoot": {
+          "$ref": "#/definitions/spec/properties/runAsRoot"
+        },
+        "env": {
+          "$ref": "#/definitions/spec/properties/env"
+        },
+        "secrets": {
+          "$ref": "#/definitions/spec/properties/secrets"
+        },
+        "ingress": {
+          "$ref": "#/definitions/spec/properties/ingress"
+        },
+        "network": {
+          "$ref": "#/definitions/spec/properties/network"
+        },
+        "uses": {
+          "$ref": "#/definitions/spec/properties/uses"
+        },
+        "serves": {
+          "$ref": "#/definitions/spec/properties/serves"
+        },
+        "health": {
+          "$ref": "#/definitions/spec/properties/health"
+        },
+        "branch": {
+          "description": "Read by app CI alone: main deploys on a push to main, next on a version tag, anything else is an image tag a dispatch pins.",
+          "type": "string"
+        }
+      }
+    }
+  }
+}

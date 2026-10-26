@@ -2,11 +2,11 @@ suite: undeclared environment renders NOTHING (chart 2.x behaviour)
 # hazard: an undeclared environment renders an empty release, which `helm upgrade` applies by
 # deleting everything; pinned, not endorsed (ADR-010).
 tests:
-  - it: renders zero manifests with the chart's own default values
+  - it: refuses the chart's own default values, which declare no environment
     # outside: no values at all, which is why ci/test-values.yaml IS the contract.
     asserts:
-      - hasDocuments:
-          count: 0
+      - failedTemplate:
+          errorPattern: "at '/environments': minProperties: got 0, want 1"
 
   - it: renders zero manifests for an environment that is not declared
     values:

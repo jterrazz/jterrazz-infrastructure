@@ -2,6 +2,10 @@
 # default values render nothing; `prod` is the realistic app shape kubeconform renders,
 # `staging` the mutually exclusive arm of every switch, rendered by the unit tests.
 
+# invariant: the header every application.yaml carries; the schema pins both.
+apiVersion: studio.jterrazz.com/v1
+kind: Application
+
 metadata:
   name: ci-test-app
 
@@ -151,11 +155,11 @@ spec:
 
 environments:
   prod:
-    tag: main
+    branch: main
     replicas: 1
   # invariant: THE DATASTORE SHAPE: the other arm of every switch prod takes.
   staging:
-    tag: main
+    branch: main
     replicas: 1
     runAsRoot: true
     resources:
