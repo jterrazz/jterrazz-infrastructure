@@ -57,7 +57,7 @@ network:
   ingress:
     - from: traefik
       ports: [8080]
-    - from: any-namespace-pods:platform-client.jterrazz.com/ci-test=true
+    - from: namespace-label:studio.jterrazz.com/app=ci-test-client,ci-test-other
       ports: [8080]
   egress:
     # outside: bare 53 is TCP, the Kubernetes default.

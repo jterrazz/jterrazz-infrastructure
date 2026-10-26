@@ -4,15 +4,15 @@ IngressRoute: path (after any stripPrefix), expect (comma-separated codes, never
 Input dict: probe, path, expect, location, method. */}}
 {{- define "common.smokeAnnotations" -}}
 {{- if and (hasKey . "probe") (not .probe) -}}
-smoke.jterrazz.com/probe: "false"
+studio.jterrazz.com/smoke-probe: "false"
 {{- else -}}
-smoke.jterrazz.com/path: {{ .path | toString | quote }}
-smoke.jterrazz.com/expect: {{ .expect | toString | quote }}
+studio.jterrazz.com/smoke-path: {{ .path | toString | quote }}
+studio.jterrazz.com/smoke-expect: {{ .expect | toString | quote }}
 {{- if .location }}
-smoke.jterrazz.com/location: {{ .location | toString | quote }}
+studio.jterrazz.com/smoke-location: {{ .location | toString | quote }}
 {{- end }}
 {{- if .method }}
-smoke.jterrazz.com/method: {{ .method | toString | quote }}
+studio.jterrazz.com/smoke-method: {{ .method | toString | quote }}
 {{- end }}
 {{- end -}}
 {{- end -}}

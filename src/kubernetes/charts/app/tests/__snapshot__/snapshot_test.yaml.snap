@@ -299,8 +299,8 @@ matches the recorded render of the CI fixture:
     metadata:
       annotations:
         external-dns.alpha.kubernetes.io/target: tunnel.jterrazz.com
-        smoke.jterrazz.com/expect: "200"
-        smoke.jterrazz.com/path: /api/health
+        studio.jterrazz.com/smoke-expect: "200"
+        studio.jterrazz.com/smoke-path: /api/health
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
@@ -324,8 +324,8 @@ matches the recorded render of the CI fixture:
     kind: IngressRoute
     metadata:
       annotations:
-        smoke.jterrazz.com/expect: "200"
-        smoke.jterrazz.com/path: /health
+        studio.jterrazz.com/smoke-expect: "200"
+        studio.jterrazz.com/smoke-path: /health
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
@@ -349,7 +349,7 @@ matches the recorded render of the CI fixture:
     metadata:
       annotations:
         external-dns.alpha.kubernetes.io/target: tunnel.jterrazz.com
-        smoke.jterrazz.com/probe: "false"
+        studio.jterrazz.com/smoke-probe: "false"
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
@@ -388,9 +388,9 @@ matches the recorded render of the CI fixture:
     metadata:
       annotations:
         external-dns.alpha.kubernetes.io/target: tunnel.jterrazz.com
-        smoke.jterrazz.com/expect: "301"
-        smoke.jterrazz.com/location: https://ci-test-app.jterrazz.com/
-        smoke.jterrazz.com/path: /
+        studio.jterrazz.com/smoke-expect: "301"
+        studio.jterrazz.com/smoke-location: https://ci-test-app.jterrazz.com/
+        studio.jterrazz.com/smoke-path: /
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
@@ -431,9 +431,9 @@ matches the recorded render of the CI fixture:
     metadata:
       annotations:
         external-dns.alpha.kubernetes.io/target: tunnel.jterrazz.com
-        smoke.jterrazz.com/expect: "301"
-        smoke.jterrazz.com/location: https://ci-test-app.jterrazz.com/moved
-        smoke.jterrazz.com/path: /
+        studio.jterrazz.com/smoke-expect: "301"
+        studio.jterrazz.com/smoke-location: https://ci-test-app.jterrazz.com/moved
+        studio.jterrazz.com/smoke-path: /
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
@@ -457,8 +457,8 @@ matches the recorded render of the CI fixture:
     kind: IngressRoute
     metadata:
       annotations:
-        smoke.jterrazz.com/expect: 204,200
-        smoke.jterrazz.com/path: /ready
+        studio.jterrazz.com/smoke-expect: 204,200
+        studio.jterrazz.com/smoke-path: /ready
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME
@@ -497,9 +497,9 @@ matches the recorded render of the CI fixture:
     metadata:
       annotations:
         external-dns.alpha.kubernetes.io/target: tunnel.jterrazz.com
-        smoke.jterrazz.com/expect: "401"
-        smoke.jterrazz.com/method: POST
-        smoke.jterrazz.com/path: /api/track
+        studio.jterrazz.com/smoke-expect: "401"
+        studio.jterrazz.com/smoke-method: POST
+        studio.jterrazz.com/smoke-path: /api/track
       labels:
         app: ci-test-app
         app.kubernetes.io/instance: RELEASE-NAME

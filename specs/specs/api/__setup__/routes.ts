@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { isKubeList, kubectlList } from '../../__setup__/kubectl.ts';
 import type { KubeList, KubeObject } from '../../__setup__/kubectl.ts';
 
-/** What one route's smoke contract asks of its host, read off its `smoke.jterrazz.com/*` annotations. */
+/** What one route's smoke contract asks of its host, read off its `studio.jterrazz.com/smoke-*` annotations. */
 export type Probe = {
     expect: number[];
     location: string | undefined;
@@ -27,7 +27,7 @@ type IngressRoute = KubeObject & {
     spec?: { entryPoints?: string[]; routes?: { match?: string }[] };
 };
 
-const ANNOTATION = 'smoke.jterrazz.com/';
+const ANNOTATION = 'studio.jterrazz.com/smoke-';
 const HOST = /Host\(`(?<host>[^`]+)`\)/gu;
 
 // invariant: the entrypoint is the enforcement; the zones catch a private host put on the tunnel.

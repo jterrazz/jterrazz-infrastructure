@@ -7,7 +7,7 @@ describe('public', () => {
     test.each(publicRoutes)(
         '$host$probe.path answers its contract ($origin, $contract)',
         async (route) => {
-            // Given - a public route, asked what its smoke.jterrazz.com/* annotations say, through the Cloudflare tunnel
+            // Given - a public route, asked what its studio.jterrazz.com/smoke-* annotations say, through the Cloudflare tunnel
             const result = await exchange(api, route);
 
             // Then - a status the contract accepts, and the Location it names; a redirect is the answer, never followed

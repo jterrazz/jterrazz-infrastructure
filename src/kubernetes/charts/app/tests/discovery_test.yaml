@@ -65,4 +65,4 @@ tests:
         prod: {}
     asserts:
       - failedTemplate:
-          errorMessage: 'network: unknown peer "namesapce:platform-telemetry" (valid: traefik, any-namespace, internet, anywhere, namespace:<ns>, pods:<key>=<value>, any-namespace-pods:<key>=<value>)'
+          errorMessage: 'network: unknown peer "namesapce:platform-telemetry" (valid: traefik, any-namespace, internet, anywhere, namespace:<ns>, pods:<key>=<value>, any-namespace-pods:<key>=<value>, namespace-label:<key>=<value>[,<value>...])'

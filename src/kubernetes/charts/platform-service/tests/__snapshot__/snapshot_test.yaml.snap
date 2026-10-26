@@ -103,8 +103,8 @@ matches the recorded render of the CI fixture:
     kind: IngressRoute
     metadata:
       annotations:
-        smoke.jterrazz.com/expect: "401"
-        smoke.jterrazz.com/path: /v2/
+        studio.jterrazz.com/smoke-expect: "401"
+        studio.jterrazz.com/smoke-path: /v2/
       labels:
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: ci-test-service
@@ -167,10 +167,13 @@ matches the recorded render of the CI fixture:
           ports:
             - port: 8080
         - from:
-            - namespaceSelector: {}
-              podSelector:
-                matchLabels:
-                  platform-client.jterrazz.com/ci-test: "true"
+            - namespaceSelector:
+                matchExpressions:
+                  - key: studio.jterrazz.com/app
+                    operator: In
+                    values:
+                      - ci-test-client
+                      - ci-test-other
           ports:
             - port: 8080
       podSelector:

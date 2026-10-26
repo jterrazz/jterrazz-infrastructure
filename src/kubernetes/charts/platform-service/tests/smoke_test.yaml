@@ -10,8 +10,8 @@ tests:
       - equal:
           path: metadata.annotations
           value:
-            smoke.jterrazz.com/path: /v2/
-            smoke.jterrazz.com/expect: "401"
+            studio.jterrazz.com/smoke-path: /v2/
+            studio.jterrazz.com/smoke-expect: "401"
 
   - it: "falls back to `/` and 200 when the service declares nothing"
     # invariant: values.yaml owns the defaults, so no `smoke:` block still ships a contract.
@@ -22,8 +22,8 @@ tests:
       - equal:
           path: metadata.annotations
           value:
-            smoke.jterrazz.com/path: /
-            smoke.jterrazz.com/expect: "200"
+            studio.jterrazz.com/smoke-path: /
+            studio.jterrazz.com/smoke-expect: "200"
 
   - it: quotes a numeric expect, so the annotation is a string
     # outside: annotations are strings; an unquoted 401 fails the apply.
@@ -34,5 +34,5 @@ tests:
         expect: 401
     asserts:
       - equal:
-          path: metadata.annotations["smoke.jterrazz.com/expect"]
+          path: metadata.annotations["studio.jterrazz.com/smoke-expect"]
           value: "401"

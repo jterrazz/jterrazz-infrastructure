@@ -68,6 +68,18 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ trimPrefix "namespace:" $peer }}
+{{- else if hasPrefix "namespace-label:" $peer }}
+{{- /* invariant: the namespace's label, which only the namespace's owner sets: a pod label
+       would let any workload in the cluster claim a client's identity (ADR-029). */}}
+{{- $pair := splitn "=" 2 (trimPrefix "namespace-label:" $peer) }}
+    - namespaceSelector:
+        matchExpressions:
+          - key: {{ $pair._0 }}
+            operator: In
+            values:
+              {{- range splitList "," $pair._1 }}
+              - {{ . | quote }}
+              {{- end }}
 {{- else if hasPrefix "any-namespace-pods:" $peer }}
 {{- $pair := splitn "=" 2 (trimPrefix "any-namespace-pods:" $peer) }}
     - namespaceSelector: {}
@@ -80,7 +92,7 @@ spec:
         matchLabels:
           {{ $pair._0 }}: {{ $pair._1 | quote }}
 {{- else }}
-{{- fail (printf "network: unknown peer %q (valid: traefik, any-namespace, internet, anywhere, namespace:<ns>, pods:<key>=<value>, any-namespace-pods:<key>=<value>)" $peer) }}
+{{- fail (printf "network: unknown peer %q (valid: traefik, any-namespace, internet, anywhere, namespace:<ns>, pods:<key>=<value>, any-namespace-pods:<key>=<value>, namespace-label:<key>=<value>[,<value>...])" $peer) }}
 {{- end }}
 {{- if $rule.ports }}
   ports:

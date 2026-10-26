@@ -31,16 +31,17 @@ tests:
             ports:
               - port: 8080
 
-  - it: "`any-namespace-pods:` ANDs a namespace-wide selector with a pod label"
-    # invariant: one peer element; two would be an OR admitting any pod anywhere.
+  - it: "`namespace-label:` admits the namespaces whose label is one of the listed values"
+    # invariant: a namespace label, which only the namespace's owner sets, never a pod label.
     asserts:
       - equal:
           path: spec.ingress[1].from
           value:
-            - namespaceSelector: {}
-              podSelector:
-                matchLabels:
-                  platform-client.jterrazz.com/ci-test: "true"
+            - namespaceSelector:
+                matchExpressions:
+                  - key: studio.jterrazz.com/app
+                    operator: In
+                    values: [ci-test-client, ci-test-other]
 
   - it: "`<port>/<PROTO>` spells a protocol out; a bare port is TCP by default"
     # invariant: protocol left unwritten so the object matches what the API server stores.
@@ -110,7 +111,7 @@ tests:
         - to: namespcae:platform-telemetry
     asserts:
       - failedTemplate:
-          errorMessage: 'network: unknown peer "namespcae:platform-telemetry" (valid: traefik, any-namespace, internet, anywhere, namespace:<ns>, pods:<key>=<value>, any-namespace-pods:<key>=<value>)'
+          errorMessage: 'network: unknown peer "namespcae:platform-telemetry" (valid: traefik, any-namespace, internet, anywhere, namespace:<ns>, pods:<key>=<value>, any-namespace-pods:<key>=<value>, namespace-label:<key>=<value>[,<value>...])'
 
   - it: hard-fails a network block with no podSelector
     set:

@@ -20,8 +20,8 @@ tests:
           path: metadata.annotations
           value:
             external-dns.alpha.kubernetes.io/target: tunnel.jterrazz.com
-            smoke.jterrazz.com/path: /api/health
-            smoke.jterrazz.com/expect: "200"
+            studio.jterrazz.com/smoke-path: /api/health
+            studio.jterrazz.com/smoke-expect: "200"
         documentSelector:
           path: metadata.name
           value: api-0
@@ -39,7 +39,7 @@ tests:
             - { host: api.example.com, public: true }
     asserts:
       - equal:
-          path: metadata.annotations["smoke.jterrazz.com/path"]
+          path: metadata.annotations["studio.jterrazz.com/smoke-path"]
           value: /v1/models
         documentIndex: 0
 
@@ -58,9 +58,9 @@ tests:
           path: metadata.annotations
           value:
             external-dns.alpha.kubernetes.io/target: tunnel.jterrazz.com
-            smoke.jterrazz.com/path: /
-            smoke.jterrazz.com/expect: "301"
-            smoke.jterrazz.com/location: https://new.example.com/
+            studio.jterrazz.com/smoke-path: /
+            studio.jterrazz.com/smoke-expect: "301"
+            studio.jterrazz.com/smoke-location: https://new.example.com/
         documentIndex: 1
 
   - it: drops the trailing slash from the Location when preservePath is false
@@ -74,7 +74,7 @@ tests:
             - { host: old.example.com, public: true, redirectTo: "https://new.example.com/here", preservePath: false }
     asserts:
       - equal:
-          path: metadata.annotations["smoke.jterrazz.com/location"]
+          path: metadata.annotations["studio.jterrazz.com/smoke-location"]
           value: https://new.example.com/here
         documentIndex: 1
 
@@ -93,7 +93,7 @@ tests:
           path: metadata.annotations
           value:
             external-dns.alpha.kubernetes.io/target: tunnel.jterrazz.com
-            smoke.jterrazz.com/probe: "false"
+            studio.jterrazz.com/smoke-probe: "false"
         documentIndex: 0
 
   - it: "`smoke: false` opts any route out"
@@ -107,11 +107,11 @@ tests:
             - { host: api.example.com, public: true, smoke: false }
     asserts:
       - equal:
-          path: metadata.annotations["smoke.jterrazz.com/probe"]
+          path: metadata.annotations["studio.jterrazz.com/smoke-probe"]
           value: "false"
         documentIndex: 0
       - notExists:
-          path: metadata.annotations["smoke.jterrazz.com/path"]
+          path: metadata.annotations["studio.jterrazz.com/smoke-path"]
         documentIndex: 0
 
   - it: "`smoke: { path, expect }` overrides the derived contract"
@@ -121,8 +121,8 @@ tests:
       - equal:
           path: metadata.annotations
           value:
-            smoke.jterrazz.com/path: /ready
-            smoke.jterrazz.com/expect: "204,200"
+            studio.jterrazz.com/smoke-path: /ready
+            studio.jterrazz.com/smoke-expect: "204,200"
         documentSelector:
           path: metadata.name
           value: ci-test-app-5
@@ -145,6 +145,6 @@ tests:
           path: metadata.annotations
           value:
             external-dns.alpha.kubernetes.io/target: tunnel.jterrazz.com
-            smoke.jterrazz.com/path: /mcp/ping
-            smoke.jterrazz.com/expect: "200"
+            studio.jterrazz.com/smoke-path: /mcp/ping
+            studio.jterrazz.com/smoke-expect: "200"
         documentIndex: 0
