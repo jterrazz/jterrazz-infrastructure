@@ -880,10 +880,11 @@
           "uid": "victoria-metrics"
         },
         "query": {
-          "query": "label_values(kube_pod_container_info, namespace)",
+          "query": "query_result(max by (namespace) (kube_pod_container_info))",
           "refId": "ns"
         },
-        "definition": "label_values(kube_pod_container_info, namespace)",
+        "definition": "query_result(max by (namespace) (kube_pod_container_info))",
+        "regex": "/namespace=\"([^\"]+)\"/",
         "refresh": 2,
         "sort": 1,
         "current": {
@@ -900,10 +901,11 @@
           "uid": "victoria-metrics"
         },
         "query": {
-          "query": "label_values(kube_pod_container_info{namespace=\"$namespace\"}, container)",
+          "query": "query_result(max by (container) (kube_pod_container_info{namespace=\"$namespace\"}))",
           "refId": "c"
         },
-        "definition": "label_values(kube_pod_container_info{namespace=\"$namespace\"}, container)",
+        "definition": "query_result(max by (container) (kube_pod_container_info{namespace=\"$namespace\"}))",
+        "regex": "/container=\"([^\"]+)\"/",
         "refresh": 2,
         "sort": 1
       }

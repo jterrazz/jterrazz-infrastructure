@@ -1088,11 +1088,11 @@
         "includeAll": true,
         "allValue": ".+",
         "query": {
-          "query": "label_values(traefik_service_requests_total, service)",
+          "query": "query_result(sum by (service) (increase(traefik_service_requests_total[$__range])) > 0)",
           "refId": "ns"
         },
-        "definition": "label_values(traefik_service_requests_total, service)",
-        "regex": "/^(platform-[a-z]+|.+?-(?:prod|staging))-/",
+        "definition": "query_result(sum by (service) (increase(traefik_service_requests_total[$__range])) > 0)",
+        "regex": "/service=\"(platform-[a-z]+|.+?-(?:prod|staging))-/",
         "refresh": 2,
         "sort": 1,
         "current": {
