@@ -1,4 +1,4 @@
-suite: undeclared environment renders NOTHING (chart 2.x behaviour)
+suite: an environment renders only when the manifest declares it
 # hazard: an undeclared environment renders an empty release, which `helm upgrade` applies by
 # deleting everything; pinned, not endorsed (ADR-010).
 tests:

@@ -1,0 +1,162 @@
+suite: "the app's NetworkPolicy: the derived rules, isolation, and the peers it declares"
+# invariant: an app configures nothing for Traefik, DNS and the internet; `spec.network` adds peers,
+# and `isolated` (the fixture's `staging`, a datastore) drops the two derived rules (ADR-011).
+tests:
+  - it: opens the app port to every peer in spec.network.exposeTo
+    templates:
+      - templates/network-policy.yaml
+    set:
+      metadata.name: api
+      environment: prod
+      spec:
+        image: r/api:1
+        port: 8317
+        network:
+          exposeTo:
+            - namespace:platform-telemetry
+      environments:
+        prod: {}
+    asserts:
+      # outside: [0] is the unconditional Traefik rule; the declared peers follow it.
+      - equal:
+          path: spec.ingress[1]
+          value:
+            from:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: platform-telemetry
+            ports:
+              - port: 8317
+
+  - it: hard-fails an exposeTo peer outside the vocabulary
+    # hazard: a typo'd peer would render a policy that silently admits nothing.
+    templates:
+      - templates/network-policy.yaml
+    set:
+      metadata.name: api
+      environment: prod
+      spec:
+        image: r/api:1
+        network:
+          exposeTo:
+            - namesapce:platform-telemetry
+      environments:
+        prod: {}
+    asserts:
+      - failedTemplate:
+          errorMessage: 'network: unknown peer "namesapce:platform-telemetry" (valid: traefik, any-namespace, internet, anywhere, namespace:<ns>, pods:<key>=<value>, namespace-label:<key>=<value>[,<value>...])'
+
+  - it: isolated drops the Traefik ingress rule and the internet egress rule
+    values:
+      - ../ci/test-values.yaml
+    # invariant: nothing reaches an unauthenticated datastore and it dials nothing.
+    set:
+      environment: staging
+    templates:
+      - templates/network-policy.yaml
+    asserts:
+      - notContains:
+          path: spec.ingress
+          content:
+            from:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: kube-system
+            ports:
+              - port: 3000
+      - notContains:
+          path: spec.egress
+          content:
+            to:
+              - ipBlock:
+                  cidr: 0.0.0.0/0
+                  except:
+                    - 10.0.0.0/8
+                    - 172.16.0.0/12
+                    - 192.168.0.0/16
+                    - 100.64.0.0/10
+                    - 198.19.0.0/16
+                    - 169.254.0.0/16
+
+  - it: admits a same-namespace pod label and nothing wider
+    values:
+      - ../ci/test-values.yaml
+    # invariant: `pods:` means this namespace alone; a pod label is no identity across namespaces.
+    set:
+      environment: staging
+    templates:
+      - templates/network-policy.yaml
+    # value: selects the app's own policy; `<app>-cronjobs` also renders.
+    documentSelector:
+      path: metadata.name
+      value: ci-test-app
+    asserts:
+      - contains:
+          path: spec.ingress
+          content:
+            from:
+              - podSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: ci-test-worker
+            ports:
+              - port: 3000
+
+  - it: keeps DNS egress and the declared rules under isolation
+    values:
+      - ../ci/test-values.yaml
+    set:
+      environment: staging
+    templates:
+      - templates/network-policy.yaml
+    asserts:
+      - contains:
+          path: spec.egress
+          content:
+            to:
+              - namespaceSelector: {}
+            ports:
+              - port: 53
+                protocol: UDP
+              - port: 53
+      - contains:
+          path: spec.egress
+          content:
+            to:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: platform-analytics
+            ports:
+              - port: 5432
+
+  - it: keeps the derived Traefik ingress and internet egress for an app
+    values:
+      - ../ci/test-values.yaml
+    templates:
+      - templates/network-policy.yaml
+    # value: selects the app's own policy; `<app>-cronjobs` also renders.
+    documentSelector:
+      path: metadata.name
+      value: ci-test-app
+    asserts:
+      - contains:
+          path: spec.ingress
+          content:
+            from:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: kube-system
+            ports:
+              - port: 3000
+      - contains:
+          path: spec.egress
+          content:
+            to:
+              - ipBlock:
+                  cidr: 0.0.0.0/0
+                  except:
+                    - 10.0.0.0/8
+                    - 172.16.0.0/12
+                    - 192.168.0.0/16
+                    - 100.64.0.0/10
+                    - 198.19.0.0/16
+                    - 169.254.0.0/16

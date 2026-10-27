@@ -1,0 +1,54 @@
+suite: the repository an app is deployed from, stamped where the cluster reads it back
+# invariant: `make redeploy-apps` reads the Deployment's annotation, the ownership policy the PV's
+# label: the stamps that spare a list of apps outside the cluster (ADR-016, ADR-017).
+tests:
+  - it: annotates the Deployment with the repo CI passed
+    templates:
+      - templates/deployment.yaml
+    values:
+      - ../ci/test-values.yaml
+    asserts:
+      - equal:
+          path: metadata.annotations["studio.jterrazz.com/repository"]
+          value: jterrazz/ci-test-app
+
+  - it: leaves the Deployment unannotated when CI passed no repository
+    # hazard: a missing meta.repository must be reported missing, never guessed.
+    templates:
+      - templates/deployment.yaml
+    values:
+      - ../ci/test-values.yaml
+    set:
+      meta.repository: ""
+    asserts:
+      - notExists:
+          path: metadata.annotations["studio.jterrazz.com/repository"]
+
+  - it: labels the PV with the bare repository name
+    # invariant: the ownership policy judges a PV by this label alone; `owner/name` is no valid
+    # label value.
+    templates:
+      - templates/storage.yaml
+    values:
+      - ../ci/test-values.yaml
+    documentSelector:
+      path: kind
+      value: PersistentVolume
+    asserts:
+      - equal:
+          path: metadata.labels["studio.jterrazz.com/repository"]
+          value: ci-test-app
+
+  - it: leaves the PV label off when CI passes no repository
+    templates:
+      - templates/storage.yaml
+    values:
+      - ../ci/test-values.yaml
+    set:
+      meta.repository: ""
+    documentSelector:
+      path: kind
+      value: PersistentVolume
+    asserts:
+      - notExists:
+          path: metadata.labels["studio.jterrazz.com/repository"]
