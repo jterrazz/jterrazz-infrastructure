@@ -56,10 +56,6 @@
         "release"
       ]
     },
-    "branch": {
-      "description": "Retired for `deploy`; accepted until every app has moved (7.0.0 removes it).",
-      "type": "string"
-    },
     "environment": {
       "description": "Set by CI: the key of `environments` to render, or `shared`.",
       "type": "string"
@@ -92,17 +88,8 @@
     ]
   },
   "then": {
-    "anyOf": [
-      {
-        "required": [
-          "deploy"
-        ]
-      },
-      {
-        "required": [
-          "branch"
-        ]
-      }
+    "required": [
+      "deploy"
     ],
     "properties": {
       "environments": {
@@ -576,10 +563,6 @@
             "push",
             "release"
           ]
-        },
-        "branch": {
-          "description": "Retired for `deploy`; accepted until every app has moved (7.0.0 removes it).",
-          "type": "string"
         }
       }
     }

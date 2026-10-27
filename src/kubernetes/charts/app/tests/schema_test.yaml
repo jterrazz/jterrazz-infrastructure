@@ -72,6 +72,13 @@ tests:
       - failedTemplate:
           errorPattern: "at '/deploy': false schema"
 
+  - it: refuses the retired branch, which deploy replaced
+    set:
+      environments.prod.branch: main
+    asserts:
+      - failedTemplate:
+          errorPattern: "at '/environments/prod': additional properties 'branch' not allowed"
+
   - it: refuses a deploy other than push or release
     set:
       environments.prod.deploy: main
@@ -95,4 +102,4 @@ tests:
       environments: null
     asserts:
       - failedTemplate:
-          errorPattern: "missing property 'deploy'"
+          errorPattern: "at '': missing property 'deploy'"
