@@ -138,7 +138,8 @@ with its repository.
 ## Backups
 
 The node snapshots every persistent volume but the registry each Sunday at
-03:30, stopping the workloads for about a minute, encrypted with age to a
+03:30, stopping every workload for two to four minutes
+([TODO](../../TODO.md)), encrypted with age to a
 public key, into `~/.studio-infrastructure/backups/`, the four newest kept
 ([ADR-024](../decisions/024-backups-are-weekly-consistent-and-encrypted-to-a-public-key.md)).
 `make backup` takes one now; `make backup ARGS=--verify` decrypts the newest
@@ -162,7 +163,7 @@ data/
 ├── victoria-metrics/ · victoria-logs/ · victoria-traces/
 ├── registry/zot/        Zot's OCI store
 ├── openpanel/           postgres/ · clickhouse/ · redis/
-└── <app>-<env>/         one per app volume, from the app chart
+└── <app>-<env>/         one per app volume, from the app chart (<app>/ when shared)
 ```
 
 Grafana's volume lives in the VM (`/var/lib/grafana-node-local`), and a repave
@@ -284,7 +285,7 @@ upstream chart, else the app chart; a raw manifest is the last resort.
    `version:`; the `<svc>-platform` sibling inherits the `platform`
    template. That block is the whole declaration.
 4. **Route**: `access` defaults to `private`, under `*.internal`. A public zone is
-   [three steps](develop.md#dns-has-exactly-three-owners). Add `smoke:` only
+   [two steps](develop.md#dns-has-exactly-three-owners). Add `smoke:` only
    when `GET /` does not answer 200.
 5. **Network**: a `network:` block in `service.yaml` for an upstream chart, with
    the pod labels read off the running pods; `spec.network` for an app-chart

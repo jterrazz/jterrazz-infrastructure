@@ -7,8 +7,8 @@ kinds, then the catalog. Vendoring keeps the check that `-ignore-missing-schemas
 or `-skip` would drop. Layout: `<kind>_<version>.json`, kubeconform's
 `{{.ResourceKind}}_{{.ResourceAPIVersion}}.json`.
 
-| File | Tracks | Why it is here |
-| ---- | ------ | -------------- |
+| File                            | Tracks                                                           | Why it is here                                                                                                                                             |
+| ------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `infisicalsecret_v1alpha1.json` | the `infisical` release in `src/kubernetes/helmfile.yaml.gotmpl` | the catalog sets `additionalProperties: false` everywhere; the operator's CRD does not, and the API server prunes unknown fields rather than refusing them |
 
 ## Regenerating

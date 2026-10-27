@@ -10,7 +10,7 @@ helm upgrade --install <app>-<env> oci://registry.internal.jterrazz.com/charts/a
   -n <app>-<env> \
   -f .infrastructure/application.yaml \
   --set environment=<env> \
-  --set spec.image=registry.internal.jterrazz.com/<app>:<tag> \
+  --set spec.image=registry.internal.jterrazz.com/<app>@<digest> \
   --set meta.repository=<owner>/<repo>
 ```
 

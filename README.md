@@ -1,4 +1,4 @@
-# @jterrazz/infrastructure
+# studio-infrastructure
 
 One cluster on one machine: single-node k3s on an OrbStack VM on the dev Mac.
 Public traffic enters through an outbound Cloudflare tunnel, private traffic

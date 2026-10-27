@@ -3,7 +3,7 @@ name: studio-infrastructure
 description: "Infrastructure and deployment for jterrazz projects: k3s, Helm, Traefik, CI/CD deploy. Use when deploying apps, configuring Kubernetes, adding domains, or troubleshooting infra."
 ---
 
-# @jterrazz Infrastructure
+# studio-infrastructure
 
 One k3s cluster on one machine: an OrbStack VM (`studio-infrastructure`,
 Debian 13 trixie, arm64) on the dev Mac, in the `studio-infrastructure`
@@ -29,7 +29,7 @@ repositories and deploy themselves, as their GitHub OIDC identity, through the
 | Secrets, troubleshooting, repave, restore         | `docs/guides/operate.md`              |
 | What proves a change, and what a deploy proves    | `docs/guides/test.md`                 |
 | Why a choice was made                             | `docs/decisions/`                     |
-| Dashboards and alert rules                        | the `studio-observability` skill    |
+| Dashboards and alert rules                        | the `studio-observability` skill      |
 
 ## Commands
 
@@ -56,7 +56,7 @@ orb -m studio-infrastructure -u root kubectl get pod -A   # cluster access from 
   `deployment_target`).
 - **Never `kubectl create ns`**: platform namespaces are declared in
   `src/kubernetes/charts/cluster/values.yaml`, and an app's are created by its
-  deploy as `<app>-<env>`.
+  deploy as `<app>-<env>`, or `<app>` for a shared app.
 - **Never name an app after anything but its owner**: `<brand>-<role>`
   (`studio-console`, `signews-api`), one name for its release, image,
   volume, data directory and Infisical folder (ADR-023).

@@ -3,7 +3,7 @@ name: studio-observability
 description: "Grafana dashboards and alert rules for jterrazz apps and the platform: the kinds, the derived identity, the shared infrastructure dashboards, LogsQL and PromQL against the Victoria stores. Use when creating, changing or reviewing a dashboard or an alert rule, in an app repository's .infrastructure/ or in studio-infrastructure's."
 ---
 
-# @jterrazz Observability
+# studio-observability
 
 Every repository ships its dashboards as `.infrastructure/dashboards/<kind>.json`
 and its alert rules as `.infrastructure/alerts/<name>.yaml`; app CI hands them to
@@ -41,7 +41,7 @@ metrics) is the `studio-telemetry` skill's, not this one's.
 
 ## Where to read
 
-| Need                                                 | Read (in studio-infrastructure)                                                    |
+| Need                                                 | Read (in studio-infrastructure)                                                      |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | Why the rules are what they are                      | `docs/decisions/027-a-dashboard-answers-one-audience-and-its-identity-is-derived.md` |
 | The layout of `.infrastructure/`, and why            | `docs/decisions/025-dashboards-and-alerts-ship-as-files-in-dot-infrastructure.md`    |

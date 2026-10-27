@@ -215,7 +215,7 @@ out.
 `dashboards` maps a kind to dashboard JSON; each entry renders
 `ConfigMap dashboard-<kind>`, labelled `grafana_dashboard: "1"` and filed in
 Grafana's `studio-infrastructure` folder, its identity derived by the same
-`common.dashboards` an app's goes through (uid `infrastructure-<kind>`,
+`common.dashboards` an app's goes through (uid `studio-infrastructure-<kind>`,
 [ADR-027](../../../../docs/decisions/027-a-dashboard-answers-one-audience-and-its-identity-is-derived.md)). `alerts` maps a name to an alert
 provisioning document; all of them render one `ConfigMap <name>-alerts`,
 labelled `grafana_alert: "1"` and checked by the same `common.alerts` an app's

@@ -26,7 +26,7 @@ bringing a rented one back is [Resurrect Hetzner](../guides/resurrect-hetzner.md
 | Host              | the VM itself: `roles/{base,security,resolved,tailscale,k3s,backup}`                                                                                                                                                                                                      | `make deploy`, from the Mac only                |
 | Cluster           | the `cluster` release, `src/kubernetes/charts/cluster`: the platform namespaces and their NetworkPolicy baselines, the `manual` StorageClass, the RBAC, the two admission policies, Traefik's shared objects; plus Traefik's bundled config and CoreDNS (`roles/cluster`) | the first helmfile release, and `roles/cluster` |
 | Platform services | `src/kubernetes/services/<svc>/`, one helmfile release per values file                                                                                                                                                                                                    | CI on merge, or `make deploy-platform`          |
-| Apps              | each app's own repository, through `charts/app`, into `<app>-<env>` namespaces it creates                                                                                                                                                                                 | each app's own pipeline                         |
+| Apps              | each app's own repository, through `charts/app`, into the `<app>-<env>` namespaces it creates, or one `<app>` for a shared app                                                                                                                                            | each app's own pipeline                         |
 
 Every file under `src/kubernetes/services/<svc>/` is a values file named after
 the chart that consumes it: `values.yaml` for an upstream chart, `service.yaml`
@@ -133,7 +133,7 @@ src/
 │                   schemas/                a vendored kubeconform CRD schema
 └── scripts/        deploy.sh · helmfile.sh · backup.sh · redeploy-apps.sh · lib/
 specs/specs/        the platform contract on @jterrazz/test (ADR-022): api · cluster · health
-                    · routes · admission · host
+                    · admission · host
 docs/               this manual and its decisions
 skills/             the agent skill other repositories load
 ```

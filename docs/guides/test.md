@@ -74,26 +74,26 @@ probed today with no edit here.
 
 `specs/` is a TypeScript project of its own, its suite under `specs/specs/`:
 
-| Specs                                             | Proves                                                                                                                        | Runs from                |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
-| `api/routes/public.spec.ts`                       | every public route answers its contract through the tunnel, a redirect its `Location`                                         | either vantage           |
-| `api/routes/private.spec.ts`                      | every tailnet-only route answers its contract                                                                                 | the tailnet              |
-| `api/certificates/{public,private}`               | every host presents a trusted certificate that covers it, 15 days or more from expiry                                         | the host's vantage       |
-| `api/boundary/internet.spec.ts`                   | a private host never answers, and a public host refuses a request naming a private one                                        | the internet only        |
-| `cluster/rbac/secrets.test.ts`                    | exactly the allow-listed service accounts may list Secrets cluster-wide                                                       | the API server           |
-| `cluster/rbac/github-actions.test.ts`             | the app deployers may create namespaces, and neither list Secrets nor exec anywhere                                           | the API server           |
-| `cluster/traefik/service.test.ts`                 | no Service holds a nodePort, and Traefik admits `100.64.0.0/10` alone                                                         | the API server           |
-| `cluster/traefik/entrypoints.test.ts`             | every route sits on `tunnel` or `websecure` alone, no private host on the tunnel, a route published exactly when public       | the API server           |
-| `cluster/namespaces/ownership.test.ts`            | every namespace states its tier; a platform one is `platform-*`, an app one `<app>-<env>` with its repository and environment | the API server           |
-| `cluster/network-policies/`                       | every NetworkPolicy selects pods some controller creates, and every peer it names exists                                      | the API server           |
-| `health/workloads/ready.test.ts`                  | every controller runs as many ready pods as it asks for, and every CronJob's last run succeeded                               | the API server           |
-| `health/services/endpoints.test.ts`               | every Service that selects pods has a ready one behind it                                                                     | the API server           |
-| `health/certificates/ready.test.ts`               | every Certificate is Ready (the two wildcards)                                                                                | the API server           |
-| `health/secrets/synced.test.ts`                   | every InfisicalSecret syncs from its folder                                                                                   | the API server           |
-| `health/volumes/bound.test.ts`                    | every PersistentVolume is Bound and `Retain`                                                                                  | the API server           |
-| `admission/app-deployer-ownership/policy.test.ts` | the ownership policy's cases, admitted and denied, as an app's identity, its InfisicalSecrets included                        | k3d, in the upgrade test |
-| `admission/host-access/policy.test.ts`            | only kube-system and the two named telemetry agents may touch the host                                                        | k3d, in the upgrade test |
-| `host/`                                           | sshd takes keys alone, the nft guard, unattended-upgrades, Secret encryption, the Pod Security default                        | the node, as root        |
+| Specs                                             | Proves                                                                                                                                 | Runs from                |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| `api/routes/public.spec.ts`                       | every public route answers its contract through the tunnel, a redirect its `Location`                                                  | either vantage           |
+| `api/routes/private.spec.ts`                      | every tailnet-only route answers its contract                                                                                          | the tailnet              |
+| `api/certificates/{public,private}`               | every host presents a trusted certificate that covers it, 15 days or more from expiry                                                  | the host's vantage       |
+| `api/boundary/internet.spec.ts`                   | a private host never answers, and a public host refuses a request naming a private one                                                 | the internet only        |
+| `cluster/rbac/secrets.test.ts`                    | exactly the allow-listed service accounts may list Secrets cluster-wide                                                                | the API server           |
+| `cluster/rbac/github-actions.test.ts`             | the app deployers may create namespaces, and neither list Secrets nor exec anywhere                                                    | the API server           |
+| `cluster/traefik/service.test.ts`                 | no Service holds a nodePort, and Traefik admits `100.64.0.0/10` alone                                                                  | the API server           |
+| `cluster/traefik/entrypoints.test.ts`             | every route sits on `tunnel` or `websecure` alone, no private host on the tunnel, a route published exactly when public                | the API server           |
+| `cluster/namespaces/ownership.test.ts`            | every namespace states its tier; a platform one is `platform-*`, an app one `<app>-<env>`, or `<app>` when shared, with its repository | the API server           |
+| `cluster/network-policies/`                       | every NetworkPolicy selects pods some controller creates, and every peer it names exists                                               | the API server           |
+| `health/workloads/ready.test.ts`                  | every controller runs as many ready pods as it asks for, and every CronJob's last run succeeded                                        | the API server           |
+| `health/services/endpoints.test.ts`               | every Service that selects pods has a ready one behind it                                                                              | the API server           |
+| `health/certificates/ready.test.ts`               | every Certificate is Ready (the two wildcards)                                                                                         | the API server           |
+| `health/secrets/synced.test.ts`                   | every InfisicalSecret syncs from its folder                                                                                            | the API server           |
+| `health/volumes/bound.test.ts`                    | every PersistentVolume is Bound and `Retain`                                                                                           | the API server           |
+| `admission/app-deployer-ownership/policy.test.ts` | the ownership policy's cases, admitted and denied, as an app's identity, its InfisicalSecrets included                                 | k3d, in the upgrade test |
+| `admission/host-access/policy.test.ts`            | only kube-system and the two named telemetry agents may touch the host                                                                 | k3d, in the upgrade test |
+| `host/`                                           | sshd takes keys alone, the nft guard, unattended-upgrades, Secret encryption, the Pod Security default                                 | the node, as root        |
 
 A status outside the annotated set fails (a 502, a 503 and `unreachable` never
 are in it), and so does a certificate within 15 days of expiry: cert-manager
