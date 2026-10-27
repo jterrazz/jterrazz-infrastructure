@@ -15,6 +15,21 @@ tests:
           path: metadata.annotations["helm.sh/resource-policy"]
           value: keep
 
+  - it: labels a platform namespace tier platform, owned by no repository
+    # invariant: `serves: [all]` and the collector admit `tier=app`, and the ownership policy
+    # lets an app write only where its repository label stands (ADR-029).
+    documentSelector:
+      path: metadata.name
+      value: platform-telemetry
+    asserts:
+      - isKind:
+          of: Namespace
+      - equal:
+          path: metadata.labels["studio.jterrazz.com/tier"]
+          value: platform
+      - notExists:
+          path: metadata.labels["studio.jterrazz.com/repository"]
+
   - it: lets an isolated datastore's neighbours reach it, never it reach them
     # invariant: same-namespace ingress for analytics, but no namespace-wide egress beyond DNS,
     # which would union with op-postgres' isolated policy and let it dial out.
