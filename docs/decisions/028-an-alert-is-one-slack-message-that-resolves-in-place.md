@@ -1,6 +1,6 @@
 # ADR-028: An alert is one Slack message that resolves in place
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-25
 
 ## Context

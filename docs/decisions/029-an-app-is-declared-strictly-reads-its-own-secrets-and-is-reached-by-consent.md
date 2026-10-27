@@ -1,6 +1,6 @@
 # ADR-029: An app is declared strictly, reads its own secrets, and is reached by consent
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-27
 
 ## Context

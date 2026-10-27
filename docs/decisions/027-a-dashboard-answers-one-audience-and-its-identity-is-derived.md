@@ -1,6 +1,6 @@
 # ADR-027: A dashboard answers one audience, and its identity is derived
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-25
 
 Revised 2026-10-26: what this repository runs is owned by `studio-infrastructure`, the
