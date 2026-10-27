@@ -49,8 +49,15 @@
         "shared"
       ]
     },
+    "deploy": {
+      "description": "A shared app's: what deploys it, read by app CI alone: push (a push to main) or release (a v* tag).",
+      "enum": [
+        "push",
+        "release"
+      ]
+    },
     "branch": {
-      "description": "A shared app's: which push deploys it, read by app CI alone.",
+      "description": "Retired for `deploy`; accepted until every app has moved (7.0.0 removes it).",
       "type": "string"
     },
     "environment": {
@@ -85,8 +92,17 @@
     ]
   },
   "then": {
-    "required": [
-      "branch"
+    "anyOf": [
+      {
+        "required": [
+          "deploy"
+        ]
+      },
+      {
+        "required": [
+          "branch"
+        ]
+      }
     ],
     "properties": {
       "environments": {
@@ -96,6 +112,7 @@
   },
   "else": {
     "properties": {
+      "deploy": false,
       "branch": false,
       "environments": {
         "minProperties": 1
@@ -483,7 +500,7 @@
       }
     },
     "environment": {
-      "description": "A partial spec, merged over `spec`, plus the branch CI deploys it from.",
+      "description": "A partial spec, merged over `spec`, plus what deploys it.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -553,8 +570,15 @@
         "health": {
           "$ref": "#/definitions/spec/properties/health"
         },
+        "deploy": {
+          "description": "Read by app CI alone: push deploys on a push to main, release on a v* tag, with that tag's image.",
+          "enum": [
+            "push",
+            "release"
+          ]
+        },
         "branch": {
-          "description": "Read by app CI alone: main deploys on a push to main, next on a version tag, anything else is an image tag a dispatch pins.",
+          "description": "Retired for `deploy`; accepted until every app has moved (7.0.0 removes it).",
           "type": "string"
         }
       }

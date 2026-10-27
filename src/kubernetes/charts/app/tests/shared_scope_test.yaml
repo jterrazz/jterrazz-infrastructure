@@ -5,7 +5,7 @@ values:
   - ../ci/test-values.yaml
 set:
   scope: shared
-  branch: main
+  deploy: push
   environment: shared
   environments: null
 tests:

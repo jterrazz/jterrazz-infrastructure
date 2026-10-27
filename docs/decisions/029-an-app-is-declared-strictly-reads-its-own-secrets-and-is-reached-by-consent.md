@@ -3,6 +3,9 @@
 **Status:** Accepted
 **Date:** 2026-10-27
 
+Revised 2026-10-27: `branch` (`main`, `next`, or an image tag a dispatch pins) is
+`deploy`, `push` or `release`; no app pinned an image tag, so that form went.
+
 ## Context
 
 App chart 5.x accepted any key an `application.yaml` wrote and ignored the
@@ -39,8 +42,9 @@ the namespace's name.
    releases only, which the admin identity deploys and the policy never judges
    (OpenPanel's four share `/studio-infrastructure/openpanel`); an app's CI
    identity is refused anything but `/<app>`.
-4. **An environment names its `branch`**: `environments.<env>.branch`
-   (`main`, `next`, or an image tag a dispatch pins), read by app CI alone.
+4. **An environment names what deploys it**: `environments.<env>.deploy`,
+   `push` (every push to main) or `release` (a `v*` tag, with that tag's
+   image), read by app CI alone.
 5. **No environment reads another's secrets**: `secretsEnv` is gone; an app
    InfisicalSecret's `envSlug` is the release's environment, which the
    ownership policy enforces against the namespace's
@@ -61,8 +65,8 @@ the namespace's name.
 8. **The dead re-checks behind the catalog accessor go.**
 9. **`scope: shared`** declares an app every environment calls: one release,
    environment `shared`, namespace and volume `<app>`, prod's secrets, the
-   dashboards and alert rules a prod release carries, deployed from the root
-   `branch`. studio-intelligence and studio-alerts are shared.
+   dashboards and alert rules a prod release carries, deployed as its root
+   `deploy` says. studio-intelligence and studio-alerts are shared.
 10. **Access is a consent from both sides**: a consumer `uses` a capability
     (`telemetry`, `intelligence`), which injects its env and opens egress to
     its provider; the provider `serves` named apps, or `all`, admitted by

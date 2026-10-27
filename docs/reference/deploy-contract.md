@@ -10,9 +10,10 @@ here; the workflows that execute the contract are
   app chart renders: port, resources, ingress, storage, secrets, per
   environment. The schema, its merge semantics, `uses`/`serves` and storage
   are [src/kubernetes/charts/app/README.md](../../src/kubernetes/charts/app/README.md).
-- **`branch:` on every environment** (`main`, `next`), or at the root of a
-  shared app. Without it the workflow takes a legacy branch that deploys
-  "staging" and leaves prod silently stale.
+- **`deploy:` on every environment**, or at the root of a shared app:
+  `push` deploys it on every push to main and on the weekly rebuild,
+  `release` on a `v*` tag, with the image built for that tag. The workflow
+  refuses an environment that names neither, so nothing deploys by default.
 - **One universal CI interface**: `make build`, `make lint`, `make test`,
   whatever the toolchain.
 - **Dashboards named by their kind**, `.infrastructure/dashboards/service.json`

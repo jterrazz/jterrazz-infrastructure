@@ -34,7 +34,7 @@ spec:
 
 environments:
   prod:
-    branch: main
+    deploy: push
     ingress:
       - host: my-app.jterrazz.com
         public: true

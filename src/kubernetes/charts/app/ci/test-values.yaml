@@ -155,11 +155,11 @@ spec:
 
 environments:
   prod:
-    branch: main
+    deploy: release
     replicas: 1
   # invariant: THE DATASTORE SHAPE: the other arm of every switch prod takes.
   staging:
-    branch: main
+    deploy: push
     replicas: 1
     runAsRoot: true
     resources:

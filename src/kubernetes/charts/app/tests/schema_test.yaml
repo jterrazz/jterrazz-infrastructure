@@ -65,27 +65,34 @@ tests:
       - failedTemplate:
           errorPattern: "at '/apiVersion': value must be 'studio.jterrazz.com/v1'"
 
-  - it: refuses a root branch on a per-environment app, whose branches are per environment
+  - it: refuses a root deploy on a per-environment app, which each environment names
     set:
-      branch: main
+      deploy: push
     asserts:
       - failedTemplate:
-          errorPattern: "at '/branch': false schema"
+          errorPattern: "at '/deploy': false schema"
+
+  - it: refuses a deploy other than push or release
+    set:
+      environments.prod.deploy: main
+    asserts:
+      - failedTemplate:
+          errorPattern: "at '/environments/prod/deploy': value must be one of 'push', 'release'"
 
   - it: refuses environments on a shared app
     set:
       scope: shared
-      branch: main
+      deploy: push
       environment: shared
     asserts:
       - failedTemplate:
           errorPattern: "at '/environments': maxProperties: got 2, want 0"
 
-  - it: refuses a shared app that names no branch to deploy from
+  - it: refuses a shared app that names nothing to deploy it
     set:
       scope: shared
       environment: shared
       environments: null
     asserts:
       - failedTemplate:
-          errorPattern: "at '': missing property 'branch'"
+          errorPattern: "missing property 'deploy'"

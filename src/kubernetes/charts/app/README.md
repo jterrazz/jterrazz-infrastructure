@@ -73,13 +73,13 @@ spec:
 
 environments:
   prod:
-    branch: main # app CI deploys this environment on a push to main
+    deploy: release # app CI deploys this environment on a v* tag, with that tag's image
     replicas: 1
-  next:
-    branch: next # ...and this one on a version tag
+  staging:
+    deploy: push # ...and this one on every push to main
     resources: { memory: 512Mi }
     ingress:
-      - host: my-app-next.staging.jterrazz.com
+      - host: my-app.staging.jterrazz.com
         path: /
         public: false
 ```
@@ -115,10 +115,11 @@ gated on `environment` existing as a key under `environments:` (or being
 `shared`, for a shared app), and a typo'd `--set environment=prd` produces an
 empty release, not an error.
 
-`environments.<env>.branch` is read by app CI alone
-(`studio-actions/.github/workflows/release-docker.yaml`): `main` deploys the
-environment on a push to main, `next` on a version tag, anything else is an
-image tag a manual dispatch pins.
+`environments.<env>.deploy` is read by app CI alone
+(`studio-actions/.github/workflows/release-docker.yaml`): `push` deploys the
+environment on every push to main (and the weekly rebuild), `release` on a
+`v*` tag, with the image built for that tag. CI refuses an environment that
+names neither, so nothing deploys by default.
 
 ## `scope: shared`: one release for every environment
 
@@ -128,7 +129,7 @@ root:
 
 ```yaml
 scope: shared
-branch: main # which push deploys it; a shared app has no `environments`
+deploy: push # what deploys it; a shared app has no `environments`
 spec: ...
 ```
 
@@ -137,7 +138,7 @@ volume is `<app>-data` at `/var/lib/k8s-data/<app>`, it reads Infisical's
 `prod` env (it serves prod too), its telemetry says
 `deployment.environment=shared`, and it carries the dashboards and alert rules
 a prod release would, their workload link on namespace `<app>`. The schema
-refuses `environments` beside `scope: shared`, and a root `branch` without it.
+refuses `environments` beside `scope: shared`, and a root `deploy` without it.
 
 ## Fields
 
