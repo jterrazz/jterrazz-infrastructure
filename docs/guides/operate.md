@@ -293,3 +293,18 @@ upstream chart, else the app chart; a raw manifest is the last resort.
 6. **Secrets**: `secrets: { path, secretName }` in `service.yaml` for a name a
    chart reads literally, `spec.secrets` for env vars.
 7. `make check`, then merge: `deploy-platform.yaml` deploys it.
+
+## Remove a public route
+
+external-dns runs `upsert-only` ([ADR-026](../decisions/026-a-public-route-is-published-by-its-ingressroute.md)):
+it publishes a public route's record and never deletes one, so a route
+removed from an `ingress` list or an app retired leaves its records behind, a
+CNAME to the tunnel that answers 404. Delete them by hand in the zone, both
+of them:
+
+1. The CNAME `<host>`, proxied, targeting `tunnel.jterrazz.com`.
+2. Its ownership TXT `_externaldns.cname.<host>`, whose content names
+   `external-dns/owner=studio-infrastructure`.
+
+Delete the TXT too: left alone, it keeps claiming the name, and a later route
+on the same host is published over a record external-dns believes it owns.

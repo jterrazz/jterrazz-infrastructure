@@ -55,7 +55,7 @@ public.
   route, 2026-10-25). A host in a zone the records token cannot edit fails in
   external-dns's log, not in the app's deploy.
 - A route removed leaves an orphan CNAME to delete by hand
-  ([Operate](../guides/operate.md)).
+  ([Operate](../guides/operate.md#remove-a-public-route)).
 - The platform contract checks the split directly: every IngressRoute sits on
   exactly one of `tunnel` and `websecure`, no private-zone host is on `tunnel`,
   no tunnel route has TLS, and a route is published exactly when it is on the
