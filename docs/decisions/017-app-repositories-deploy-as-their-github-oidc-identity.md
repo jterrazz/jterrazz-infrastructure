@@ -3,6 +3,10 @@
 **Status:** Accepted
 **Date:** 2026-10-24
 
+Revised 2026-10-27: the ownership label is `studio.jterrazz.com/repository`; the policy
+also holds an app namespace to the app its labels state and that app to the repository,
+and an app's InfisicalSecret to `/<app>` in its own environment ([ADR-029](029-an-app-is-declared-strictly-reads-its-own-secrets-and-is-reached-by-consent.md)).
+
 Written 2026-10-24 from the comments in `src/kubernetes/cluster/app-deployers/`,
 `group_vars` and the k3s authentication template (commits 4584007 and
 f244821) that this record summarises; the authentication template keeps its

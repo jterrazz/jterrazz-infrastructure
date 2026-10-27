@@ -7,6 +7,9 @@ Revised 2026-10-25: the gateway variable is `STUDIO_INTELLIGENCE_BASE_URL`.
 Revised 2026-10-26: the substrate brand is `studio` (studio-os ADR-012), so
 `jterrazz-intelligence` is `studio-intelligence`, the alert relay is
 `studio-alerts`, and `os` is `studio-console`; the variable keeps its name.
+Revised 2026-10-27: every label is under `studio.jterrazz.com/`, an app every environment
+calls lives in one namespace `<app>` (`scope: shared`), and an app is named after its
+repository unless the ownership policy pairs them ([ADR-029](029-an-app-is-declared-strictly-reads-its-own-secrets-and-is-reached-by-consent.md)).
 
 ## Context
 

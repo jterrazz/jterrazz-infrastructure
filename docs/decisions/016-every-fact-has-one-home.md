@@ -3,6 +3,9 @@
 **Status:** Accepted
 **Date:** 2026-10-24
 
+Revised 2026-10-27: the smoke annotations are `studio.jterrazz.com/smoke-*` and the
+repository stamp `studio.jterrazz.com/repository` ([ADR-029](029-an-app-is-declared-strictly-reads-its-own-secrets-and-is-reached-by-consent.md)).
+
 Written 2026-10-24 from the comments in the charts, `group_vars`,
 `validate.yaml` and the `Makefile` that this record replaces (discovery
 landed on 2026-08-30 in c64340d and 74a0144; `assert-sync.py` was deleted

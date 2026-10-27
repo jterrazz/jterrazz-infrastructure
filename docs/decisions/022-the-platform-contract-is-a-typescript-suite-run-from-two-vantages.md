@@ -5,6 +5,7 @@
 
 Revised 2026-10-25: `specs/specs/health` joined the suite, and the
 `private_hostnames` inventory left with the list.
+Revised 2026-10-27: the annotations it reads are `studio.jterrazz.com/smoke-*` ([ADR-029](029-an-app-is-declared-strictly-reads-its-own-secrets-and-is-reached-by-consent.md)).
 
 ## Context
 
