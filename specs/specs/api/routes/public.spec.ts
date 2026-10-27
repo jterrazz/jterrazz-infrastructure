@@ -5,7 +5,7 @@ import { contractGolden, exchange } from './__setup__/exchange.ts';
 
 describe('public', () => {
     test.each(publicRoutes)(
-        '$host$probe.path answers its contract ($origin, $contract)',
+        '$host answers $probe.method $probe.path as its contract says ($origin, $contract)',
         async (route) => {
             // Given - a public route, asked what its studio.jterrazz.com/smoke-* annotations say, through the Cloudflare tunnel
             const result = await exchange(api, route);

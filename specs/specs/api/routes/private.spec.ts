@@ -5,7 +5,7 @@ import { contractGolden, exchange } from './__setup__/exchange.ts';
 
 describe('private', () => {
     test.each(privateRoutes)(
-        '$host$probe.path answers its contract from the tailnet ($origin, $contract)',
+        '$host answers $probe.method $probe.path as its contract says, from the tailnet ($origin, $contract)',
         async (route) => {
             // Given - a tailnet-only route, asked what its studio.jterrazz.com/smoke-* annotations say, from a machine on the tailnet
             const result = await exchange(api, route);

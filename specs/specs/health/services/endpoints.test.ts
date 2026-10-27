@@ -4,7 +4,8 @@ import { kubectlList } from '../../__setup__/kubectl.ts';
 import type { KubeObject } from '../../__setup__/kubectl.ts';
 
 type Service = KubeObject & { spec: { selector?: Record<string, string> } };
-type Slice = KubeObject & { endpoints?: { conditions?: { ready?: boolean } }[] };
+// outside: the API server writes `endpoints: null`, not an empty list, on a slice with no pod behind it.
+type Slice = KubeObject & { endpoints?: null | { conditions?: { ready?: boolean } }[] };
 
 const SERVICE_NAME = 'kubernetes.io/service-name';
 
@@ -17,8 +18,8 @@ describe('endpoints', () => {
         ]);
         const served = new Set(
             slices.items
-                .filter(({ endpoints = [] }) =>
-                    endpoints.some(({ conditions }) => conditions?.ready === true),
+                .filter(({ endpoints }) =>
+                    (endpoints ?? []).some(({ conditions }) => conditions?.ready === true),
                 )
                 .map(
                     ({ metadata }) =>
