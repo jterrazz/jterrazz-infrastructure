@@ -27,8 +27,9 @@ operator.
 
 `studio-ci` is a project of its own because CI reads it over GitHub OIDC:
 the machine identity `github-actions` (subject
-`repo:jterrazz@18480834/*:ref:refs/heads/main`, audience
-`https://github.com/jterrazz`) is a Viewer of that project and of nothing else.
+`repo:jterrazz@18480834/*:ref:refs/{heads/main,tags/v*}`, main and the `v*` tag a
+`deploy: release` environment ships from; audience `https://github.com/jterrazz`)
+is a Viewer of that project and of nothing else.
 
 ## Synced into the cluster
 

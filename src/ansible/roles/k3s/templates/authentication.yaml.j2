@@ -2,7 +2,7 @@
 #
 # invariant: GitHub Actions' OIDC token is a Kubernetes identity. A workflow of
 # `jterrazz/<repo>` running on `main` or on a `v*` tag (release-docker deploys
-# the environments tagged `next` from one), asking for audience
+# the `deploy: release` environments from one), asking for audience
 # `{{ k3s_oidc_audience }}`, authenticates as user `github:jterrazz/<repo>` in
 # group `github-actions:jterrazz`, with no stored credential anywhere: the
 # token is minted per job and expires with it. What that identity may do is
