@@ -21,7 +21,9 @@ args=(
     --client-id="${TS_CLIENT_ID}"
     --client-secret="${TS_CLIENT_SECRET}"
     --hostname="{{ inventory_hostname | regex_replace('[^a-zA-Z0-9-]', '-') }}"
-    --advertise-tags="tag:ci"
+    # invariant: the role the tailnet policy grants: admins reach it, CI on 22/443/6443,
+    # it initiates nothing. The OAuth client may mint this tag alone.
+    --advertise-tags="tag:cluster"
     # invariant: the default, spelled out: MagicDNS resolves every *.internal target.
     --accept-dns=true
     # hazard: not the default: since 1.102 the SNAT hides the 100.x source from
