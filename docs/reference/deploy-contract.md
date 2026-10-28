@@ -14,6 +14,10 @@ here; the workflows that execute the contract are
   `push` deploys it on every push to main and on the weekly rebuild,
   `release` on a `v*` tag, with the image built for that tag. The workflow
   refuses an environment that names neither, so nothing deploys by default.
+- **An image that starts the app and nothing else**: distroless, `USER
+  1000:1000`, an exec-form `ENTRYPOINT`, its migration declared as the
+  manifest's `migrate:` ([the Dockerfile standard](dockerfile.md),
+  [ADR-030](../decisions/030-an-image-runs-the-app-and-the-chart-runs-its-startup-task.md)).
 - **One universal CI interface**: `make build`, `make lint`, `make test`,
   whatever the toolchain.
 - **Dashboards named by their kind**, `.infrastructure/dashboards/service.json`
