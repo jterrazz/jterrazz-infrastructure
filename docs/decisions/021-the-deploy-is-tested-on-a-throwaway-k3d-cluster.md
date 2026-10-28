@@ -44,7 +44,7 @@ tree. Each pass ends on the play's own `helm list --failed` assertion.
 
 ## Consequences
 
-- An upgrade-only failure stops the deploy: `deploy-platform.yaml` starts
+- An upgrade-only failure stops the deploy: `deploy.yaml` starts
   only from a successful upgrade test on main, after that commit's Validate.
 - About one k3d cluster's worth of runner time per change to `src/ansible/` or
   `src/kubernetes/`.

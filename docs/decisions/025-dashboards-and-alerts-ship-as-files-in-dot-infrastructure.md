@@ -22,7 +22,7 @@ LogQL against the `loki` uid, and every one failed to parse.
 - **One layout, everywhere.** A repository's dashboards are
   `.infrastructure/dashboards/<name>.json` and its alert rule groups
   `.infrastructure/alerts/<name>.yaml` (Grafana alert provisioning documents).
-  App CI's `docker-deploy` turns each file into a `spec.dashboards` or
+  App CI's `deploy-app` turns each file into a `spec.dashboards` or
   `spec.alerts` entry; this repository's root `.infrastructure/` holds the
   platform's, which `grafana-platform` renders through the platform
   chart's `dashboards` and `alerts`.

@@ -49,13 +49,13 @@ each claim needs.
 - **The node is proven over the deploy's SSH connection** (`specs/specs/host/`):
   sshd's effective config, the nft guard, unattended-upgrades, k3s' secret
   encryption and the Pod Security default, after every platform deploy.
-- **Two vantages.** `smoke.yaml` runs a tailnet job (routes, certificates,
+- **Two vantages.** `watch.yaml` runs a tailnet job (routes, certificates,
   cluster, inventory) and an internet job that never joins the tailnet
   (public routes and the boundary negatives), which probes the IngressRoute
   snapshot the tailnet job took, since the internet cannot reach the
   apiserver.
 - **CI reads the cluster as itself.** The tailnet job builds an OIDC
-  kubeconfig as `docker-deploy` does and reads as user
+  kubeconfig as `connect-cluster` does and reads as user
   `github:jterrazz/studio-infrastructure`, bound to the read-only
   `platform-reader` ClusterRole (`src/kubernetes/charts/cluster/templates/rbac/platform-reader.yaml`);
   the smoke workflow holds no SSH key any more.
@@ -79,5 +79,5 @@ each claim needs.
   `kubectl`, not by `platform-reader`, which may not create pods even in a
   dry run.
 - `specs/` sits outside the content gate's reach and is judged by its own
-  `typescript check` (`make check-specs`, `validate.yaml`); a content root
+  `typescript check` (`make check-specs`, `check.yaml`); a content root
   that could hold a suite member would fold the two gates back into one.

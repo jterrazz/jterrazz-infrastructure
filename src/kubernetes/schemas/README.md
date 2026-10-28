@@ -2,7 +2,7 @@
 
 Overrides for CRD schemas whose copy in the
 [datreeio CRDs-catalog](https://github.com/datreeio/CRDs-catalog) differs from the
-CRD this repo installs. `validate.yaml` tries this directory first, then the core
+CRD this repo installs. `check.yaml` tries this directory first, then the core
 kinds, then the catalog. Vendoring keeps the check that `-ignore-missing-schemas`
 or `-skip` would drop. Layout: `<kind>_<version>.json`, kubeconform's
 `{{.ResourceKind}}_{{.ResourceAPIVersion}}.json`.

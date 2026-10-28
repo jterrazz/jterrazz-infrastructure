@@ -25,13 +25,13 @@ The apiserver trusts GitHub Actions' OIDC issuer directly, and what an
 identity may do is RBAC plus one ValidatingAdmissionPolicy.
 
 - **Identity.** A workflow of `jterrazz/<repo>` on `main` or a `v*` tag
-  (release-docker deploys the `deploy: release` environments from one), asking for
+  (deploy-docker deploys the `deploy: release` environments from one), asking for
   audience `k3s_oidc_audience`, authenticates as user `github:jterrazz/<repo>`
   in group `github-actions:jterrazz`. The token is minted per job and expires
   with it; nothing is stored. The claim rules are the whole trust boundary:
   without the `repository_owner` rule any public repository could mint an
   accepted token, without the ref rule any branch could deploy. The audience
-  is hand-synced with `studio-actions/actions/docker-deploy`.
+  is hand-synced with `studio-actions/actions/connect-cluster`.
 - **RBAC.** Cluster-wide, the group gets `app-deployer` (namespaces
   get/create/update/patch, PersistentVolumes, RoleBindings, and `bind` on
   `app-namespace-admin` only). Inside a namespace, the repository binds

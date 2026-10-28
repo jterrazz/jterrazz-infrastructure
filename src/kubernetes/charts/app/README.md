@@ -2,7 +2,7 @@
 
 Every application in the fleet deploys through this one chart. An app repo
 owns a single file, `.infrastructure/application.yaml`, and the shared CI
-workflow (`jterrazz/studio-actions/.github/workflows/release-docker.yaml`)
+workflow (`jterrazz/studio-actions/.github/workflows/deploy-docker.yaml`)
 runs, in essence:
 
 ```bash
@@ -14,7 +14,7 @@ helm upgrade --install <app>-<env> oci://registry.internal.jterrazz.com/charts/a
   --set meta.repository=<owner>/<repo>
 ```
 
-(The exact invocation lives in `studio-actions/actions/docker-deploy`; the
+(The exact invocation lives in `studio-actions/actions/deploy-app`; the
 three `--set` values above are the contract this chart expects from CI;
 everything else comes from `application.yaml`. No credential is among them: the
 registry pull secret is synced from Infisical, see
@@ -116,7 +116,7 @@ gated on `environment` existing as a key under `environments:` (or being
 empty release, not an error.
 
 `environments.<env>.deploy` is read by app CI alone
-(`studio-actions/.github/workflows/release-docker.yaml`): `push` deploys the
+(`studio-actions/.github/workflows/deploy-docker.yaml`): `push` deploys the
 environment on every push to main (and the weekly rebuild), `release` on a
 `v*` tag, with the image built for that tag. CI refuses an environment that
 names neither, so nothing deploys by default.
@@ -487,7 +487,7 @@ overwrites the identity: uid `<app>-<kind>`, title `<app> / <Kind>`, tags
 `studio-infrastructure / Workload` on `<app>-prod` (`<app>` for a shared app)
 ([ADR-027](../../../../docs/decisions/027-a-dashboard-answers-one-audience-and-its-identity-is-derived.md)).
 
-App CI fills this map for you: `studio-actions/actions/docker-deploy` scans
+App CI fills this map for you: `studio-actions/actions/deploy-app` scans
 `.infrastructure/dashboards/*.json` and appends
 `--set-file spec.dashboards.<basename>=<file>` per file. Dashboards therefore
 never appear in `application.yaml`; dropping a JSON file in that directory is
@@ -502,7 +502,7 @@ Renders **one** ConfigMap `<app>-alerts` labelled `grafana_alert: "1"`, with
 one data key `<name>.yaml` per entry, picked up by Grafana's `sidecar.alerts`
 (`searchNamespace: ALL`, so the app's own namespace is fine).
 
-App CI fills this map the way it fills dashboards: `docker-deploy` scans
+App CI fills this map the way it fills dashboards: `deploy-app` scans
 `.infrastructure/alerts/*.yaml` and appends `--set-file spec.alerts.<basename>=<file>`
 per file, so a rule group is one file beside the dashboards, never inline in
 `application.yaml`. The platform ships its own rules in the same layout, under

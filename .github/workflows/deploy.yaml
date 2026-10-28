@@ -1,21 +1,22 @@
-name: Deploy Platform
+name: Deploy
+run-name: Deploy platform · ${{ github.event_name == 'workflow_run' && format('push · {0}', github.event.workflow_run.display_title) || format('manual run by {0}', github.triggering_actor) }}
 
 # hazard: platform.yml only: the host roles restart sshd and tailscaled under the runner's own
 # session, and creating the VM is orbctl on the Mac.
-# invariant: a push deploys only once its upgrade test passed, and its Validate run with it; the
-# upgrade test's path filter is this workflow's (ADR-021).
+# invariant: a push deploys only once its whole Check passed, its Upgrade test included; the
+# Check's Plan decides whether the change can move the platform at all (ADR-021).
 on:
   workflow_run:
-    workflows: ["Upgrade test"]
+    workflows: ["Check"]
     types: [completed]
     branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
-  # invariant: reads the Validate run of the same commit.
+  # invariant: Plan reads the jobs of the Check run that triggered this one.
   actions: read
-  # invariant: infra-connect joins the tailnet with this job's OIDC token.
+  # invariant: connect-infra joins the tailnet with this job's OIDC token.
   id-token: write
 
 concurrency:
@@ -23,38 +24,52 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Apply platform via Ansible
+  # invariant: a push's Check run applies only when it passed and its Upgrade test ran: a change
+  # that cannot move the platform (docs, scripts alone) skips the test and deploys nothing.
+  plan:
+    name: Plan
     runs-on: ubuntu-26.04-arm
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    outputs:
+      apply: ${{ steps.plan.outputs.apply }}
+    steps:
+      - name: Read the Check run
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "apply=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          upgrade=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/jobs" --jq '.jobs[] | select(.name == "Upgrade test") | .conclusion')
+          echo "Upgrade test: ${upgrade:-absent}"
+          if [ "$upgrade" = "success" ]; then
+            echo "apply=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "apply=false" >> "$GITHUB_OUTPUT"
+            echo "Nothing the platform deploys changed: nothing to apply."
+          fi
+
+  deploy:
+    name: Deploy · platform
+    needs: plan
+    if: needs.plan.outputs.apply == 'true'
+    runs-on: ubuntu-26.04-arm
     # hazard: no `environment:`: it rewrites the OIDC subject, which Tailscale's trust
     # credential (`...:ref:refs/heads/main`) then refuses.
     steps:
-      - name: Require the commit's Validate run to pass
-        if: github.event_name == 'workflow_run'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SHA: ${{ github.event.workflow_run.head_sha }}
-        run: |
-          set -euo pipefail
-          for _ in $(seq 1 60); do
-            run=$(gh run list -R "$GITHUB_REPOSITORY" -w validate.yaml -c "$SHA" -L 1 --json status,conclusion -q '.[0] | "\(.status) \(.conclusion)"')
-            case "$run" in
-              "completed success") exit 0 ;;
-              completed*) echo "::error::Validate concluded '${run#completed }' for $SHA"; exit 1 ;;
-            esac
-            sleep 10
-          done
-          echo "::error::no finished Validate run for $SHA after 10 minutes"; exit 1
-
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Join the tailnet
-        uses: jterrazz/studio-actions/actions/infra-connect@a8c843f6a25b18bcbffc631b090bcd26bbd70451 # main, 2026-10-26
+        uses: jterrazz/studio-actions/actions/connect-infra@4338afaeb793d0f030f89f8b9b0a4615904fdd4f # main, 2026-10-29
 
       - name: Setup Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -112,3 +127,13 @@ jobs:
         if: always()
         run: |
           rm -f "${CI_DEPLOY_KEY_FILE:-}" || true
+
+  # invariant: the platform contract from both vantages, the same jobs Watch runs daily: a deploy
+  # is green only once the platform answers as its contract says (ADR-022).
+  verify:
+    name: Verify
+    needs: deploy
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/watch.yaml

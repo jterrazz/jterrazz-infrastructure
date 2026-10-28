@@ -1,23 +1,64 @@
-name: Validate
+name: Check
 
-# invariant: pushes too, or a direct push reaches deploy-platform.yaml unvalidated (ADR-020).
+# invariant: pushes too, or a direct push reaches deploy.yaml unchecked (ADR-020); Deploy starts
+# from a push's Check run, and applies only when its Upgrade test ran and passed.
 on:
   pull_request:
     branches: [main]
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      base:
+        description: Revision the upgrade test deploys first (default HEAD^; HEAD gives a re-run test)
+        required: false
 
-# value: read-only, so a stale run is cancelled.
+# invariant: a pull request's stale run is cancelled; a push to main never is, since its run is
+# what Deploy starts from: each push's run is a group of its own commit.
 concurrency:
-  group: validate-${{ github.ref }}
-  cancel-in-progress: true
+  group: check-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
 
 jobs:
+  # invariant: the upgrade test runs when the change can move the platform: Ansible, the
+  # Kubernetes sources, .infrastructure/ (the platform's dashboards and alert rules deploy from
+  # there, ADR-025), the specs, or this workflow; a manual run always runs it.
+  plan:
+    name: Plan
+    runs-on: ubuntu-26.04-arm
+    outputs:
+      platform: ${{ steps.changes.outputs.platform }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Read what the change touches
+        id: changes
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          base="${PR_BASE:-${PUSH_BEFORE:-}}"
+          if [ "$EVENT" = "workflow_dispatch" ] || [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            echo "platform=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(git diff --name-only "$base" HEAD)
+          if grep -qE '^(src/ansible/|src/kubernetes/|\.infrastructure/|specs/|\.github/workflows/check\.yaml$)' <<< "$changed"; then
+            echo "platform=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "platform=false" >> "$GITHUB_OUTPUT"
+            echo "Nothing the platform deploys changed: no upgrade test, and Deploy applies nothing."
+          fi
+
   scripts:
-    name: Validate Scripts
+    name: Scripts
     runs-on: ubuntu-26.04-arm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -26,7 +67,7 @@ jobs:
         run: shellcheck src/scripts/*.sh src/scripts/lib/*.sh
 
   docs:
-    name: Validate Docs
+    name: Docs
     runs-on: ubuntu-26.04-arm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -40,7 +81,7 @@ jobs:
         run: make check-docs
 
   specs:
-    name: Validate Specs
+    name: Specs
     runs-on: ubuntu-26.04-arm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -58,7 +99,7 @@ jobs:
         run: npx typescript check
 
   ansible:
-    name: Validate Ansible
+    name: Ansible
     runs-on: ubuntu-26.04-arm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -86,7 +127,7 @@ jobs:
           ansible-playbook playbooks/platform.yml -i inventories/ci.yml --syntax-check
 
   kubernetes:
-    name: Validate Kubernetes
+    name: Kubernetes
     runs-on: ubuntu-26.04-arm
     env:
       # invariant: tried in order: the vendored overrides, the core kinds, the datreeio catalog;
@@ -184,7 +225,7 @@ jobs:
           kubeconform -strict $KUBECONFORM_SCHEMA_ARGS -summary "${manifests[@]}"
 
   secrets:
-    name: Scan for committed secrets
+    name: Secrets
     runs-on: ubuntu-26.04-arm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -205,3 +246,113 @@ jobs:
       # hazard: --no-git: the history holds rotated credentials; this gate stops new ones (ADR-020).
       - name: Scan the working tree
         run: gitleaks detect --source . --no-git --no-banner --redact -v
+
+  # invariant: the real platform.yml on a throwaway k3d cluster, base tree then this one: it proves
+  # releases apply, never that pods start; nothing leaves the runner (ADR-021).
+  upgrade:
+    name: Upgrade test
+    needs: plan
+    if: needs.plan.outputs.platform == 'true'
+    runs-on: ubuntu-26.04-arm
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Check out the base tree
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          DISPATCH_BASE: ${{ inputs.base }}
+        run: |
+          set -euo pipefail
+          base="${DISPATCH_BASE:-${PR_BASE:-${PUSH_BEFORE:-}}}"
+          base=$(git rev-parse "$base" 2>/dev/null || echo "$base")
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            base=$(git rev-parse HEAD^)
+          fi
+          echo "base: $base"
+          git worktree add "$RUNNER_TEMP/base" "$base"
+          ansible_dir="$RUNNER_TEMP/base/src/ansible"
+          echo "BASE_ANSIBLE=$ansible_dir" >> "$GITHUB_ENV"
+          # invariant: the base may predate the k3d inventory; group_vars stay each tree's own.
+          cp src/ansible/inventories/k3d.yml "$ansible_dir/inventories/k3d.yml"
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+
+      # invariant: the play's k8s modules run here, on the node's python3-kubernetes version.
+      - name: Install Ansible, its collections and the node's k8s client library
+        run: |
+          pip install -r src/ansible/requirements.txt kubernetes==30.1.0
+          ansible-galaxy collection install -r src/ansible/requirements.yml
+
+      - name: Create the k3d cluster at the production k3s version
+        run: |
+          set -euo pipefail
+          K3D_VERSION=v5.9.0
+          curl -sSfL "https://raw.githubusercontent.com/k3d-io/k3d/${K3D_VERSION}/install.sh" | TAG="${K3D_VERSION}" bash
+          k3s=$(yq '.k3s_version' src/ansible/inventories/group_vars/all/versions.yml | tr '+' '-')
+          k3d cluster create ci --image "rancher/k3s:$k3s" \
+            --k3s-arg "--disable=local-storage@server:0" --wait
+          k3d kubeconfig get ci > "$RUNNER_TEMP/kubeconfig"
+          chmod 644 "$RUNNER_TEMP/kubeconfig"
+          kubectl --kubeconfig "$RUNNER_TEMP/kubeconfig" get nodes
+
+      - name: Write the dummy deploy variables
+        run: |
+          cat > "$RUNNER_TEMP/k3d-vars.yml" <<EOF
+          kubeconfig: $RUNNER_TEMP/kubeconfig
+          platform_helm_wait: false
+          tailscale_ip: 127.0.0.1
+          tailscale_dns_hostname: k3d.invalid
+          cloudflare_dns01_token: ci-dummy
+          cloudflare_records_token: ci-dummy
+          # outside: the name a base tree before ADR-026 reads; drop it once that base is gone.
+          cloudflare_api_token: ci-dummy
+          cloudflare_tunnel_token: ci-dummy
+          registry_username: ci
+          registry_password: ci-dummy
+          registry_pull_username: kubelet
+          registry_pull_password: ci-dummy
+          grafana_admin_password: ci-dummy
+          infisical_client_id: ci-dummy
+          infisical_client_secret: ci-dummy
+          EOF
+
+      - name: Deploy the base tree
+        working-directory: ${{ env.BASE_ANSIBLE }}
+        run: >-
+          ansible-playbook playbooks/platform.yml -i inventories/k3d.yml
+          -e "@$RUNNER_TEMP/k3d-vars.yml" --skip-tags cloudflare,publish
+
+      - name: Upgrade to this tree
+        working-directory: src/ansible
+        run: >-
+          ansible-playbook playbooks/platform.yml -i inventories/k3d.yml
+          -e "@$RUNNER_TEMP/k3d-vars.yml" --skip-tags cloudflare,publish
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+
+      - name: Install the specs project
+        working-directory: specs
+        run: npm ci
+
+      # invariant: impersonating app identities needs an admin kubeconfig, so the admission
+      # specs run here and never on the live cluster.
+      - name: Cluster and admission contract
+        working-directory: specs
+        env:
+          KUBECONFIG: ${{ runner.temp }}/kubeconfig
+        run: npx vitest --run specs/cluster specs/admission
+
+      - name: What the cluster holds
+        if: always()
+        run: |
+          export KUBECONFIG="$RUNNER_TEMP/kubeconfig"
+          sudo -E helm list -A || true
+          kubectl get pods -A -o wide || true

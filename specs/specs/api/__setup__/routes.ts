@@ -47,7 +47,7 @@ export async function discoverRoutes(): Promise<Route[]> {
 }
 
 // invariant: INGRESSROUTES_FILE is a `kubectl get ingressroutes -o json` taken elsewhere: the internet
-// vantage cannot reach the apiserver, so it probes the snapshot the tailnet job took (smoke.yaml).
+// vantage cannot reach the apiserver, so it probes the snapshot the tailnet job took (watch.yaml).
 async function listIngressRoutes(): Promise<KubeList<IngressRoute>> {
     const snapshot = process.env.INGRESSROUTES_FILE ?? '';
     if (snapshot === '') {

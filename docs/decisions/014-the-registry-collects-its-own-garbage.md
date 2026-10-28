@@ -24,7 +24,7 @@ boot), a re-verified dry run before every image bump, and an alert for when
 the job stopped. Four workarounds for one missing feature.
 
 Since 2026-10-24 every app deploys **by digest** (studio-actions
-docker-deploy), so a running workload references a manifest that may no longer
+deploy-app), so a running workload references a manifest that may no longer
 carry a tag.
 
 ## Decision

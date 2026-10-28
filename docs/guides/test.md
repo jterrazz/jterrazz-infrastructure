@@ -8,7 +8,7 @@ two vantages. The workflows that carry them are [CI](../reference/ci.md).
 
 ## The tree-side checks
 
-`make check` (alias `make lint`) is the local form of `validate.yaml`:
+`make check` (alias `make lint`) is the local form of `check.yaml`'s tree-side jobs:
 
 | Check                                                                     | Proves                                                                                           |
 | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
@@ -48,7 +48,7 @@ suites pin the whole render, and a failing snapshot is read before
 
 ## The upgrade test runs the deploy itself
 
-`upgrade-test.yaml` creates a k3d cluster at the production k3s version and
+The Upgrade test (a job of `check.yaml`) creates a k3d cluster at the production k3s version and
 runs the real `platform.yml` twice: from the base tree (the pull request's
 base, the commit before a push, or a dispatched `base`; `HEAD` tests a re-run),
 then from this one. It proves every release applies on top of the previous
@@ -101,15 +101,15 @@ renews at 30, so 15 means renewal has failed for two weeks.
 
 ### The two vantages
 
-- **The tailnet** (`smoke.yaml`'s first job): routes and certificates of both
+- **The tailnet** (`watch.yaml`'s first job): routes and certificates of both
   scopes, `specs/specs/cluster` and `specs/specs/health`, reading the cluster as
   `github:jterrazz/studio-infrastructure` through the read-only
   `platform-reader` role. It snapshots the IngressRoutes for the second job.
 - **The internet** (the second job, never on the tailnet): the public routes
   and `api/boundary`, against that snapshot.
 
-The host specs run from `deploy-platform.yaml` after the play, over its SSH
-connection. `smoke.yaml` runs after every successful platform deploy, every day at
+The host specs run from `deploy.yaml` after the play, over its SSH
+connection. `watch.yaml` runs as every platform deploy's Verify, every day at
 07:17 UTC, and on demand; Grafana's alerts watch in between.
 
 ### Running it from the Mac

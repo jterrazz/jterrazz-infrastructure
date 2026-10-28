@@ -80,5 +80,5 @@ node, and `make diff` reads it from the Mac.
   which is why the `-platform` suffix is frozen.
 - CI renders the whole file on every change, so a bad version or a dangling
   `needs:` fails before a deploy rather than halfway through one.
-- `deploy-platform.yaml` runs the same play, so it never assumes the host
+- `deploy.yaml` runs the same play, so it never assumes the host
   layer ran in the same invocation.

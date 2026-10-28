@@ -8,7 +8,7 @@ Written 2026-10-24 from the comments in `.github/workflows/validate.yaml`,
 
 ## Context
 
-A push to main can deploy (`deploy-platform.yaml`), so whatever reaches main
+A push to main can deploy (`deploy.yaml`), so whatever reaches main
 unvalidated reaches the cluster. The checks themselves run on hosted runners
 whose images drift, against third-party schema catalogs that lag, with tools
 downloaded at run time. A gate that skips what it cannot check, or that runs
@@ -17,10 +17,10 @@ anything.
 
 ## Decision
 
-`validate.yaml` runs on pull requests AND on every push to main (a direct
+`check.yaml` runs on pull requests AND on every push to main (a direct
 push or an admin bypass would otherwise deploy unvalidated), cancels a stale
-run of the same ref (it is read-only; the deploy workflows never cancel), and
-follows four rules.
+run of a pull request (a push's run is what Deploy starts from, so it is never
+cancelled; the deploy workflows never cancel either), and follows four rules.
 
 - **Fail on the unknown.** kubeconform tries vendored schemas first
   (`src/kubernetes/schemas/`, overrides for CRDs whose catalog copy lags the

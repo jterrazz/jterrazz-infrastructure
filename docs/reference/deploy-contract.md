@@ -62,7 +62,7 @@ there is no list of apps in it. A repo:
 4. may sync only its own Infisical folder `/<app>`, in its namespace's own
    environment (`prod` for a shared app), or the registry pull pair.
 
-`studio-actions/actions/docker-deploy` does the first three before `helm upgrade`,
+`studio-actions/actions/deploy-app` does the first three before `helm upgrade`,
 and deploys the image by digest. The environments stay the app's choice, in
 its own manifest. One residual risk is written down in the policy: nothing
 owns a hostname, so a repo could declare a route or certificate for any name

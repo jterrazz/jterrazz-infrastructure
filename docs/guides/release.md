@@ -7,10 +7,10 @@ what a change owes before it is merged is [Develop](develop.md#before-you-commit
 
 ## The platform
 
-A merge to main deploys itself: `validate.yaml` and `upgrade-test.yaml` run
-on the push, and `deploy-platform.yaml` starts only once the upgrade test
-passed and that commit's Validate did too. It runs `platform.yml` over the
-tailnet, then `smoke.yaml` probes the result from both vantages. A change that
+A merge to main deploys itself: `check.yaml` runs on the push, its Upgrade
+test included, and `deploy.yaml` starts only once that whole Check passed. It
+runs `platform.yml` over the tailnet, then its Verify runs the jobs of
+`watch.yaml`, which probe the result from both vantages. A change that
 touches neither `src/ansible/` nor `src/kubernetes/` (the manual, a workflow,
 the specs alone) merges and deploys nothing.
 

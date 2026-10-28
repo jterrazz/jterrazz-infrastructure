@@ -6,7 +6,7 @@
 VM_NAME := studio-infrastructure
 KUBECONFIG_FILE := kubeconfig.yaml
 NODE_FQDN := $(shell awk '/ansible_host:/ {print $$2; exit}' src/ansible/inventories/ci.yml)
-# invariant: snapshots reproduce only against the helm-unittest that wrote them; validate.yaml
+# invariant: snapshots reproduce only against the helm-unittest that wrote them; check.yaml
 # reads this pin through `make print-helm-unittest-version`.
 HELM_UNITTEST_VERSION := v1.2.1
 
@@ -74,7 +74,7 @@ check-tools: ## Check the required tools are installed
 	done
 
 # invariant: a missing tool fails; actionlint, helm-unittest and node are soft skips only
-# because validate.yaml runs them unconditionally.
+# because check.yaml runs them unconditionally.
 check: ## Run the checks CI runs on the tree
 	shellcheck src/scripts/*.sh src/scripts/lib/*.sh
 	ansible-lint -c src/ansible/.ansible-lint src/ansible/

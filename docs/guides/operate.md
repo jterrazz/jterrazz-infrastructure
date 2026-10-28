@@ -244,7 +244,7 @@ control-plane=controller-manager`; no app redeploy is needed.
    Infisical alone. Restart the registry, then list the names again.
 
    ```bash
-   gh workflow run deploy-platform.yaml -R jterrazz/studio-infrastructure   # or make deploy-platform
+   gh workflow run deploy.yaml -R jterrazz/studio-infrastructure   # or make deploy-platform
    kubectl rollout restart deploy/registry -n platform-registry
    ```
 
@@ -292,7 +292,7 @@ upstream chart, else the app chart; a raw manifest is the last resort.
    workload, where a datastore is `isolated: true`. Ports are pod ports.
 6. **Secrets**: `secrets: { path, secretName }` in `service.yaml` for a name a
    chart reads literally, `spec.secrets` for env vars.
-7. `make check`, then merge: `deploy-platform.yaml` deploys it.
+7. `make check`, then merge: `deploy.yaml` deploys it.
 
 ## Remove a public route
 
