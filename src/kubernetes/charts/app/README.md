@@ -159,7 +159,9 @@ Service port and every IngressRoute this chart renders along with it.
 ### `spec.command`, `spec.args`, `spec.strategy`
 
 `command` and `args` override the image's entrypoint, verbatim; unset, the
-image decides. No app in the fleet sets either.
+image decides. No app in the fleet sets either: a startup task is
+[`migrate`](#specmigrate-a-startup-task-outside-the-image), not a wrapped
+`command`.
 
 `strategy` is derived and rarely written: **Recreate whenever storage is
 mounted**, because every volume this chart mounts is an RWO hostPath and two
@@ -168,6 +170,34 @@ default otherwise. Set it explicitly only for a workload that must not run
 twice for a reason storage cannot express: `op-api` runs its database
 migrations on boot, so a rolling update would put two migration runners on one
 database.
+
+### `spec.migrate`: a startup task, outside the image
+
+```yaml
+spec:
+  # the argv, run without a shell: a distroless image has none
+  migrate: ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
+```
+
+`migrate` is the argv of a task that must finish before the app starts, a
+database migration in practice. The chart runs it as the pod's one init
+container, `migrate`: the app's image, env, secrets, volumes, securityContext
+and resources, with the argv as the container's `command`, so it replaces the
+image's `ENTRYPOINT` and never goes through a shell. The app container keeps
+the image's own entrypoint, which therefore starts the app and nothing else
+([the Dockerfile standard](../../../../docs/reference/dockerfile.md)).
+
+It runs once per pod start, so a migration must be idempotent (`prisma migrate
+deploy` is). An empty list (the default) renders no init container; a list
+replaces, so an environment can name its own or opt out with `migrate: []`.
+
+When it fails, the new pod stays in `Init` and is never Ready:
+
+- **a rolling update** (no storage) never cuts over: the old pods keep
+  serving, and the deploy's `helm --wait` times out and rolls the release back;
+- **a Recreate one** (storage, so the old pod is already gone) is down until
+  that same rollback restores the previous image, after the deploy's timeout.
+  The migration's own logs are `kubectl logs <pod> -c migrate`.
 
 ### `spec.resources`
 

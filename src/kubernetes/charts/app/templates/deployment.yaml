@@ -47,6 +47,33 @@ spec:
       imagePullSecrets:
         - name: registry-credentials
       {{- end }}
+      {{- /* invariant: the migration runs as the app runs: same image, env, secrets, volumes and
+             securityContext, as the image's own argv (no shell, so a distroless image works). A
+             failing one holds the new pod in Init, so a rolling update never cuts over and a
+             Recreate one is undone by the deploy's --rollback-on-failure (README.md, spec.migrate). */}}
+      {{- with $spec.migrate }}
+      initContainers:
+        - name: migrate
+          image: {{ include "app.image" $spec }}
+          securityContext:
+            {{- include "app.containerSecurityContext" (dict "ctx" $ "spec" $spec) | nindent 12 }}
+          command:
+            {{- range . }}
+            - {{ . | quote }}
+            {{- end }}
+          env:
+            {{- include "app.containerEnv" (dict "ctx" $ "spec" $spec) | trim | nindent 12 }}
+          {{- if or $storage $spec.configFiles $spec.secretMounts }}
+          volumeMounts:
+            {{- include "app.volumeMounts" (dict "spec" $spec) | trim | nindent 12 }}
+          {{- end }}
+          resources:
+            requests:
+              cpu: {{ $resources.cpu }}
+              memory: {{ $resources.memory }}
+            limits:
+              memory: {{ include "app.memoryLimit" $resources }}
+      {{- end }}
       containers:
         - name: {{ include "app.name" . }}
           image: {{ include "app.image" $spec }}

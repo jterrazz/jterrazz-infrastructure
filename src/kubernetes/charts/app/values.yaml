@@ -14,6 +14,7 @@ spec:
   replicas: 1
   command: []
   args: []
+  migrate: []
   strategy: ""
   resources:
     cpu: 100m

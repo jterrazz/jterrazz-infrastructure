@@ -210,6 +210,14 @@
             "type": "string"
           }
         },
+        "migrate": {
+          "description": "The argv of a startup task (a database migration) run before the app, as an init container of the same image, env and volumes; empty runs none.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
         "strategy": {
           "description": "Derived from storage when empty.",
           "enum": [
@@ -508,6 +516,9 @@
         },
         "args": {
           "$ref": "#/definitions/spec/properties/args"
+        },
+        "migrate": {
+          "$ref": "#/definitions/spec/properties/migrate"
         },
         "strategy": {
           "$ref": "#/definitions/spec/properties/strategy"

@@ -206,6 +206,69 @@ matches the recorded render of the CI fixture:
                   readOnly: true
           imagePullSecrets:
             - name: registry-credentials
+          initContainers:
+            - command:
+                - node
+                - node_modules/prisma/build/index.js
+                - migrate
+                - deploy
+              env:
+                - name: PORT
+                  value: "3000"
+                - name: LOG_LEVEL
+                  value: info
+                - name: OTEL_SERVICE_NAME
+                  value: ci-test-app
+                - name: OTEL_RESOURCE_ATTRIBUTES
+                  value: deployment.environment=prod,deployment.environment.name=prod
+                - name: OTEL_EXPORTER_OTLP_ENDPOINT
+                  value: http://otel-collector.platform-telemetry:4318
+                - name: STUDIO_INTELLIGENCE_BASE_URL
+                  value: http://studio-intelligence.studio-intelligence.svc.cluster.local/v1
+                - name: NODE_OPTIONS
+                  value: --max-old-space-size=384
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      key: DATABASE_URL
+                      name: ci-test-app-secrets
+                - name: API_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      key: API_TOKEN
+                      name: ci-test-app-secrets
+              image: registry.internal.jterrazz.com/ci-test-app:ci
+              name: migrate
+              resources:
+                limits:
+                  memory: 1Gi
+                requests:
+                  cpu: 100m
+                  memory: 512Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  add:
+                    - NET_BIND_SERVICE
+                  drop:
+                    - ALL
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              volumeMounts:
+                - mountPath: /data
+                  name: data
+                - mountPath: /app/ci-test.json
+                  name: config
+                  readOnly: true
+                  subPath: ci-test.json
+                - mountPath: /etc/ci-test/conf.d/ci-test.xml
+                  name: config
+                  readOnly: true
+                  subPath: ci-test.xml
+                - mountPath: /etc/ci-test-files
+                  name: ci-test-app-files
+                  readOnly: true
           securityContext:
             fsGroup: 1000
             runAsGroup: 1000

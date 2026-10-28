@@ -1,0 +1,110 @@
+suite: spec.migrate, the startup task that runs before the app
+# invariant: an init container of the app's own image, env, secrets, volumes and securityContext,
+# run as an argv with no shell, so a distroless image migrates and its CMD stays the app's.
+values:
+  - ../ci/test-values.yaml
+templates:
+  - templates/deployment.yaml
+tests:
+  - it: runs the migration as the one init container, of the app's image, before the app
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.initContainers
+          count: 1
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: migrate
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: registry.internal.jterrazz.com/ci-test-app:ci
+
+  - it: runs the argv as the container's command, so no shell is needed
+    # hazard: `args` would run it through the image's ENTRYPOINT, which starts the app.
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].command
+          value: ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
+      - notExists:
+          path: spec.template.spec.initContainers[0].args
+
+  - it: leaves the app container's command to the image
+    set:
+      spec.command: []
+      spec.args: []
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].command
+      - notExists:
+          path: spec.template.spec.containers[0].args
+
+  - it: reads the app's env and secrets, so it reaches the app's database
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: LOG_LEVEL
+            value: info
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: ci-test-app-secrets
+                key: DATABASE_URL
+
+  - it: mounts the app's volumes, so a SQLite file on /data is the one it migrates
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[0].volumeMounts
+          content:
+            name: data
+            mountPath: /data
+
+  - it: runs under the app's hardened securityContext and resources
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.initContainers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - equal:
+          path: spec.template.spec.initContainers[0].resources.limits.memory
+          value: 1Gi
+
+  - it: renders no init container when an environment's list replaces the base with []
+    set:
+      environment: staging
+    asserts:
+      - notExists:
+          path: spec.template.spec.initContainers
+
+  - it: renders no init container by default
+    set:
+      spec.migrate: []
+    asserts:
+      - notExists:
+          path: spec.template.spec.initContainers
+
+  - it: takes an environment's own migration over the base one
+    set:
+      environments.prod.migrate: ["/app/migrate"]
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].command
+          value: ["/app/migrate"]
+
+  - it: refuses a shell string, which a distroless image cannot run
+    set:
+      spec.migrate: "npx prisma migrate deploy"
+    asserts:
+      - failedTemplate:
+          errorPattern: "at '/spec/migrate'"
+
+  - it: refuses an empty argument
+    set:
+      spec.migrate: [""]
+    asserts:
+      - failedTemplate:
+          errorPattern: "at '/spec/migrate/0'"
