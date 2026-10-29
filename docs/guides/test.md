@@ -14,8 +14,8 @@ two vantages. The workflows that carry them are [CI](../reference/ci.md).
 | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | `shellcheck src/scripts/*.sh src/scripts/lib/*.sh`                        | the shell is not quietly wrong: quoting, unset variables, word splitting                         |
 | `ansible-lint -c src/ansible/.ansible-lint src/ansible/`                  | the whole Ansible tree, roles, templates and inventories                                         |
-| `helm lint` of `common`, then `app` and `platform` against their fixtures | the charts render, and render something                                                          |
-| `helm unittest --strict` on both charts                                   | what the templates computed; `--strict` makes a typo'd assertion an error                        |
+| `helm lint` of `common` and `cluster`, then `app` and `platform` against their fixtures | the charts render, and render something                                                          |
+| `helm unittest --strict` on `app`, `platform` and `cluster`               | what the templates computed; `--strict` makes a typo'd assertion an error                        |
 | `actionlint`                                                              | the workflow files                                                                               |
 | `make check-docs`                                                         | the repository as content: the manual's shape, the Markdown, the comments, the names, no secret  |
 | `make check-specs`                                                        | the specs project against its own toolchain: types, lint, format, `@jterrazz/test`'s conventions |

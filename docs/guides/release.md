@@ -10,9 +10,10 @@ what a change owes before it is merged is [Develop](develop.md#before-you-commit
 A merge to main deploys itself: `check.yaml` runs on the push, its Upgrade
 test included, and `deploy.yaml` starts only once that whole Check passed. It
 runs `platform.yml` over the tailnet, then its Verify runs the jobs of
-`watch.yaml`, which probe the result from both vantages. A change that
-touches neither `src/ansible/` nor `src/kubernetes/` (the manual, a workflow,
-the specs alone) merges and deploys nothing.
+`watch.yaml`, which probe the result from both vantages. A change outside
+the Upgrade test's path filter (the manual, the scripts, a workflow other than
+`check.yaml`) merges and deploys nothing; a change to `specs/` or
+`.infrastructure/` deploys, since the filter names them ([CI](../reference/ci.md)).
 
 From the Mac, `make diff` previews a deploy and `make deploy-platform` runs
 one. The host layer is never deployed by CI: a change under a host role ships

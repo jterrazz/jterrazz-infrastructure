@@ -27,7 +27,7 @@ nothing here is written twice.
 | --------------------------------------------------- | ------------------------------------------------------------ |
 | [deploy-contract](reference/deploy-contract.md)     | What an app repo owes the cluster and what it gets back      |
 | [dockerfile](reference/dockerfile.md)               | The image an app ships: stages, runtime, uid, entrypoint     |
-| [ci](reference/ci.md)                               | The four workflows and what triggers each                    |
+| [ci](reference/ci.md)                               | The three workflows and what triggers each                   |
 | [hand-synced-pairs](reference/hand-synced-pairs.md) | The facts written down twice, each with what catches a drift |
 | [platform-services](reference/platform-services.md) | What runs on the cluster that is not an app                  |
 | [secrets](reference/secrets.md)                     | Every secret: where it lives and who reads it                |

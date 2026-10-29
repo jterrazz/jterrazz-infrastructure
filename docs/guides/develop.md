@@ -9,7 +9,7 @@ in [Operate](operate.md).
 ## Before you commit
 
 `make check` (alias `make lint`) runs what CI runs on the tree: shellcheck,
-ansible-lint, helm lint and helm-unittest on both charts, actionlint, the
+ansible-lint, helm lint and helm-unittest on the charts, actionlint, the
 content check (`make check-docs`) and the specs project's own check
 (`make check-specs`). What each proves, and what CI adds, is [Test](test.md).
 

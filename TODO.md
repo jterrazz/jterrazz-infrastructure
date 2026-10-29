@@ -24,6 +24,3 @@ Work deliberately left for later. Each line says what unblocks it.
   free, same account as DNS and the tunnel). Needs the account and a
   bucket-scoped key in Infisical; the archives are already age-encrypted.
   Ships the nightly dumps above, not the telemetry.
-- **Renovate never ran.** The app is said to be installed, yet no repository
-  has a PR or a dependency dashboard (checked 2026-10-25, six repositories).
-  Check the activation on the Mend side; `renovate.json` validates.

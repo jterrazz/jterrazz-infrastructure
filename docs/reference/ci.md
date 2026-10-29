@@ -9,6 +9,7 @@ them prove is [Test](../guides/test.md).
 | `deploy.yaml` | a successful Check of a push to main whose Upgrade test ran, or manual            | runs `platform.yml` over the tailnet, which also publishes the app chart, then the host specs over the same SSH connection, then Verify: the jobs of `watch.yaml`                                                                                                                                                                |
 | `watch.yaml`  | daily at 07:17 UTC, manual, or called by Deploy as its Verify                     | the platform contract against the live cluster, from the tailnet and from the internet                                                                                                                                                                                                                                          |
 
-A merge deploys only after its checks, and only what the Upgrade test's path filter names; a change
-to the manual, the specs or a workflow merges and stops there. CI never runs
+A merge deploys only after its checks, and only when the Upgrade test's path filter names it
+(`src/ansible/`, `src/kubernetes/`, `.infrastructure/`, `specs/`, `check.yaml`); a change to the
+manual, the scripts or another workflow merges and stops there. CI never runs
 the host layer: that is `make deploy` from the Mac.
