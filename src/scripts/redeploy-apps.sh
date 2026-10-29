@@ -1,5 +1,5 @@
 #!/bin/bash
-# outside: dispatches every app repository's "Build and Deploy" workflow, so a rebuilt cluster
+# outside: dispatches every app repository's Deploy workflow (deploy.yaml), so a rebuilt cluster
 # gets its apps back. The fleet is discovered: each Deployment in a namespace an app owns (label
 # studio.jterrazz.com/repository) names its repository in the annotation of the same key.
 #
@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/common.sh"
 
-WORKFLOW="Build and Deploy"
+WORKFLOW="deploy.yaml"
 # value: builds land on one memory-bound node; without a gap they all start at once.
 STAGGER_SECONDS=20
 read -r -a KUBECTL <<< "${CLUSTER_KUBECTL:-kubectl}"
